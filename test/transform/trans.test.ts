@@ -1153,6 +1153,18 @@ describe("Transform", () => {
         ist(tr.steps.length, 3)
       }))
 
+    it("types node attributes by node type", () => {
+      const tr = new Transform(doc(p("x")))
+      // @ts-expect-error -- `level` must be a number
+      const _bad = () => tr.setBlockTypeUnsafe(1, 1, schema.nodes.heading, { level: "x" })
+      // @ts-expect-error -- unknown attribute
+      const _bad2 = () => tr.setNodeMarkupUnsafe(0, schema.nodes.heading, { lvl: 1 })
+      void _bad
+      void _bad2
+      tr.setBlockTypeUnsafe(1, 1, schema.nodes.heading, (node) => ({ level: node.childCount + 1 }))
+      ist(tr.doc, doc(h2("x")), eq)
+    })
+
     it.effect("is lazy: nothing happens until the effect runs", () =>
       Effect.gen(function*() {
         const tr = new Transform(doc(p("abc")))
