@@ -59,6 +59,29 @@ export const wrap = (x: any): any => {
 /** The core object behind a facade (or the value itself). @internal */
 export const unwrap = (x: any): any => (x !== null && typeof x === "object" && CORE in x) ? x[CORE] : x
 
+/**
+ * Core objects created for user subclasses of facade classes are
+ * instances of core subclasses whose methods call the facade's
+ * overrides. They store the prototype holding the core's own
+ * implementations under `BASE`. @internal
+ */
+export const BASE: unique symbol = Symbol.for("effect-richtext/compat/base") as never
+
+/** Call a core method, bypassing the overrides that delegate to a facade. @internal */
+export const callBase = (core: any, method: string, args: ArrayLike<unknown> = []): any => {
+  const proto = core[BASE]
+  return (proto ? proto[method] : core[method]).apply(core, args)
+}
+
+/** Read a core getter, bypassing the overrides that delegate to a facade. @internal */
+export const getBase = (core: any, prop: string): any => {
+  for (let proto = core[BASE]; proto; proto = Object.getPrototypeOf(proto)) {
+    const desc = Object.getOwnPropertyDescriptor(proto, prop)
+    if (desc) return desc.get ? desc.get.call(core) : desc.value
+  }
+  return core[prop]
+}
+
 /** Whether a value is a facade. @internal */
 export const isFacade = (x: unknown): boolean => x !== null && typeof x === "object" && CORE in x
 

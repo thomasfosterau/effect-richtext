@@ -14,10 +14,13 @@
  */
 import * as Option from "effect/Option"
 import type * as M from "../model.ts"
+import { isModelError } from "../model.ts"
 import * as T from "../transform.ts"
 import { type Mappable, MapResult, StepMap } from "../transform.ts"
 import {
   adopt,
+  BASE,
+  callBase,
   CORE,
   guard,
   link,
@@ -289,28 +292,90 @@ class AdaptedStep extends T.Step {
 /** Base class of the facades for the core's built-in steps. @internal */
 abstract class CoreStep extends Step {
   apply(doc: Node): StepResult {
-    return fromCoreResult(T.applyStep(this[CORE], doc[CORE]))
+    const core = this[CORE]
+    try {
+      return fromCoreResult(callBase(core, "apply", [doc[CORE]]))
+    } catch (e) {
+      if (isModelError(e)) return new StepResult(null, e.message)
+      throw e
+    }
   }
 
   override getMap(): StepMap {
-    return this[CORE].getMap()
+    return callBase(this[CORE], "getMap")
   }
 
   invert(doc: Node): Step {
-    return wrap(guard(() => this[CORE].invert(doc[CORE])))
+    return wrap(guard(() => callBase(this[CORE], "invert", [doc[CORE]])))
   }
 
   map(mapping: Mappable): Step | null {
-    return nullable(this[CORE].map(unwrap(mapping)))
+    return nullable(callBase(this[CORE], "map", [unwrap(mapping)]))
   }
 
   override merge(other: Step): Step | null {
-    return nullable(this[CORE].merge(other[CORE]))
+    return nullable(callBase(this[CORE], "merge", [other[CORE]]))
   }
 
   toJSON(): any {
-    return this[CORE].toJSON()
+    return callBase(this[CORE], "toJSON")
   }
+}
+
+const adaptedClasses = new Map<object, any>()
+
+/**
+ * The core class used for instances of a subclass of a built-in step
+ * facade: a subclass of the core step class whose methods call the
+ * facade's overrides, when it has them. @internal
+ */
+const adaptedStepClass = (CoreClass: any, FacadeClass: any): any => {
+  let found = adaptedClasses.get(CoreClass)
+  if (!found) {
+    const base = FacadeClass.prototype
+    found = class extends CoreClass {
+      declare facade: Step
+      apply(doc: M.Node) {
+        return this.facade.apply === base.apply ? super.apply(doc) : toCoreResult(this.facade.apply(wrap(doc)))
+      }
+      getMap() {
+        return this.facade.getMap === base.getMap ? super.getMap() : this.facade.getMap()
+      }
+      invert(doc: M.Node) {
+        return this.facade.invert === base.invert ? super.invert(doc) : this.facade.invert(wrap(doc))[CORE]
+      }
+      map(mapping: Mappable) {
+        return this.facade.map === base.map
+          ? super.map(mapping)
+          : Option.fromNullishOr(unwrap(this.facade.map(wrap(mapping))))
+      }
+      merge(other: T.Step) {
+        return this.facade.merge === base.merge
+          ? super.merge(other)
+          : Option.fromNullishOr(unwrap(this.facade.merge(wrap(other))))
+      }
+      toJSON() {
+        return this.facade.toJSON === base.toJSON ? super.toJSON() : this.facade.toJSON()
+      }
+    }
+    found.prototype[BASE] = CoreClass.prototype
+    adaptedClasses.set(CoreClass, found)
+  }
+  return found
+}
+
+/** Create the core step for a built-in step facade (or a subclass of one). @internal */
+const coreStep = <C extends T.Step>(
+  facade: Step,
+  target: unknown,
+  FacadeClass: abstract new(...args: Array<any>) => Step,
+  CoreClass: new(...args: Array<any>) => C,
+  args: Array<unknown>
+): C => {
+  if (target === FacadeClass) return new CoreClass(...args)
+  const core = new (adaptedStepClass(CoreClass, FacadeClass))(...args)
+  core.facade = facade
+  return core
 }
 
 /**
@@ -326,7 +391,7 @@ export class ReplaceStep extends CoreStep {
   /** The given `slice` should fit the 'gap' between `from` and `to`. */
   constructor(from: number, to: number, slice: Slice, structure = false) {
     super()
-    link(this, new T.ReplaceStep(from, to, slice[CORE], structure))
+    link(this, coreStep(this, new.target, ReplaceStep, T.ReplaceStep, [from, to, slice[CORE], structure]))
   }
 
   /** The start position of the replaced range. */
@@ -377,7 +442,18 @@ export class ReplaceAroundStep extends CoreStep {
     structure = false
   ) {
     super()
-    link(this, new T.ReplaceAroundStep(from, to, gapFrom, gapTo, slice[CORE], insert, structure))
+    link(
+      this,
+      coreStep(this, new.target, ReplaceAroundStep, T.ReplaceAroundStep, [
+        from,
+        to,
+        gapFrom,
+        gapTo,
+        slice[CORE],
+        insert,
+        structure
+      ])
+    )
   }
 
   /** The start position of the replaced range. */
@@ -434,7 +510,7 @@ export class AddMarkStep extends CoreStep {
   /** Create a mark step. */
   constructor(from: number, to: number, mark: Mark) {
     super()
-    link(this, new T.AddMarkStep(from, to, mark[CORE]))
+    link(this, coreStep(this, new.target, AddMarkStep, T.AddMarkStep, [from, to, mark[CORE]]))
   }
 
   /** The start of the marked range. */
@@ -471,7 +547,7 @@ export class RemoveMarkStep extends CoreStep {
   /** Create a mark-removing step. */
   constructor(from: number, to: number, mark: Mark) {
     super()
-    link(this, new T.RemoveMarkStep(from, to, mark[CORE]))
+    link(this, coreStep(this, new.target, RemoveMarkStep, T.RemoveMarkStep, [from, to, mark[CORE]]))
   }
 
   /** The start of the unmarked range. */
@@ -508,7 +584,7 @@ export class AddNodeMarkStep extends CoreStep {
   /** Create a node mark step. */
   constructor(pos: number, mark: Mark) {
     super()
-    link(this, new T.AddNodeMarkStep(pos, mark[CORE]))
+    link(this, coreStep(this, new.target, AddNodeMarkStep, T.AddNodeMarkStep, [pos, mark[CORE]]))
   }
 
   /** The position of the target node. */
@@ -540,7 +616,7 @@ export class RemoveNodeMarkStep extends CoreStep {
   /** Create a mark-removing step. */
   constructor(pos: number, mark: Mark) {
     super()
-    link(this, new T.RemoveNodeMarkStep(pos, mark[CORE]))
+    link(this, coreStep(this, new.target, RemoveNodeMarkStep, T.RemoveNodeMarkStep, [pos, mark[CORE]]))
   }
 
   /** The position of the target node. */
@@ -572,7 +648,7 @@ export class AttrStep extends CoreStep {
   /** Construct an attribute step. */
   constructor(pos: number, attr: string, value: any) {
     super()
-    link(this, new T.AttrStep(pos, attr, value))
+    link(this, coreStep(this, new.target, AttrStep, T.AttrStep, [pos, attr, value]))
   }
 
   /** The position of the target node. */
@@ -609,7 +685,7 @@ export class DocAttrStep extends CoreStep {
   /** Construct an attribute step. */
   constructor(attr: string, value: any) {
     super()
-    link(this, new T.DocAttrStep(attr, value))
+    link(this, coreStep(this, new.target, DocAttrStep, T.DocAttrStep, [attr, value]))
   }
 
   /** The attribute to set. */
@@ -771,12 +847,12 @@ export class Transform {
   }
 
   /** The steps in this transform. */
-  get steps(): ReadonlyArray<Step> {
+  get steps(): Array<Step> {
     return this[CORE].steps.map(wrap)
   }
 
   /** The documents before each of the steps. */
-  get docs(): ReadonlyArray<Node> {
+  get docs(): Array<Node> {
     return this[CORE].docs.map(wrap)
   }
 

@@ -19,7 +19,10 @@ import type * as M from "../model.ts"
 import * as S from "../state.ts"
 import {
   adopt,
+  BASE,
+  callBase,
   CORE,
+  getBase,
   guard,
   isFacade,
   link,
@@ -134,11 +137,12 @@ export abstract class Selection {
   /** Initialize a selection with the head and anchor and ranges. */
   constructor($anchor: ResolvedPos, $head: ResolvedPos, ranges?: ReadonlyArray<SelectionRange>) {
     if (($anchor as unknown) === INTERNAL) {
-      link(this, $head as unknown as S.Selection)
-      return
+      const [CoreClass, args] = $head as unknown as [new(...args: Array<any>) => S.Selection, Array<unknown>]
+      link(this, guard(() => coreSelection(this, new.target, CoreClass, args)))
+    } else {
+      const args = [$anchor[CORE], $head[CORE], ranges && unwrapArray(ranges)]
+      link(this, coreSelection(this, new.target, S.Selection as any, args))
     }
-    // oxlint-disable-next-line no-use-before-define
-    link(this, new AdaptedSelection(this, $anchor[CORE], $head[CORE], ranges && unwrapArray(ranges) as any))
   }
 
   /** The ranges covered by the selection. */
@@ -193,8 +197,7 @@ export abstract class Selection {
 
   /** Controls whether, when a selection of this type is active in the browser, the selected range should be visible to the user. */
   get visible(): boolean {
-    const core = this[CORE]
-    return core instanceof AdaptedSelection ? S.Selection.prototype.visible : core.visible
+    return getBase(this[CORE], "visible")
   }
 
   /** Test whether the selection is the same as another selection. */
@@ -205,28 +208,17 @@ export abstract class Selection {
 
   /** Get the content of this selection as a slice. */
   content(): Slice {
-    const core = this[CORE]
-    return wrap(core instanceof AdaptedSelection ? S.Selection.prototype.content.call(core) : core.content())
+    return wrap(guard(() => callBase(this[CORE], "content")))
   }
 
   /** Replace the selection with a slice or, if no slice is given, delete the selection. */
   replace(tr: Transaction, content: Slice = Slice.empty): void {
-    const core = this[CORE]
-    guard(() =>
-      core instanceof AdaptedSelection
-        ? S.Selection.prototype.replace.call(core, tr[CORE], content[CORE])
-        : core.replace(tr[CORE], content[CORE])
-    )
+    guard(() => callBase(this[CORE], "replace", [tr[CORE], content[CORE]]))
   }
 
   /** Replace the selection with the given node, appending the changes to the given transaction. */
   replaceWith(tr: Transaction, node: Node): void {
-    const core = this[CORE]
-    guard(() =>
-      core instanceof AdaptedSelection
-        ? S.Selection.prototype.replaceWith.call(core, tr[CORE], node[CORE])
-        : core.replaceWith(tr[CORE], node[CORE])
-    )
+    guard(() => callBase(this[CORE], "replaceWith", [tr[CORE], node[CORE]]))
   }
 
   /** Convert the selection to a JSON representation. */
@@ -272,73 +264,87 @@ export abstract class Selection {
 
   /** Get a bookmark for this selection. */
   getBookmark(): SelectionBookmark {
-    const core = this[CORE]
-    return bookmarkFromCore(
-      core instanceof AdaptedSelection ? S.Selection.prototype.getBookmark.call(core) : core.getBookmark()
-    )
+    return bookmarkFromCore(callBase(this[CORE], "getBookmark"))
   }
 }
 
-const getterOf = (obj: object, prop: string) => {
-  for (let proto = Object.getPrototypeOf(obj); proto; proto = Object.getPrototypeOf(proto)) {
+const getterOf = (proto: object | null, prop: string) => {
+  for (; proto; proto = Object.getPrototypeOf(proto)) {
     const desc = Object.getOwnPropertyDescriptor(proto, prop)
     if (desc) return desc.get
   }
   return undefined
 }
 
-/** A core selection implemented by a user-defined facade selection. @internal */
-class AdaptedSelection extends S.Selection {
-  constructor(
-    readonly facade: Selection,
-    $anchor: M.ResolvedPos,
-    $head: M.ResolvedPos,
-    ranges?: ReadonlyArray<S.SelectionRange>
-  ) {
-    super($anchor, $head, ranges)
-  }
+const adaptedSelectionClasses = new Map<object, any>()
 
-  override get visible(): boolean {
-    const get = getterOf(this.facade, "visible")
-    return get && get !== baseVisible ? get.call(this.facade) : true
+/**
+ * The core class used for instances of user subclasses of a facade
+ * selection class: a subclass of the corresponding core class whose
+ * methods call the facade's overrides, when it has them. @internal
+ */
+const adaptedSelectionClass = (CoreClass: any, FacadeClass: any): any => {
+  let found = adaptedSelectionClasses.get(CoreClass)
+  if (!found) {
+    const base = FacadeClass.prototype, baseVisible = getterOf(base, "visible")
+    found = class extends CoreClass {
+      declare facade: Selection
+      get visible(): boolean {
+        const get = getterOf(Object.getPrototypeOf(this.facade), "visible")
+        return get && get !== baseVisible ? get.call(this.facade) : super.visible
+      }
+      eq(other: S.Selection): boolean {
+        return this.facade.eq === base.eq ? super.eq(other) : this.facade.eq(wrap(other))
+      }
+      map(doc: M.Node, mapping: Mappable): S.Selection {
+        return this.facade.map === base.map
+          ? super.map(doc, mapping)
+          : this.facade.map(wrap(doc), wrap(mapping))[CORE]
+      }
+      content(): M.Slice {
+        return this.facade.content === base.content ? super.content() : this.facade.content()[CORE]
+      }
+      replace(tr: S.Transaction, content?: M.Slice): void {
+        if (this.facade.replace === base.replace) super.replace(tr, content)
+        else this.facade.replace(wrap(tr), content === undefined ? Slice.empty : wrap(content))
+      }
+      replaceWith(tr: S.Transaction, node: M.Node): void {
+        if (this.facade.replaceWith === base.replaceWith) super.replaceWith(tr, node)
+        else this.facade.replaceWith(wrap(tr), wrap(node))
+      }
+      toJSON(): S.SelectionJSON {
+        return this.facade.toJSON === base.toJSON ? super.toJSON() : this.facade.toJSON()
+      }
+      getBookmark(): S.SelectionBookmark {
+        return this.facade.getBookmark === base.getBookmark
+          ? super.getBookmark()
+          : bookmarkToCore(this.facade.getBookmark())
+      }
+    }
+    found.prototype[BASE] = CoreClass.prototype
+    adaptedSelectionClasses.set(CoreClass, found)
   }
-
-  eq(selection: S.Selection): boolean {
-    return this.facade.eq(wrap(selection))
-  }
-
-  map(doc: M.Node, mapping: Mappable): S.Selection {
-    return this.facade.map(wrap(doc), wrap(mapping))[CORE]
-  }
-
-  override content(): M.Slice {
-    return this.facade.content === Selection.prototype.content
-      ? super.content()
-      : this.facade.content()[CORE]
-  }
-
-  override replace(tr: S.Transaction, content: M.Slice = (Slice.empty as any)[CORE]): void {
-    if (this.facade.replace === Selection.prototype.replace) super.replace(tr, content)
-    else this.facade.replace(wrap(tr), wrap(content))
-  }
-
-  override replaceWith(tr: S.Transaction, node: M.Node): void {
-    if (this.facade.replaceWith === Selection.prototype.replaceWith) super.replaceWith(tr, node)
-    else this.facade.replaceWith(wrap(tr), wrap(node))
-  }
-
-  toJSON(): S.SelectionJSON {
-    return this.facade.toJSON()
-  }
-
-  override getBookmark(): S.SelectionBookmark {
-    return this.facade.getBookmark === Selection.prototype.getBookmark
-      ? super.getBookmark()
-      : bookmarkToCore(this.facade.getBookmark())
-  }
+  return found
 }
 
-const baseVisible = getterOf(Object.create(Selection.prototype), "visible")
+const coreSelection = (
+  facade: Selection,
+  target: unknown,
+  CoreClass: new(...args: Array<any>) => S.Selection,
+  args: Array<unknown>
+): S.Selection => {
+  const FacadeClass = CoreClass === S.TextSelection
+    ? TextSelection
+    : CoreClass === S.NodeSelection
+    ? NodeSelection
+    : CoreClass === S.AllSelection
+    ? AllSelection
+    : Selection
+  if (target === FacadeClass) return new CoreClass(...args)
+  const core = new (adaptedSelectionClass(CoreClass, FacadeClass))(...args)
+  core.facade = facade
+  return core
+}
 
 /**
  * A text selection represents a classical editor selection, with a
@@ -354,7 +360,7 @@ export class TextSelection extends Selection {
 
   /** Construct a text selection between the given points. */
   constructor($anchor: ResolvedPos, $head: ResolvedPos = $anchor) {
-    super(INTERNAL as any, new S.TextSelection($anchor[CORE], $head[CORE]) as any)
+    super(INTERNAL as any, [S.TextSelection, [$anchor[CORE], $head[CORE]]] as any)
   }
 
   /** Returns a resolved position if this is a cursor selection (an empty text selection), and null otherwise. */
@@ -363,15 +369,15 @@ export class TextSelection extends Selection {
   }
 
   map(doc: Node, mapping: Mappable): Selection {
-    return wrap(guard(() => this[CORE].map(doc[CORE], unwrap(mapping))))
+    return wrap(guard(() => callBase(this[CORE], "map", [doc[CORE], unwrap(mapping)])))
   }
 
   eq(other: Selection): boolean {
-    return this[CORE].eq(other[CORE])
+    return callBase(this[CORE], "eq", [other[CORE]])
   }
 
   toJSON(): any {
-    return this[CORE].toJSON()
+    return callBase(this[CORE], "toJSON")
   }
 
   /** @internal */
@@ -402,7 +408,7 @@ export class NodeSelection extends Selection {
 
   /** Create a node selection. Does not verify the validity of its argument. */
   constructor($pos: ResolvedPos) {
-    super(INTERNAL as any, guard(() => new S.NodeSelection($pos[CORE])) as any)
+    super(INTERNAL as any, [S.NodeSelection, [$pos[CORE]]] as any)
   }
 
   /** The selected node. */
@@ -411,15 +417,15 @@ export class NodeSelection extends Selection {
   }
 
   map(doc: Node, mapping: Mappable): Selection {
-    return wrap(guard(() => this[CORE].map(doc[CORE], unwrap(mapping))))
+    return wrap(guard(() => callBase(this[CORE], "map", [doc[CORE], unwrap(mapping)])))
   }
 
   eq(other: Selection): boolean {
-    return this[CORE].eq(other[CORE])
+    return callBase(this[CORE], "eq", [other[CORE]])
   }
 
   toJSON(): any {
-    return this[CORE].toJSON()
+    return callBase(this[CORE], "toJSON")
   }
 
   /** @internal */
@@ -450,19 +456,19 @@ export class AllSelection extends Selection {
 
   /** Create an all-selection over the given document. */
   constructor(doc: Node) {
-    super(INTERNAL as any, new S.AllSelection(doc[CORE]) as any)
+    super(INTERNAL as any, [S.AllSelection, [doc[CORE]]] as any)
   }
 
   map(doc: Node): Selection {
-    return new AllSelection(doc)
+    return wrap(callBase(this[CORE], "map", [doc[CORE]]))
   }
 
   eq(other: Selection): boolean {
-    return this[CORE].eq(other[CORE])
+    return callBase(this[CORE], "eq", [other[CORE]])
   }
 
   toJSON(): any {
-    return this[CORE].toJSON()
+    return callBase(this[CORE], "toJSON")
   }
 }
 

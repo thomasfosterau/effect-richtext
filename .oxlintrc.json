@@ -31,6 +31,15 @@
       "rules": {
         "no-console": "off"
       }
+    },
+    {
+      "files": [
+        "test/compat/**",
+        "test/view/compat-*"
+      ],
+      "rules": {
+        "no-cond-assign": "off"
+      }
     }
   ]
 }

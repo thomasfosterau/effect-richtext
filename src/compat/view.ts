@@ -239,8 +239,20 @@ export class DecorationSet implements DecorationSource {
   static empty: DecorationSet
 
   /** @internal */
-  static removeOverlap(spans: ReadonlyArray<Decoration>): Array<Decoration> {
-    return V.DecorationSet.removeOverlap(unwrapArray(spans) as Array<V.Decoration>).map(wrap)
+  get local(): ReadonlyArray<Decoration> {
+    return wrapArray(this[CORE].local)
+  }
+
+  /** @internal */
+  get children(): ReadonlyArray<number | DecorationSet> {
+    return this[CORE].children.map(wrap)
+  }
+
+  /** @internal */
+  static removeOverlap(spans: ReadonlyArray<Decoration>): ReadonlyArray<Decoration> {
+    const core = unwrapArray(spans) as ReadonlyArray<V.Decoration>
+    const result = V.DecorationSet.removeOverlap(core)
+    return result === core ? spans : result.map(wrap)
   }
 }
 
@@ -421,7 +433,7 @@ export interface EditorProps<P = any> {
   markViews?: { [mark: string]: MarkViewConstructor } | undefined
   clipboardSerializer?: DOMSerializer | undefined
   clipboardTextSerializer?: ((this: P, content: Slice, view: EditorView) => string) | undefined
-  decorations?: ((this: P, state: EditorState) => DecorationSource | null) | undefined
+  decorations?: ((this: P, state: EditorState) => DecorationSource | null | undefined) | undefined
   editable?: ((this: P, state: EditorState) => boolean) | undefined
   attributes?: (({ [name: string]: string } | ((state: EditorState) => { [name: string]: string }))) | undefined
   scrollThreshold?: number | { top: number; right: number; bottom: number; left: number } | undefined
