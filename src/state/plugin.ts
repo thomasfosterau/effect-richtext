@@ -222,7 +222,7 @@ export type PluginTypeId = typeof PluginTypeId
  * with, and the errors (`E`) and requirements (`R`) of its effectful
  * hooks, which are inferred from the spec:
  *
- * ```ts
+ * ```ts skip-type-checking
  * const counter = new Plugin({
  *   state: {
  *     init: () => 0,

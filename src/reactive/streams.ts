@@ -90,7 +90,12 @@ export interface EditorStreams<Sc extends AnySchema = AnySchema, R = never, E = 
   readonly canExecute: <CE, CR>(command: Command<Sc, CE, CR>) => Stream.Stream<boolean, CE, CR>
 }
 
-/** The writable side of the streams, owned by `StateRef` / `EditorObserver`. @internal */
+/**
+ * The writable side of the streams, owned by `StateRef` / `EditorObserver`.
+ *
+ * @since 0.1.0
+ * @internal
+ */
 export interface Source<Sc extends AnySchema, R, E> {
   readonly ref: SubscriptionRef.SubscriptionRef<EditorState<Sc, R, E>>
   readonly pubsub: PubSub.PubSub<TransactionEvent<Sc, R, E>>

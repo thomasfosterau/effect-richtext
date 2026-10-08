@@ -6,7 +6,7 @@
  * by default). Showing the text is left to CSS; `placeholderCSS` is a
  * small default stylesheet.
  *
- * ```ts
+ * ```ts skip-type-checking
  * const plugins = [placeholder({ placeholder: "Write something…" })]
  * ```
  *

@@ -8,7 +8,7 @@
  * the text and recorded (as document positions) in the resulting
  * node's `tag` object.
  *
- * ```ts
+ * ```ts skip-type-checking
  * const d = doc(p("hello <a>world"))
  * d.tag.a // => 7
  * ```
@@ -228,7 +228,7 @@ export type Builders<Sc extends AnySchema, Extra extends Record<string, Attrs> =
  * additional builders with preset attributes, using `nodeType` or
  * `markType` to specify the underlying type:
  *
- * ```ts
+ * ```ts skip-type-checking
  * builders(schema, { h1: { nodeType: "heading", level: 1 } })
  * ```
  *

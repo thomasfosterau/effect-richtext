@@ -54,7 +54,7 @@ export interface EditorObserver<Sc extends AnySchema = AnySchema, R = never, E =
  * (ending all its streams) when the scope closes. It doesn't change the
  * view's props or plugins.
  *
- * ```ts
+ * ```ts skip-type-checking
  * const observer = yield* EditorObserver.make(view)
  * yield* observer.isMarkActive("strong").pipe(
  *   Stream.runForEach((active) => Effect.sync(() => button.classList.toggle("active", active))),

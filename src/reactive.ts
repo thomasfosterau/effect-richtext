@@ -26,8 +26,20 @@ export {
   StateRef
 }
 
-export { isMarkActive, isNodeActive } from "./reactive/selectors.ts"
-export type { EditorStreams, ReadonlyRef, TransactionEvent } from "./reactive/streams.ts"
+export {
+  /** @since 0.1.0 */
+  isMarkActive,
+  /** @since 0.1.0 */
+  isNodeActive
+} from "./reactive/selectors.ts"
+export type {
+  /** @since 0.1.0 */
+  EditorStreams,
+  /** @since 0.1.0 */
+  ReadonlyRef,
+  /** @since 0.1.0 */
+  TransactionEvent
+} from "./reactive/streams.ts"
 
 /**
  * Observe an editor view (alias of `EditorObserver.make`).

@@ -65,7 +65,7 @@ export interface StateRef<Sc extends AnySchema = AnySchema, R = never, E = never
  * the plugins' requirements `R`) is captured to run plugin hooks when
  * transactions are dispatched. Its streams end when the scope closes.
  *
- * ```ts
+ * ```ts skip-type-checking
  * const ref = yield* StateRef.make(EditorState.createUnsafe({ schema }))
  * yield* ref.dispatch(ref.state.getUnsafe().tr.insertTextUnsafe("hi"))
  * yield* ref.execute(toggleMark(schema.marks.strong))

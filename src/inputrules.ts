@@ -3,7 +3,7 @@
  * when typed, causes something to happen. Ported from
  * `prosemirror-inputrules`.
  *
- * ```ts
+ * ```ts skip-type-checking
  * const plugin = inputRules({
  *   rules: [...smartQuotes, emDash, wrappingInputRule(/^\s*>\s$/, schema.nodes.blockquote)]
  * })

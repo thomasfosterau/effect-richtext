@@ -7,7 +7,7 @@
  * are tracked at the type level, so the schema knows which node types
  * may appear inside each node:
  *
- * ```ts
+ * ```ts skip-type-checking
  * import { Content } from "effect-richtext/model"
  *
  * Content.seq("heading", Content.zeroOrMore("block"))

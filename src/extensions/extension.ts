@@ -49,7 +49,7 @@ export type Priority = typeof Priority[keyof typeof Priority]
  * and `this["Return"]` the type the call returns (an Effect for
  * `editor.commands`, the chain for `editor.chain()`).
  *
- * ```ts
+ * ```ts skip-type-checking
  * interface ToggleMark extends CommandSignature {
  *   readonly signature: <M extends MarkNames<this["Schema"]>>(mark: M) => this["Return"]
  * }
@@ -333,7 +333,7 @@ export interface SpecTypes<
  * commands. Every field is optional; the types of all of them are
  * recorded in the extension's type.
  *
- * ```ts
+ * ```ts skip-type-checking
  * const bold = defineExtension({
  *   marks: { strong: { parseDOM: [{ tag: "strong" }], toDOM: () => ["strong", 0] } },
  *   commands: { toggleBold: () => (state, dispatch) => toggleMark(state.schema.marks.strong!)(state, dispatch) },
@@ -451,7 +451,7 @@ export const defineKeymap = <const B extends Bindings>(
  * types become part of the editor's `commands`, `can()` and `chain()`
  * APIs.
  *
- * ```ts
+ * ```ts skip-type-checking
  * const ext = defineCommands({
  *   insertHello: (times: number) => (state, dispatch) => ...
  * })

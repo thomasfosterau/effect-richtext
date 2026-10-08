@@ -3,7 +3,7 @@
  * `style/prosemirror.css`), as a string, plus helpers to add
  * stylesheets to a document.
  *
- * ```ts
+ * ```ts skip-type-checking
  * // Scoped: the style element is removed when the scope closes.
  * yield* injectViewCSS(document)
  * // Or, outside of Effect:

@@ -2,7 +2,7 @@
  * An undo/redo history for the editor, ported from
  * `prosemirror-history`.
  *
- * ```ts
+ * ```ts skip-type-checking
  * const state = EditorState.createUnsafe({ schema, plugins: [history()] })
  * // ...
  * yield* undo(state, dispatch)

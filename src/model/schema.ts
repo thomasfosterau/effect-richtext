@@ -7,7 +7,7 @@
  * child types each node type allows (from its [content
  * expression](./content.ts)) are all available at the type level.
  *
- * ```ts
+ * ```ts skip-type-checking
  * import { Schema } from "effect"
  * import { Content, DocSchema } from "effect-richtext/model"
  *

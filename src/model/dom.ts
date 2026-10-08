@@ -4,5 +4,17 @@
  *
  * @since 0.1.0
  */
-export type { GenericParseRule, ParseRule, StyleParseRule, TagParseRule } from "./from_dom.ts"
-export type { DOMOutputSpec } from "./to_dom.ts"
+export type {
+  /** @since 0.1.0 */
+  GenericParseRule,
+  /** @since 0.1.0 */
+  ParseRule,
+  /** @since 0.1.0 */
+  StyleParseRule,
+  /** @since 0.1.0 */
+  TagParseRule
+} from "./from_dom.ts"
+export type {
+  /** @since 0.1.0 */
+  DOMOutputSpec
+} from "./to_dom.ts"

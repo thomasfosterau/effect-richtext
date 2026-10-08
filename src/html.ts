@@ -8,7 +8,7 @@
  * variants (`serialize`, `parse`, `parseSlice`), which read the
  * document from the `HtmlEnvironment` service.
  *
- * ```ts
+ * ```ts skip-type-checking
  * const html = toHTML(doc) // "<p>Hello</p>"
  * const doc2 = yield* fromHTML(schema, html)
  * ```

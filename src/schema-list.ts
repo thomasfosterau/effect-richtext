@@ -7,6 +7,7 @@
 import * as S from "effect/Schema"
 import { Content, type ContentExpr, type ContentInput, type DOMOutputSpec, type NodeSpec, nodeSpec } from "./model.ts"
 
+/** @since 0.1.0 */
 export * from "./schema-list/commands.ts"
 
 const olDOM: DOMOutputSpec = ["ol", 0], ulDOM: DOMOutputSpec = ["ul", 0], liDOM: DOMOutputSpec = ["li", 0]

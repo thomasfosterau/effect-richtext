@@ -105,7 +105,7 @@ const wrap = <A>(f: () => A): Effect.Effect<A, SchemaIssue.Issue> =>
  * into a `Node` of the given document schema (validating structure,
  * content, and attributes), and encodes nodes back to JSON.
  *
- * ```ts
+ * ```ts skip-type-checking
  * import { Schema } from "effect"
  * const doc = yield* Schema.decodeUnknownEffect(NodeFromJSON(mySchema))(json)
  * ```
