@@ -155,3 +155,4 @@ docs/
 scratchpad/*
 !scratchpad/.gitkeep
 __screenshots__/
+.claude/worktrees/
