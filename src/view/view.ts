@@ -697,7 +697,10 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
   ): EditorView<Sc, R, E>
   static makeUnsafe(
     place: ViewPlace,
-    props: DirectEditorProps<any, any, any>,
+    // `any` (rather than `DirectEditorProps<any, any, any>`) keeps the
+    // implementation signature compatible with both overloads regardless
+    // of how the checker measures the props type's variance.
+    props: any,
     context?: Context.Context<any>
   ): EditorView<any, any, any> {
     return new EditorView<any, any, any>(place, props, context ?? (Context.empty() as Context.Context<any>))

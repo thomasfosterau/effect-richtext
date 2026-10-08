@@ -141,6 +141,9 @@ export class Configuration<Sc extends AnySchema> {
 
 const isStateError = (u: unknown): u is StateError => u instanceof StateError
 
+/** Marker returned by the synchronous fast path when a hook returned an Effect. */
+const NeedsEffect: unique symbol = Symbol("effect-richtext/state/NeedsEffect")
+
 /** Lift a synchronous computation that may throw a `StateError` into an Effect. */
 const trySync = <A>(f: () => A): Effect.Effect<A, StateError> =>
   Effect.suspend(() => {
@@ -256,7 +259,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
    * a defect (thrown) when a plugin hook is asynchronous.
    */
   applyUnsafe(this: EditorState<Sc, never, E>, tr: Transaction<Sc>): EditorState<Sc, never, E> {
-    return runSyncUnsafe(this.apply(tr))
+    return this.applyTransactionUnsafe(tr).state
   }
 
   /** @internal */
@@ -283,6 +286,98 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
    * hooks of plugins) along with the new state.
    */
   applyTransaction(rootTr: Transaction<Sc>): Effect.Effect<ApplyResult<Sc, R, E>, E | StateError, R> {
+    return Effect.suspend(() => {
+      // Fast path: when every plugin hook returns a plain value, apply
+      // synchronously without building an Effect pipeline. Hooks are
+      // expected to be pure, so falling back to the effectful path (which
+      // re-runs them) is safe.
+      let result: ApplyResult<Sc, R, E> | typeof NeedsEffect
+      try {
+        result = this.applyTransactionSync(rootTr)
+      } catch (e) {
+        return isStateError(e) ? Effect.fail(e) : Effect.die(e)
+      }
+      return result === NeedsEffect ? this.applyTransactionEffect(rootTr) : Effect.succeed(result)
+    })
+  }
+
+  /** @internal */
+  applyTransactionSync(rootTr: Transaction<Sc>): ApplyResult<Sc, R, E> | typeof NeedsEffect {
+    const filtered = this.filterTransactionSync(rootTr)
+    if (filtered === NeedsEffect) return NeedsEffect
+    if (!filtered) return { state: this, transactions: [] }
+    const trs: Array<Transaction<Sc>> = [rootTr]
+    let newState = this.applyInnerSync(rootTr)
+    if (newState === NeedsEffect) return NeedsEffect
+    let seen: Array<{ state: EditorState<Sc, R, E>; n: number }> | null = null
+    const plugins = this.config.plugins
+    for (;;) {
+      let haveNew = false
+      for (let i = 0; i < plugins.length; i++) {
+        const plugin = plugins[i]!, append = plugin.spec.appendTransaction
+        if (append) {
+          const n = seen ? seen[i]!.n : 0, oldState = seen ? seen[i]!.state : this
+          let tr: Transaction<Sc> | null | undefined | void = undefined
+          if (n < trs.length) {
+            const result = append.call(plugin, n ? trs.slice(n) : trs, oldState, newState)
+            if (Effect.isEffect(result)) return NeedsEffect
+            tr = result as Transaction<Sc> | null | undefined
+          }
+          if (tr) {
+            const ok = newState.filterTransactionSync(tr, i)
+            if (ok === NeedsEffect) return NeedsEffect
+            if (ok) {
+              tr.setMeta("appendedTransaction", rootTr)
+              if (!seen) {
+                seen = []
+                for (let j = 0; j < plugins.length; j++) {
+                  seen.push(j < i ? { state: newState, n: trs.length } : { state: this, n: 0 })
+                }
+              }
+              trs.push(tr)
+              const next: EditorState<Sc, R, E> | typeof NeedsEffect = newState.applyInnerSync(tr)
+              if (next === NeedsEffect) return NeedsEffect
+              newState = next
+              haveNew = true
+            }
+          }
+          if (seen) seen[i] = { state: newState, n: trs.length }
+        }
+      }
+      if (!haveNew) return { state: newState, transactions: trs }
+    }
+  }
+
+  /** @internal */
+  filterTransactionSync(tr: Transaction<Sc>, ignore = -1): boolean | typeof NeedsEffect {
+    const plugins = this.config.plugins
+    for (let i = 0; i < plugins.length; i++) {
+      if (i === ignore) continue
+      const plugin = plugins[i]!, filter = plugin.spec.filterTransaction
+      if (filter) {
+        const result = filter.call(plugin, tr, this)
+        if (Effect.isEffect(result)) return NeedsEffect
+        if (!result) return false
+      }
+    }
+    return true
+  }
+
+  /** @internal */
+  applyInnerSync(tr: Transaction<Sc>): EditorState<Sc, R, E> | typeof NeedsEffect {
+    if (!tr.before.eq(this.doc)) throw new StateError({ message: "Applying a mismatched transaction" })
+    const newInstance = new EditorState<Sc, R, E>(this.config), fields = this.config.fields
+    for (let i = 0; i < fields.length; i++) {
+      const field = fields[i]!
+      const result = field.apply.call(field.self, tr, this.slots[field.name], this, newInstance)
+      if (Effect.isEffect(result)) return NeedsEffect
+      newInstance.slots[field.name] = result
+    }
+    return newInstance
+  }
+
+  /** @internal */
+  applyTransactionEffect(rootTr: Transaction<Sc>): Effect.Effect<ApplyResult<Sc, R, E>, E | StateError, R> {
     const self = this
     return Effect.gen(function*() {
       if (!(yield* self.filterTransaction(rootTr))) return { state: self, transactions: [] }
@@ -329,7 +424,8 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
 
   /** Like `applyTransaction`, but runs synchronously (see `applyUnsafe`). */
   applyTransactionUnsafe(this: EditorState<Sc, never, E>, rootTr: Transaction<Sc>): ApplyResult<Sc, never, E> {
-    return runSyncUnsafe(this.applyTransaction(rootTr))
+    const result = this.applyTransactionSync(rootTr)
+    return result === NeedsEffect ? runSyncUnsafe(this.applyTransactionEffect(rootTr)) : result
   }
 
   /** @internal */
