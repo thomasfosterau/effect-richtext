@@ -38,6 +38,7 @@ src/
   history.ts        effect-richtext/history   (undo/redo, uses rope-sequence)
   html.ts           effect-richtext/html      (HTML string helpers, HtmlEnvironment)
   markdown.ts       effect-richtext/markdown  (markdown-it parser + serializer)
+  reactive.ts       effect-richtext/reactive  (SubscriptionRef/Stream bindings)
   internal/*.ts     not exported
 ```
 
@@ -160,6 +161,38 @@ view.dispatchUnsafe(tr) // synchronous, throws failures
 - Internals (view descs, DOM observer, input handling) are synchronous ports of
   `prosemirror-view`; DOM-triggered transactions are dispatched through the
   synchronous path with the captured context.
+
+### Reactive bindings
+
+`effect-richtext/reactive` exposes editor states as `SubscriptionRef`s and
+`Stream`s, without depending on a UI framework:
+
+```ts
+// Headless: a state in a SubscriptionRef, updated by dispatching to it.
+const ref = yield * StateRef.make(state) // needs Scope | R (captured for plugin hooks)
+yield * ref.dispatch(tr) // Effect<void, E | StateFailure>; also dispatchUnsafe, set, execute(command)
+
+// Following a view (no props or plugins are changed).
+const observer = yield * observe(view) // EditorObserver.make(view), needs Scope
+observer.isMarkActive("strong") // Stream<boolean>
+```
+
+Both share `EditorStreams`: `state` (a read-only ref: `get`, `getUnsafe`,
+`changes`), `transactions` (hot, `{ tr, transactions, state, prevState }`),
+`docChanges`, `selection` (deduplicated with `Selection.eq`),
+`select(f, eq = Equal.equals)`, `isMarkActive`, `isNodeActive` and
+`canExecute(command)`; the observer adds `focus`. State-like streams start
+with the current value (SubscriptionRef replay) and only emit changes;
+`transactions` only carries transactions applied after subscribing. All
+pubsubs are shut down, and listeners removed, when the creating scope
+closes, which ends every stream.
+
+The observer uses `view.subscribe(listener)`, a minimal listener hook on
+`EditorView`: listeners are called after every state update (after the
+DOM and plugin views) with a `ViewUpdate` (`state`, `prevState`, and the
+`transactions` of the dispatch that caused it: the dispatched transaction
+plus appended ones, only the dispatched one with a custom
+`dispatchTransaction`, none for direct `updateState`/`setProps` calls).
 
 ### Tests
 

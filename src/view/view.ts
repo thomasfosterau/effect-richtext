@@ -488,6 +488,28 @@ export interface DirectEditorProps<Sc extends AnySchema = AnySchema, R = never, 
 }
 
 /**
+ * Describes a state update of an editor view, as passed to the listeners
+ * registered with `EditorView.subscribe`.
+ *
+ * @since 0.1.0
+ * @category models
+ */
+export interface ViewUpdate<Sc extends AnySchema = AnySchema, R = never, E = never> {
+  /** The view's new state. */
+  readonly state: EditorState<Sc, R, E>
+  /** The view's state before the update. */
+  readonly prevState: EditorState<Sc, R, E>
+  /**
+   * The transactions that produced the update, when it was caused by a
+   * dispatch: the dispatched transaction followed by those appended by
+   * plugins (with a custom `dispatchTransaction` prop, only the
+   * dispatched transaction is known). Empty for updates made directly
+   * through `updateState`, `update` or `setProps`.
+   */
+  readonly transactions: ReadonlyArray<Transaction<Sc>>
+}
+
+/**
  * Where to put the editor: a DOM node that the editor should be appended
  * to, a function that will place it into the document, an object whose
  * `mount` property holds the node to use as the document container, or
@@ -582,6 +604,8 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
   input: InputState = new InputState()
   private prevDirectPlugins: ReadonlyArray<Plugin<any, any, any, any>> = []
   private pluginViews: Array<PluginView<any>> = []
+  private listeners: Array<(update: ViewUpdate<Sc, R, E>) => void> = []
+  private dispatching: ReadonlyArray<Transaction<Sc>> | null = null
   /** @internal */
   declare domObserver: DOMObserver
   /**
@@ -743,6 +767,10 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
 
   private updateStateInner(state: EditorState<Sc, R, E>, prevProps: DirectEditorProps<Sc, R, E>) {
     const prev = this.state
+    // The transactions being dispatched belong to this update only, not to
+    // nested updates (made by plugin views, for example).
+    const transactions = this.dispatching ?? []
+    this.dispatching = null
     let redraw = false, updateSel = false
     // When stored marks are added, stop composition, so that they can
     // be displayed.
@@ -828,6 +856,43 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
       this.scrollToSelection()
     } else if (oldScrollPos) {
       resetScrollPos(oldScrollPos)
+    }
+
+    if (this.listeners.length) this.notifyListeners({ state, prevState: prev, transactions })
+  }
+
+  private notifyListeners(update: ViewUpdate<Sc, R, E>) {
+    const listeners = this.listeners
+    for (let i = 0; i < listeners.length; i++) {
+      try {
+        listeners[i]!(update)
+      } catch (e) {
+        this.reportError(Cause.die(e))
+      }
+    }
+  }
+
+  /**
+   * Register a listener called after every state update of the view
+   * (once the DOM and plugin views have been updated). Returns a
+   * function that removes the listener. Exceptions thrown by listeners
+   * are reported to `onError`.
+   */
+  subscribe(listener: (update: ViewUpdate<Sc, R, E>) => void): () => void {
+    // Copy on write, so that listeners can unsubscribe while being notified.
+    this.listeners = [...this.listeners, listener]
+    return () => {
+      this.listeners = this.listeners.filter((l) => l !== listener)
+    }
+  }
+
+  private withDispatching<A>(transactions: ReadonlyArray<Transaction<Sc>>, f: () => A): A {
+    const prev = this.dispatching
+    this.dispatching = transactions
+    try {
+      return f()
+    } finally {
+      this.dispatching = prev
     }
   }
 
@@ -1203,10 +1268,23 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
       Effect.suspend((): Effect.Effect<void, E | StateFailure, R> => {
         const dispatchTransaction = this._props.dispatchTransaction
         if (dispatchTransaction) {
-          const result = dispatchTransaction.call(this, tr)
-          return Effect.isEffect(result) ? result : Effect.void
+          const result = this.withDispatching([tr], () => dispatchTransaction.call(this, tr))
+          if (!Effect.isEffect(result)) return Effect.void
+          return Effect.suspend(() => {
+            const transactions = [tr]
+            this.dispatching = transactions
+            return Effect.ensuring(
+              result,
+              Effect.sync(() => {
+                if (this.dispatching === transactions) this.dispatching = null
+              })
+            )
+          })
         }
-        return Effect.map(this.state.apply(tr), (state) => this.updateState(state))
+        return Effect.map(
+          this.state.applyTransaction(tr),
+          (result) => this.withDispatching(result.transactions, () => this.updateState(result.state))
+        )
       }),
       this.context
     )
