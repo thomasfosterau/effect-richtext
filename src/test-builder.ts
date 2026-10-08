@@ -107,7 +107,8 @@ Object.defineProperty(Node.prototype, "tag", {
   configurable: true
 })
 
-const isFlat = (u: unknown): u is Flat<any> => typeof u === "object" && u !== null && "flat" in u
+const isFlat = (u: unknown): u is Flat<any> =>
+  (typeof u === "object" && u !== null || typeof u === "function") && "flat" in (u as object)
 
 function flatten<Sc extends AnySchema>(
   schema: Sc,
@@ -135,7 +136,7 @@ function flatten<Sc extends AnySchema>(
       pos += child.length - at
       if (out) result.push(f(schema.textUnsafe(out) as unknown as Node<Sc>))
     } else {
-      const childTag = isFlat(child) ? child.tag : tagsOf(child)
+      const childTag = (isFlat(child) ? child.tag : tagsOf(child)) ?? noTag
       if (childTag !== noTag) {
         if (tag === noTag) tag = Object.create(null)
         for (const id in childTag) {
