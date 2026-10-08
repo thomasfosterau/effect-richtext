@@ -10,7 +10,8 @@ import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
 import { base, keyName } from "w3c-keyname"
 import type { AnySchema } from "../model.ts"
-import { type Command, type Dispatch, type EditorState, Plugin } from "../state.ts"
+import { type Command, Plugin } from "../state.ts"
+import type { EditorView } from "../view/view.ts"
 
 const mac = typeof navigator !== "undefined" && /Mac|iP(hone|[oa]d)/.test(navigator.platform)
 const windows = typeof navigator !== "undefined" && /Win/.test(navigator.platform)
@@ -57,17 +58,13 @@ export type BindingsRequirements<B extends Bindings> = {
 }[keyof B]
 
 /**
- * The part of an editor view a keydown handler uses: the current state
- * and the dispatch function passed to bound commands. The view itself
- * is passed as the commands' third argument.
+ * The editor view a keydown handler receives. Its `dispatch` is passed
+ * to bound commands, and the view itself as their third argument.
  *
  * @since 0.1.0
  * @category models
  */
-export interface KeymapView<Sc extends AnySchema = AnySchema> {
-  readonly state: EditorState<Sc, any, any>
-  readonly dispatch: Dispatch<Sc>
-}
+export type KeymapView<Sc extends AnySchema = AnySchema> = EditorView<Sc, any, any>
 
 /**
  * A keydown handler, as created by `keydownHandler`.

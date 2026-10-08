@@ -37,8 +37,6 @@ export type Dispatch<Sc extends AnySchema = AnySchema> = (tr: Transaction<Sc>) =
  * Commands carry the errors (`E`) and requirements (`R`) of the effects
  * they run.
  *
- * TODO: tighten `view` to `EditorView<Sc>` once the view layer exists.
- *
  * @since 0.1.0
  * @category models
  */

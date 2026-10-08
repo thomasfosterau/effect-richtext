@@ -6,6 +6,7 @@
 import type * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import type { AnySchema } from "../model.ts"
+import type { EditorProps, EditorView } from "../view/view.ts"
 import type { EditorState, EditorStateConfig } from "./state.ts"
 import type { Transaction } from "./transaction.ts"
 
@@ -25,28 +26,27 @@ import type { Transaction } from "./transaction.ts"
 export type MaybeEffect<A, E = never, R = never> = A | Effect.Effect<A, E, R>
 
 /**
- * Placeholder for the editor view type, which is passed to plugin
- * `view` hooks and commands.
- *
- * TODO: tighten to `EditorView<Sc>` once the view layer exists.
+ * The editor view type, as passed to commands (which may be called
+ * without a view, hence `undefined`).
  *
  * @since 0.1.0
  * @category models
  */
-export type EditorViewLike = unknown
+export type EditorViewLike = EditorView<any, any, any> | undefined
 
 /**
- * The props a plugin adds to the editor view. Function-valued props are
- * bound to the plugin instance.
- *
- * TODO: tighten to the view layer's `EditorProps` once it exists.
+ * The props a plugin adds to the editor view: the view's `EditorProps`.
+ * Function-valued props are bound to the plugin instance.
  *
  * @since 0.1.0
  * @category models
  */
-export interface PluginProps {
-  readonly [prop: string]: unknown
-}
+export type PluginProps<Sc extends AnySchema = AnySchema, E = never, R = never> = EditorProps<
+  Sc,
+  R,
+  E,
+  Plugin<any, Sc, any, any>
+>
 
 /**
  * A stateful object that can be installed in an editor by a plugin's
@@ -55,9 +55,9 @@ export interface PluginProps {
  * @since 0.1.0
  * @category models
  */
-export interface PluginView {
+export interface PluginView<Sc extends AnySchema = AnySchema> {
   /** Called whenever the view's state is updated. */
-  readonly update?: ((view: EditorViewLike, prevState: EditorState<any, any, any>) => void) | undefined
+  readonly update?: ((view: EditorView<Sc, any, any>, prevState: EditorState<Sc, any, any>) => void) | undefined
   /** Called when the view is destroyed or receives a state with different plugins. */
   readonly destroy?: (() => void) | undefined
 }
@@ -125,7 +125,7 @@ export interface PluginSpec<PState = any, Sc extends AnySchema = AnySchema, E = 
    * The view props added by this plugin. Props that are functions will
    * be bound to have the plugin instance as their `this` binding.
    */
-  readonly props?: PluginProps | undefined
+  readonly props?: PluginProps<Sc, E, R> | undefined
 
   /**
    * Allows a plugin to define a state field, an extra slot in the state
@@ -146,7 +146,7 @@ export interface PluginSpec<PState = any, Sc extends AnySchema = AnySchema, E = 
    * something up in the DOM, use this field. The function will be
    * called when the plugin's state is associated with an editor view.
    */
-  readonly view?: ((view: EditorViewLike) => PluginView) | undefined
+  readonly view?: ((view: EditorView<Sc, any, any>) => PluginView<Sc>) | undefined
 
   /**
    * When present, this will be called before a transaction is applied
@@ -179,11 +179,11 @@ export interface PluginSpec<PState = any, Sc extends AnySchema = AnySchema, E = 
   readonly [key: string]: unknown
 }
 
-function bindProps(obj: PluginProps, self: unknown, target: Record<string, unknown>): Record<string, unknown> {
+function bindProps(obj: { readonly [prop: string]: unknown }, self: unknown, target: Record<string, unknown>): Record<string, unknown> {
   for (const prop in obj) {
     let val = obj[prop]
     if (val instanceof Function) val = val.bind(self)
-    else if (prop === "handleDOMEvents") val = bindProps(val as PluginProps, self, {})
+    else if (prop === "handleDOMEvents") val = bindProps(val as { readonly [prop: string]: unknown }, self, {})
     target[prop] = val
   }
   return target
@@ -238,7 +238,7 @@ export class Plugin<PState = any, Sc extends AnySchema = AnySchema, E = never, R
   }
 
   /** The props exported by this plugin. */
-  readonly props: PluginProps = {}
+  readonly props: PluginProps<Sc, E, R> = {}
 
   /** @internal */
   readonly key: string
@@ -248,7 +248,7 @@ export class Plugin<PState = any, Sc extends AnySchema = AnySchema, E = never, R
     /** The plugin's spec object. */
     readonly spec: PluginSpec<PState, Sc, E, R>
   ) {
-    if (spec.props) bindProps(spec.props, this, this.props as Record<string, unknown>)
+    if (spec.props) bindProps(spec.props as any, this, this.props as Record<string, unknown>)
     this.key = spec.key ? spec.key.key : createKey("plugin")
   }
 

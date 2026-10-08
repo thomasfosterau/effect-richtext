@@ -32,11 +32,12 @@ const messageCountPlugin = new Plugin({
       return count as number
     }
   },
+  // `testProp` is not a real editor prop, hence the cast
   props: {
     testProp() {
       return this
     }
-  }
+  } as any
 })
 
 const transactionPlugin = new Plugin({

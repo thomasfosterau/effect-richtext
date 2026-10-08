@@ -76,7 +76,7 @@ export interface TextblockBoundaryView {
  * @since 0.1.0
  * @category guards
  */
-export const isTextblockBoundaryView = (view: EditorViewLike): view is TextblockBoundaryView =>
+export const isTextblockBoundaryView = (view: unknown): view is TextblockBoundaryView =>
   typeof view === "object" && view !== null &&
   typeof (view as { endOfTextblock?: unknown }).endOfTextblock === "function"
 

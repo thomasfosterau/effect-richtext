@@ -172,7 +172,7 @@ export type NodeViewConstructor<
   N extends NodeNames<Sc> = NodeNames<Sc>
 > = (
   node: Node<Sc, N>,
-  view: EditorView<Sc>,
+  view: EditorView<Sc, any, any>,
   getPos: () => number | undefined,
   decorations: ReadonlyArray<Decoration>,
   innerDecorations: DecorationSource
@@ -187,7 +187,7 @@ export type NodeViewConstructor<
 export type MarkViewConstructor<
   Sc extends AnySchema = AnySchema,
   M extends MarkNames<Sc> = MarkNames<Sc>
-> = (mark: Mark<Sc, M>, view: EditorView<Sc>, inline: boolean) => MarkView
+> = (mark: Mark<Sc, M>, view: EditorView<Sc, any, any>, inline: boolean) => MarkView
 
 // View descriptions are data structures that describe the DOM that is
 // used to represent the editor's content. They are used for:

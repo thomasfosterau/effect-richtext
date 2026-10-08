@@ -543,13 +543,6 @@ export type HistoryCommand = <Sc extends AnySchema>(
   view?: EditorViewLike
 ) => Effect.Effect<boolean>
 
-// The parts of the editor view the `beforeinput` handler relies on.
-interface ViewLike {
-  readonly state: EditorState<any, any, any>
-  readonly editable?: boolean
-  readonly dispatch: (tr: Transaction<any>) => unknown
-}
-
 /**
  * Returns a plugin that enables the undo history for an editor. The
  * plugin will track undo and redo stacks, which can be used with the
@@ -583,16 +576,12 @@ export const history = (config: HistoryOptions = {}): Plugin<HistoryState> => {
 
     props: {
       handleDOMEvents: {
-        beforeinput(view: ViewLike, e: Event) {
+        beforeinput(view, e) {
           const inputType = (e as InputEvent).inputType
           const command = inputType === "historyUndo" ? undo : inputType === "historyRedo" ? redo : null
-          if (!command || view.editable === false) return false
+          if (!command || !view.editable) return false
           e.preventDefault()
-          return Effect.runSync(command(view.state, (tr) =>
-            Effect.suspend(() => {
-              const result = view.dispatch(tr)
-              return Effect.isEffect(result) ? Effect.asVoid(result as Effect.Effect<unknown>) : Effect.void
-            })))
+          return command(view.state, view.dispatch)
         }
       }
     }

@@ -50,7 +50,7 @@ const runWith = <E, R>(
     const handled = yield* command(current, (tr: Transaction<any>) =>
       Effect.sync(() => {
         current = current.applyUnsafe(tr)
-      }), view)
+      }), view as any)
     return { handled, state: current }
   })
 
@@ -165,7 +165,7 @@ describe("commands with a view", () => {
     }))
 
   it("fall back to offsets for views without endOfTextblock", () =>
-    apply(doc(p("hi"), p("<a>there")), (state, dispatch) => joinBackward(state, dispatch, {}), doc(p("hithere"))))
+    apply(doc(p("hi"), p("<a>there")), (state, dispatch) => joinBackward(state, dispatch, {} as any), doc(p("hithere"))))
 })
 
 describe("base keymaps", () => {

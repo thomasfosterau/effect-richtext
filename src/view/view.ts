@@ -4,7 +4,7 @@
  *
  * @since 0.1.0
  */
-import type * as Cause from "effect/Cause"
+import * as Cause from "effect/Cause"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
@@ -148,7 +148,7 @@ export type ClipboardSerializer<Sc extends AnySchema = AnySchema> = Pick<DOMSeri
  * true. For some props, the first plugin that yields a value gets
  * precedence.
  *
- * The view passed to props is typed without requirements (`R`/`E`):
+ * The view passed to props is typed `EditorView<Sc, any, any>`:
  * handler effects run with the view's captured context anyway.
  *
  * The optional `P` type parameter refers to the type of `this` in prop
@@ -170,19 +170,19 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
   readonly handleDOMEvents?:
     | {
       readonly [event in keyof DOMEventMap]?:
-        | ((this: P, view: EditorView<Sc>, event: DOMEventMap[event]) => HandlerResult<R, E>)
+        | ((this: P, view: EditorView<Sc, any, any>, event: DOMEventMap[event]) => HandlerResult<R, E>)
         | undefined
     }
     | undefined
 
   /** Called when the editor receives a `keydown` event. */
   readonly handleKeyDown?:
-    | ((this: P, view: EditorView<Sc>, event: KeyboardEvent) => HandlerResult<R, E>)
+    | ((this: P, view: EditorView<Sc, any, any>, event: KeyboardEvent) => HandlerResult<R, E>)
     | undefined
 
   /** Handler for `keypress` events. */
   readonly handleKeyPress?:
-    | ((this: P, view: EditorView<Sc>, event: KeyboardEvent) => HandlerResult<R, E>)
+    | ((this: P, view: EditorView<Sc, any, any>, event: KeyboardEvent) => HandlerResult<R, E>)
     | undefined
 
   /**
@@ -193,7 +193,7 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
   readonly handleTextInput?:
     | ((
       this: P,
-      view: EditorView<Sc>,
+      view: EditorView<Sc, any, any>,
       from: number,
       to: number,
       text: string,
@@ -208,7 +208,7 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
   readonly handleClickOn?:
     | ((
       this: P,
-      view: EditorView<Sc>,
+      view: EditorView<Sc, any, any>,
       pos: number,
       node: Node<Sc>,
       nodePos: number,
@@ -219,14 +219,14 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
 
   /** Called when the editor is clicked, after `handleClickOn` handlers have been called. */
   readonly handleClick?:
-    | ((this: P, view: EditorView<Sc>, pos: number, event: MouseEvent) => HandlerResult<R, E>)
+    | ((this: P, view: EditorView<Sc, any, any>, pos: number, event: MouseEvent) => HandlerResult<R, E>)
     | undefined
 
   /** Called for each node around a double click. */
   readonly handleDoubleClickOn?:
     | ((
       this: P,
-      view: EditorView<Sc>,
+      view: EditorView<Sc, any, any>,
       pos: number,
       node: Node<Sc>,
       nodePos: number,
@@ -237,14 +237,14 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
 
   /** Called when the editor is double-clicked, after `handleDoubleClickOn`. */
   readonly handleDoubleClick?:
-    | ((this: P, view: EditorView<Sc>, pos: number, event: MouseEvent) => HandlerResult<R, E>)
+    | ((this: P, view: EditorView<Sc, any, any>, pos: number, event: MouseEvent) => HandlerResult<R, E>)
     | undefined
 
   /** Called for each node around a triple click. */
   readonly handleTripleClickOn?:
     | ((
       this: P,
-      view: EditorView<Sc>,
+      view: EditorView<Sc, any, any>,
       pos: number,
       node: Node<Sc>,
       nodePos: number,
@@ -255,7 +255,7 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
 
   /** Called when the editor is triple-clicked, after `handleTripleClickOn`. */
   readonly handleTripleClick?:
-    | ((this: P, view: EditorView<Sc>, pos: number, event: MouseEvent) => HandlerResult<R, E>)
+    | ((this: P, view: EditorView<Sc, any, any>, pos: number, event: MouseEvent) => HandlerResult<R, E>)
     | undefined
 
   /**
@@ -264,7 +264,7 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
    * event to get at the raw content.
    */
   readonly handlePaste?:
-    | ((this: P, view: EditorView<Sc>, event: ClipboardEvent, slice: Slice<Sc>) => HandlerResult<R, E>)
+    | ((this: P, view: EditorView<Sc, any, any>, event: ClipboardEvent, slice: Slice<Sc>) => HandlerResult<R, E>)
     | undefined
 
   /**
@@ -275,7 +275,7 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
   readonly handleDrop?:
     | ((
       this: P,
-      view: EditorView<Sc>,
+      view: EditorView<Sc, any, any>,
       event: DragEvent,
       slice: Slice<Sc>,
       moved: boolean
@@ -288,7 +288,7 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
    * that it did not handle the scrolling and further handlers or the
    * default behavior should be tried.
    */
-  readonly handleScrollToSelection?: ((this: P, view: EditorView<Sc>) => HandlerResult<R, E>) | undefined
+  readonly handleScrollToSelection?: ((this: P, view: EditorView<Sc, any, any>) => HandlerResult<R, E>) | undefined
 
   /**
    * Determines whether an in-editor drag event should copy or move the
@@ -304,7 +304,7 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
   readonly createSelectionBetween?:
     | ((
       this: P,
-      view: EditorView<Sc>,
+      view: EditorView<Sc, any, any>,
       anchor: ResolvedPos<Sc>,
       head: ResolvedPos<Sc>
     ) => Selection<Sc> | null | undefined)
@@ -320,7 +320,7 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
    * Can be used to transform pasted HTML text, _before_ it is parsed, for
    * example to clean it up.
    */
-  readonly transformPastedHTML?: ((this: P, html: string, view: EditorView<Sc>) => string) | undefined
+  readonly transformPastedHTML?: ((this: P, html: string, view: EditorView<Sc, any, any>) => string) | undefined
 
   /**
    * The parser to use when reading content from the clipboard. When not
@@ -333,7 +333,7 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
    * text is pasted as plain text.
    */
   readonly transformPastedText?:
-    | ((this: P, text: string, plain: boolean, view: EditorView<Sc>) => string)
+    | ((this: P, text: string, plain: boolean, view: EditorView<Sc, any, any>) => string)
     | undefined
 
   /**
@@ -349,7 +349,7 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
       text: string,
       $context: ResolvedPos<Sc>,
       plain: boolean,
-      view: EditorView<Sc>
+      view: EditorView<Sc, any, any>
     ) => Slice<Sc> | null | undefined)
     | undefined
 
@@ -359,14 +359,14 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
    * when the text is pasted as plain text.
    */
   readonly transformPasted?:
-    | ((this: P, slice: Slice<Sc>, view: EditorView<Sc>, plain: boolean) => Slice<Sc>)
+    | ((this: P, slice: Slice<Sc>, view: EditorView<Sc, any, any>, plain: boolean) => Slice<Sc>)
     | undefined
 
   /**
    * Can be used to transform copied or cut content before it is
    * serialized to the clipboard.
    */
-  readonly transformCopied?: ((this: P, slice: Slice<Sc>, view: EditorView<Sc>) => Slice<Sc>) | undefined
+  readonly transformCopied?: ((this: P, slice: Slice<Sc>, view: EditorView<Sc, any, any>) => Slice<Sc>) | undefined
 
   /**
    * Allows you to pass custom rendering and behavior logic for nodes.
@@ -406,7 +406,7 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
    * selection when copying text to the clipboard. By default, the editor
    * will use `textBetween` on the selected range.
    */
-  readonly clipboardTextSerializer?: ((this: P, content: Slice<Sc>, view: EditorView<Sc>) => string) | undefined
+  readonly clipboardTextSerializer?: ((this: P, content: Slice<Sc>, view: EditorView<Sc, any, any>) => string) | undefined
 
   /** A set of document decorations to show in the view. */
   readonly decorations?:
@@ -594,8 +594,8 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
    *
    * @internal
    */
-  readonly context: Context.Context<R>
-  private readonly runContext: Context.Context<R>
+  readonly context: Context.Context<any>
+  private readonly runContext: Context.Context<any>
 
   /** The view's current state. */
   state: EditorState<Sc, R, E>
@@ -609,8 +609,6 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     this.directPlugins = props.plugins || []
     this.directPlugins.forEach(checkStateComponent)
 
-    this.dispatch = this.dispatch.bind(this)
-    this.dispatchUnsafe = this.dispatchUnsafe.bind(this)
 
     this.dom = (place && (place as { mount: HTMLElement }).mount) || document.createElement("div")
     if (place) {
@@ -672,12 +670,12 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     props: DirectEditorProps<Sc, R, E>,
     context: Context.Context<R>
   ): EditorView<Sc, R, E>
-  static makeUnsafe<Sc extends AnySchema, R, E>(
+  static makeUnsafe(
     place: ViewPlace,
-    props: DirectEditorProps<Sc, R, E>,
-    context?: Context.Context<R>
-  ): EditorView<Sc, R, E> {
-    return new EditorView(place, props, context ?? (Context.empty() as Context.Context<R>))
+    props: DirectEditorProps<any, any, any>,
+    context?: Context.Context<any>
+  ): EditorView<any, any, any> {
+    return new EditorView<any, any, any>(place, props, context ?? (Context.empty() as Context.Context<any>))
   }
 
   /**
@@ -1183,32 +1181,47 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
   /**
    * Dispatch a transaction. Will call `dispatchTransaction` when given,
    * and otherwise defaults to applying the transaction to the current
-   * state and calling `updateState` with the result. This method is
-   * bound to the view instance, so that it can be easily passed around.
+   * state and calling `updateState` with the result.
+   *
+   * The returned effect runs with the view's captured context (so it
+   * requires nothing), and failures (of plugin hooks or of a
+   * `dispatchTransaction` effect) are reported to the `onError` prop
+   * rather than to the error channel—use `tryDispatch` to observe them.
+   * This is a bound function, usable as a command's `Dispatch`.
    */
-  dispatch(tr: Transaction<Sc>): Effect.Effect<void, E | StateFailure, R> {
-    return Effect.suspend(() => {
-      const dispatchTransaction = this._props.dispatchTransaction
-      if (dispatchTransaction) {
-        const result = dispatchTransaction.call(this, tr)
-        return Effect.isEffect(result) ? result : Effect.void
-      }
-      return Effect.map(this.state.apply(tr), (state) => this.updateState(state))
-    })
+  readonly dispatch: (tr: Transaction<Sc>) => Effect.Effect<void> = (tr) =>
+    Effect.catchCause(this.tryDispatch(tr), (cause) => Effect.sync(() => this.reportError(cause)))
+
+  /**
+   * Like `dispatch`, but fails with the errors of the plugin hooks and
+   * of `dispatchTransaction` instead of reporting them to `onError`.
+   * Runs with the view's captured context.
+   */
+  tryDispatch(tr: Transaction<Sc>): Effect.Effect<void, E | StateFailure> {
+    return Effect.provideContext(
+      Effect.suspend((): Effect.Effect<void, E | StateFailure, R> => {
+        const dispatchTransaction = this._props.dispatchTransaction
+        if (dispatchTransaction) {
+          const result = dispatchTransaction.call(this, tr)
+          return Effect.isEffect(result) ? result : Effect.void
+        }
+        return Effect.map(this.state.apply(tr), (state) => this.updateState(state))
+      }),
+      this.context
+    )
   }
 
   /**
-   * Dispatch a transaction, running it with the view's captured context.
-   * Runs synchronously when the dispatch (and the plugin hooks it runs)
-   * is synchronous, throwing its failure; otherwise it keeps running in
-   * the background and failures are reported to `onError`. Bound to the
-   * view instance.
+   * Dispatch a transaction synchronously, throwing its failure (as
+   * `tryDispatch` would fail). When the dispatch is asynchronous (a
+   * plugin hook suspends), it keeps running in the background and
+   * failures are reported to `onError`. Bound to the view instance.
    */
-  dispatchUnsafe(tr: Transaction<Sc>): void {
-    const fiber = Effect.runForkWith(this.runContext)(this.dispatch(tr))
+  readonly dispatchUnsafe: (tr: Transaction<Sc>) => void = (tr) => {
+    const fiber = Effect.runForkWith(this.runContext)(this.tryDispatch(tr))
     const exit = fiber.pollUnsafe()
     if (exit) {
-      if (Exit.isFailure(exit)) throw causeToError(exit.cause)
+      if (Exit.isFailure(exit)) throw Cause.squash(exit.cause)
       return
     }
     fiber.addObserver((exit) => {
@@ -1224,7 +1237,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
    * @internal
    */
   dispatchInternal(tr: Transaction<any>): void {
-    this.runEffect(this.dispatch(tr))
+    this.runEffect(this.tryDispatch(tr))
   }
 
   /** @internal */
@@ -1241,21 +1254,15 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
   }
 }
 
-function causeToError(cause: Cause.Cause<unknown>): unknown {
-  const failure = cause.reasons.find((r) => r._tag === "Fail")
-  if (failure && failure._tag === "Fail") return failure.error
-  const die = cause.reasons.find((r) => r._tag === "Die")
-  if (die && die._tag === "Die") return die.defect
-  return new Error("Dispatch was interrupted")
-}
-
 function computeDocDeco(view: EditorView<any, any, any>) {
   const attrs: Record<string, string> = Object.create(null)
   attrs.class = "ProseMirror"
   attrs.contenteditable = String(view.editable)
 
-  view.someProp("attributes", (value) => {
-    if (typeof value == "function") value = value(view.state) as any
+  view.someProp("attributes", (prop) => {
+    const value: { readonly [name: string]: string } | null | undefined = typeof prop == "function"
+      ? prop(view.state)
+      : prop
     if (value) {
       for (const attr in value) {
         if (attr == "class") {
