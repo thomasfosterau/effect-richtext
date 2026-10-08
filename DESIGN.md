@@ -35,6 +35,9 @@ src/
   schema-basic.ts   effect-richtext/schema-basic
   schema-list.ts    effect-richtext/schema-list
   test-builder.ts   effect-richtext/test-builder
+  history.ts        effect-richtext/history   (undo/redo, uses rope-sequence)
+  html.ts           effect-richtext/html      (HTML string helpers, HtmlEnvironment)
+  markdown.ts       effect-richtext/markdown  (markdown-it parser + serializer)
   internal/*.ts     not exported
 ```
 

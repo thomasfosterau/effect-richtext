@@ -1,11 +1,13 @@
 /**
- * List node specs (and, in the future, list commands), ported from
+ * List node specs and list commands, ported from
  * `prosemirror-schema-list`.
  *
  * @since 0.1.0
  */
 import * as S from "effect/Schema"
 import { Content, type ContentExpr, type ContentInput, type DOMOutputSpec, type NodeSpec, nodeSpec } from "./model.ts"
+
+export * from "./schema-list/commands.ts"
 
 const olDOM: DOMOutputSpec = ["ol", 0], ulDOM: DOMOutputSpec = ["ul", 0], liDOM: DOMOutputSpec = ["li", 0]
 
