@@ -156,4 +156,4 @@ scratchpad/*
 !scratchpad/.gitkeep
 __screenshots__/
 .claude/worktrees/
-.vitest/attachments/
+.vitest/
