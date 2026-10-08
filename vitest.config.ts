@@ -14,6 +14,35 @@ export default defineConfig({
         }
       },
       {
+        optimizeDeps: {
+          // Pre-bundle every dependency the tests import so a cold run does
+          // not trigger a mid-run re-optimization (which reloads the page).
+          include: [
+            "effect",
+            "effect/Cause",
+            "effect/Context",
+            "effect/Data",
+            "effect/Effect",
+            "effect/Equal",
+            "effect/Exit",
+            "effect/Hash",
+            "effect/Layer",
+            "effect/Option",
+            "effect/PubSub",
+            "effect/Scheduler",
+            "effect/Schema",
+            "effect/SchemaGetter",
+            "effect/SchemaIssue",
+            "effect/Scope",
+            "effect/Semaphore",
+            "effect/Stream",
+            "effect/SubscriptionRef",
+            "@effect/vitest",
+            "markdown-it",
+            "rope-sequence",
+            "w3c-keyname"
+          ]
+        },
         test: {
           name: "browser",
           include: ["test/view/**/*.test.ts", "test/browser/**/*.test.ts"],

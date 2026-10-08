@@ -2,11 +2,11 @@
   "name": "effect-richtext",
   "version": "0.0.0",
   "description": "An Effect-native reimplementation of the ProseMirror rich text editing toolkit",
+  "homepage": "https://github.com/thomasfosterau/effect-richtext",
   "repository": {
     "type": "git",
     "url": "https://github.com/thomasfosterau/effect-richtext"
   },
-  "homepage": "https://github.com/thomasfosterau/effect-richtext",
   "license": "MIT",
   "author": "Thomas Foster <me@thomasfoster.au>",
   "sideEffects": [
