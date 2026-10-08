@@ -3,36 +3,14 @@ import type { Node as PMNode } from "effect-richtext/model"
 import { EditorState, NodeSelection, type Plugin, Selection, TextSelection } from "effect-richtext/state"
 import { schema } from "effect-richtext/test-builder"
 import { type DirectEditorProps, EditorView } from "effect-richtext/view"
-
-// The CSS from prosemirror-view/style/prosemirror.css, which the test
-// pages load.
-const css = `
-.ProseMirror { position: relative; }
-.ProseMirror {
-  word-wrap: break-word;
-  white-space: pre-wrap;
-  white-space: break-spaces;
-  -webkit-font-variant-ligatures: none;
-  font-variant-ligatures: none;
-  font-feature-settings: "liga" 0;
-}
-.ProseMirror pre { white-space: pre-wrap; }
-.ProseMirror li { position: relative; }
-.ProseMirror-hideselection *::selection { background: transparent; }
-.ProseMirror-hideselection { caret-color: transparent; }
-.ProseMirror [draggable][contenteditable=false] { user-select: text }
-.ProseMirror-selectednode { outline: 2px solid #8cf; }
-li.ProseMirror-selectednode { outline: none; }
-img.ProseMirror-separator { display: inline !important; border: none !important; margin: 0 !important; }
-`
+import { injectViewCSSUnsafe } from "effect-richtext/view-css"
 
 /** The `#workspace` element the ProseMirror test page provides. */
 export const workspace = (): HTMLElement => {
   let space = document.querySelector("#workspace") as HTMLElement | null
   if (!space) {
-    const style = document.createElement("style")
-    style.textContent = css
-    document.head.appendChild(style)
+    // The ProseMirror test pages load prosemirror-view/style/prosemirror.css.
+    injectViewCSSUnsafe(document)
     space = document.createElement("div")
     space.id = "workspace"
     document.body.appendChild(space)

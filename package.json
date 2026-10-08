@@ -10,7 +10,9 @@
   "author": "Thomas Foster <me@thomasfoster.au>",
   "sideEffects": [
     "./src/test-builder.ts",
-    "./dist/test-builder.js"
+    "./dist/test-builder.js",
+    "./src/gapcursor.ts",
+    "./dist/gapcursor.js"
   ],
   "type": "module",
   "exports": {
