@@ -75,6 +75,18 @@ export class JSONError extends Data.TaggedError("JSONError")<{
 }> {}
 
 /**
+ * An invalid [`DOMOutputSpec`](#DOMOutputSpec) was passed to the DOM
+ * serializer (for example a misplaced content hole, or an array taken
+ * from an attribute value).
+ *
+ * @since 0.1.0
+ * @category errors
+ */
+export class DOMSpecError extends Data.TaggedError("DOMSpecError")<{
+  readonly message: string
+}> {}
+
+/**
  * Union of all errors produced by the model.
  *
  * @since 0.1.0
@@ -87,6 +99,7 @@ export type ModelError =
   | AttributeError
   | SchemaDefinitionError
   | JSONError
+  | DOMSpecError
 
 const modelErrorTags: ReadonlySet<string> = new Set([
   "PositionError",
@@ -94,7 +107,8 @@ const modelErrorTags: ReadonlySet<string> = new Set([
   "ContentError",
   "AttributeError",
   "SchemaDefinitionError",
-  "JSONError"
+  "JSONError",
+  "DOMSpecError"
 ])
 
 /**
