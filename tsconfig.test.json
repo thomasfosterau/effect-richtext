@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.base.json",
+  "include": [
+    "test",
+    "typetest"
+  ],
+  "references": [
+    {
+      "path": "tsconfig.src.json"
+    }
+  ],
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "composite": false,
+    "incremental": true,
+    "tsBuildInfoFile": ".tsbuildinfo/test.tsbuildinfo",
+    "types": [
+      "node"
+    ],
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitOverride": false,
+    "declarationMap": false,
+    "sourceMap": false
+  }
+}

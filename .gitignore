@@ -147,3 +147,13 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Project
+dist/
+docs/
+.tsbuildinfo/
+scratchpad/*
+!scratchpad/.gitkeep
+__screenshots__/
+.claude/worktrees/
+.vitest/
