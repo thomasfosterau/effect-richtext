@@ -5,7 +5,15 @@
  * @internal
  */
 import * as Option from "effect/Option"
-import { DOMParser, type DOMPosition, Fragment, type Mark, type Node, type ResolvedPos, type TagParseRule } from "../model.ts"
+import {
+  DOMParser,
+  type DOMPosition,
+  Fragment,
+  type Mark,
+  type Node,
+  type ResolvedPos,
+  type TagParseRule
+} from "../model.ts"
 import { type Selection, TextSelection, type Transaction } from "../state.ts"
 import * as browser from "./browser.ts"
 import { type DOMNode, keyEvent, selectionCollapsed } from "./dom.ts"
@@ -304,7 +312,8 @@ export function readDOMChange(
       const marks = doc.resolveUnsafe(change.start).marksAcrossOrNull(doc.resolveUnsafe(change.endA))
       if (marks) tr.ensureMarks(marks)
       view.dispatchInternal(tr)
-    } else if ( // Adding or removing a mark
+    } else if (
+      // Adding or removing a mark
       change.endA == change.endB &&
       (markChange = isMarkChange(
         $from.parent.content.cut($from.parentOffset, $to.parentOffset),

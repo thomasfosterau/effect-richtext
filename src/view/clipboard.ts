@@ -4,15 +4,7 @@
  *
  * @internal
  */
-import {
-  DOMParser,
-  DOMSerializer,
-  Fragment,
-  type Node,
-  type NodeType,
-  type ResolvedPos,
-  Slice
-} from "../model.ts"
+import { DOMParser, DOMSerializer, Fragment, type Node, type NodeType, type ResolvedPos, Slice } from "../model.ts"
 import * as browser from "./browser.ts"
 import type { EditorView } from "./view.ts"
 
@@ -188,8 +180,8 @@ function normalizeSiblings(fragment: Fragment<any, any>, $context: ResolvedPos<a
       let inLast
       if (!wrap) return result = null
       if (
-        inLast = result.length && lastWrap!.length &&
-          addToSibling(wrap, lastWrap!, node, result[result.length - 1]!, 0)
+        (inLast = result.length && lastWrap!.length &&
+          addToSibling(wrap, lastWrap!, node, result[result.length - 1]!, 0))
       ) {
         result[result.length - 1] = inLast
       } else {
@@ -318,11 +310,11 @@ function readHTML(html: string) {
   let elt = detachedDoc().createElement("div")
   const firstTag = /<([a-z][^>\s]+)/i.exec(html)
   let wrap
-  if (wrap = firstTag && wrapMap[firstTag[1]!.toLowerCase()]) {
+  if ((wrap = firstTag && wrapMap[firstTag[1]!.toLowerCase()])) {
     html = wrap.map((n) => "<" + n + ">").join("") + html + wrap.map((n) => "</" + n + ">").reverse().join("")
   }
   elt.innerHTML = maybeWrapTrusted(html)
-  if (wrap) for (let i = 0; i < wrap.length; i++) elt = elt.querySelector(wrap[i]!) || elt
+  if (wrap) { for (let i = 0; i < wrap.length; i++) elt = elt.querySelector(wrap[i]!) || elt }
   return elt
 }
 

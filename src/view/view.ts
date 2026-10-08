@@ -406,15 +406,17 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
    * selection when copying text to the clipboard. By default, the editor
    * will use `textBetween` on the selected range.
    */
-  readonly clipboardTextSerializer?: ((this: P, content: Slice<Sc>, view: EditorView<Sc, any, any>) => string) | undefined
+  readonly clipboardTextSerializer?:
+    | ((this: P, content: Slice<Sc>, view: EditorView<Sc, any, any>) => string)
+    | undefined
 
   /** A set of document decorations to show in the view. */
   readonly decorations?:
-    | ((this: P, state: EditorState<Sc, any, any>) => DecorationSource | null | undefined)
+    | ((this: P, state: EditorState<Sc>) => DecorationSource | null | undefined)
     | undefined
 
   /** When this returns false, the content of the view is not directly editable. */
-  readonly editable?: ((this: P, state: EditorState<Sc, any, any>) => boolean) | undefined
+  readonly editable?: ((this: P, state: EditorState<Sc>) => boolean) | undefined
 
   /**
    * Control the DOM attributes of the editable element. May be either an
@@ -427,7 +429,7 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
    */
   readonly attributes?:
     | { readonly [name: string]: string }
-    | ((state: EditorState<Sc, any, any>) => { readonly [name: string]: string } | null | undefined)
+    | ((state: EditorState<Sc>) => { readonly [name: string]: string } | null | undefined)
     | undefined
 
   /**
@@ -608,7 +610,6 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     this.state = props.state
     this.directPlugins = props.plugins || []
     this.directPlugins.forEach(checkStateComponent)
-
 
     this.dom = (place && (place as { mount: HTMLElement }).mount) || document.createElement("div")
     if (place) {
@@ -847,7 +848,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
 
   private destroyPluginViews() {
     let view
-    while (view = this.pluginViews.pop()) if (view.destroy) view.destroy()
+    while ((view = this.pluginViews.pop())) if (view.destroy) view.destroy()
   }
 
   private updatePluginViews(prevState?: EditorState<Sc, R, E>) {
@@ -1261,7 +1262,7 @@ function computeDocDeco(view: EditorView<any, any, any>) {
 
   view.someProp("attributes", (prop) => {
     const value: { readonly [name: string]: string } | null | undefined = typeof prop == "function"
-      ? prop(view.state)
+      ? prop(view.state as EditorState<any>)
       : prop
     if (value) {
       for (const attr in value) {
@@ -1296,7 +1297,7 @@ function updateCursorWrapper(view: EditorView<any, any, any>) {
 }
 
 function getEditable(view: EditorView<any, any, any>) {
-  return !view.someProp("editable", (value) => value(view.state) === false)
+  return !view.someProp("editable", (value) => value(view.state as EditorState<any>) === false)
 }
 
 function selectionContextChanged(sel1: Selection<any>, sel2: Selection<any>) {

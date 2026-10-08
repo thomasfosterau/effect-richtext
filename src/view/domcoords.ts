@@ -322,7 +322,10 @@ function elementFromPoint(element: HTMLElement, coords: { top: number; left: num
   const len = element.childNodes.length
   if (len && box.top < box.bottom) {
     for (
-      let startI = Math.max(0, Math.min(len - 1, Math.floor(len * (coords.top - box.top) / (box.bottom - box.top)) - 2)),
+      let startI = Math.max(
+          0,
+          Math.min(len - 1, Math.floor(len * (coords.top - box.top) / (box.bottom - box.top)) - 2)
+        ),
         i = startI;;
     ) {
       const child = element.childNodes[i]!
@@ -504,7 +507,7 @@ export function coordsAtPos(view: AnyView, pos: number, side: number): Rect {
     const target = !after
       ? null
       : after.nodeType == 3
-      ? textRange(after as Text, 0, (supportEmptyRange ? 0 : 1))
+      ? textRange(after as Text, 0, supportEmptyRange ? 0 : 1)
       : after.nodeType == 1
       ? after
       : null

@@ -18,7 +18,7 @@ import {
 import { TextSelection } from "../state.ts"
 import * as browser from "./browser.ts"
 import type { Decoration, DecorationSource, NodeType, WidgetConstructor, WidgetType } from "./decoration.ts"
-import { type DOMNode, domIndex, isEquivalentPosition } from "./dom.ts"
+import { domIndex, type DOMNode, isEquivalentPosition } from "./dom.ts"
 import type { EditorView } from "./view.ts"
 
 type AnyView = EditorView<any, any, any>
@@ -562,7 +562,7 @@ export class ViewDesc {
         // Issue #1128
         if (brKludge && offset == node.nodeValue!.length) {
           for (let scan: DOMNode | null = node, after; scan; scan = scan.parentNode) {
-            if (after = scan.nextSibling) {
+            if ((after = scan.nextSibling)) {
               if (after.nodeName == "BR") {
                 anchorDOM = headDOM = { node: after.parentNode!, offset: domIndex(after) + 1 }
               }
@@ -877,13 +877,19 @@ export class NodeViewDesc extends ViewDesc {
   ): NodeViewDesc {
     const custom = view.nodeViews[node.type.name]
     let descObj: ViewDesc | undefined
-    const spec: NodeView<any> | undefined = custom && (custom as NodeViewConstructor<any, any>)(node, view, () => {
-      // (This is a function that allows the custom view to find its
-      // own position)
-      if (!descObj) return pos
-      if (descObj.parent) return descObj.parent.posBeforeChild(descObj)
-      return undefined
-    }, outerDeco, innerDeco)
+    const spec: NodeView<any> | undefined = custom && (custom as NodeViewConstructor<any, any>)(
+      node,
+      view,
+      () => {
+        // (This is a function that allows the custom view to find its
+        // own position)
+        if (!descObj) return pos
+        if (descObj.parent) return descObj.parent.posBeforeChild(descObj)
+        return undefined
+      },
+      outerDeco,
+      innerDeco
+    )
 
     let dom: DOMNode | undefined = spec && spec.dom, contentDOM = spec && spec.contentDOM
     if (node.isText) {
@@ -1285,17 +1291,18 @@ class CustomNodeViewDesc extends NodeViewDesc {
   }
 
   override selectNode() {
-    this.spec.selectNode ? this.spec.selectNode() : super.selectNode()
+    if (this.spec.selectNode) this.spec.selectNode()
+    else super.selectNode()
   }
 
   override deselectNode() {
-    this.spec.deselectNode ? this.spec.deselectNode() : super.deselectNode()
+    if (this.spec.deselectNode) this.spec.deselectNode()
+    else super.deselectNode()
   }
 
   override setSelection(anchor: number, head: number, view: AnyView, force: boolean) {
-    this.spec.setSelection
-      ? this.spec.setSelection(anchor, head, view.root)
-      : super.setSelection(anchor, head, view, force)
+    if (this.spec.setSelection) this.spec.setSelection(anchor, head, view.root)
+    else super.setSelection(anchor, head, view, force)
   }
 
   override destroy() {
@@ -1444,7 +1451,7 @@ function patchAttributes(dom: HTMLElement, prev: { [name: string]: string }, cur
     if (prev.style) {
       const prop = /\s*([\w\-\xa1-￿]+)\s*:(?:"(?:\\.|[^"])*"|'(?:\\.|[^'])*'|\(.*?\)|[^;])*/g
       let m
-      while (m = prop.exec(prev.style)) {
+      while ((m = prop.exec(prev.style))) {
         dom.style.removeProperty(m[1]!)
       }
     }
@@ -1512,7 +1519,8 @@ class ViewTreeUpdater {
     while (
       keep < maxKeep &&
       (keep == depth - 1 ? this.top : this.stack[(keep + 1) << 1] as ViewDesc)
-        .matchesMark(marks[keep]!) && marks[keep]!.type.spec.spanning !== false
+        .matchesMark(marks[keep]!) &&
+      marks[keep]!.type.spec.spanning !== false
     ) {
       keep++
     }
@@ -1730,7 +1738,9 @@ class ViewTreeUpdater {
       (this.view.requiresGeckoHackNode && /\s$/.test(textOf(lastChild.node)))
     ) {
       // Avoid bugs in Safari's cursor drawing (#1165) and Chrome's mouse selection (#1152)
-      if ((browser.safari || browser.chrome) && lastChild && (lastChild.dom as HTMLElement).contentEditable == "false") {
+      if (
+        (browser.safari || browser.chrome) && lastChild && (lastChild.dom as HTMLElement).contentEditable == "false"
+      ) {
         this.addHackNode("IMG", parent)
       }
       this.addHackNode("BR", this.top)

@@ -45,7 +45,7 @@ export type PluginProps<Sc extends AnySchema = AnySchema, E = never, R = never> 
   Sc,
   R,
   E,
-  Plugin<any, Sc, any, any>
+  Plugin<any, Sc, never, never>
 >
 
 /**
@@ -179,7 +179,11 @@ export interface PluginSpec<PState = any, Sc extends AnySchema = AnySchema, E = 
   readonly [key: string]: unknown
 }
 
-function bindProps(obj: { readonly [prop: string]: unknown }, self: unknown, target: Record<string, unknown>): Record<string, unknown> {
+function bindProps(
+  obj: { readonly [prop: string]: unknown },
+  self: unknown,
+  target: Record<string, unknown>
+): Record<string, unknown> {
   for (const prop in obj) {
     let val = obj[prop]
     if (val instanceof Function) val = val.bind(self)

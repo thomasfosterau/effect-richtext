@@ -165,7 +165,11 @@ describe("commands with a view", () => {
     }))
 
   it("fall back to offsets for views without endOfTextblock", () =>
-    apply(doc(p("hi"), p("<a>there")), (state, dispatch) => joinBackward(state, dispatch, {} as any), doc(p("hithere"))))
+    apply(
+      doc(p("hi"), p("<a>there")),
+      (state, dispatch) => joinBackward(state, dispatch, {} as any),
+      doc(p("hithere"))
+    ))
 })
 
 describe("base keymaps", () => {

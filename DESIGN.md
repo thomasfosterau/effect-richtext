@@ -117,7 +117,7 @@ type Dispatch<Sc> = (tr: Transaction<Sc>) => Effect.Effect<void>
 type Command<Sc, E = never, R = never> = (
   state: EditorState<Sc, any, any>,
   dispatch?: Dispatch<Sc>,
-  view?: EditorViewLike // placeholder until the view exists; becomes EditorView<Sc>
+  view?: EditorViewLike // EditorView<any, any, any> | undefined
 ) => Effect.Effect<boolean, E, R>
 ```
 
@@ -133,6 +133,33 @@ carry the union of their plugins' requirements; the view is created inside an
 Effect that provides them, and runs DOM event handlers with the captured
 context. Handlers that complete synchronously behave exactly like ProseMirror's;
 asynchronous ones are forked and treated as handled.
+
+### The view
+
+```ts
+const view = yield * EditorView.make(place, { state, handleKeyDown, onError }) // needs Scope | R
+view.dispatch(tr) // Effect<void>: runs with the captured context, failures go to onError
+view.tryDispatch(tr) // Effect<void, E | StateFailure>
+view.dispatchUnsafe(tr) // synchronous, throws failures
+```
+
+- `EditorView.make` captures `Effect.context<R>()` and registers `destroy` as a
+  scope finalizer; `EditorView.makeUnsafe(place, props, context?)` is for
+  non-Effect callers (the caller destroys the view).
+- Event-handler props (`handleKeyDown`, `handleTextInput`, `handleClick*`,
+  `handlePaste`, `handleDrop`, `handleScrollToSelection`, `handleDOMEvents.*`)
+  return `boolean | void | Effect<boolean, E, R>`. Effects are forked with the
+  captured context and polled: a synchronous result is used as-is, a pending
+  fiber counts as handled, a failure is reported to `onError` (default:
+  `Effect.logError`) and counts as not handled.
+- Props receive the view as `EditorView<Sc, any, any>`; plugin props are the
+  view's `EditorProps` (bound to the plugin), and `spec.view` gets the view.
+- `nodeViews`/`markViews` are keyed by node/mark name and typed per name.
+- Nullable accessors return `Option` (`posAtCoords`, `nodeDOM`);
+  `posAtDOM` fails with a `ViewError` (`posAtDOMUnsafe` throws it).
+- Internals (view descs, DOM observer, input handling) are synchronous ports of
+  `prosemirror-view`; DOM-triggered transactions are dispatched through the
+  synchronous path with the captured context.
 
 ### Tests
 

@@ -5,6 +5,7 @@
  * @since 0.1.0
  */
 import type { Mark, Node } from "../model.ts"
+import type { EditorState } from "../state.ts"
 import type { Mappable, Mapping } from "../transform.ts"
 import type { DOMNode } from "./dom.ts"
 import type { EditorView } from "./view.ts"
@@ -527,7 +528,7 @@ export class DecorationSet implements DecorationSource {
       let found: Array<Decoration> | undefined
       const from = (children[i] as number) + offset, to = (children[i + 1] as number) + offset
       for (let j = 0, span; j < decorations.length; j++) {
-        if (span = decorations[j]) {
+        if ((span = decorations[j])) {
           if (span.from > from && span.to < to) {
             decorations[j] = null
             ;(found || (found = [])).push(span)
@@ -546,7 +547,7 @@ export class DecorationSet implements DecorationSource {
     }
     if (local.length) {
       for (let i = 0, span; i < decorations.length; i++) {
-        if (span = decorations[i]) {
+        if ((span = decorations[i])) {
           for (let j = 0; j < local.length; j++) {
             if (local[j]!.eq(span, offset)) {
               if (local == this.local) local = this.local.slice()
@@ -967,7 +968,7 @@ function insertAhead(array: Array<Decoration>, i: number, deco: Decoration) {
 export function viewDecorations(view: EditorView<any, any, any>): DecorationSource {
   const found: Array<DecorationSource> = []
   view.someProp("decorations", (f) => {
-    const result = f(view.state)
+    const result = f(view.state as EditorState<any>)
     if (result && result != empty) found.push(result)
   })
   if (view.cursorWrapper) {

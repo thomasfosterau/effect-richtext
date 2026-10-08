@@ -156,7 +156,7 @@ export function isOnEdge(node: DOMNode, offset: number, parent: DOMNode): boolea
 /** @internal */
 export function hasBlockDesc(dom: DOMNode): boolean {
   let desc: ViewDesc | undefined
-  for (let cur: DOMNode | null = dom; cur; cur = cur.parentNode) if (desc = cur.pmViewDesc) break
+  for (let cur: DOMNode | null = dom; cur; cur = cur.parentNode) if ((desc = cur.pmViewDesc)) break
   return !!desc && !!desc.node && desc.node.isBlock && (desc.dom == dom || desc.contentDOM == dom)
 }
 

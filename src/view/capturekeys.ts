@@ -7,7 +7,7 @@
  */
 import { AllSelection, type EditorState, NodeSelection, Selection, TextSelection } from "../state.ts"
 import * as browser from "./browser.ts"
-import { type DOMNode, domIndex, hasBlockDesc, selectionCollapsed } from "./dom.ts"
+import { domIndex, type DOMNode, hasBlockDesc, selectionCollapsed } from "./dom.ts"
 import { selectionToDOM } from "./selection.ts"
 import type { EditorView } from "./view.ts"
 
@@ -214,10 +214,10 @@ function textNodeBefore(node: DOMNode | null, offset: number): Text | undefined 
 function setSelFocus(view: AnyView, node: DOMNode, offset: number) {
   if (node.nodeType != 3) {
     let before, after
-    if (after = textNodeAfter(node, offset)) {
+    if ((after = textNodeAfter(node, offset))) {
       node = after
       offset = 0
-    } else if (before = textNodeBefore(node, offset)) {
+    } else if ((before = textNodeBefore(node, offset))) {
       node = before
       offset = before.nodeValue!.length
     }
