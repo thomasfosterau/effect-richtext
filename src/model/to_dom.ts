@@ -26,6 +26,10 @@ import type { AnySchema, MarkType, NodeType } from "./schema.ts"
  * the number zero ("hole"), which marks where the node's content goes.
  * A hole should be the only child element in its parent node.
  *
+ * Plain arrays are accepted as well as tuples, because TypeScript does
+ * not always infer a tuple for an array literal returned from a `toDOM`
+ * callback; the shape is validated when the spec is rendered.
+ *
  * @since 0.1.0
  * @category models
  */
@@ -33,6 +37,7 @@ export type DOMOutputSpec =
   | globalThis.Node
   | { readonly dom: globalThis.Node; readonly contentDOM?: HTMLElement | undefined }
   | readonly [string, ...Array<any>]
+  | ReadonlyArray<any>
 
 /**
  * The result of rendering a [`DOMOutputSpec`](#DOMOutputSpec). When
