@@ -215,11 +215,20 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
     return attempt(() => DOMSerializer.renderSpecUnsafe(doc, structure, xmlNS), isDOMSpecError)
   }
 
-  /** Like `renderSpec`, but throws a `DOMSpecError` for invalid specs. */
-  static renderSpecUnsafe(doc: Document, structure: DOMOutputSpec, xmlNS: string | null = null): RenderedSpec {
+  /**
+   * Like `renderSpec`, but throws a `DOMSpecError` for invalid specs.
+   * When `blockArraysIn` (usually the attributes of the node or mark
+   * being rendered) is given, arrays found in it are refused as specs.
+   */
+  static renderSpecUnsafe(
+    doc: Document,
+    structure: DOMOutputSpec,
+    xmlNS: string | null = null,
+    blockArraysIn?: object
+  ): RenderedSpec {
     // Kludge for backwards-compatibility with accidental original behaviour
     if (typeof structure == "string") return { dom: doc.createTextNode(structure) }
-    return renderSpecInner(doc, structure, xmlNS)
+    return renderSpecInner(doc, structure, xmlNS, blockArraysIn)
   }
 
   /**
