@@ -38,6 +38,7 @@ src/
   history.ts        effect-richtext/history   (undo/redo, uses rope-sequence)
   html.ts           effect-richtext/html      (HTML string helpers, HtmlEnvironment)
   markdown.ts       effect-richtext/markdown  (markdown-it parser + serializer)
+  compat/*.ts       effect-richtext/compat/*  (ProseMirror-compatible facades)
   internal/*.ts     not exported
 ```
 
@@ -160,6 +161,58 @@ view.dispatchUnsafe(tr) // synchronous, throws failures
 - Internals (view descs, DOM observer, input handling) are synchronous ports of
   `prosemirror-view`; DOM-triggered transactions are dispatched through the
   synchronous path with the captured context.
+
+### ProseMirror compatibility layer (`effect-richtext/compat/*`)
+
+`compat/model`, `compat/transform`, `compat/state`, `compat/view`,
+`compat/keymap` and `compat/commands` expose the API of the corresponding
+`prosemirror-*` packages, so that code written against ProseMirror can switch
+its imports (e.g. with a bundler alias) and run unmodified. `compat/orderedmap`,
+`compat/schema-basic`, `compat/schema-list` and `compat/test-builder` cover the
+packages those depend on.
+
+- **Facade objects.** Every ProseMirror class is a thin facade over a core
+  object, stored under a private symbol, and every method delegates to the
+  core (using the `Unsafe`/`OrNull` variants). Facades return `null` instead of
+  `Option` and throw ProseMirror's exceptions (`RangeError`, `ReplaceError`,
+  `TransformError`, `SyntaxError` for content expressions) instead of failing
+  with tagged errors.
+- **Identity.** Core objects are wrapped on demand (`compat/internal/core.ts`):
+  a factory is registered per core class and the facade is cached in a
+  `WeakMap`, so the same core object always yields the same facade
+  (`doc.child(0) === doc.child(0)`). Arrays (mark sets, child arrays) are
+  cached too, and unwrap back to the original core array. Each compat module
+  exports `toCore` / `fromCore` to move between the two APIs.
+- **Specs.** `new Schema(spec)` keeps ProseMirror's `OrderedMap` specs in
+  `schema.spec`, and builds the core schema from translated specs whose
+  callbacks (`toDOM`, `leafText`, `toDebugString`, parse rules'
+  `getContent`/`clearMark`) receive facades. `NodeType.spec` returns the
+  original spec. Content expressions are plain strings (the core reads them
+  as ProseMirror syntax).
+- **Subclassing.** A subclass of the facade `Step` or `Selection` gets a core
+  object that calls back into it, so custom steps and selections work in core
+  transforms, the history and the view. Subclasses of built-in steps and
+  selections (`class MyStep extends ReplaceStep`) get an instance of a
+  generated subclass of the core class that calls the facade's overrides;
+  facade methods call the core class's own implementation (`callBase`), so
+  overrides can call `super`. `Step.jsonID` / `Selection.jsonID` register
+  deserializers with the core.
+- **Commands and plugins.** ProseMirror commands are plain
+  `(state, dispatch?, view?) => boolean` functions; `fromCoreCommand` /
+  `toCoreCommand` convert to and from core commands, running them
+  synchronously. `new Plugin(spec)` keeps the ProseMirror spec and props
+  (bound to the facade plugin) and creates a core plugin whose state hooks,
+  filters, plugin views and props convert their arguments to facades and
+  their results back (`compat/internal/props.ts`); translations are cached
+  so re-translated props keep their identity.
+- **View.** `new EditorView(place, props)` creates the core view with
+  `EditorView.makeUnsafe` and translated props; `someProp`, `props` and
+  `dispatch` follow ProseMirror. Node and mark views returned by
+  ProseMirror-style constructors are adapted with a proxy.
+- **Tests.** ProseMirror's own test suites run against the facades with
+  import-only changes: `test/compat/<package>/*.test.ts` (node project) and
+  `test/compat/model/dom.browser.test.ts` plus `test/view/compat-*.test.ts`
+  (browser project). Each file lists any other change in its header comment.
 
 ### Tests
 
