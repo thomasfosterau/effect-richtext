@@ -38,6 +38,7 @@ src/
   history.ts        effect-richtext/history   (undo/redo, uses rope-sequence)
   html.ts           effect-richtext/html      (HTML string helpers, HtmlEnvironment)
   markdown.ts       effect-richtext/markdown  (markdown-it parser + serializer)
+  extensions.ts     effect-richtext/extensions (typed extensions, Editor, chainable commands)
   internal/*.ts     not exported
 ```
 
@@ -161,6 +162,55 @@ view.dispatchUnsafe(tr) // synchronous, throws failures
   `prosemirror-view`; DOM-triggered transactions are dispatched through the
   synchronous path with the captured context.
 
+### Extensions (`effect-richtext/extensions`)
+
+A ProseKit-style composition layer on top of the core. It is purely
+additive (no core module imports it) and unopinionated: no UI, no styling,
+no required node set.
+
+```ts
+const extension = union(defineBasicExtension(), defineCommands({ shout: (s: string) => command }))
+const editor = yield * createEditor(extension, { doc: "<p>Hi</p>" })
+yield * editor.commands.toggleMark("strong") // "strong" must be a mark of the merged schema
+yield * editor.chain().setBlockType("heading", { level: 2 }).insertText("!").run() // one transaction
+yield * editor.mount(place) // EditorView.make: needs Scope | R
+```
+
+- `Extension<T>` is an immutable tree of facets (`nodes`, `marks`,
+  `plugins`, `keymap`, `commands`). `T` records node specs, mark specs,
+  commands (name → argument tuple, or a `CommandSignature` type lambda for
+  schema-dependent signatures such as `toggleMark<M extends MarkNames<Sc>>`)
+  and the `E`/`R` of plugins, keymaps and commands. `union` intersects
+  spec/command records and unions `E`/`R` (same-name specs intersect at the
+  type level, so they should not have conflicting literal properties).
+- Priorities (`Priority.lowest`…`highest`, `withPriority`; inner priorities
+  win) order facets, highest first, then by declaration (depth first): schema
+  node/mark order, plugin and keymap order, and which command wins a name
+  clash. Same-name specs are shallow-merged (attrs merged, higher priority
+  wins). Each keymap facet is its own keymap plugin; `defineBaseKeymap` is
+  `low`, `defineParagraph` is `highest` (default block).
+- `createEditor(ext, { doc?, selection? })` returns
+  `Effect<Editor<T>, SchemaDefinitionError | ModelError | StateFailure | E, R>`
+  (`createEditorUnsafe` when `R` is `never`). `doc` may be a node, JSON or HTML.
+- `Editor` holds the state (the view's state while mounted). `mount` uses
+  `EditorView.make` and registers a finalizer that unmounts; `unmount`
+  destroys the view early and keeps its last state.
+- `editor.commands.x(...)` and `editor.chain()…run()` return
+  `Effect<boolean, E, R>`: dispatched transactions are applied immediately
+  (through `view.tryDispatch` when mounted), plugin failures propagate as `E`,
+  a `StateError` (mismatched transaction) is a defect. `editor.can().x(...)`
+  runs the command without `dispatch`.
+- Chains use one shared transaction (TipTap's `ChainableState`): commands
+  receive a state whose `doc`/`selection`/stored marks are the transaction's,
+  and whose `tr` is the shared transaction; a transaction a command builds
+  itself is folded into it. Plugin state is the chain's start state. All
+  commands run; the transaction is dispatched when anything changed, and
+  `run` succeeds with `true` when every command applied. A command named
+  `run` is not chainable.
+- Node/mark builders (`editor.nodes.heading({ level: 2 }, "Hi")`,
+  `editor.marks.link({ href })`, `editor.text(s, ...marks)`) are synchronous
+  conveniences that throw like the `Unsafe` variants.
+
 ### Tests
 
 - Tests live in `test/<module>/*.test.ts` and use `@effect/vitest`
@@ -168,6 +218,11 @@ view.dispatchUnsafe(tr) // synchronous, throws failures
 - ProseMirror's test suites are ported as faithfully as possible; `test/utils/ist.ts`
   reproduces the `ist` helper so ported tests stay close to the originals.
 - View tests run in Chromium via Vitest browser mode (`test/view/**`).
+- Type-level tests live in `typetest/*.tst.ts` (tstyche, `pnpm test-types`).
+  They use `typetest/tsconfig.json`, which disables the Effect language
+  service plugin: its "floating Effect" diagnostic would otherwise make every
+  `toBeCallableWith` on an Effect-returning function fail (and every
+  negative one pass vacuously).
 
 ProseMirror is MIT licensed, copyright Marijn Haverbeke and others; ported
 code and tests retain that notice (see `LICENSE`).
