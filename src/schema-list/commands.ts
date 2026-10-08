@@ -203,7 +203,7 @@ export const splitListItemKeepMarks = <Sc extends AnySchema, N extends NodeNames
  * @category commands
  */
 export const liftListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(itemType: NodeType<Sc, N>): Command<Sc> =>
-  syncCommand<Sc>((state, dispatching) => {
+  syncCommand<Sc>((state, dispatching): SyncResult<Sc> => {
     const { $from, $to } = state.selection
     const range = $from.blockRangeOrNull(
       $to,
@@ -213,10 +213,10 @@ export const liftListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(item
     if (!dispatching) return true
     if ($from.node(range.depth - 1).type === itemType) {
       // Inside a parent list
-      return liftToOuterList(state, itemType, range)
+      return liftToOuterList(state, itemType, range) as SyncResult<Sc>
     } else {
       // Outer list node
-      return liftOutOfList(state, range)
+      return liftOutOfList(state, range) as SyncResult<Sc>
     }
   })
 

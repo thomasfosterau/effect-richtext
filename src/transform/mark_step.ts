@@ -86,7 +86,7 @@ export class AddMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
     if (typeof json.from !== "number" || typeof json.to !== "number") {
       throw new JSONError({ message: "Invalid input for AddMarkStep.fromJSON" })
     }
-    return new AddMarkStep(json.from, json.to, schema.markFromJSONUnsafe(json.mark))
+    return new AddMarkStep(json.from, json.to, schema.markFromJSONUnsafe(json.mark) as Mark<Sc>)
   }
 }
 
@@ -151,7 +151,7 @@ export class RemoveMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
     if (typeof json.from !== "number" || typeof json.to !== "number") {
       throw new JSONError({ message: "Invalid input for RemoveMarkStep.fromJSON" })
     }
-    return new RemoveMarkStep(json.from, json.to, schema.markFromJSONUnsafe(json.mark))
+    return new RemoveMarkStep(json.from, json.to, schema.markFromJSONUnsafe(json.mark) as Mark<Sc>)
   }
 }
 
@@ -212,7 +212,7 @@ export class AddNodeMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> 
   /** @internal */
   static override fromJSONUnsafe<Sc extends AnySchema>(schema: Sc, json: any): AddNodeMarkStep<Sc> {
     if (typeof json.pos !== "number") throw new JSONError({ message: "Invalid input for AddNodeMarkStep.fromJSON" })
-    return new AddNodeMarkStep(json.pos, schema.markFromJSONUnsafe(json.mark))
+    return new AddNodeMarkStep(json.pos, schema.markFromJSONUnsafe(json.mark) as Mark<Sc>)
   }
 }
 
@@ -267,7 +267,7 @@ export class RemoveNodeMarkStep<Sc extends AnySchema = AnySchema> extends Step<S
     if (typeof json.pos !== "number") {
       throw new JSONError({ message: "Invalid input for RemoveNodeMarkStep.fromJSON" })
     }
-    return new RemoveNodeMarkStep(json.pos, schema.markFromJSONUnsafe(json.mark))
+    return new RemoveNodeMarkStep(json.pos, schema.markFromJSONUnsafe(json.mark) as Mark<Sc>)
   }
 }
 

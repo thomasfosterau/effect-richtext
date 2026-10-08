@@ -8,7 +8,7 @@ export default defineConfig({
         test: {
           name: "node",
           include: ["test/**/*.test.ts"],
-          exclude: ["test/view/**", "test/browser/**"],
+          exclude: ["test/view/**", "test/browser/**", "test/**/*.browser.test.ts"],
           environment: "happy-dom",
           sequence: { concurrent: true }
         }
@@ -16,7 +16,7 @@ export default defineConfig({
       {
         test: {
           name: "browser",
-          include: ["test/view/**/*.test.ts", "test/browser/**/*.test.ts"],
+          include: ["test/view/**/*.test.ts", "test/browser/**/*.test.ts", "test/**/*.browser.test.ts"],
           browser: {
             enabled: true,
             headless: true,
