@@ -108,8 +108,14 @@ export function normalizeKeyName(name: string): string {
   return result
 }
 
-function normalize(map: Bindings): Record<string, Command<any, any, any>> {
-  const copy: Record<string, Command<any, any, any>> = Object.create(null)
+/**
+ * Normalize the key names of a set of bindings. Throws a `KeymapError`
+ * for invalid or duplicate key names.
+ *
+ * @internal
+ */
+export function normalizeBindings<A>(map: { readonly [key: string]: A }): Record<string, A> {
+  const copy: Record<string, A> = Object.create(null)
   for (const prop in map) {
     const norm = normalizeKeyName(prop)
     if (Object.prototype.hasOwnProperty.call(copy, norm)) {
@@ -126,6 +132,42 @@ function modifiers(name: string, event: KeyboardEvent, shift = true): string {
   if (event.metaKey) name = "Meta-" + name
   if (shift && event.shiftKey) name = "Shift-" + name
   return name
+}
+
+/**
+ * Find the bindings matching a keydown event, in the order in which
+ * they should be tried.
+ *
+ * @internal
+ */
+export function matchBindings<A>(map: Record<string, A>, event: KeyboardEvent): Array<A> {
+  const name = keyName(event)
+  const candidates: Array<A> = []
+  const direct = map[modifiers(name, event)]
+  if (direct) candidates.push(direct)
+  // A character key
+  if (name.length === 1 && name !== " ") {
+    if (event.shiftKey) {
+      // In case the name was already modified by shift, try looking
+      // it up without its shift modifier
+      const noShift = map[modifiers(name, event, false)]
+      if (noShift) candidates.push(noShift)
+    }
+    let baseName: string | undefined
+    if (
+      (event.altKey || event.metaKey || event.ctrlKey) &&
+      // Ctrl-Alt may be used for AltGr on Windows
+      !(windows && event.ctrlKey && event.altKey) &&
+      (baseName = base[event.keyCode]) && baseName !== name
+    ) {
+      // Try falling back to the keyCode when there's a modifier
+      // active, and our table produces a different name from the
+      // the keyCode. See #668, #1060, #1529.
+      const fromCode = map[modifiers(baseName, event)]
+      if (fromCode) candidates.push(fromCode)
+    }
+  }
+  return candidates
 }
 
 const succeedFalse: Effect.Effect<boolean> = Effect.succeed(false)
@@ -186,35 +228,10 @@ export const keymap = <const B extends Bindings>(
 export const keydownHandler = <const B extends Bindings>(
   bindings: B
 ): KeydownHandler<BindingsError<B>, BindingsRequirements<B>> => {
-  const map = normalize(bindings)
+  const map = normalizeBindings<Command<any, any, any>>(bindings)
   return (view, event) =>
     Effect.suspend(() => {
-      const name = keyName(event)
-      const candidates: Array<Command<any, any, any>> = []
-      const direct = map[modifiers(name, event)]
-      if (direct) candidates.push(direct)
-      // A character key
-      if (name.length === 1 && name !== " ") {
-        if (event.shiftKey) {
-          // In case the name was already modified by shift, try looking
-          // it up without its shift modifier
-          const noShift = map[modifiers(name, event, false)]
-          if (noShift) candidates.push(noShift)
-        }
-        let baseName: string | undefined
-        if (
-          (event.altKey || event.metaKey || event.ctrlKey) &&
-          // Ctrl-Alt may be used for AltGr on Windows
-          !(windows && event.ctrlKey && event.altKey) &&
-          (baseName = base[event.keyCode]) && baseName !== name
-        ) {
-          // Try falling back to the keyCode when there's a modifier
-          // active, and our table produces a different name from the
-          // the keyCode. See #668, #1060, #1529.
-          const fromCode = map[modifiers(baseName, event)]
-          if (fromCode) candidates.push(fromCode)
-        }
-      }
+      const candidates = matchBindings(map, event)
       if (candidates.length === 0) return succeedFalse
       const loop = (i: number): Effect.Effect<boolean, any, any> =>
         i === candidates.length ?

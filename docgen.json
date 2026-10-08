@@ -1,6 +1,9 @@
 {
   "$schema": "./node_modules/@effect/docgen/schema.json",
-  "exclude": ["src/internal/**/*.ts"],
+  "exclude": [
+    "src/internal/**/*.ts",
+    "src/compat/internal/**/*.ts"
+  ],
   "srcLink": "https://github.com/thomasfosterau/effect-richtext/tree/main/src/",
   "examplesCompilerOptions": {
     "noEmit": true,
@@ -9,6 +12,10 @@
     "moduleResolution": "Bundler",
     "module": "ES2022",
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ]
   }
 }

@@ -642,7 +642,8 @@ const empty = DecorationSet.empty
 // An abstraction that allows the code dealing with decorations to
 // treat multiple DecorationSet objects as if it were a single object
 // with (a subset of) the same interface.
-class DecorationGroup implements DecorationSource {
+/** @internal */
+export class DecorationGroup implements DecorationSource {
   constructor(readonly members: ReadonlyArray<DecorationSet>) {}
 
   map(mapping: Mapping, doc: Node<any, any>): DecorationSource {

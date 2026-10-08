@@ -13,7 +13,9 @@
     "./src/test-builder.ts",
     "./dist/test-builder.js",
     "./src/gapcursor.ts",
-    "./dist/gapcursor.js"
+    "./dist/gapcursor.js",
+    "./src/compat/*.ts",
+    "./dist/compat/*.js"
   ],
   "type": "module",
   "exports": {

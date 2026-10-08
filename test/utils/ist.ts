@@ -27,6 +27,7 @@ const show = (u: unknown): string => {
 
 export function ist(value: unknown): void
 export function ist<A, B>(value: A, expected: B, cmp?: Cmp<A, B>): void
+export function ist(value: any, expected: any, cmp: (a: any, b: any) => boolean): void
 export function ist(value: unknown, ...rest: Array<unknown>): void {
   if (rest.length === 0) {
     assert.ok(value, `Expected ${show(value)} to be truthy`)
@@ -35,7 +36,8 @@ export function ist(value: unknown, ...rest: Array<unknown>): void {
   const [expected, cmp] = rest as [unknown, Cmp<unknown, unknown> | undefined]
   if (cmp === undefined) {
     assert.ok(
-      value === expected || (value as any) == expected && typeof value === typeof expected,
+      // Like `ist`, the default comparison is `==`.
+      value == expected,
       `${show(value)} !== ${show(expected)}`
     )
     return
