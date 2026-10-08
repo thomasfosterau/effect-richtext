@@ -64,7 +64,11 @@ export interface Flat<Sc extends AnySchema = AnySchema> {
  * @since 0.1.0
  * @category models
  */
-export type ChildSpec<Sc extends AnySchema = AnySchema> = string | Node<Sc> | Flat<Sc>
+export type ChildSpec<Sc extends AnySchema = AnySchema> =
+  | string
+  | Node<Sc>
+  | Flat<Sc>
+  | NodeBuilder<Sc, any>
 
 /**
  * @since 0.1.0
@@ -107,7 +111,10 @@ Object.defineProperty(Node.prototype, "tag", {
   configurable: true
 })
 
-const isFlat = (u: unknown): u is Flat<any> => typeof u === "object" && u !== null && "flat" in u
+// Node builders for leaf types (such as `br`) carry a `flat` array too,
+// so they can be passed as children without being called.
+const isFlat = (u: unknown): u is Flat<any> =>
+  (typeof u === "object" || typeof u === "function") && u !== null && Array.isArray((u as Flat<any>).flat)
 
 function flatten<Sc extends AnySchema>(
   schema: Sc,
@@ -134,25 +141,27 @@ function flatten<Sc extends AnySchema>(
       out += child.slice(at)
       pos += child.length - at
       if (out) result.push(f(schema.textUnsafe(out) as unknown as Node<Sc>))
-    } else {
-      const childTag = isFlat(child) ? child.tag : tagsOf(child)
+    } else if (isFlat(child)) {
+      const childTag = child.tag ?? noTag
       if (childTag !== noTag) {
         if (tag === noTag) tag = Object.create(null)
-        for (const id in childTag) {
-          tag[id] = childTag[id]! + (isFlat(child) || child.isText ? 0 : 1) + pos
-        }
+        for (const id in childTag) tag[id] = childTag[id]! + pos
       }
-      if (isFlat(child)) {
-        for (let j = 0; j < child.flat.length; j++) {
-          const node = f(child.flat[j]!)
-          pos += node.nodeSize
-          result.push(node)
-        }
-      } else {
-        const node = f(child)
+      for (let j = 0; j < child.flat.length; j++) {
+        const node = f(child.flat[j]!)
         pos += node.nodeSize
         result.push(node)
       }
+    } else {
+      const node0 = child as Node<Sc>
+      const childTag = tagsOf(node0)
+      if (childTag !== noTag) {
+        if (tag === noTag) tag = Object.create(null)
+        for (const id in childTag) tag[id] = childTag[id]! + (node0.isText ? 0 : 1) + pos
+      }
+      const node = f(node0)
+      pos += node.nodeSize
+      result.push(node)
     }
   }
   return { nodes: result, tag }
