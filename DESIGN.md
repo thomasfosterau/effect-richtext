@@ -39,6 +39,11 @@ src/
   html.ts           effect-richtext/html      (HTML string helpers, HtmlEnvironment)
   markdown.ts       effect-richtext/markdown  (markdown-it parser + serializer)
   reactive.ts       effect-richtext/reactive  (SubscriptionRef/Stream bindings)
+  inputrules.ts     effect-richtext/inputrules  (input rules; handlers may return Option/Effect)
+  gapcursor.ts      effect-richtext/gapcursor   (GapCursor selection + plugin, gapCursorCSS)
+  dropcursor.ts     effect-richtext/dropcursor  (drop cursor plugin)
+  placeholder.ts    effect-richtext/placeholder (placeholder decorations, placeholderCSS)
+  view-css.ts       effect-richtext/view-css    (prosemirror-view's stylesheet as viewCSS, injectCSS helpers)
   internal/*.ts     not exported
 ```
 
