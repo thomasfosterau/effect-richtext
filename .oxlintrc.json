@@ -1,0 +1,36 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "import"
+  ],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "no-console": "error",
+    "no-unused-vars": "off",
+    "typescript/consistent-type-imports": "error",
+    "typescript/no-namespace": "off",
+    "import/no-cycle": "off",
+    "typescript/no-this-alias": "off"
+  },
+  "ignorePatterns": [
+    "**/dist",
+    "**/docs",
+    "**/coverage",
+    "scratchpad/**"
+  ],
+  "overrides": [
+    {
+      "files": [
+        "test/**",
+        "typetest/**",
+        "scratchpad/**"
+      ],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ]
+}

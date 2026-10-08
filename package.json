@@ -1,0 +1,86 @@
+{
+  "name": "effect-richtext",
+  "version": "0.0.0",
+  "description": "An Effect-native reimplementation of the ProseMirror rich text editing toolkit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thomasfosterau/effect-richtext"
+  },
+  "license": "MIT",
+  "author": "Thomas Foster <me@thomasfoster.au>",
+  "sideEffects": [
+    "./src/test-builder.ts",
+    "./dist/test-builder.js"
+  ],
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts",
+    "./internal/*": null
+  },
+  "files": [
+    "src",
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "check": "tsc -b tsconfig.json",
+    "test": "vitest",
+    "test-types": "tstyche",
+    "coverage": "vitest --coverage",
+    "lint": "oxlint -f unix && dprint check",
+    "lint-fix": "oxlint --fix && dprint fmt",
+    "docgen": "docgen",
+    "changeset-version": "changeset version",
+    "changeset-publish": "pnpm build && changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/changelog-github": "^0.7.0",
+    "@changesets/cli": "^2.31.0",
+    "@dprint/json": "^0.25.2",
+    "@dprint/markdown": "^0.26.0",
+    "@dprint/typescript": "^0.96.1",
+    "@effect/docgen": "^4.0.2",
+    "@effect/language-service": "^0.87.4",
+    "@effect/vitest": "^4.0.2",
+    "@types/node": "^24.0.0",
+    "@vitest/browser": "^5.0.3",
+    "@vitest/browser-playwright": "^5.0.3",
+    "@vitest/coverage-v8": "^5.0.3",
+    "dprint": "^0.55.1",
+    "effect": "^4.0.2",
+    "happy-dom": "^20.10.6",
+    "oxlint": "^1.61.1",
+    "playwright": "^1.61.1",
+    "tstyche": "^7.2.5",
+    "tsx": "^4.20.0",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.3"
+  },
+  "peerDependencies": {
+    "effect": "^4.0.2"
+  },
+  "packageManager": "pnpm@10.28.0",
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      "./package.json": "./package.json",
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./*": {
+        "types": "./dist/*.d.ts",
+        "default": "./dist/*.js"
+      },
+      "./internal/*": null
+    }
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "dprint",
+      "esbuild"
+    ]
+  }
+}

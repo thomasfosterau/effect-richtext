@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleDetection": "force",
+    "verbatimModuleSyntax": true,
+    "rewriteRelativeImportExtensions": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "noErrorTruncation": true,
+    "incremental": true,
+    "composite": true,
+    "types": [],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "plugins": [{
+      "name": "@effect/language-service",
+      "namespaceImportPackages": ["effect"]
+    }]
+  }
+}
