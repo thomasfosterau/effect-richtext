@@ -14,6 +14,9 @@ importers:
       rope-sequence:
         specifier: ^1.3.4
         version: 1.3.4
+      w3c-keyname:
+        specifier: ^2.2.8
+        version: 2.2.8
     devDependencies:
       '@changesets/changelog-github':
         specifier: ^0.7.0
@@ -1745,6 +1748,9 @@ packages:
       jsdom:
         optional: true
 
+  w3c-keyname@2.2.8:
+    resolution: {integrity: sha512-dpojBhNsCNN7T82Tm7k26A6G9ML3NkhDsnw9n/eoxSRlVBB4CEtIQ/KTCLI2Fwf3ataSXRhYFkQi3SlnFwPvPQ==}
+
   webidl-conversions@3.0.1:
     resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
 
@@ -3248,6 +3254,8 @@ snapshots:
       happy-dom: 20.14.5
     transitivePeerDependencies:
       - msw
+
+  w3c-keyname@2.2.8: {}
 
   webidl-conversions@3.0.1: {}
 
