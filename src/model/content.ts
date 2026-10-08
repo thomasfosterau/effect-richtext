@@ -158,7 +158,8 @@ export const repeat = <const C extends ContentInput<string>>(
  * `"paragraph block*"`. The referenced names are not tracked at the
  * type level.
  *
- * Syntax errors are reported when the schema is compiled.
+ * Syntax errors throw a `SchemaDefinitionError` immediately; unknown names
+ * and other semantic errors are reported when the schema is compiled.
  *
  * @since 0.1.0
  * @category constructors
