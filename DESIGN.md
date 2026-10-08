@@ -60,6 +60,16 @@ Errors are `Data.TaggedError` classes with a `message` field, one family per
 layer (`model/errors.ts`, `transform/errors.ts`, …). Each layer exports a
 union type and an `is…Error` guard.
 
+### Mutable builders
+
+`Transform` and `Transaction` stay mutable, chainable builders (for
+performance). Each fallible builder method comes as `tr.x(...)`, a lazy
+`Effect<this, E>` that applies the change when run, and `tr.xUnsafe(...)`, which
+applies it immediately and returns `this`. Methods that can't fail for valid
+input (`addMark`, `removeMark`, `setMeta`, `replaceSelection`, …) are plain
+chainable methods. `Step.apply` returns a `StepResult` (with `Option` fields),
+like ProseMirror; `Transform.step` fails with a `StepError`.
+
 ### Options
 
 Public accessors return `Option`. Hot internal paths may use `@internal`
@@ -102,13 +112,20 @@ Attribute schemas are checked by `Node.check`, and used to decode/encode JSON
 ```ts
 type Dispatch<Sc> = (tr: Transaction<Sc>) => Effect.Effect<void>
 type Command<Sc, E = never, R = never> = (
-  state: EditorState<Sc>,
+  state: EditorState<Sc, any, any>,
   dispatch?: Dispatch<Sc>,
-  view?: EditorView<Sc>
+  view?: EditorViewLike // placeholder until the view exists; becomes EditorView<Sc>
 ) => Effect.Effect<boolean, E, R>
 ```
 
-Plugins are `Plugin<PluginState, Sc, E, R>`. `EditorState` and `EditorView`
+Plugins are `Plugin<PluginState, Sc, E, R>`. The hooks that run while
+creating or updating a state (`state.init`, `state.apply`, `state.fromJSON`,
+`filterTransaction`, `appendTransaction`) may return either a plain value or an
+`Effect`; `E` and `R` are inferred from them. `EditorState<Sc, R, E>` carries the
+union of its plugins' `R`/`E` (inferred from the `plugins` tuple by
+`EditorState.create`), and `state.apply(tr)` returns
+`Effect<EditorState<Sc, R, E>, E | StateError, R>`. `applyUnsafe`/`createUnsafe`
+are only callable when `R` is `never`. `EditorState` and `EditorView`
 carry the union of their plugins' requirements; the view is created inside an
 Effect that provides them, and runs DOM event handlers with the captured
 context. Handlers that complete synchronously behave exactly like ProseMirror's;
