@@ -32,7 +32,7 @@ import type * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import * as S from "effect/Schema"
 import { attempt } from "../internal/attempt.ts"
-import { type ContentInput, ContentMatch, type Refs } from "./content.ts"
+import { type ContentInput, ContentMatch, type SpecRefs } from "./content.ts"
 import type { DOMOutputSpec, ParseRule, TagParseRule } from "./dom.ts"
 import {
   AttributeError,
@@ -98,7 +98,10 @@ export interface AttributeDefinitions {
 export interface NodeSpec {
   /**
    * The content expression for this node. When not given, the node
-   * does not allow any content.
+   * does not allow any content. Prefer `Content` combinators, which
+   * keep the allowed child types at the type level; a plain string is
+   * read as ProseMirror content syntax (`"paragraph block*"`), and is
+   * only precisely typed when it is a single bare name.
    */
   readonly content?: ContentInput<string> | undefined
   /**
@@ -295,7 +298,7 @@ export type GroupsOf<Spec> = Spec extends { readonly group: infer G extends stri
  * @since 0.1.0
  * @category type-level
  */
-export type ContentRefsOf<Spec> = Spec extends { readonly content: infer C } ? Refs<C> : never
+export type ContentRefsOf<Spec> = Spec extends { readonly content: infer C } ? SpecRefs<C> : never
 
 /**
  * The names of the node types that can appear as children of node type
@@ -662,8 +665,8 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     attrs?: NodeAttrsInput<Sc, N> | null,
     content?: FragmentInput<Sc, ChildNames<Sc, N>>,
     marks?: ReadonlyArray<Mark<Sc>> | null
-  ): Effect.Effect<Node<Sc, N>, AttributeError> {
-    return attempt(() => this.createUnsafe(attrs, content, marks), isAttributeError)
+  ): Effect.Effect<Node<Sc, N>, AttributeError | ContentError> {
+    return attempt(() => this.createUnsafe(attrs, content, marks), isModelError as any)
   }
 
   /** Like `create`, but throws an `AttributeError` on failure. */

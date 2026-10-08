@@ -69,6 +69,22 @@ export type ContentInput<Refs extends string = string> = ContentExpr<Refs> | Ref
  */
 export type Refs<C> = C extends ContentExpr<infer R> ? R : C extends string ? C : never
 
+type SyntaxChar = " " | "+" | "*" | "?" | "|" | "(" | ")" | "{" | "}" | ","
+
+/**
+ * The names referenced by a spec's `content` field. Plain strings are
+ * ProseMirror content-expression syntax: a bare name is tracked
+ * precisely, anything more complex (`"paragraph+"`) is untyped
+ * (`string`).
+ *
+ * @since 0.1.0
+ * @category type-level
+ */
+export type SpecRefs<C> = C extends ContentExpr<infer R> ? R
+  : C extends `${string}${SyntaxChar}${string}` ? string
+  : C extends string ? C
+  : never
+
 const variance = { _Refs: (_: never) => _ }
 
 const make = <R extends string>(ast: ExprAST): ContentExpr<R> => ({ [TypeId]: variance as any, ast })
@@ -343,7 +359,9 @@ export class ContentMatch {
     typeName: string
   ): ContentMatch {
     if (content === undefined) return ContentMatch.empty
-    const ast = toAST(content)
+    // A plain string in a spec's `content` field is read as ProseMirror
+    // content expression syntax (a bare name parses to itself).
+    const ast = typeof content === "string" ? parse(content).ast : content.ast
     if (isEmptyAST(ast)) return ContentMatch.empty
     const source = formatAST(ast, 0)
     const ctx: ResolveContext = { inline: null, nodeTypes, source, typeName }
