@@ -1,0 +1,105 @@
+# Dependabot version updates. Every version lives in pnpm-workspace.yaml's
+# catalog, which Dependabot edits along with pnpm-lock.yaml.
+#
+# Groups collect the dependencies that MUST move together, so a lockstep set
+# arrives as one PR instead of a set of PRs that are each red on their own.
+# A dependency joins the FIRST group whose patterns match it, so the groups run
+# specific → general:
+#
+# - `toolchain`: vite-plus pins `oxlint`, `oxfmt`, `oxlint-tsgolint` and
+#   `vitest` exactly, `vite` / `vitest` / `@vitest/*` must equal its pins, and
+#   `effect-tsgo patch` (the `prepare` script) matches the native `tsc`
+#   (`@typescript/native`) and `oxlint` by gitHead, hard-erroring
+#   (UnsupportedTargetPackageVersionError) on any pairing it has no artifact
+#   for. The TS6 alias (`typescript` → `@typescript/typescript6`) and the
+#   Effect lint plugin ride along. Read the catalog comments before merging.
+# - `docgen`: `@effect/docgen` runs its examples under `tsx`.
+# - `effect`: the Effect 4 line is a lockstep-versioned singleton set
+#   (`@effect/tsgo` and `@effect/docgen` are claimed by the groups above).
+# - `changesets`, `fallow`: their own release cadences.
+# - `minor-and-patch`: everything else; majors outside a group arrive alone.
+#
+# `cooldown` mirrors pnpm-workspace.yaml's `minimumReleaseAge` (1440 minutes),
+# with first-party `@thomasfosterau/*` exempt as it is there.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+    cooldown:
+      default-days: 1
+      exclude:
+        - "@thomasfosterau/*"
+    groups:
+      toolchain:
+        applies-to: version-updates
+        patterns:
+          - "vite-plus"
+          - "vite"
+          - "vitest"
+          - "@vitest/*"
+          - "oxlint"
+          - "oxfmt"
+          - "oxlint-tsgolint"
+          - "@effect/tsgo"
+          - "@typescript/native"
+          - "typescript"
+          - "@typescript/typescript6"
+          - "@mpsuesser/oxlint-plugin-effect"
+        update-types: ["major", "minor", "patch"]
+      docgen:
+        applies-to: version-updates
+        patterns:
+          - "@effect/docgen"
+          - "tsx"
+        update-types: ["major", "minor", "patch"]
+      effect:
+        applies-to: version-updates
+        patterns:
+          - "effect"
+          - "@effect/*"
+        exclude-patterns:
+          - "@effect/tsgo"
+          - "@effect/docgen"
+        update-types: ["major", "minor", "patch"]
+      changesets:
+        applies-to: version-updates
+        patterns:
+          - "@changesets/*"
+        update-types: ["major", "minor", "patch"]
+      fallow:
+        applies-to: version-updates
+        patterns:
+          - "fallow"
+        update-types: ["major", "minor", "patch"]
+      minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types: ["minor", "patch"]
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    cooldown:
+      default-days: 1
+    groups:
+      github-actions:
+        applies-to: version-updates
+        patterns:
+          - "*"
