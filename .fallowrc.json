@@ -1,0 +1,340 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "entry": [
+    "src/commands.ts",
+    "src/dropcursor.ts",
+    "src/extensions.ts",
+    "src/gapcursor.ts",
+    "src/history.ts",
+    "src/html.ts",
+    "src/inputrules.ts",
+    "src/keymap.ts",
+    "src/markdown.ts",
+    "src/model.ts",
+    "src/placeholder.ts",
+    "src/reactive.ts",
+    "src/schema-basic.ts",
+    "src/schema-list.ts",
+    "src/state.ts",
+    "src/test-builder.ts",
+    "src/transform.ts",
+    "src/view.ts",
+    "src/view-css.ts",
+    "src/compat/commands.ts",
+    "src/compat/keymap.ts",
+    "src/compat/model.ts",
+    "src/compat/orderedmap.ts",
+    "src/compat/schema-basic.ts",
+    "src/compat/schema-list.ts",
+    "src/compat/state.ts",
+    "src/compat/test-builder.ts",
+    "src/compat/transform.ts",
+    "src/compat/view.ts",
+    "tests/**/*.test.ts",
+    "tests/**/*.types.ts",
+    "vite.config.ts"
+  ],
+  "ignorePatterns": ["dist/**", "docs/**", "coverage/**"],
+  "ignoreDependencies": [
+    "@types/node",
+    "@effect/docgen",
+    "@effect/tsgo",
+    "@effect/language-service",
+    "@typescript/native",
+    "typescript",
+    "tsx",
+    "vite",
+    "vitest",
+    "vite-plus",
+    "@changesets/cli",
+    "@changesets/changelog-github",
+    "@vitest/coverage-istanbul",
+    "@vitest/browser-playwright",
+    "playwright",
+    "happy-dom",
+    "fallow"
+  ],
+  "rules": {
+    "unused-files": "error",
+    "unused-exports": "error",
+    "unused-types": "error",
+    "unused-dependencies": "error",
+    "unused-dev-dependencies": "warn",
+    "unused-enum-members": "error",
+    "unused-class-members": "warn",
+    "unresolved-imports": "error",
+    "unlisted-dependencies": "error",
+    "duplicate-exports": "error",
+    "circular-dependencies": "error",
+    "boundary-violation": "error",
+    "stale-suppressions": "warn",
+    "policy-violation": "off"
+  },
+  "health": {
+    "maxCyclomatic": 20,
+    "maxCognitive": 15,
+    "maxCrap": 30,
+    "coverage": "coverage/coverage-final.json"
+  },
+  "boundaries": {
+    "zones": [
+      {
+        "name": "internal",
+        "patterns": ["src/internal.ts", "src/internal/**"]
+      },
+      {
+        "name": "model",
+        "patterns": ["src/model.ts", "src/model/**"]
+      },
+      {
+        "name": "transform",
+        "patterns": ["src/transform.ts", "src/transform/**"]
+      },
+      {
+        "name": "state",
+        "patterns": ["src/state.ts", "src/state/**"]
+      },
+      {
+        "name": "view",
+        "patterns": ["src/view.ts", "src/view/**"]
+      },
+      {
+        "name": "commands",
+        "patterns": ["src/commands.ts", "src/commands/**"]
+      },
+      {
+        "name": "keymap",
+        "patterns": ["src/keymap.ts", "src/keymap/**"]
+      },
+      {
+        "name": "history",
+        "patterns": ["src/history.ts", "src/history/**"]
+      },
+      {
+        "name": "schema-basic",
+        "patterns": ["src/schema-basic.ts", "src/schema-basic/**"]
+      },
+      {
+        "name": "schema-list",
+        "patterns": ["src/schema-list.ts", "src/schema-list/**"]
+      },
+      {
+        "name": "markdown",
+        "patterns": ["src/markdown.ts", "src/markdown/**"]
+      },
+      {
+        "name": "html",
+        "patterns": ["src/html.ts", "src/html/**"]
+      },
+      {
+        "name": "inputrules",
+        "patterns": ["src/inputrules.ts", "src/inputrules/**"]
+      },
+      {
+        "name": "gapcursor",
+        "patterns": ["src/gapcursor.ts", "src/gapcursor/**"]
+      },
+      {
+        "name": "dropcursor",
+        "patterns": ["src/dropcursor.ts", "src/dropcursor/**"]
+      },
+      {
+        "name": "placeholder",
+        "patterns": ["src/placeholder.ts", "src/placeholder/**"]
+      },
+      {
+        "name": "reactive",
+        "patterns": ["src/reactive.ts", "src/reactive/**"]
+      },
+      {
+        "name": "view-css",
+        "patterns": ["src/view-css.ts", "src/view-css/**"]
+      },
+      {
+        "name": "test-builder",
+        "patterns": ["src/test-builder.ts", "src/test-builder/**"]
+      },
+      {
+        "name": "extensions",
+        "patterns": ["src/extensions.ts", "src/extensions/**"]
+      },
+      {
+        "name": "compat",
+        "patterns": ["src/compat.ts", "src/compat/**"]
+      },
+      {
+        "name": "tests",
+        "patterns": ["tests/**"]
+      }
+    ],
+    "rules": [
+      {
+        "from": "internal",
+        "allow": []
+      },
+      {
+        "from": "model",
+        "allow": ["internal"]
+      },
+      {
+        "from": "transform",
+        "allow": ["internal", "model"]
+      },
+      {
+        "from": "state",
+        "allow": ["internal", "model", "transform", "view"]
+      },
+      {
+        "from": "view",
+        "allow": ["internal", "model", "state", "transform"]
+      },
+      {
+        "from": "commands",
+        "allow": ["internal", "model", "state", "transform"]
+      },
+      {
+        "from": "keymap",
+        "allow": ["internal", "model", "state", "view"]
+      },
+      {
+        "from": "history",
+        "allow": ["internal", "model", "state", "transform"]
+      },
+      {
+        "from": "schema-basic",
+        "allow": ["model"]
+      },
+      {
+        "from": "schema-list",
+        "allow": ["commands", "model", "state", "transform"]
+      },
+      {
+        "from": "markdown",
+        "allow": ["internal", "model"]
+      },
+      {
+        "from": "html",
+        "allow": ["internal", "model"]
+      },
+      {
+        "from": "inputrules",
+        "allow": ["internal", "model", "state", "transform", "view"]
+      },
+      {
+        "from": "gapcursor",
+        "allow": ["internal", "keymap", "model", "state", "transform", "view"]
+      },
+      {
+        "from": "dropcursor",
+        "allow": ["internal", "model", "state", "transform", "view"]
+      },
+      {
+        "from": "placeholder",
+        "allow": ["internal", "model", "state", "view"]
+      },
+      {
+        "from": "reactive",
+        "allow": ["internal", "model", "state", "view"]
+      },
+      {
+        "from": "view-css",
+        "allow": []
+      },
+      {
+        "from": "test-builder",
+        "allow": ["model", "schema-basic", "schema-list"]
+      },
+      {
+        "from": "extensions",
+        "allow": [
+          "commands",
+          "dropcursor",
+          "gapcursor",
+          "history",
+          "html",
+          "inputrules",
+          "internal",
+          "keymap",
+          "markdown",
+          "model",
+          "placeholder",
+          "reactive",
+          "schema-basic",
+          "schema-list",
+          "state",
+          "transform",
+          "view",
+          "view-css"
+        ]
+      },
+      {
+        "from": "compat",
+        "allow": [
+          "commands",
+          "dropcursor",
+          "gapcursor",
+          "history",
+          "html",
+          "inputrules",
+          "internal",
+          "keymap",
+          "markdown",
+          "model",
+          "placeholder",
+          "reactive",
+          "schema-basic",
+          "schema-list",
+          "state",
+          "test-builder",
+          "transform",
+          "view",
+          "view-css"
+        ]
+      },
+      {
+        "from": "tests",
+        "allow": [
+          "internal",
+          "model",
+          "transform",
+          "state",
+          "view",
+          "commands",
+          "keymap",
+          "history",
+          "schema-basic",
+          "schema-list",
+          "markdown",
+          "html",
+          "inputrules",
+          "gapcursor",
+          "dropcursor",
+          "placeholder",
+          "reactive",
+          "view-css",
+          "test-builder",
+          "extensions",
+          "compat"
+        ]
+      }
+    ]
+  },
+  "ignoreExports": [
+    {
+      "file": "src/commands/commands.ts",
+      "exports": ["lift", "setBlockType"]
+    },
+    {
+      "file": "src/reactive/observer.ts",
+      "exports": ["make"]
+    },
+    {
+      "file": "src/reactive/stateref.ts",
+      "exports": ["make"]
+    },
+    {
+      "file": "tests/view/compat-view.ts",
+      "exports": ["*"]
+    }
+  ]
+}
