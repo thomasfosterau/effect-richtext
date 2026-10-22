@@ -336,5 +336,9 @@
       "file": "tests/view/compat-view.ts",
       "exports": ["*"]
     }
-  ]
+  ],
+  "audit": {
+    "healthBaseline": ".fallow-baselines/health.json",
+    "dupesBaseline": ".fallow-baselines/dupes.json"
+  }
 }

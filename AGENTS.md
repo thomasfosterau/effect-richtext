@@ -42,7 +42,7 @@ A new entry is added to `entries` in `vite.config.ts`, to `exports` in `package.
 
 ### Module boundaries
 
-`.fallowrc.json` encodes the layering and `fallow` enforces it: `model` imports only `internal`; `transform` adds `model`; `state` and `view` import each other (commands and plugin props take the view) plus the layers below; `commands`, `keymap`, `history`, `schema-list` and the extras (`inputrules`, `gapcursor`, `dropcursor`, `placeholder`, `reactive`) sit on top; `extensions` may use any core module; nothing but `compat` imports `compat`, and nothing in the core imports `extensions`. `fallow guard <files>` shows the rules for a file before you change it.
+`.fallowrc.json` encodes the layering and `fallow` enforces it: `model` imports only `internal`; `transform` adds `model`; `state` and `view` import each other (commands and plugin props take the view) plus the layers below; `commands`, `keymap`, `history`, `schema-list` and the extras (`inputrules`, `gapcursor`, `dropcursor`, `placeholder`, `reactive`) sit on top; `extensions` may use any core module; nothing but `compat` imports `compat`, and nothing in the core imports `extensions`. `fallow guard <files>` shows the rules for a file before you change it. `.fallow-baselines/` records the complexity and duplication the port inherited from ProseMirror (and the compat facade's mirror of the core), so the audit holds new code to the thresholds in `.fallowrc.json` without failing on that inheritance. Re-save a baseline (`fallow health --save-baseline .fallow-baselines/health.json`, `fallow dupes --save-baseline .fallow-baselines/dupes.json`) only to shrink it, never to admit a new finding.
 
 ## Commands
 

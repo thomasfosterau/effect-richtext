@@ -1,0 +1,363 @@
+{
+  "kind": "health",
+  "finding_counts": {
+    "src/commands/commands.ts": {
+      "complexity_high": {
+        "count": 3
+      },
+      "complexity_moderate": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/compat/test-builder.ts": {
+      "complexity_critical": {
+        "count": 1
+      }
+    },
+    "src/compat/view.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/dropcursor.ts": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/extensions/extension.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/gapcursor.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "complexity_moderate": {
+        "count": 2
+      },
+      "crap_high": {
+        "count": 2
+      }
+    },
+    "src/history.ts": {
+      "complexity_moderate": {
+        "count": 2
+      }
+    },
+    "src/inputrules.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/keymap/keymap.ts": {
+      "complexity_moderate": {
+        "count": 2
+      }
+    },
+    "src/markdown/from_markdown.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/markdown/to_markdown.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/model/comparedeep.ts": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/model/diff.ts": {
+      "complexity_moderate": {
+        "count": 2
+      }
+    },
+    "src/model/fragment.ts": {
+      "complexity_moderate": {
+        "count": 2
+      }
+    },
+    "src/model/from_dom.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "complexity_high": {
+        "count": 4
+      },
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/model/mark.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/model/schema.ts": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/model/to_dom.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "complexity_moderate": {
+        "count": 2
+      }
+    },
+    "src/state/selection.ts": {
+      "complexity_moderate": {
+        "count": 2
+      }
+    },
+    "src/state/state.ts": {
+      "complexity_critical": {
+        "count": 3
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/state/transaction.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/test-builder.ts": {
+      "complexity_critical": {
+        "count": 1
+      }
+    },
+    "src/transform/map.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/transform/mark.ts": {
+      "complexity_high": {
+        "count": 2
+      },
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/transform/replace.ts": {
+      "complexity_high": {
+        "count": 4
+      }
+    },
+    "src/transform/structure.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "complexity_moderate": {
+        "count": 2
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/view/capturekeys.ts": {
+      "complexity_critical": {
+        "count": 4
+      },
+      "complexity_high": {
+        "count": 1
+      },
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 5
+      },
+      "crap_high": {
+        "count": 4
+      },
+      "crap_moderate": {
+        "count": 3
+      }
+    },
+    "src/view/clipboard.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/view/decoration.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "complexity_high": {
+        "count": 2
+      },
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/view/dom.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/view/domchange.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "complexity_moderate": {
+        "count": 2
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/view/domcoords.ts": {
+      "complexity_critical": {
+        "count": 4
+      },
+      "complexity_high": {
+        "count": 2
+      },
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 3
+      },
+      "crap_high": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 3
+      }
+    },
+    "src/view/domobserver.ts": {
+      "complexity_critical": {
+        "count": 3
+      },
+      "crap_critical": {
+        "count": 3
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/view/input.ts": {
+      "complexity_critical": {
+        "count": 4
+      },
+      "crap_critical": {
+        "count": 8
+      },
+      "crap_high": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 6
+      }
+    },
+    "src/view/selection.ts": {
+      "complexity_high": {
+        "count": 2
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 2
+      }
+    },
+    "src/view/view.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "complexity_moderate": {
+        "count": 2
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 2
+      }
+    },
+    "src/view/viewdesc.ts": {
+      "complexity_critical": {
+        "count": 3
+      },
+      "complexity_high": {
+        "count": 6
+      },
+      "complexity_moderate": {
+        "count": 8
+      },
+      "crap_critical": {
+        "count": 2
+      },
+      "crap_high": {
+        "count": 1
+      }
+    }
+  },
+  "runtime_coverage_findings": [],
+  "target_keys": [
+    "src/model/comparedeep.ts:churn+complexity",
+    "src/view/dom.ts:high impact",
+    "src/view/selection.ts:high impact",
+    "src/view/view.ts:complexity",
+    "src/view/clipboard.ts:complexity",
+    "src/view/capturekeys.ts:complexity",
+    "src/model/to_dom.ts:complexity",
+    "src/view/viewdesc.ts:high impact",
+    "src/view/input.ts:complexity",
+    "src/gapcursor.ts:complexity",
+    "src/view/domcoords.ts:complexity",
+    "src/model/schema.ts:complexity",
+    "src/view/domchange.ts:complexity",
+    "src/transform/map.ts:complexity",
+    "src/test-builder.ts:complexity",
+    "src/view/domobserver.ts:complexity",
+    "tests/utils/ist.ts:high impact",
+    "src/model/from_dom.ts:complexity",
+    "src/transform/structure.ts:complexity",
+    "src/view/decoration.ts:complexity",
+    "src/commands/commands.ts:complexity",
+    "src/compat/test-builder.ts:complexity",
+    "src/dropcursor.ts:complexity",
+    "src/state/state.ts:complexity",
+    "src/transform/replace.ts:high impact",
+    "src/markdown/to_markdown.ts:complexity"
+  ]
+}
