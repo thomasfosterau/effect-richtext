@@ -22,8 +22,14 @@ import {
   splitBlock
 } from "./commands.ts"
 
-/** A keymap: commands keyed by key name. */
-interface Keymap {
+/**
+ * A keymap: commands keyed by key name (`"Mod-b"`, `"Enter"`), as the base
+ * keymaps below and `keymap(...)` from `effect-richtext/keymap` use them.
+ *
+ * @since 0.1.0
+ * @category models
+ */
+export interface Keymap {
   readonly [key: string]: Command
 }
 
