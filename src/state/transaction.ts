@@ -13,7 +13,9 @@ import type { EditorViewLike, Plugin, PluginKey } from "./plugin.ts"
 import { Selection } from "./selection.ts"
 import type { EditorState } from "./state.ts"
 
-const UPDATED_SEL = 1, UPDATED_MARKS = 2, UPDATED_SCROLL = 4
+const UPDATED_SEL = 1,
+  UPDATED_MARKS = 2,
+  UPDATED_SCROLL = 4
 
 /**
  * A function that applies a transaction, as passed to commands.
@@ -120,7 +122,10 @@ export class Transaction<Sc extends AnySchema = AnySchema> extends Transform<Sc>
    * the transaction's current document.
    */
   setSelection(selection: Selection<Sc>): Effect.Effect<this, SelectionError> {
-    return attempt(() => this.setSelectionUnsafe(selection), (u): u is SelectionError => u instanceof SelectionError)
+    return attempt(
+      () => this.setSelectionUnsafe(selection),
+      (u): u is SelectionError => u instanceof SelectionError
+    )
   }
 
   /** Like `setSelection`, but throws a `SelectionError` on failure. */
@@ -202,9 +207,7 @@ export class Transaction<Sc extends AnySchema = AnySchema> extends Transform<Sc>
     if (inheritMarks) {
       node = node.mark(
         this.storedMarksOrNull ||
-          (selection.empty
-            ? selection.$from.marks()
-            : (selection.$from.marksAcrossOrNull(selection.$to) || Mark.none))
+          (selection.empty ? selection.$from.marks() : selection.$from.marksAcrossOrNull(selection.$to) || Mark.none)
       )
     }
     selection.replaceWith(this, node)

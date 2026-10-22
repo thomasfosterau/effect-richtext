@@ -37,7 +37,7 @@ export const Priority = {
  * @since 0.1.0
  * @category models
  */
-export type Priority = typeof Priority[keyof typeof Priority]
+export type Priority = (typeof Priority)[keyof typeof Priority]
 
 // -----------------------------------------------------------------------------
 // Type-level description
@@ -266,15 +266,21 @@ export const isExtension = (u: unknown): u is AnyExtension => u instanceof Exten
 // Type extraction helpers
 // -----------------------------------------------------------------------------
 
-type PluginInputE<P> = P extends (...args: any) => infer X ? PluginInputE<X>
-  : P extends ReadonlyArray<infer X> ? PluginInputE<X>
-  : P extends Plugin<any, any, infer E, any> ? E
-  : never
+type PluginInputE<P> = P extends (...args: any) => infer X
+  ? PluginInputE<X>
+  : P extends ReadonlyArray<infer X>
+    ? PluginInputE<X>
+    : P extends Plugin<any, any, infer E, any>
+      ? E
+      : never
 
-type PluginInputR<P> = P extends (...args: any) => infer X ? PluginInputR<X>
-  : P extends ReadonlyArray<infer X> ? PluginInputR<X>
-  : P extends Plugin<any, any, any, infer R> ? R
-  : never
+type PluginInputR<P> = P extends (...args: any) => infer X
+  ? PluginInputR<X>
+  : P extends ReadonlyArray<infer X>
+    ? PluginInputR<X>
+    : P extends Plugin<any, any, any, infer R>
+      ? R
+      : never
 
 type CreatorE<C> = C extends (...args: any) => (...args: any) => Effect.Effect<any, infer E, any> ? E : never
 type CreatorR<C> = C extends (...args: any) => (...args: any) => Effect.Effect<any, any, infer R> ? R : never
@@ -441,9 +447,8 @@ export const definePlugin = <const P extends PluginInput>(
  * @since 0.1.0
  * @category constructors
  */
-export const defineKeymap = <const B extends Bindings>(
-  bindings: B
-): Extension<SpecTypes<{}, {}, readonly [], B, {}>> => defineExtension({ keymap: bindings }) as any
+export const defineKeymap = <const B extends Bindings>(bindings: B): Extension<SpecTypes<{}, {}, readonly [], B, {}>> =>
+  defineExtension({ keymap: bindings }) as any
 
 /**
  * Define an extension adding commands. Each command is given as a
@@ -501,7 +506,8 @@ export interface Flattened {
 const mergeSpec = <S extends NodeSpec | MarkSpec>(base: S | undefined, over: S): S => {
   if (!base) return over
   const attrs = base.attrs || over.attrs ? { ...base.attrs, ...over.attrs } : undefined
-  return { ...base, ...over, ...(attrs ? { attrs } : {}) }
+  const merged = { ...base, ...over }
+  return attrs ? { ...merged, attrs } : merged
 }
 
 /**

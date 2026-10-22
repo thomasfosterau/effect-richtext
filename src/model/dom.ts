@@ -6,11 +6,7 @@
  */
 export type {
   /** @since 0.1.0 */
-  GenericParseRule,
-  /** @since 0.1.0 */
   ParseRule,
-  /** @since 0.1.0 */
-  StyleParseRule,
   /** @since 0.1.0 */
   TagParseRule
 } from "./from_dom.ts"

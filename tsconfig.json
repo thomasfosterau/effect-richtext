@@ -1,7 +1,5 @@
 {
-  "files": [],
-  "references": [
-    { "path": "tsconfig.src.json" },
-    { "path": "tsconfig.test.json" }
-  ]
+  "$schema": "https://raw.githubusercontent.com/Effect-TS/language-service/refs/heads/main/schema.json",
+  "extends": "./tsconfig.base.json",
+  "include": ["src"]
 }

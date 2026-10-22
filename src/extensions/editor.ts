@@ -72,10 +72,11 @@ export type SchemaOf<T extends ExtensionTypes> = DocSchema<T["nodes"], T["marks"
  * @since 0.1.0
  * @category type-level
  */
-export type CommandFn<C extends CommandType, Sc, Ret> = C extends CommandSignature ?
-  (C & { readonly Schema: Sc; readonly Return: Ret })["signature"]
-  : C extends ReadonlyArray<any> ? (...args: C) => Ret
-  : never
+export type CommandFn<C extends CommandType, Sc, Ret> = C extends CommandSignature
+  ? (C & { readonly Schema: Sc; readonly Return: Ret })["signature"]
+  : C extends ReadonlyArray<any>
+    ? (...args: C) => Ret
+    : never
 
 /**
  * `editor.commands`: runs a command against the editor's current state
@@ -103,9 +104,9 @@ export type CanCommands<T extends ExtensionTypes> = EditorCommands<T>
  * @since 0.1.0
  * @category type-level
  */
-export type ChainedCommands<T extends ExtensionTypes> =
-  & { readonly [K in keyof T["commands"]]: CommandFn<T["commands"][K], SchemaOf<T>, ChainedCommands<T>> }
-  & ChainRun<T>
+export type ChainedCommands<T extends ExtensionTypes> = {
+  readonly [K in keyof T["commands"]]: CommandFn<T["commands"][K], SchemaOf<T>, ChainedCommands<T>>
+} & ChainRun<T>
 
 /**
  * @since 0.1.0
@@ -140,15 +141,17 @@ export type NodeChild<Sc, N extends string> =
  */
 export type NodeBuilder<Sc extends DocSchema<any, any>, N extends NodeNames<Sc>> = [
   keyof NodeAttrsInput<Sc, N>
-] extends [never] ? {
-    (attrs: null, ...children: ReadonlyArray<NodeChild<Sc, N>>): Node<Sc, N>
-    (...children: ReadonlyArray<NodeChild<Sc, N>>): Node<Sc, N>
-  }
-  : AttrsOptional<NodeSpecOf<Sc, N>> extends true ? {
-      (attrs?: NodeAttrsInput<Sc, N> | null, ...children: ReadonlyArray<NodeChild<Sc, N>>): Node<Sc, N>
+] extends [never]
+  ? {
+      (attrs: null, ...children: ReadonlyArray<NodeChild<Sc, N>>): Node<Sc, N>
       (...children: ReadonlyArray<NodeChild<Sc, N>>): Node<Sc, N>
     }
-  : (attrs: NodeAttrsInput<Sc, N>, ...children: ReadonlyArray<NodeChild<Sc, N>>) => Node<Sc, N>
+  : AttrsOptional<NodeSpecOf<Sc, N>> extends true
+    ? {
+        (attrs?: NodeAttrsInput<Sc, N> | null, ...children: ReadonlyArray<NodeChild<Sc, N>>): Node<Sc, N>
+        (...children: ReadonlyArray<NodeChild<Sc, N>>): Node<Sc, N>
+      }
+    : (attrs: NodeAttrsInput<Sc, N>, ...children: ReadonlyArray<NodeChild<Sc, N>>) => Node<Sc, N>
 
 /**
  * A mark builder (`editor.marks.<name>`).
@@ -157,7 +160,8 @@ export type NodeBuilder<Sc extends DocSchema<any, any>, N extends NodeNames<Sc>>
  * @category type-level
  */
 export type MarkBuilder<Sc extends DocSchema<any, any>, M extends MarkNames<Sc>> =
-  AttrsOptional<MarkSpecOf<Sc, M>> extends true ? (attrs?: MarkAttrsInput<Sc, M> | null) => Mark<Sc, M>
+  AttrsOptional<MarkSpecOf<Sc, M>> extends true
+    ? (attrs?: MarkAttrsInput<Sc, M> | null) => Mark<Sc, M>
     : (attrs: MarkAttrsInput<Sc, M>) => Mark<Sc, M>
 
 /**
@@ -227,7 +231,10 @@ export type MountProps<Sc extends DocSchema<any, any>, R, E> = Omit<DirectEditor
  * @internal
  */
 class ChainableState<Sc extends DocSchema<any, any>> extends EditorState<Sc, any, any> {
-  constructor(base: EditorState<Sc, any, any>, readonly chainTr: Transaction<Sc>) {
+  constructor(
+    base: EditorState<Sc, any, any>,
+    readonly chainTr: Transaction<Sc>
+  ) {
     super(base.config, base.slots)
   }
   override get doc(): Node<Sc> {
@@ -359,7 +366,7 @@ export class Editor<T extends ExtensionTypes> {
     place: ViewPlace,
     props?: MountProps<SchemaOf<T>, T["R"], T["E"]>
   ): Effect.Effect<void, never, Scope.Scope | T["R"]> {
-    return Effect.gen({ self: this }, function*() {
+    return Effect.gen({ self: this }, function* () {
       yield* this.unmount
       const view = yield* EditorView.make<SchemaOf<T>, T["R"], T["E"]>(place, { ...props, state: this.state })
       this._view = view
@@ -393,9 +400,11 @@ export class Editor<T extends ExtensionTypes> {
     return Effect.suspend(() => {
       const view = this._view
       if (view) return dieOnStateFailure(view.tryDispatch(tr))
-      return dieOnStateFailure(Effect.map(this._state.apply(tr), (state) => {
-        this._state = state
-      }))
+      return dieOnStateFailure(
+        Effect.map(this._state.apply(tr), (state) => {
+          this._state = state
+        })
+      )
     }) as any
   }
 
@@ -440,7 +449,7 @@ export class Editor<T extends ExtensionTypes> {
       }
     }
     chain.run = () =>
-      Effect.gen({ self: this }, function*() {
+      Effect.gen({ self: this }, function* () {
         const state = this.state
         const tr = state.tr
         const chained = new ChainableState(state, tr)
@@ -507,7 +516,7 @@ const parseContent = <Sc extends DocSchema<any, any>>(schema: Sc, content: Edito
   if (content instanceof Node) {
     // Nodes from another schema (say, another editor's) are converted
     // through their JSON representation.
-    return content.type.schema === schema ? content : schema.nodeFromJSONUnsafe(content.toJSON()) as Node<Sc>
+    return content.type.schema === schema ? content : (schema.nodeFromJSONUnsafe(content.toJSON()) as Node<Sc>)
   }
   if (typeof content === "string") return fromHTMLUnsafe(schema, content)
   return schema.nodeFromJSONUnsafe(content) as Node<Sc>
@@ -530,16 +539,15 @@ export const createEditor = <T extends ExtensionTypes>(
   extension: Extension<T>,
   options: EditorOptions<SchemaOf<T>> = {}
 ): Effect.Effect<Editor<T>, CreateEditorError | T["E"], T["R"]> =>
-  Effect.gen(function*() {
+  Effect.gen(function* () {
     const flat = flatten(extension)
     const schema = yield* DocSchema.make({ nodes: flat.nodes, marks: flat.marks }) as Effect.Effect<
       SchemaOf<T>,
       SchemaDefinitionError
     >
     const plugins: ReadonlyArray<AnyPlugin> = resolvePlugins(flat.plugins, schema)
-    const doc = options.doc === undefined
-      ? undefined
-      : yield* attempt(() => parseContent(schema, options.doc!), isModelError)
+    const doc =
+      options.doc === undefined ? undefined : yield* attempt(() => parseContent(schema, options.doc!), isModelError)
     const config: EditorStateConfig<SchemaOf<T>> = {
       schema,
       doc,

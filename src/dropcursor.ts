@@ -7,6 +7,7 @@
  */
 // Ported from prosemirror-dropcursor (MIT, Marijn Haverbeke and others)
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import { type EditorState, Plugin, type PluginView } from "./state.ts"
 import { dropPoint } from "./transform.ts"
 import type { EditorView, PosAtCoords } from "./view.ts"
@@ -74,9 +75,12 @@ class DropCursorView implements PluginView {
   timeout: ReturnType<typeof setTimeout> | undefined = undefined
   readonly handlers: ReadonlyArray<{ readonly name: string; readonly handler: (event: Event) => void }>
 
-  constructor(readonly editorView: EditorView<any, any, any>, options: DropCursorOptions) {
+  constructor(
+    readonly editorView: EditorView<any, any, any>,
+    options: DropCursorOptions
+  ) {
     this.width = options.width ?? 1
-    this.color = options.color === false ? undefined : (options.color || "black")
+    this.color = options.color === false ? undefined : options.color || "black"
     this.class = options.class
 
     this.handlers = events.map((name) => {
@@ -120,10 +124,13 @@ class DropCursorView implements PluginView {
     const $pos = view.state.doc.resolveUnsafe(this.cursorPos!)
     const isBlock = !$pos.parent.inlineContent
     let rect: { left: number; right: number; top: number; bottom: number } | undefined
-    const editorDOM = view.dom, editorRect = editorDOM.getBoundingClientRect()
-    const scaleX = editorRect.width / editorDOM.offsetWidth, scaleY = editorRect.height / editorDOM.offsetHeight
+    const editorDOM = view.dom,
+      editorRect = editorDOM.getBoundingClientRect()
+    const scaleX = editorRect.width / editorDOM.offsetWidth,
+      scaleY = editorRect.height / editorDOM.offsetHeight
     if (isBlock) {
-      const before = $pos.nodeBeforeOrNull, after = $pos.nodeAfterOrNull
+      const before = $pos.nodeBeforeOrNull,
+        after = $pos.nodeAfterOrNull
       if (before || after) {
         const node = Option.getOrNull(view.nodeDOM(this.cursorPos! - (before ? before.nodeSize : 0)))
         if (node) {
@@ -156,12 +163,13 @@ class DropCursorView implements PluginView {
     this.element.classList.toggle("prosemirror-dropcursor-inline", !isBlock)
     let parentLeft: number, parentTop: number
     const win = doc.defaultView ?? window
-    if (!parent || parent === doc.body && win.getComputedStyle(parent).position === "static") {
+    if (!parent || (parent === doc.body && win.getComputedStyle(parent).position === "static")) {
       parentLeft = -win.pageXOffset
       parentTop = -win.pageYOffset
     } else {
       const rect = parent.getBoundingClientRect()
-      const parentScaleX = rect.width / parent.offsetWidth, parentScaleY = rect.height / parent.offsetHeight
+      const parentScaleX = rect.width / parent.offsetWidth,
+        parentScaleY = rect.height / parent.offsetHeight
       parentLeft = rect.left - parent.scrollLeft * parentScaleX
       parentTop = rect.top - parent.scrollTop * parentScaleY
     }
@@ -182,10 +190,8 @@ class DropCursorView implements PluginView {
     const pos = Option.getOrNull(view.posAtCoords({ left: event.clientX, top: event.clientY }))
 
     const node = pos && pos.inside >= 0 ? view.state.doc.nodeAtOrNull(pos.inside) : null
-    const disableDropCursor = node ? node.type.spec.disableDropCursor as DisableDropCursor | undefined : undefined
-    const disabled = typeof disableDropCursor === "function"
-      ? disableDropCursor(view, pos!, event)
-      : disableDropCursor
+    const disableDropCursor = node ? (node.type.spec.disableDropCursor as DisableDropCursor | undefined) : undefined
+    const disabled = Predicate.isFunction(disableDropCursor) ? disableDropCursor(view, pos!, event) : disableDropCursor
 
     if (pos && !disabled) {
       let target = pos.pos

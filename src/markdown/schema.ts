@@ -69,11 +69,13 @@ export const nodes = {
     defining: true,
     marks: "",
     attrs: { params: { schema: S.String, default: "" } },
-    parseDOM: [{
-      tag: "pre",
-      preserveWhitespace: "full",
-      getAttrs: (node: HTMLElement) => ({ params: node.getAttribute("data-params") || "" })
-    }],
+    parseDOM: [
+      {
+        tag: "pre",
+        preserveWhitespace: "full",
+        getAttrs: (node: HTMLElement) => ({ params: node.getAttribute("data-params") || "" })
+      }
+    ],
     toDOM(node) {
       return ["pre", node.attrs.params ? { "data-params": node.attrs.params } : {}, ["code", 0]]
     }
@@ -86,20 +88,26 @@ export const nodes = {
       order: { schema: S.Number, default: 1 },
       tight: { schema: S.Boolean, default: false }
     },
-    parseDOM: [{
-      tag: "ol",
-      getAttrs(dom: HTMLElement) {
-        return {
-          order: dom.hasAttribute("start") ? +dom.getAttribute("start")! : 1,
-          tight: dom.hasAttribute("data-tight")
+    parseDOM: [
+      {
+        tag: "ol",
+        getAttrs(dom: HTMLElement) {
+          return {
+            order: dom.hasAttribute("start") ? +dom.getAttribute("start")! : 1,
+            tight: dom.hasAttribute("data-tight")
+          }
         }
       }
-    }],
+    ],
     toDOM(node) {
-      return ["ol", {
-        start: node.attrs.order == 1 ? null : node.attrs.order,
-        "data-tight": node.attrs.tight ? "true" : null
-      }, 0]
+      return [
+        "ol",
+        {
+          start: node.attrs.order == 1 ? null : node.attrs.order,
+          "data-tight": node.attrs.tight ? "true" : null
+        },
+        0
+      ]
     }
   }),
 
@@ -135,16 +143,18 @@ export const nodes = {
     },
     group: "inline",
     draggable: true,
-    parseDOM: [{
-      tag: "img[src]",
-      getAttrs(dom: HTMLElement) {
-        return {
-          src: dom.getAttribute("src"),
-          title: dom.getAttribute("title"),
-          alt: dom.getAttribute("alt")
+    parseDOM: [
+      {
+        tag: "img[src]",
+        getAttrs(dom: HTMLElement) {
+          return {
+            src: dom.getAttribute("src"),
+            title: dom.getAttribute("title"),
+            alt: dom.getAttribute("alt")
+          }
         }
       }
-    }],
+    ],
     toDOM(node) {
       const { alt, src, title } = node.attrs
       return ["img", { src, alt, title }]
@@ -199,12 +209,14 @@ export const marks = {
       title: { schema: S.NullOr(S.String), default: null }
     },
     inclusive: false,
-    parseDOM: [{
-      tag: "a[href]",
-      getAttrs(dom: HTMLElement) {
-        return { href: dom.getAttribute("href"), title: dom.getAttribute("title") }
+    parseDOM: [
+      {
+        tag: "a[href]",
+        getAttrs(dom: HTMLElement) {
+          return { href: dom.getAttribute("href"), title: dom.getAttribute("title") }
+        }
       }
-    }],
+    ],
     toDOM(node) {
       const { href, title } = node.attrs
       return ["a", { href, title }]

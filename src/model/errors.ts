@@ -8,7 +8,9 @@
  *
  * @since 0.1.0
  */
-import * as Data from "effect/Data"
+import * as HashSet from "effect/HashSet"
+import * as Predicate from "effect/Predicate"
+import * as Schema from "effect/Schema"
 
 /**
  * A position or index was outside of the valid range of a node or
@@ -17,9 +19,9 @@ import * as Data from "effect/Data"
  * @since 0.1.0
  * @category errors
  */
-export class PositionError extends Data.TaggedError("PositionError")<{
-  readonly message: string
-}> {}
+export class PositionError extends Schema.TaggedError<PositionError>()("PositionError", {
+  message: Schema.String
+}) {}
 
 /**
  * Raised when a [`Slice`](#Slice) cannot be fitted into a document,
@@ -28,9 +30,9 @@ export class PositionError extends Data.TaggedError("PositionError")<{
  * @since 0.1.0
  * @category errors
  */
-export class ReplaceError extends Data.TaggedError("ReplaceError")<{
-  readonly message: string
-}> {}
+export class ReplaceError extends Schema.TaggedError<ReplaceError>()("ReplaceError", {
+  message: Schema.String
+}) {}
 
 /**
  * Content that does not satisfy a node type's content expression or
@@ -39,9 +41,9 @@ export class ReplaceError extends Data.TaggedError("ReplaceError")<{
  * @since 0.1.0
  * @category errors
  */
-export class ContentError extends Data.TaggedError("ContentError")<{
-  readonly message: string
-}> {}
+export class ContentError extends Schema.TaggedError<ContentError>()("ContentError", {
+  message: Schema.String
+}) {}
 
 /**
  * Missing, unknown, or invalid node or mark attributes.
@@ -49,9 +51,9 @@ export class ContentError extends Data.TaggedError("ContentError")<{
  * @since 0.1.0
  * @category errors
  */
-export class AttributeError extends Data.TaggedError("AttributeError")<{
-  readonly message: string
-}> {}
+export class AttributeError extends Schema.TaggedError<AttributeError>()("AttributeError", {
+  message: Schema.String
+}) {}
 
 /**
  * A schema definition (or a content expression in it) is invalid.
@@ -59,9 +61,9 @@ export class AttributeError extends Data.TaggedError("AttributeError")<{
  * @since 0.1.0
  * @category errors
  */
-export class SchemaDefinitionError extends Data.TaggedError("SchemaDefinitionError")<{
-  readonly message: string
-}> {}
+export class SchemaDefinitionError extends Schema.TaggedError<SchemaDefinitionError>()("SchemaDefinitionError", {
+  message: Schema.String
+}) {}
 
 /**
  * Raised when deserializing JSON that does not describe a valid
@@ -70,9 +72,9 @@ export class SchemaDefinitionError extends Data.TaggedError("SchemaDefinitionErr
  * @since 0.1.0
  * @category errors
  */
-export class JSONError extends Data.TaggedError("JSONError")<{
-  readonly message: string
-}> {}
+export class JSONError extends Schema.TaggedError<JSONError>()("JSONError", {
+  message: Schema.String
+}) {}
 
 /**
  * An invalid [`DOMOutputSpec`](#DOMOutputSpec) was passed to the DOM
@@ -82,9 +84,9 @@ export class JSONError extends Data.TaggedError("JSONError")<{
  * @since 0.1.0
  * @category errors
  */
-export class DOMSpecError extends Data.TaggedError("DOMSpecError")<{
-  readonly message: string
-}> {}
+export class DOMSpecError extends Schema.TaggedError<DOMSpecError>()("DOMSpecError", {
+  message: Schema.String
+}) {}
 
 /**
  * Union of all errors produced by the model.
@@ -101,7 +103,7 @@ export type ModelError =
   | JSONError
   | DOMSpecError
 
-const modelErrorTags: ReadonlySet<string> = new Set([
+const modelErrorTags: HashSet.HashSet<string> = HashSet.make(
   "PositionError",
   "ReplaceError",
   "ContentError",
@@ -109,11 +111,11 @@ const modelErrorTags: ReadonlySet<string> = new Set([
   "SchemaDefinitionError",
   "JSONError",
   "DOMSpecError"
-])
+)
 
 /**
  * @since 0.1.0
  * @category guards
  */
 export const isModelError = (u: unknown): u is ModelError =>
-  typeof u === "object" && u !== null && modelErrorTags.has((u as { _tag?: unknown })._tag as string)
+  Predicate.isObjectOrArray(u) && HashSet.has(modelErrorTags, (u as { _tag?: unknown })._tag as string)

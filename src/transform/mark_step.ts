@@ -4,6 +4,7 @@
  * @since 0.1.0
  */
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import { type AnySchema, Fragment, JSONError, type Mark, type Node, Slice } from "../model.ts"
 import type { Mappable } from "./map.ts"
 import { Step, type StepJSON, StepResult } from "./step.ts"
@@ -43,13 +44,18 @@ export class AddMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
   }
 
   apply(doc: Node<Sc>): StepResult<Sc> {
-    const oldSlice = doc.sliceUnsafe(this.from, this.to), $from = doc.resolveUnsafe(this.from)
+    const oldSlice = doc.sliceUnsafe(this.from, this.to),
+      $from = doc.resolveUnsafe(this.from)
     const parent = $from.node($from.sharedDepth(this.to))
     const slice = new Slice(
-      mapFragment(oldSlice.content, (node, parent) => {
-        if (!node.isAtom || !parent.type.allowsMarkType(this.mark.type)) return node
-        return node.mark(this.mark.addToSet(node.marks))
-      }, parent),
+      mapFragment(
+        oldSlice.content,
+        (node, parent) => {
+          if (!node.isAtom || !parent.type.allowsMarkType(this.mark.type)) return node
+          return node.mark(this.mark.addToSet(node.marks))
+        },
+        parent
+      ),
       oldSlice.openStart,
       oldSlice.openEnd
     )
@@ -61,17 +67,14 @@ export class AddMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
   }
 
   map(mapping: Mappable): Option.Option<Step<Sc>> {
-    const from = mapping.mapResult(this.from, 1), to = mapping.mapResult(this.to, -1)
-    if (from.deleted && to.deleted || from.pos >= to.pos) return Option.none()
+    const from = mapping.mapResult(this.from, 1),
+      to = mapping.mapResult(this.to, -1)
+    if ((from.deleted && to.deleted) || from.pos >= to.pos) return Option.none()
     return Option.some(new AddMarkStep(from.pos, to.pos, this.mark))
   }
 
   override merge(other: Step<Sc>): Option.Option<Step<Sc>> {
-    if (
-      other instanceof AddMarkStep &&
-      other.mark.eq(this.mark) &&
-      this.from <= other.to && this.to >= other.from
-    ) {
+    if (other instanceof AddMarkStep && other.mark.eq(this.mark) && this.from <= other.to && this.to >= other.from) {
       return Option.some(new AddMarkStep(Math.min(this.from, other.from), Math.max(this.to, other.to), this.mark))
     }
     return Option.none()
@@ -83,7 +86,7 @@ export class AddMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
 
   /** @internal */
   static override fromJSONUnsafe<Sc extends AnySchema>(schema: Sc, json: any): AddMarkStep<Sc> {
-    if (typeof json.from !== "number" || typeof json.to !== "number") {
+    if (!Predicate.isNumber(json.from) || !Predicate.isNumber(json.to)) {
       throw new JSONError({ message: "Invalid input for AddMarkStep.fromJSON" })
     }
     return new AddMarkStep(json.from, json.to, schema.markFromJSONUnsafe(json.mark) as Mark<Sc>)
@@ -126,17 +129,14 @@ export class RemoveMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
   }
 
   map(mapping: Mappable): Option.Option<Step<Sc>> {
-    const from = mapping.mapResult(this.from, 1), to = mapping.mapResult(this.to, -1)
-    if (from.deleted && to.deleted || from.pos >= to.pos) return Option.none()
+    const from = mapping.mapResult(this.from, 1),
+      to = mapping.mapResult(this.to, -1)
+    if ((from.deleted && to.deleted) || from.pos >= to.pos) return Option.none()
     return Option.some(new RemoveMarkStep(from.pos, to.pos, this.mark))
   }
 
   override merge(other: Step<Sc>): Option.Option<Step<Sc>> {
-    if (
-      other instanceof RemoveMarkStep &&
-      other.mark.eq(this.mark) &&
-      this.from <= other.to && this.to >= other.from
-    ) {
+    if (other instanceof RemoveMarkStep && other.mark.eq(this.mark) && this.from <= other.to && this.to >= other.from) {
       return Option.some(new RemoveMarkStep(Math.min(this.from, other.from), Math.max(this.to, other.to), this.mark))
     }
     return Option.none()
@@ -148,7 +148,7 @@ export class RemoveMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
 
   /** @internal */
   static override fromJSONUnsafe<Sc extends AnySchema>(schema: Sc, json: any): RemoveMarkStep<Sc> {
-    if (typeof json.from !== "number" || typeof json.to !== "number") {
+    if (!Predicate.isNumber(json.from) || !Predicate.isNumber(json.to)) {
       throw new JSONError({ message: "Invalid input for RemoveMarkStep.fromJSON" })
     }
     return new RemoveMarkStep(json.from, json.to, schema.markFromJSONUnsafe(json.mark) as Mark<Sc>)
@@ -211,7 +211,7 @@ export class AddNodeMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> 
 
   /** @internal */
   static override fromJSONUnsafe<Sc extends AnySchema>(schema: Sc, json: any): AddNodeMarkStep<Sc> {
-    if (typeof json.pos !== "number") throw new JSONError({ message: "Invalid input for AddNodeMarkStep.fromJSON" })
+    if (!Predicate.isNumber(json.pos)) throw new JSONError({ message: "Invalid input for AddNodeMarkStep.fromJSON" })
     return new AddNodeMarkStep(json.pos, schema.markFromJSONUnsafe(json.mark) as Mark<Sc>)
   }
 }
@@ -264,7 +264,7 @@ export class RemoveNodeMarkStep<Sc extends AnySchema = AnySchema> extends Step<S
 
   /** @internal */
   static override fromJSONUnsafe<Sc extends AnySchema>(schema: Sc, json: any): RemoveNodeMarkStep<Sc> {
-    if (typeof json.pos !== "number") {
+    if (!Predicate.isNumber(json.pos)) {
       throw new JSONError({ message: "Invalid input for RemoveNodeMarkStep.fromJSON" })
     }
     return new RemoveNodeMarkStep(json.pos, schema.markFromJSONUnsafe(json.mark) as Mark<Sc>)

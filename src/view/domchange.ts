@@ -4,6 +4,7 @@
  *
  * @internal
  */
+import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
 import {
   DOMParser,
@@ -29,7 +30,9 @@ type AnyView = EditorView<any, any, any>
 // readDOMChange.
 
 function parseBetween(view: AnyView, from_: number, to_: number) {
-  let { from, fromOffset, node: parent, to, toOffset } = view.docView.parseRange(from_, to_)
+  const range = view.docView.parseRange(from_, to_)
+  const { from, fromOffset, node: parent, to } = range
+  let toOffset = range.toOffset
 
   const domSel = view.domSelectionRange()
   let find: Array<DOMPosition> | undefined
@@ -44,7 +47,8 @@ function parseBetween(view: AnyView, from_: number, to_: number) {
   // the deleted content with a random BR node (issues #799, #831)
   if (browser.chrome && view.input.lastKeyCode === 8) {
     for (let off = toOffset; off > fromOffset; off--) {
-      const node = parent.childNodes[off - 1]!, desc = node.pmViewDesc
+      const node = parent.childNodes[off - 1]!,
+        desc = node.pmViewDesc
       if (node.nodeName == "BR" && !desc) {
         toOffset = off
         break
@@ -89,7 +93,7 @@ function ruleFromNode(dom: DOMNode): Omit<TagParseRule, "tag"> | null {
       const skip = document.createElement("div")
       skip.appendChild(document.createElement("li"))
       return { skip } as any
-    } else if (dom.parentNode.lastChild == dom || browser.safari && /^(tr|table)$/i.test(dom.parentNode.nodeName)) {
+    } else if (dom.parentNode.lastChild == dom || (browser.safari && /^(tr|table)$/i.test(dom.parentNode.nodeName))) {
       return { ignore: true }
     }
   } else if (dom.nodeName == "IMG" && (dom as HTMLElement).getAttribute("mark-placeholder")) {
@@ -117,8 +121,10 @@ export function readDOMChange(
     const newSel = selectionFromDOM(view, origin)
     if (newSel && !view.state.selection.eq(newSel)) {
       if (
-        browser.chrome && browser.android &&
-        view.input.lastKeyCode === 13 && Date.now() - 100 < view.input.lastKeyCodeTime &&
+        browser.chrome &&
+        browser.android &&
+        view.input.lastKeyCode === 13 &&
+        Date.now() - 100 < view.input.lastKeyCodeTime &&
         view.someHandler("handleKeyDown", (f) => f(view, keyEvent(13, "Enter")))
       ) {
         return
@@ -140,7 +146,8 @@ export function readDOMChange(
   const sel = view.state.selection
   const parse = parseBetween(view, from, to)
 
-  const doc = view.state.doc, compare = doc.sliceUnsafe(parse.from, parse.to)
+  const doc = view.state.doc,
+    compare = doc.sliceUnsafe(parse.from, parse.to)
   let preferredPos, preferredSide: "start" | "end"
   // Prefer anchoring to end when Backspace is pressed
   if (view.input.lastKeyCode === 8 && Date.now() - 100 < view.input.lastKeyCodeTime) {
@@ -155,7 +162,7 @@ export function readDOMChange(
   let change = findDiff(compare.content, parse.doc.content, parse.from, preferredPos, preferredSide)
   if (change) view.input.domChangeCount++
   if (
-    (browser.ios && view.input.lastIOSEnter > Date.now() - 225 || browser.android) &&
+    ((browser.ios && view.input.lastIOSEnter > Date.now() - 225) || browser.android) &&
     addedNodes.some((n) => n.nodeType == 1 && !isInline.test(n.nodeName)) &&
     (!change || change.endA >= change.endB) &&
     view.someHandler("handleKeyDown", (f) => f(view, keyEvent(13, "Enter")))
@@ -165,8 +172,12 @@ export function readDOMChange(
   }
   if (!change) {
     if (
-      typeOver && sel instanceof TextSelection && !sel.empty && sel.$head.sameParent(sel.$anchor) &&
-      !view.composing && !(parse.sel && parse.sel.anchor != parse.sel.head)
+      typeOver &&
+      sel instanceof TextSelection &&
+      !sel.empty &&
+      sel.$head.sameParent(sel.$anchor) &&
+      !view.composing &&
+      !(parse.sel && parse.sel.anchor != parse.sel.head)
     ) {
       change = { start: sel.from, endA: sel.to, endB: sel.to }
     } else {
@@ -191,12 +202,14 @@ export function readDOMChange(
     view.state.selection instanceof TextSelection
   ) {
     if (
-      change.start > view.state.selection.from && change.start <= view.state.selection.from + 2 &&
+      change.start > view.state.selection.from &&
+      change.start <= view.state.selection.from + 2 &&
       view.state.selection.from >= parse.from
     ) {
       change.start = view.state.selection.from
     } else if (
-      change.endA < view.state.selection.to && change.endA >= view.state.selection.to - 2 &&
+      change.endA < view.state.selection.to &&
+      change.endA >= view.state.selection.to - 2 &&
       view.state.selection.to <= parse.to
     ) {
       change.endB += view.state.selection.to - change.endA
@@ -208,8 +221,11 @@ export function readDOMChange(
   // the cursor space when adding a space before another space. When
   // that happened, adjust the change to cover the space instead.
   if (
-    browser.ie && browser.ie_version <= 11 && change.endB == change.start + 1 &&
-    change.endA == change.start && change.start > parse.from &&
+    browser.ie &&
+    browser.ie_version <= 11 &&
+    change.endB == change.start + 1 &&
+    change.endA == change.start &&
+    change.start > parse.from &&
     parse.doc.textBetween(change.start - parse.from - 1, change.start - parse.from + 1) == "  "
   ) {
     change.start--
@@ -224,11 +240,14 @@ export function readDOMChange(
   // If this looks like the effect of pressing Enter (or was recorded
   // as being an iOS enter press), just dispatch an Enter key instead.
   if (
-    ((browser.ios && view.input.lastIOSEnter > Date.now() - 225 &&
+    ((browser.ios &&
+      view.input.lastIOSEnter > Date.now() - 225 &&
       (!inlineChange || addedNodes.some((n) => n.nodeName == "DIV" || n.nodeName == "P"))) ||
-      (!inlineChange && $from.pos < parse.doc.content.size &&
+      (!inlineChange &&
+        $from.pos < parse.doc.content.size &&
         (!$from.sameParent($to) || !$from.parent.inlineContent) &&
-        $from.pos < $to.pos && !/\S/.test(parse.doc.textBetween($from.pos, $to.pos, "", "")))) &&
+        $from.pos < $to.pos &&
+        !/\S/.test(parse.doc.textBetween($from.pos, $to.pos, "", "")))) &&
     view.someHandler("handleKeyDown", (f) => f(view, keyEvent(13, "Enter")))
   ) {
     view.input.lastIOSEnter = 0
@@ -260,9 +279,14 @@ export function readDOMChange(
   // the new paragraph from the initial change, and fire a simulated
   // enter key afterwards.
   if (
-    browser.android && !inlineChange && $from.start() != $to.start() && $to.parentOffset == 0 &&
+    browser.android &&
+    !inlineChange &&
+    $from.start() != $to.start() &&
+    $to.parentOffset == 0 &&
     $from.depth == $to.depth &&
-    parse.sel && parse.sel.anchor == parse.sel.head && parse.sel.head == change.endA
+    parse.sel &&
+    parse.sel.anchor == parse.sel.head &&
+    parse.sel.head == change.endA
   ) {
     change.endB -= 2
     $to = parse.doc.resolveNoCache(change.endB - parse.from)
@@ -271,14 +295,17 @@ export function readDOMChange(
     }, 20)
   }
 
-  const chFrom = change.start, chTo = change.endA
+  const chFrom = change.start,
+    chTo = change.endA
 
   const mkTr = (base?: Transaction<any>) => {
-    const tr = base || view.state.tr.replaceUnsafe(
-      chFrom,
-      chTo,
-      parse.doc.sliceUnsafe(change!.start - parse.from, change!.endB - parse.from)
-    )
+    const tr =
+      base ||
+      view.state.tr.replaceUnsafe(
+        chFrom,
+        chTo,
+        parse.doc.sliceUnsafe(change!.start - parse.from, change!.endB - parse.from)
+      )
     if (parse.sel) {
       const sel = resolveSelection(view, tr.doc, parse.sel)
       // Chrome will sometimes, during composition, report the
@@ -287,10 +314,15 @@ export function readDOMChange(
       // Edge just doesn't move the cursor forward when you start typing
       // in an empty block or between br nodes.
       if (
-        sel && !(browser.chrome && view.composing && sel.empty &&
+        sel &&
+        !(
+          (browser.chrome &&
+            view.composing &&
+            sel.empty &&
             (change!.start != change!.endB || view.input.lastChromeDelete < Date.now() - 100) &&
-            (sel.head == chFrom || sel.head == tr.mapping.map(chTo) - 1) ||
-          browser.ie && sel.empty && sel.head == chFrom)
+            (sel.head == chFrom || sel.head == tr.mapping.map(chTo) - 1)) ||
+          (browser.ie && sel.empty && sel.head == chFrom)
+        )
       ) {
         tr.setSelectionUnsafe(sel)
       }
@@ -301,7 +333,8 @@ export function readDOMChange(
 
   let markChange
   if (inlineChange) {
-    if ($from.pos == $to.pos) { // Deletion
+    if ($from.pos == $to.pos) {
+      // Deletion
       // IE11 sometimes weirdly moves the DOM selection around after
       // backspacing out the first element in a textblock
       if (browser.ie && browser.ie_version <= 11 && $from.parentOffset == 0) {
@@ -358,15 +391,20 @@ function isMarkChange(
   cur: Fragment<any, any>,
   prev: Fragment<any, any>
 ): { mark: Mark<any, any>; type: string } | null | undefined {
-  const curMarks = cur.content[0]!.marks, prevMarks = prev.content[0]!.marks
-  let added = curMarks, removed = prevMarks, type, mark: Mark<any, any> | undefined, update
+  const curMarks = cur.content[0]!.marks,
+    prevMarks = prev.content[0]!.marks
+  let added = curMarks,
+    removed = prevMarks,
+    type,
+    mark: Mark<any, any> | undefined,
+    update
   for (let i = 0; i < prevMarks.length; i++) added = prevMarks[i]!.removeFromSet(added)
   for (let i = 0; i < curMarks.length; i++) removed = curMarks[i]!.removeFromSet(removed)
-  if (added.length == 1 && removed.length == 0) {
+  if (added.length == 1 && Arr.isReadonlyArrayEmpty(removed)) {
     mark = added[0]!
     type = "add"
     update = (node: Node<any, any>) => node.mark(mark!.addToSet(node.marks))
-  } else if (added.length == 0 && removed.length == 1) {
+  } else if (Arr.isReadonlyArrayEmpty(added) && removed.length == 1) {
     mark = removed[0]!
     type = "remove"
     update = (node: Node<any, any>) => node.mark(mark!.removeFromSet(node.marks))
@@ -409,10 +447,7 @@ function looksLikeBackspace(
   }
   const $next = old.resolveUnsafe(skipClosingAndOpening($start, true, true))
   // The next textblock must start before end and end near it
-  if (
-    !$next.parent.isTextblock || $next.pos > end ||
-    skipClosingAndOpening($next, true, false) < end
-  ) {
+  if (!$next.parent.isTextblock || $next.pos > end || skipClosingAndOpening($next, true, false) < end) {
     return false
   }
 
@@ -421,7 +456,8 @@ function looksLikeBackspace(
 }
 
 function skipClosingAndOpening($pos: ResolvedPos<any>, fromEnd: boolean, mayOpen: boolean) {
-  let depth = $pos.depth, end = fromEnd ? $pos.end() : $pos.pos
+  let depth = $pos.depth,
+    end = fromEnd ? $pos.end() : $pos.pos
   while (depth > 0 && (fromEnd || $pos.indexAfter(depth) == $pos.node(depth).childCount)) {
     depth--
     end++
@@ -446,7 +482,10 @@ function findDiff(
 ) {
   let start = Option.getOrNull(a.findDiffStart(b, pos))
   if (start == null) return null
-  let { a: endA, b: endB } = Option.getOrThrow(a.findDiffEnd(b, pos + a.size, pos + b.size))
+  // findDiffEnd is None exactly when findDiffStart is (identical fragments)
+  const diffEnd = Option.getOrNull(a.findDiffEnd(b, pos + a.size, pos + b.size))
+  if (diffEnd == null) return null
+  let { a: endA, b: endB } = diffEnd
   if (preferredSide == "end") {
     const adjust = Math.max(0, start - Math.min(endA, endB))
     preferredPos -= endA + adjust - start
@@ -473,6 +512,7 @@ function findDiff(
 
 function isSurrogatePair(str: string) {
   if (str.length != 2) return false
-  const a = str.charCodeAt(0), b = str.charCodeAt(1)
-  return a >= 0xDC00 && a <= 0xDFFF && b >= 0xD800 && b <= 0xDBFF
+  const a = str.charCodeAt(0),
+    b = str.charCodeAt(1)
+  return a >= 0xdc00 && a <= 0xdfff && b >= 0xd800 && b <= 0xdbff
 }

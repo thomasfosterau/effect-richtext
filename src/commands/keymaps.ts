@@ -3,6 +3,7 @@
  *
  * @since 0.1.0
  */
+import * as Predicate from "effect/Predicate"
 import type { Command } from "../state.ts"
 import {
   chainCommands,
@@ -21,6 +22,17 @@ import {
   splitBlock
 } from "./commands.ts"
 
+/**
+ * A keymap: commands keyed by key name (`"Mod-b"`, `"Enter"`), as the base
+ * keymaps below and `keymap(...)` from `effect-richtext/keymap` use them.
+ *
+ * @since 0.1.0
+ * @category models
+ */
+export interface Keymap {
+  readonly [key: string]: Command
+}
+
 const backspace = chainCommands(deleteSelection, joinBackward, selectNodeBackward)
 const del = chainCommands(deleteSelection, joinForward, selectNodeForward)
 
@@ -38,13 +50,13 @@ const del = chainCommands(deleteSelection, joinForward, selectNodeForward)
  * @since 0.1.0
  * @category keymaps
  */
-export const pcBaseKeymap: { readonly [key: string]: Command } = {
-  "Enter": chainCommands(newlineInCode, createParagraphNear, liftEmptyBlock, splitBlock),
+export const pcBaseKeymap: Keymap = {
+  Enter: chainCommands(newlineInCode, createParagraphNear, liftEmptyBlock, splitBlock),
   "Mod-Enter": exitCode,
-  "Backspace": backspace,
+  Backspace: backspace,
   "Mod-Backspace": backspace,
   "Shift-Backspace": backspace,
-  "Delete": del,
+  Delete: del,
   "Mod-Delete": del,
   "Mod-a": selectAll
 }
@@ -59,7 +71,7 @@ export const pcBaseKeymap: { readonly [key: string]: Command } = {
  * @since 0.1.0
  * @category keymaps
  */
-export const macBaseKeymap: { readonly [key: string]: Command } = {
+export const macBaseKeymap: Keymap = {
   "Ctrl-h": backspace,
   "Alt-Backspace": backspace,
   "Ctrl-d": del,
@@ -71,7 +83,7 @@ export const macBaseKeymap: { readonly [key: string]: Command } = {
   ...pcBaseKeymap
 }
 
-const mac = typeof navigator !== "undefined" && /Mac|iP(hone|[oa]d)/.test(navigator.platform)
+const mac = !Predicate.isUndefined(globalThis.navigator) && /Mac|iP(hone|[oa]d)/.test(navigator.platform)
 
 /**
  * Depending on the detected platform, this will hold `pcBaseKeymap` or
@@ -80,4 +92,4 @@ const mac = typeof navigator !== "undefined" && /Mac|iP(hone|[oa]d)/.test(naviga
  * @since 0.1.0
  * @category keymaps
  */
-export const baseKeymap: { readonly [key: string]: Command } = mac ? macBaseKeymap : pcBaseKeymap
+export const baseKeymap: Keymap = mac ? macBaseKeymap : pcBaseKeymap

@@ -4,7 +4,8 @@
  * @since 0.1.0
  */
 import * as Option from "effect/Option"
-import { type AnySchema, Fragment, JSONError, type Node, Slice } from "../model.ts"
+import * as Predicate from "effect/Predicate"
+import { type AnySchema, type Attrs, Fragment, JSONError, type Node, Slice } from "../model.ts"
 import { type Mappable, StepMap } from "./map.ts"
 import { Step, type StepJSON, StepResult } from "./step.ts"
 
@@ -47,7 +48,7 @@ export class AttrStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
   }
 
   invert(doc: Node<Sc>): Step<Sc> {
-    return new AttrStep(this.pos, this.attr, (doc.nodeAtOrNull(this.pos)!.attrs as Record<string, unknown>)[this.attr])
+    return new AttrStep(this.pos, this.attr, (doc.nodeAtOrNull(this.pos)!.attrs as Attrs)[this.attr])
   }
 
   map(mapping: Mappable): Option.Option<Step<Sc>> {
@@ -61,7 +62,7 @@ export class AttrStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
 
   /** @internal */
   static override fromJSONUnsafe<Sc extends AnySchema>(_schema: Sc, json: any): AttrStep<Sc> {
-    if (typeof json.pos !== "number" || typeof json.attr !== "string") {
+    if (!Predicate.isNumber(json.pos) || !Predicate.isString(json.attr)) {
       throw new JSONError({ message: "Invalid input for AttrStep.fromJSON" })
     }
     return new AttrStep(json.pos, json.attr, json.value)
@@ -100,7 +101,7 @@ export class DocAttrStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
   }
 
   invert(doc: Node<Sc>): Step<Sc> {
-    return new DocAttrStep(this.attr, (doc.attrs as Record<string, unknown>)[this.attr])
+    return new DocAttrStep(this.attr, (doc.attrs as Attrs)[this.attr])
   }
 
   map(_mapping: Mappable): Option.Option<Step<Sc>> {
@@ -113,7 +114,7 @@ export class DocAttrStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
 
   /** @internal */
   static override fromJSONUnsafe<Sc extends AnySchema>(_schema: Sc, json: any): DocAttrStep<Sc> {
-    if (typeof json.attr !== "string") throw new JSONError({ message: "Invalid input for DocAttrStep.fromJSON" })
+    if (!Predicate.isString(json.attr)) throw new JSONError({ message: "Invalid input for DocAttrStep.fromJSON" })
     return new DocAttrStep(json.attr, json.value)
   }
 }

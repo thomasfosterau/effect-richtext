@@ -46,15 +46,20 @@ export function replaceStepOrNull<Sc extends AnySchema>(
 ): Step<Sc> | null {
   if (from === to && !slice.size) return null
 
-  const $from = doc.resolveUnsafe(from), $to = doc.resolveUnsafe(to)
+  const $from = doc.resolveUnsafe(from),
+    $to = doc.resolveUnsafe(to)
   // Optimization -- avoid work if it's obvious that it's not needed.
   if (fitsTrivially($from, $to, slice)) return new ReplaceStep(from, to, slice)
   return new Fitter($from, $to, slice).fit() as Step<Sc> | null
 }
 
 function fitsTrivially($from: ResolvedPos<any>, $to: ResolvedPos<any>, slice: Slice<any>): boolean {
-  return !slice.openStart && !slice.openEnd && $from.start() === $to.start() &&
+  return (
+    !slice.openStart &&
+    !slice.openEnd &&
+    $from.start() === $to.start() &&
     $from.parent.canReplace($from.index(), $to.index(), slice.content)
+  )
 }
 
 interface Fittable {
@@ -123,13 +128,18 @@ class Fitter {
     // step that pulls that content into the node after the frontier.
     // That means the fitting must be done to the end of the textblock
     // node after `this.$to`, not `this.$to` itself.
-    const moveInline = this.mustMoveInline(), placedSize = this.placed.size - this.depth - this.$from.depth
-    const $from = this.$from, $to = this.close(moveInline < 0 ? this.$to : $from.doc.resolveUnsafe(moveInline))
+    const moveInline = this.mustMoveInline(),
+      placedSize = this.placed.size - this.depth - this.$from.depth
+    const $from = this.$from,
+      $to = this.close(moveInline < 0 ? this.$to : $from.doc.resolveUnsafe(moveInline))
     if (!$to) return null
 
     // If closing to `$to` succeeded, create a step
-    let content = this.placed, openStart = $from.depth, openEnd = $to.depth
-    while (openStart && openEnd && content.childCount === 1) { // Normalize by dropping open parent nodes
+    let content = this.placed,
+      openStart = $from.depth,
+      openEnd = $to.depth
+    while (openStart && openEnd && content.childCount === 1) {
+      // Normalize by dropping open parent nodes
       content = content.content[0]!.content
       openStart--
       openEnd--
@@ -138,7 +148,8 @@ class Fitter {
     if (moveInline > -1) {
       return new ReplaceAroundStep($from.pos, moveInline, this.$to.pos, this.$to.end(), slice, placedSize)
     }
-    if (slice.size || $from.pos !== this.$to.pos) { // Don't generate no-op steps
+    if (slice.size || $from.pos !== this.$to.pos) {
+      // Don't generate no-op steps
       return new ReplaceStep($from.pos, $to.pos, slice)
     }
     return null
@@ -163,7 +174,8 @@ class Fitter {
     // wrapping failed.
     for (let pass = 1; pass <= 2; pass++) {
       for (let sliceDepth = pass === 1 ? startDepth : this.unplaced.openStart; sliceDepth >= 0; sliceDepth--) {
-        let fragment: Fragment<any>, parent: Node<any> | null = null
+        let fragment: Fragment<any>,
+          parent: Node<any> | null = null
         if (sliceDepth) {
           parent = contentAt(this.unplaced.content, sliceDepth - 1).content[0]!
           fragment = parent.content
@@ -173,12 +185,14 @@ class Fitter {
         const first = fragment.content[0]
         for (let frontierDepth = this.depth; frontierDepth >= 0; frontierDepth--) {
           const { match, type } = this.frontier[frontierDepth]!
-          let wrap: ReadonlyArray<NodeType<any, any>> | null = null, inject: Fragment<any> | null = null
+          let wrap: ReadonlyArray<NodeType<any, any>> | null = null,
+            inject: Fragment<any> | null = null
           // In pass 1, if the next node matches, or there is no next
           // node but the parents look compatible, we've found a
           // place.
           if (
-            pass === 1 && (first
+            pass === 1 &&
+            (first
               ? match.matchTypeOrNull(first.type) || (inject = match.fillBeforeOrNull(Fragment.from(first), false))
               : parent && type.compatibleContent(parent.type))
           ) {
@@ -229,9 +243,12 @@ class Fitter {
   // applicable.
   placeNodes({ frontierDepth, inject, parent, sliceDepth, wrap }: Fittable): void {
     while (this.depth > frontierDepth) this.closeFrontierNode()
-    if (wrap) { for (let i = 0; i < wrap.length; i++) this.openFrontierNode(wrap[i]!) }
+    if (wrap) {
+      for (let i = 0; i < wrap.length; i++) this.openFrontierNode(wrap[i]!)
+    }
 
-    const slice = this.unplaced, fragment = parent ? parent.content : slice.content
+    const slice = this.unplaced,
+      fragment = parent ? parent.content : slice.content
     const openStart = slice.openStart - sliceDepth
     let taken = 0
     const add: Array<Node<any>> = []
@@ -244,20 +261,24 @@ class Fitter {
     // Computes the amount of (end) open nodes at the end of the
     // fragment. When 0, the parent is open, but no more. When
     // negative, nothing is open.
-    let openEndCount = (fragment.size + sliceDepth) - (slice.content.size - slice.openEnd)
+    let openEndCount = fragment.size + sliceDepth - (slice.content.size - slice.openEnd)
     // Scan over the fragment, fitting as many child nodes as
     // possible.
     while (taken < fragment.childCount) {
-      const next = fragment.content[taken]!, matches = match.matchTypeOrNull(next.type)
+      const next = fragment.content[taken]!,
+        matches = match.matchTypeOrNull(next.type)
       if (!matches) break
       taken++
-      if (taken > 1 || openStart === 0 || next.content.size) { // Drop empty open nodes
+      if (taken > 1 || openStart === 0 || next.content.size) {
+        // Drop empty open nodes
         match = matches
-        add.push(closeNodeStart(
-          next.mark(type.allowedMarks(next.marks)),
-          taken === 1 ? openStart : 0,
-          taken === fragment.childCount ? openEndCount : -1
-        ))
+        add.push(
+          closeNodeStart(
+            next.mark(type.allowedMarks(next.marks)),
+            taken === 1 ? openStart : 0,
+            taken === fragment.childCount ? openEndCount : -1
+          )
+        )
       }
     }
     const toEnd = taken === fragment.childCount
@@ -269,9 +290,13 @@ class Fitter {
     // If the parent types match, and the entire node was moved, and
     // it's not open, close this frontier node right away.
     if (
-      toEnd && openEndCount < 0 && parent && parent.type === this.frontier[this.depth]!.type &&
+      toEnd &&
+      openEndCount < 0 &&
+      parent &&
+      parent.type === this.frontier[this.depth]!.type &&
       this.frontier.length > 1
-    ) this.closeFrontierNode()
+    )
+      this.closeFrontierNode()
 
     // Add new frontier nodes for any open nodes at the end.
     for (let i = 0, cur = fragment; i < openEndCount; i++) {
@@ -286,12 +311,12 @@ class Fitter {
     this.unplaced = !toEnd
       ? new Slice(dropFromFragment(slice.content, sliceDepth, taken), slice.openStart, slice.openEnd)
       : sliceDepth === 0
-      ? Slice.empty
-      : new Slice(
-        dropFromFragment(slice.content, sliceDepth - 1, 1),
-        sliceDepth - 1,
-        openEndCount < 0 ? slice.openEnd : sliceDepth - 1
-      )
+        ? Slice.empty
+        : new Slice(
+            dropFromFragment(slice.content, sliceDepth - 1, 1),
+            sliceDepth - 1,
+            openEndCount < 0 ? slice.openEnd : sliceDepth - 1
+          )
   }
 
   mustMoveInline(): number {
@@ -299,18 +324,19 @@ class Fitter {
     const top = this.frontier[this.depth]!
     let level: ReturnType<Fitter["findCloseLevel"]>
     if (
-      !top.type.isTextblock || !contentAfterFits(this.$to, this.$to.depth, top.type, top.match, false) ||
+      !top.type.isTextblock ||
+      !contentAfterFits(this.$to, this.$to.depth, top.type, top.match, false) ||
       (this.$to.depth === this.depth && (level = this.findCloseLevel(this.$to)) && level.depth === this.depth)
-    ) return -1
+    )
+      return -1
 
-    let { depth } = this.$to, after = this.$to.afterUnsafe(depth)
+    let { depth } = this.$to,
+      after = this.$to.afterUnsafe(depth)
     while (depth > 1 && after === this.$to.end(--depth)) ++after
     return after
   }
 
-  findCloseLevel(
-    $to: ResolvedPos<any>
-  ): { depth: number; fit: Fragment<any>; move: ResolvedPos<any> } | undefined {
+  findCloseLevel($to: ResolvedPos<any>): { depth: number; fit: Fragment<any>; move: ResolvedPos<any> } | undefined {
     scan: for (let i = Math.min(this.depth, $to.depth); i >= 0; i--) {
       const { match, type } = this.frontier[i]!
       const dropInner = i < $to.depth && $to.end(i + 1) === $to.pos + ($to.depth - (i + 1))
@@ -334,7 +360,8 @@ class Fitter {
     if (close.fit.childCount) this.placed = addToFragment(this.placed, close.depth, close.fit)
     $to = close.move
     for (let d = close.depth + 1; d <= $to.depth; d++) {
-      const node = $to.node(d), add = node.type.contentMatch.fillBeforeOrNull(node.content, true, $to.index(d))!
+      const node = $to.node(d),
+        add = node.type.contentMatch.fillBeforeOrNull(node.content, true, $to.index(d))!
       this.openFrontierNode(node.type, node.attrs, add)
     }
     return $to
@@ -396,7 +423,8 @@ function contentAfterFits(
   match: ContentMatch,
   open: boolean
 ): Fragment<any> | null {
-  const node = $to.node(depth), index = open ? $to.indexAfter(depth) : $to.index(depth)
+  const node = $to.node(depth),
+    index = open ? $to.indexAfter(depth) : $to.index(depth)
   if (index === node.childCount && !type.compatibleContent(node.type)) return null
   const fit = match.fillBeforeOrNull(node.content, true, index)
   return fit && !invalidMarks(type, node.content, index) ? fit : null
@@ -420,7 +448,8 @@ export function replaceRange(tr: Transform<any>, from: number, to: number, slice
     return
   }
 
-  const $from = tr.doc.resolveUnsafe(from), $to = tr.doc.resolveUnsafe(to)
+  const $from = tr.doc.resolveUnsafe(from),
+    $to = tr.doc.resolveUnsafe(to)
   if (fitsTrivially($from, $to, slice)) {
     tr.stepUnsafe(new ReplaceStep(from, to, slice))
     return
@@ -449,7 +478,7 @@ export function replaceRange(tr: Transform<any>, from: number, to: number, slice
 
   const leftNodes: Array<Node<any>> = []
   let preferredDepth = slice.openStart
-  for (let content = slice.content, i = 0;; i++) {
+  for (let content = slice.content, i = 0; ; i++) {
     const node = content.content[0]!
     leftNodes.push(node)
     if (i === slice.openStart) break
@@ -459,7 +488,8 @@ export function replaceRange(tr: Transform<any>, from: number, to: number, slice
   // Back up preferredDepth to cover defining textblocks directly
   // above it, possibly skipping a non-defining textblock.
   for (let d = preferredDepth - 1; d >= 0; d--) {
-    const leftNode = leftNodes[d]!, def = definesContent(leftNode.type)
+    const leftNode = leftNodes[d]!,
+      def = definesContent(leftNode.type)
     if (def && !leftNode.sameMarkup($from.node(Math.abs(preferredTarget) - 1))) preferredDepth = d
     else if (def || !leftNode.type.isTextblock) break
   }
@@ -471,12 +501,14 @@ export function replaceRange(tr: Transform<any>, from: number, to: number, slice
     for (let i = 0; i < targetDepths.length; i++) {
       // Loop over possible expansion levels, starting with the
       // preferred one
-      let targetDepth = targetDepths[(i + preferredTargetIndex) % targetDepths.length]!, expand = true
+      let targetDepth = targetDepths[(i + preferredTargetIndex) % targetDepths.length]!,
+        expand = true
       if (targetDepth < 0) {
         expand = false
         targetDepth = -targetDepth
       }
-      const parent = $from.node(targetDepth - 1), index = $from.index(targetDepth - 1)
+      const parent = $from.node(targetDepth - 1),
+        index = $from.index(targetDepth - 1)
       if (parent.canReplaceWith(index, index, insert.type, insert.marks)) {
         tr.replaceUnsafe(
           $from.beforeUnsafe(targetDepth),
@@ -529,13 +561,17 @@ export function replaceRangeWith(tr: Transform<any>, from: number, to: number, n
 
 /** @internal */
 export function deleteRange(tr: Transform<any>, from: number, to: number): void {
-  let $from = tr.doc.resolveUnsafe(from), $to = tr.doc.resolveUnsafe(to)
+  let $from = tr.doc.resolveUnsafe(from),
+    $to = tr.doc.resolveUnsafe(to)
 
   // When the deleted range spans from the start of one textblock to
   // the start of another one, move out of the start of both blocks.
   if (
-    $from.parent.isTextblock && $to.parent.isTextblock && $from.start() !== $to.start() &&
-    $from.parentOffset === 0 && $to.parentOffset === 0
+    $from.parent.isTextblock &&
+    $to.parent.isTextblock &&
+    $from.start() !== $to.start() &&
+    $from.parentOffset === 0 &&
+    $to.parentOffset === 0
   ) {
     const shared = $from.sharedDepth(to)
     let isolated = false
@@ -551,22 +587,24 @@ export function deleteRange(tr: Transform<any>, from: number, to: number): void 
 
   const covered = coveredDepths($from, $to)
   for (let i = 0; i < covered.length; i++) {
-    const depth = covered[i]!, last = i === covered.length - 1
+    const depth = covered[i]!,
+      last = i === covered.length - 1
     if ((last && depth === 0) || $from.node(depth).type.contentMatch.validEnd) {
       tr.deleteUnsafe($from.start(depth), $to.end(depth))
       return
     }
-    if (
-      depth > 0 && (last || $from.node(depth - 1).canReplace($from.index(depth - 1), $to.indexAfter(depth - 1)))
-    ) {
+    if (depth > 0 && (last || $from.node(depth - 1).canReplace($from.index(depth - 1), $to.indexAfter(depth - 1)))) {
       tr.deleteUnsafe($from.beforeUnsafe(depth), $to.afterUnsafe(depth))
       return
     }
   }
   for (let d = 1; d <= $from.depth && d <= $to.depth; d++) {
     if (
-      from - $from.start(d) === $from.depth - d && to > $from.end(d) && $to.end(d) - to !== $to.depth - d &&
-      $from.start(d - 1) === $to.start(d - 1) && $from.node(d - 1).canReplace($from.index(d - 1), $to.index(d - 1))
+      from - $from.start(d) === $from.depth - d &&
+      to > $from.end(d) &&
+      $to.end(d) - to !== $to.depth - d &&
+      $from.start(d - 1) === $to.start(d - 1) &&
+      $from.node(d - 1).canReplace($from.index(d - 1), $to.index(d - 1))
     ) {
       tr.deleteUnsafe($from.beforeUnsafe(d), to)
       return
@@ -578,7 +616,8 @@ export function deleteRange(tr: Transform<any>, from: number, to: number): void 
 // Returns an array of all depths for which $from - $to spans the
 // whole content of the nodes at that depth.
 function coveredDepths($from: ResolvedPos<any>, $to: ResolvedPos<any>): Array<number> {
-  const result: Array<number> = [], minDepth = Math.min($from.depth, $to.depth)
+  const result: Array<number> = [],
+    minDepth = Math.min($from.depth, $to.depth)
   for (let d = minDepth; d >= 0; d--) {
     const start = $from.start(d)
     if (
@@ -586,12 +625,18 @@ function coveredDepths($from: ResolvedPos<any>, $to: ResolvedPos<any>): Array<nu
       $to.end(d) > $to.pos + ($to.depth - d) ||
       $from.node(d).type.spec.isolating ||
       $to.node(d).type.spec.isolating
-    ) break
+    )
+      break
     if (
       start === $to.start(d) ||
-      (d === $from.depth && d === $to.depth && $from.parent.inlineContent && $to.parent.inlineContent &&
-        d && $to.start(d - 1) === start - 1)
-    ) result.push(d)
+      (d === $from.depth &&
+        d === $to.depth &&
+        $from.parent.inlineContent &&
+        $to.parent.inlineContent &&
+        d &&
+        $to.start(d - 1) === start - 1)
+    )
+      result.push(d)
   }
   return result
 }

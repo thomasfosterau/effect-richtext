@@ -3,7 +3,7 @@
  *
  * @since 0.1.0
  */
-import * as Data from "effect/Data"
+import * as Schema from "effect/Schema"
 
 /**
  * An invalid editor state operation: a state configuration without a
@@ -14,9 +14,9 @@ import * as Data from "effect/Data"
  * @since 0.1.0
  * @category errors
  */
-export class StateError extends Data.TaggedError("StateError")<{
-  readonly message: string
-}> {}
+export class StateError extends Schema.TaggedError<StateError>()("StateError", {
+  message: Schema.String
+}) {}
 
 /**
  * An invalid selection: a node selection at a position with no node
@@ -26,9 +26,9 @@ export class StateError extends Data.TaggedError("StateError")<{
  * @since 0.1.0
  * @category errors
  */
-export class SelectionError extends Data.TaggedError("SelectionError")<{
-  readonly message: string
-}> {}
+export class SelectionError extends Schema.TaggedError<SelectionError>()("SelectionError", {
+  message: Schema.String
+}) {}
 
 /**
  * Union of the errors defined by the state layer.

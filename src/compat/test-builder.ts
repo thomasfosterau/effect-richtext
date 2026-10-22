@@ -21,7 +21,7 @@ type Tags = { [tag: string]: number }
  */
 export type ChildSpec = string | Node | { flat: ReadonlyArray<Node>; tag: Tags }
 
-const noTag = (Node.prototype as any).tag = Object.create(null)
+const noTag = ((Node.prototype as any).tag = Object.create(null))
 
 function flatten(
   schema: Schema,
@@ -29,13 +29,16 @@ function flatten(
   f: (node: Node) => Node
 ): { nodes: Array<Node>; tag: Tags } {
   const result = []
-  let pos = 0, tag = noTag
+  let pos = 0,
+    tag = noTag
 
   for (let i = 0; i < children.length; i++) {
     const child = children[i]!
     if (typeof child == "string") {
       const re = /<(\w+)>/g
-      let m, at = 0, out = ""
+      let m,
+        at = 0,
+        out = ""
       while ((m = re.exec(child))) {
         out += child.slice(at, m.index)
         pos += m.index - at
@@ -102,23 +105,19 @@ export type NodeBuilder = (attrsOrFirstChild?: Attrs | ChildSpec, ...children: A
  */
 export type MarkBuilder = (attrsOrFirstChild?: Attrs | ChildSpec, ...children: Array<ChildSpec>) => ChildSpec
 
-type Builders<S extends Schema> =
-  & {
-    schema: S
-  }
-  & {
-    [key in keyof S["nodes"]]: NodeBuilder
-  }
-  & {
-    [key in keyof S["marks"]]: MarkBuilder
-  }
-  & {
-    [name: string]: NodeBuilder | MarkBuilder
-  }
+type Builders<S extends Schema> = {
+  schema: S
+} & {
+  [key in keyof S["nodes"]]: NodeBuilder
+} & {
+  [key in keyof S["marks"]]: MarkBuilder
+} & {
+  [name: string]: NodeBuilder | MarkBuilder
+}
 
 // Create a builder function for nodes with content.
 function block(type: NodeType, attrs: Attrs | null = null): NodeBuilder {
-  const result = function(...args: Array<any>) {
+  const result = function (...args: Array<any>) {
     const myAttrs = takeAttrs(attrs, args as any)
     const { nodes, tag } = flatten(type.schema, args as Array<ChildSpec>, id)
     const node = type.create(myAttrs, nodes)
@@ -137,7 +136,7 @@ function block(type: NodeType, attrs: Attrs | null = null): NodeBuilder {
 
 // Create a builder function for marks.
 function mark(type: MarkType, attrs: Attrs | null): MarkBuilder {
-  return function(...args) {
+  return function (...args) {
     const mark = type.create(takeAttrs(attrs, args))
     const { nodes, tag } = flatten(type.schema, args as Array<ChildSpec>, (n) => {
       const newMarks = mark.addToSet(n.marks)
@@ -163,7 +162,8 @@ export function builders<Nodes extends string = any, Marks extends string = any>
 
   if (names) {
     for (const name in names) {
-      const value = names[name]!, typeName = value.nodeType || value.markType || name
+      const value = names[name]!,
+        typeName = value.nodeType || value.markType || name
       let type
       if ((type = schema.nodes[typeName])) (result as any)[name] = block(type, value)
       else if ((type = schema.marks[typeName])) (result as any)[name] = mark(type, value)

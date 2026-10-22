@@ -4,13 +4,15 @@
  *
  * @since 0.1.0
  */
+import * as Arr from "effect/Array"
+import type * as Order from "effect/Order"
 import type { Mark, Node } from "../model.ts"
 import type { EditorState } from "../state.ts"
 import type { Mappable, Mapping } from "../transform.ts"
 import type { DOMNode } from "./dom.ts"
 import type { EditorView } from "./view.ts"
 
-function compareObjs(a: { [prop: string]: any }, b: { [prop: string]: any }) {
+function compareObjs(a: Readonly<Record<string, unknown>>, b: Readonly<Record<string, unknown>>) {
   if (a == b) return true
   for (const p in a) if (a[p] !== b[p]) return false
   for (const p in b) if (!(p in a)) return false
@@ -45,7 +47,10 @@ export class WidgetType implements DecorationType {
   spec: any
   side: number
 
-  constructor(readonly toDOM: WidgetConstructor, spec: any) {
+  constructor(
+    readonly toDOM: WidgetConstructor,
+    spec: any
+  ) {
     this.spec = spec || noSpec
     this.side = this.spec.side || 0
   }
@@ -60,10 +65,12 @@ export class WidgetType implements DecorationType {
   }
 
   eq(other: WidgetType): boolean {
-    return this == other ||
+    return (
+      this == other ||
       (other instanceof WidgetType &&
-        (this.spec.key && this.spec.key == other.spec.key ||
-          this.toDOM == other.toDOM && compareObjs(this.spec, other.spec)))
+        ((this.spec.key && this.spec.key == other.spec.key) ||
+          (this.toDOM == other.toDOM && compareObjs(this.spec, other.spec))))
+    )
   }
 
   destroy(node: DOMNode) {
@@ -75,7 +82,10 @@ export class WidgetType implements DecorationType {
 export class InlineType implements DecorationType {
   spec: any
 
-  constructor(readonly attrs: DecorationAttrs, spec: any) {
+  constructor(
+    readonly attrs: DecorationAttrs,
+    spec: any
+  ) {
     this.spec = spec || noSpec
   }
 
@@ -90,9 +100,10 @@ export class InlineType implements DecorationType {
   }
 
   eq(other: DecorationType): boolean {
-    return this == other ||
-      (other instanceof InlineType && compareObjs(this.attrs, other.attrs) &&
-        compareObjs(this.spec, other.spec))
+    return (
+      this == other ||
+      (other instanceof InlineType && compareObjs(this.attrs, other.attrs) && compareObjs(this.spec, other.spec))
+    )
   }
 
   static is(span: Decoration) {
@@ -105,7 +116,10 @@ export class InlineType implements DecorationType {
 /** @internal */
 export class NodeType implements DecorationType {
   spec: any
-  constructor(readonly attrs: DecorationAttrs, spec: any) {
+  constructor(
+    readonly attrs: DecorationAttrs,
+    spec: any
+  ) {
     this.spec = spec || noSpec
   }
 
@@ -120,14 +134,14 @@ export class NodeType implements DecorationType {
   valid(node: Node<any, any>, span: Decoration): boolean {
     const { index, offset } = node.content.findIndex(span.from)
     let child: Node<any, any>
-    return offset == span.from && !(child = node.content.content[index]!).isText &&
-      offset + child.nodeSize == span.to
+    return offset == span.from && !(child = node.content.content[index]!).isText && offset + child.nodeSize == span.to
   }
 
   eq(other: DecorationType): boolean {
-    return this == other ||
-      (other instanceof NodeType && compareObjs(this.attrs, other.attrs) &&
-        compareObjs(this.spec, other.spec))
+    return (
+      this == other ||
+      (other instanceof NodeType && compareObjs(this.attrs, other.attrs) && compareObjs(this.spec, other.spec))
+    )
   }
 
   destroy() {}
@@ -327,7 +341,8 @@ export type DecorationAttrs = {
   readonly [attribute: string]: string | undefined
 }
 
-const none: ReadonlyArray<any> = [], noSpec = {}
+const none: ReadonlyArray<any> = [],
+  noSpec = {}
 
 /**
  * An object that can provide decorations. Implemented by
@@ -437,7 +452,7 @@ export class DecorationSet implements DecorationSource {
 
   /** Map the set of decorations in response to a change in the document. */
   map(mapping: Mapping, doc: Node<any, any>, options?: DecorationMapOptions): DecorationSet {
-    if (this == empty || mapping.maps.length == 0) return this
+    if (this == empty || Arr.isReadonlyArrayEmpty(mapping.maps)) return this
     return this.mapInner(mapping, doc, 0, 0, options || noSpec)
   }
 
@@ -459,7 +474,7 @@ export class DecorationSet implements DecorationSource {
     if (this.children.length) {
       return mapChildren(this.children, newLocal || [], mapping, node, offset, oldOffset, options)
     } else {
-      return newLocal ? new DecorationSet(newLocal.sort(byPos), none) : empty
+      return newLocal ? new DecorationSet(Arr.sort(newLocal, byPos), none) : empty
     }
   }
 
@@ -475,7 +490,8 @@ export class DecorationSet implements DecorationSource {
   }
 
   private addInner(doc: Node<any, any>, decorations: Array<Decoration | null>, offset: number): DecorationSet {
-    let children: Array<number | DecorationSet> | undefined, childIndex = 0
+    let children: Array<number | DecorationSet> | undefined,
+      childIndex = 0
     doc.forEach((childNode, childOffset) => {
       const baseOffset = childOffset + offset
       let found
@@ -501,14 +517,11 @@ export class DecorationSet implements DecorationSource {
       childIndex += 3
     })
 
-    const local = moveSpans(
-      childIndex ? withoutNulls(decorations) : decorations as Array<Decoration>,
-      -offset
-    )
+    const local = moveSpans(childIndex ? withoutNulls(decorations) : (decorations as Array<Decoration>), -offset)
     for (let i = 0; i < local.length; i++) if (!local[i]!.type.valid(doc, local[i]!)) local.splice(i--, 1)
 
     return new DecorationSet(
-      local.length ? this.local.concat(local).sort(byPos) : this.local,
+      local.length ? Arr.sort(this.local.concat(local), byPos) : this.local,
       children || this.children
     )
   }
@@ -518,15 +531,17 @@ export class DecorationSet implements DecorationSource {
    * the ones in the given array.
    */
   remove(decorations: Array<Decoration>): DecorationSet {
-    if (decorations.length == 0 || this == empty) return this
+    if (Arr.isReadonlyArrayEmpty(decorations) || this == empty) return this
     return this.removeInner(decorations, 0)
   }
 
   private removeInner(decorations: Array<Decoration | null>, offset: number): DecorationSet {
-    let children = this.children as Array<number | DecorationSet>, local = this.local as Array<Decoration>
+    let children = this.children as Array<number | DecorationSet>,
+      local = this.local as Array<Decoration>
     for (let i = 0; i < children.length; i += 3) {
       let found: Array<Decoration> | undefined
-      const from = (children[i] as number) + offset, to = (children[i + 1] as number) + offset
+      const from = (children[i] as number) + offset,
+        to = (children[i + 1] as number) + offset
       for (let j = 0, span; j < decorations.length; j++) {
         if ((span = decorations[j])) {
           if (span.from > from && span.to < to) {
@@ -572,16 +587,18 @@ export class DecorationSet implements DecorationSource {
         break
       }
     }
-    const start = offset + 1, end = start + node.content.size
+    const start = offset + 1,
+      end = start + node.content.size
     for (let i = 0; i < this.local.length; i++) {
       const dec = this.local[i]!
-      if (dec.from < end && dec.to > start && (dec.type instanceof InlineType)) {
-        const from = Math.max(start, dec.from) - start, to = Math.min(end, dec.to) - start
+      if (dec.from < end && dec.to > start && dec.type instanceof InlineType) {
+        const from = Math.max(start, dec.from) - start,
+          to = Math.min(end, dec.to) - start
         if (from < to) (local || (local = [])).push(dec.copy(from, to))
       }
     }
     if (local) {
-      const localSet = new DecorationSet(local.sort(byPos), none)
+      const localSet = new DecorationSet(Arr.sort(local, byPos), none)
       return child ? new DecorationGroup([localSet, child]) : localSet
     }
     return child || empty
@@ -594,7 +611,8 @@ export class DecorationSet implements DecorationSource {
       !(other instanceof DecorationSet) ||
       this.local.length != other.local.length ||
       this.children.length != other.children.length
-    ) return false
+    )
+      return false
     for (let i = 0; i < this.local.length; i++) {
       if (!this.local[i]!.eq(other.local[i]!)) return false
     }
@@ -603,7 +621,8 @@ export class DecorationSet implements DecorationSource {
         this.children[i] != other.children[i] ||
         this.children[i + 1] != other.children[i + 1] ||
         !(this.children[i + 2] as DecorationSet).eq(other.children[i + 2] as DecorationSet)
-      ) return false
+      )
+        return false
     }
     return true
   }
@@ -647,9 +666,7 @@ export class DecorationGroup implements DecorationSource {
   constructor(readonly members: ReadonlyArray<DecorationSet>) {}
 
   map(mapping: Mapping, doc: Node<any, any>): DecorationSource {
-    const mappedDecos = this.members.map(
-      (member) => member.map(mapping, doc, noSpec)
-    )
+    const mappedDecos = this.members.map((member) => member.map(mapping, doc, noSpec))
     return DecorationGroup.from(mappedDecos)
   }
 
@@ -666,10 +683,7 @@ export class DecorationGroup implements DecorationSource {
   }
 
   eq(other: DecorationSource): boolean {
-    if (
-      !(other instanceof DecorationGroup) ||
-      other.members.length != this.members.length
-    ) return false
+    if (!(other instanceof DecorationGroup) || other.members.length != this.members.length) return false
     for (let i = 0; i < this.members.length; i++) {
       if (!this.members[i]!.eq(other.members[i]!)) return false
     }
@@ -677,7 +691,8 @@ export class DecorationGroup implements DecorationSource {
   }
 
   locals(node: Node<any, any>): ReadonlyArray<Decoration> {
-    let result: Array<Decoration> | undefined, sorted = true
+    let result: Array<Decoration> | undefined,
+      sorted = true
     for (let i = 0; i < this.members.length; i++) {
       const locals = this.members[i]!.localsInner(node)
       if (!locals.length) continue
@@ -691,27 +706,22 @@ export class DecorationGroup implements DecorationSource {
         for (let j = 0; j < locals.length; j++) result.push(locals[j]!)
       }
     }
-    return result ? removeOverlap(sorted ? result : result.sort(byPos)) : none
+    return result ? removeOverlap(sorted ? result : Arr.sort(result, byPos)) : none
   }
 
   // Create a group for the given array of decoration sets, or return
   // a single set when possible.
   static from(members: ReadonlyArray<DecorationSource>): DecorationSource {
-    switch (members.length) {
-      case 0:
-        return empty
-      case 1:
-        return members[0]!
-      default:
-        return new DecorationGroup(
-          members.every((m) => m instanceof DecorationSet)
-            ? members as ReadonlyArray<DecorationSet>
-            : members.reduce(
-              (r, m) => r.concat(m instanceof DecorationSet ? m : (m as DecorationGroup).members),
-              [] as Array<DecorationSet>
-            )
-        )
-    }
+    if (Arr.isReadonlyArrayEmpty(members)) return empty
+    if (members.length == 1) return members[0]!
+    return new DecorationGroup(
+      members.every((m) => m instanceof DecorationSet)
+        ? (members as ReadonlyArray<DecorationSet>)
+        : members.reduce(
+            (r, m) => r.concat(m instanceof DecorationSet ? m : (m as DecorationGroup).members),
+            [] as Array<DecorationSet>
+          )
+    )
   }
 
   forEachSet(f: (set: DecorationSet) => void): void {
@@ -735,7 +745,7 @@ function mapChildren(
   for (let i = 0, baseOffset = oldOffset; i < mapping.maps.length; i++) {
     let moved = 0
     mapping.maps[i]!.forEach((oldStart: number, oldEnd: number, newStart: number, newEnd: number) => {
-      const dSize = (newEnd - newStart) - (oldEnd - oldStart)
+      const dSize = newEnd - newStart - (oldEnd - oldStart)
       for (let i = 0; i < children.length; i += 3) {
         const end = children[i + 1] as number
         if (end < 0 || oldStart > end + baseOffset - moved) continue
@@ -756,24 +766,32 @@ function mapChildren(
   // recursively call mapInner on them and update their positions.
   let mustRebuild = false
   for (let i = 0; i < children.length; i += 3) {
-    if ((children[i + 1] as number) < 0) { // Touched nodes
+    if ((children[i + 1] as number) < 0) {
+      // Touched nodes
       if (children[i + 1] == -2) {
         mustRebuild = true
         children[i + 1] = -1
         continue
       }
-      const from = mapping.map((oldChildren[i] as number) + oldOffset), fromLocal = from - offset
+      const from = mapping.map((oldChildren[i] as number) + oldOffset),
+        fromLocal = from - offset
       if (fromLocal < 0 || fromLocal >= node.content.size) {
         mustRebuild = true
         continue
       }
       // Must read oldChildren because children was tagged with -1
-      const to = mapping.map((oldChildren[i + 1] as number) + oldOffset, -1), toLocal = to - offset
+      const to = mapping.map((oldChildren[i + 1] as number) + oldOffset, -1),
+        toLocal = to - offset
       const { index, offset: childOffset } = node.content.findIndex(fromLocal)
       const childNode = node.content.content[index]
       if (childNode && childOffset == fromLocal && childOffset + childNode.nodeSize == toLocal) {
-        const mapped = (children[i + 2] as DecorationSet)
-          .mapInner(mapping, childNode, from + 1, (oldChildren[i] as number) + oldOffset + 1, options)
+        const mapped = (children[i + 2] as DecorationSet).mapInner(
+          mapping,
+          childNode,
+          from + 1,
+          (oldChildren[i] as number) + oldOffset + 1,
+          options
+        )
         if (mapped != empty) {
           children[i] = fromLocal
           children[i + 1] = toLocal
@@ -814,7 +832,7 @@ function mapChildren(
     }
   }
 
-  return new DecorationSet(newLocal.sort(byPos), children)
+  return new DecorationSet(Arr.sort(newLocal, byPos), children)
 }
 
 function moveSpans(spans: Array<Decoration>, offset: number) {
@@ -844,12 +862,12 @@ function mapAndGatherRemainingDecorations(
       else if (options.onRemove) options.onRemove(set.local[i]!.spec)
     }
     for (let i = 0; i < set.children.length; i += 3) {
-      gather(set.children[i + 2] as DecorationSet, set.children[i] as number + oldOffset + 1)
+      gather(set.children[i + 2] as DecorationSet, (set.children[i] as number) + oldOffset + 1)
     }
   }
   for (let i = 0; i < children.length; i += 3) {
     if (children[i + 1] == -1) {
-      gather(children[i + 2] as DecorationSet, oldChildren[i] as number + oldOffset + 1)
+      gather(children[i + 2] as DecorationSet, (oldChildren[i] as number) + oldOffset + 1)
     }
   }
 
@@ -903,7 +921,7 @@ function buildTree(
       }
     }
   })
-  const locals = moveSpans(hasNulls ? withoutNulls(spans) : spans as Array<Decoration>, -offset).sort(byPos)
+  const locals = Arr.sort(moveSpans(hasNulls ? withoutNulls(spans) : (spans as Array<Decoration>), -offset), byPos)
   for (let i = 0; i < locals.length; i++) {
     if (!locals[i]!.type.valid(node, locals[i]!)) {
       if (options.onRemove) options.onRemove(locals[i]!.spec)
@@ -916,9 +934,9 @@ function buildTree(
 // Used to sort decorations so that ones with a low start position
 // come first, and within a set with the same start position, those
 // with an smaller end position come first.
-function byPos(a: Decoration, b: Decoration) {
-  return a.from - b.from || a.to - b.to
-}
+// Same ordering as `a.from - b.from || a.to - b.to`.
+const byPos: Order.Order<Decoration> = (a, b) =>
+  a.from < b.from ? -1 : a.from > b.from ? 1 : a.to < b.to ? -1 : a.to > b.to ? 1 : 0
 
 // Scan a sorted array of decorations for partially overlapping spans,
 // and split those so that only fully overlapping spans are left (to

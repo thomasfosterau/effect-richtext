@@ -11,7 +11,7 @@ import type * as Scope from "effect/Scope"
 import * as Semaphore from "effect/Semaphore"
 import type { AnySchema } from "../model.ts"
 import type { Command, Dispatch, EditorState, StateFailure, Transaction } from "../state.ts"
-import { type EditorStreams, makeSource, makeStreams, publishTransactions, setState } from "./streams.ts"
+import { type EditorStreams, acquireSource, streamsOf, publishTransactions, setState } from "./streams.ts"
 
 /**
  * @since 0.1.0
@@ -61,6 +61,14 @@ export interface StateRef<Sc extends AnySchema = AnySchema, R = never, E = never
 }
 
 /**
+ * Run a synchronous effect, throwing its squashed cause on failure.
+ */
+const runSyncOrThrow = <E>(effect: Effect.Effect<void, E>): void => {
+  const exit = Effect.runSyncExit(effect)
+  if (Exit.isFailure(exit)) throw Cause.squash(exit.cause)
+}
+
+/**
  * Create a `StateRef` holding `initial`. The current context (providing
  * the plugins' requirements `R`) is captured to run plugin hooks when
  * transactions are dispatched. Its streams end when the scope closes.
@@ -77,9 +85,9 @@ export interface StateRef<Sc extends AnySchema = AnySchema, R = never, E = never
 export const make = <Sc extends AnySchema, R = never, E = never>(
   initial: EditorState<Sc, R, E>
 ): Effect.Effect<StateRef<Sc, R, E>, never, Scope.Scope | R> =>
-  Effect.gen(function*() {
+  Effect.gen(function* () {
     const context = yield* Effect.context<R>()
-    const source = yield* makeSource(initial)
+    const source = yield* acquireSource(initial)
     const semaphore = Semaphore.makeUnsafe(1)
 
     const applyUnlocked = (tr: Transaction<Sc>): Effect.Effect<void, E | StateFailure, R> =>
@@ -94,32 +102,25 @@ export const make = <Sc extends AnySchema, R = never, E = never>(
     const dispatch = (tr: Transaction<Sc>): Effect.Effect<void, E | StateFailure> =>
       Effect.provideContext(semaphore.withPermit(applyUnlocked(tr)), context as Context.Context<R>)
 
-    const dispatchUnsafe = (tr: Transaction<Sc>): void => {
-      const exit = Effect.runSyncExit(Effect.provideContext(applyUnlocked(tr), context as Context.Context<R>))
-      if (Exit.isFailure(exit)) throw Cause.squash(exit.cause)
-    }
+    const dispatchUnsafe = (tr: Transaction<Sc>): void =>
+      runSyncOrThrow(Effect.provideContext(applyUnlocked(tr), context as Context.Context<R>))
 
     const set = (state: EditorState<Sc, R, E>): Effect.Effect<void> =>
       semaphore.withPermit(Effect.sync(() => setState(source, state)))
 
-    const execute = <CE, CR>(
-      command: Command<Sc, CE, CR>
-    ): Effect.Effect<boolean, CE | E | StateFailure, CR> =>
+    const execute = <CE, CR>(command: Command<Sc, CE, CR>): Effect.Effect<boolean, CE | E | StateFailure, CR> =>
       Effect.suspend(() => {
         let failure: Cause.Cause<E | StateFailure> | undefined
         const commandDispatch: Dispatch<Sc> = (tr) =>
-          failure
-            ? Effect.void
-            : Effect.catchCause(dispatch(tr), (cause) => Effect.sync(() => void (failure = cause)))
-        return Effect.flatMap(
-          command(source.ref.value, commandDispatch),
-          (result) => failure ? Effect.failCause(failure) : Effect.succeed(result)
+          failure ? Effect.void : Effect.catchCause(dispatch(tr), (cause) => Effect.sync(() => void (failure = cause)))
+        return Effect.flatMap(command(source.ref.value, commandDispatch), (result) =>
+          failure ? Effect.failCause(failure) : Effect.succeed(result)
         )
       })
 
     const ref: StateRef<Sc, R, E> = {
       [StateRefTypeId]: StateRefTypeId,
-      ...makeStreams(source),
+      ...streamsOf(source),
       dispatch,
       dispatchUnsafe,
       set,

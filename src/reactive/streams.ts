@@ -75,10 +75,7 @@ export interface EditorStreams<Sc extends AnySchema = AnySchema, R = never, E = 
    * A projection of the state, emitted again whenever it changes, as
    * determined by `eq` (default: `Equal.equals`).
    */
-  readonly select: <A>(
-    f: (state: EditorState<Sc, R, E>) => A,
-    eq?: (self: A, that: A) => boolean
-  ) => Stream.Stream<A>
+  readonly select: <A>(f: (state: EditorState<Sc, R, E>) => A, eq?: (self: A, that: A) => boolean) => Stream.Stream<A>
   /** Whether a mark is active in the selection (see `isMarkActive`). */
   readonly isMarkActive: (type: MarkType<Sc, any> | MarkNames<Sc>) => Stream.Stream<boolean>
   /** Whether a node is selected or wraps the selection (see `isNodeActive`). */
@@ -107,7 +104,7 @@ export interface Source<Sc extends AnySchema, R, E> {
  *
  * @internal
  */
-export const makeRef = <A>(initial: A): Effect.Effect<SubscriptionRef.SubscriptionRef<A>, never, Scope.Scope> =>
+export const acquireRef = <A>(initial: A): Effect.Effect<SubscriptionRef.SubscriptionRef<A>, never, Scope.Scope> =>
   Effect.acquireRelease(SubscriptionRef.make(initial), (ref) => PubSub.shutdown(ref.pubsub))
 
 /**
@@ -129,11 +126,11 @@ export const setRefUnsafe = <A>(ref: SubscriptionRef.SubscriptionRef<A>, value: 
  *
  * @internal
  */
-export const makeSource = <Sc extends AnySchema, R, E>(
+export const acquireSource = <Sc extends AnySchema, R, E>(
   initial: EditorState<Sc, R, E>
 ): Effect.Effect<Source<Sc, R, E>, never, Scope.Scope> =>
   Effect.zipWith(
-    makeRef(initial),
+    acquireRef(initial),
     Effect.acquireRelease(PubSub.unbounded<TransactionEvent<Sc, R, E>>(), PubSub.shutdown),
     (ref, pubsub) => ({ ref, pubsub })
   )
@@ -167,7 +164,7 @@ export const publishTransactions = <Sc extends AnySchema, R, E>(
  *
  * @internal
  */
-export const makeStreams = <Sc extends AnySchema, R, E>(
+export const streamsOf = <Sc extends AnySchema, R, E>(
   source: Source<Sc, R, E>,
   view?: EditorViewLike
 ): EditorStreams<Sc, R, E> => {
@@ -180,8 +177,14 @@ export const makeStreams = <Sc extends AnySchema, R, E>(
   return {
     state: { get: SubscriptionRef.get(ref), getUnsafe: () => ref.value, changes },
     transactions: Stream.fromPubSub(pubsub),
-    docChanges: select((state) => state.doc, (a, b) => a === b),
-    selection: select((state) => state.selection, (a, b) => a.eq(b)),
+    docChanges: select(
+      (state) => state.doc,
+      (a, b) => a === b
+    ),
+    selection: select(
+      (state) => state.selection,
+      (a, b) => a.eq(b)
+    ),
     select,
     isMarkActive: (type) => select((state) => selectors.isMarkActive(state, type)),
     isNodeActive: (type, attrs) => select((state) => selectors.isNodeActive(state, type, attrs)),

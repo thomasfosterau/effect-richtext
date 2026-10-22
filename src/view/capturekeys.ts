@@ -19,8 +19,8 @@ function moveSelectionBlock(state: EditorState<any, any, any>, dir: number): Sel
   const $start = !$side.parent.inlineContent
     ? $side
     : $side.depth
-    ? state.doc.resolveUnsafe(dir > 0 ? $side.afterUnsafe() : $side.beforeUnsafe())
-    : null
+      ? state.doc.resolveUnsafe(dir > 0 ? $side.afterUnsafe() : $side.beforeUnsafe())
+      : null
   return $start && Selection.findFromOrNull($start, dir)
 }
 
@@ -42,7 +42,7 @@ function selectHorizontally(view: AnyView, dir: number, mods: string) {
       return false
     } else if (view.endOfTextblock(dir > 0 ? "forward" : "backward")) {
       const next = moveSelectionBlock(view.state, dir)
-      if (next && (next instanceof NodeSelection)) return apply(view, next)
+      if (next && next instanceof NodeSelection) return apply(view, next)
       return false
     } else if (!(browser.mac && mods.indexOf("m") > -1)) {
       const $head = sel.$head,
@@ -50,7 +50,7 @@ function selectHorizontally(view: AnyView, dir: number, mods: string) {
       let desc
       if (!node || node.isText) return false
       const nodePos = dir < 0 ? $head.pos - node.nodeSize : $head.pos
-      if (!(node.isAtom || (desc = view.docView.descAt(nodePos)) && !desc.contentDOM)) return false
+      if (!(node.isAtom || ((desc = view.docView.descAt(nodePos)) && !desc.contentDOM))) return false
       if (NodeSelection.isSelectable(node)) {
         return apply(view, new NodeSelection(dir < 0 ? view.state.doc.resolveUnsafe($head.pos - node.nodeSize) : $head))
       } else if (browser.webkit) {
@@ -91,9 +91,12 @@ function skipIgnoredNodes(view: AnyView, dir: number): boolean {
 // nodes, which will confuse the browser's cursor motion logic.
 function skipIgnoredNodesBefore(view: AnyView) {
   const sel = view.domSelectionRange()
-  let node = sel.focusNode!, offset = sel.focusOffset
+  let node = sel.focusNode!,
+    offset = sel.focusOffset
   if (!node) return
-  let moveNode, moveOffset: number | undefined, force = false
+  let moveNode,
+    moveOffset: number | undefined,
+    force = false
   // Gecko will do odd things when the selection is directly in front
   // of a non-editable node, so in that case, move it into the next
   // node if possible. Issue prosemirror/prosemirror#832.
@@ -141,7 +144,8 @@ function skipIgnoredNodesBefore(view: AnyView) {
 // nodes.
 function skipIgnoredNodesAfter(view: AnyView) {
   const sel = view.domSelectionRange()
-  let node = sel.focusNode!, offset = sel.focusOffset
+  let node = sel.focusNode!,
+    offset = sel.focusOffset
   if (!node) return
   let len = nodeLen(node)
   let moveNode, moveOffset: number | undefined
@@ -270,13 +274,13 @@ function findDirection(view: AnyView, pos: number): "rtl" | "ltr" {
 // browser)
 function selectVertically(view: AnyView, dir: number, mods: string) {
   const sel = view.state.selection
-  if (sel instanceof TextSelection && !sel.empty || mods.indexOf("s") > -1) return false
+  if ((sel instanceof TextSelection && !sel.empty) || mods.indexOf("s") > -1) return false
   if (browser.mac && mods.indexOf("m") > -1) return false
   const { $from, $to } = sel
 
   if (!$from.parent.inlineContent || view.endOfTextblock(dir < 0 ? "up" : "down")) {
     const next = moveSelectionBlock(view.state, dir)
-    if (next && (next instanceof NodeSelection)) {
+    if (next && next instanceof NodeSelection) {
       return apply(view, next)
     }
   }
@@ -320,8 +324,11 @@ function safariDownArrowBug(view: AnyView) {
   if (!browser.safari || view.state.selection.$head.parentOffset > 0) return false
   const { focusNode, focusOffset } = view.domSelectionRange()
   if (
-    focusNode && focusNode.nodeType == 1 && focusOffset == 0 &&
-    focusNode.firstChild && (focusNode.firstChild as HTMLElement).contentEditable == "false"
+    focusNode &&
+    focusNode.nodeType == 1 &&
+    focusOffset == 0 &&
+    focusNode.firstChild &&
+    (focusNode.firstChild as HTMLElement).contentEditable == "false"
   ) {
     const child = focusNode.firstChild as HTMLElement
     switchEditable(view, child, "true")
@@ -348,27 +355,33 @@ function getMods(event: KeyboardEvent) {
 
 /** @internal */
 export function captureKeyDown(view: AnyView, event: KeyboardEvent): boolean {
-  const code = event.keyCode, mods = getMods(event)
-  if (code == 8 || (browser.mac && code == 72 && mods == "c")) { // Backspace, Ctrl-h on Mac
+  const code = event.keyCode,
+    mods = getMods(event)
+  if (code == 8 || (browser.mac && code == 72 && mods == "c")) {
+    // Backspace, Ctrl-h on Mac
     return stopNativeHorizontalDelete(view, -1) || skipIgnoredNodes(view, -1)
-  } else if ((code == 46 && !event.shiftKey) || (browser.mac && code == 68 && mods == "c")) { // Delete, Ctrl-d on Mac
+  } else if ((code == 46 && !event.shiftKey) || (browser.mac && code == 68 && mods == "c")) {
+    // Delete, Ctrl-d on Mac
     return stopNativeHorizontalDelete(view, 1) || skipIgnoredNodes(view, 1)
-  } else if (code == 13 || code == 27) { // Enter, Esc
+  } else if (code == 13 || code == 27) {
+    // Enter, Esc
     return true
-  } else if (code == 37 || (browser.mac && code == 66 && mods == "c")) { // Left arrow, Ctrl-b on Mac
+  } else if (code == 37 || (browser.mac && code == 66 && mods == "c")) {
+    // Left arrow, Ctrl-b on Mac
     const dir = code == 37 ? (findDirection(view, view.state.selection.from) == "ltr" ? -1 : 1) : -1
     return selectHorizontally(view, dir, mods) || skipIgnoredNodes(view, dir)
-  } else if (code == 39 || (browser.mac && code == 70 && mods == "c")) { // Right arrow, Ctrl-f on Mac
+  } else if (code == 39 || (browser.mac && code == 70 && mods == "c")) {
+    // Right arrow, Ctrl-f on Mac
     const dir = code == 39 ? (findDirection(view, view.state.selection.from) == "ltr" ? 1 : -1) : 1
     return selectHorizontally(view, dir, mods) || skipIgnoredNodes(view, dir)
-  } else if (code == 38 || (browser.mac && code == 80 && mods == "c")) { // Up arrow, Ctrl-p on Mac
+  } else if (code == 38 || (browser.mac && code == 80 && mods == "c")) {
+    // Up arrow, Ctrl-p on Mac
     return selectVertically(view, -1, mods) || skipIgnoredNodes(view, -1)
-  } else if (code == 40 || (browser.mac && code == 78 && mods == "c")) { // Down arrow, Ctrl-n on Mac
+  } else if (code == 40 || (browser.mac && code == 78 && mods == "c")) {
+    // Down arrow, Ctrl-n on Mac
     return safariDownArrowBug(view) || selectVertically(view, 1, mods) || skipIgnoredNodes(view, 1)
-  } else if (
-    mods == (browser.mac ? "m" : "c") &&
-    (code == 66 || code == 73 || code == 89 || code == 90)
-  ) { // Mod-[biyz]
+  } else if (mods == (browser.mac ? "m" : "c") && (code == 66 || code == 73 || code == 89 || code == 90)) {
+    // Mod-[biyz]
     return true
   }
   return false

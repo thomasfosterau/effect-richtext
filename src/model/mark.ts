@@ -126,7 +126,7 @@ export class Mark<Sc extends AnySchema = AnySchema, out M extends MarkNames<Sc> 
 
   /** Create a properly sorted mark set from nothing, a single mark, or an unsorted array of marks. */
   static setFrom<Mk extends Mark<any, any>>(marks?: Mk | ReadonlyArray<Mk> | null): ReadonlyArray<Mk> {
-    if (!marks || Array.isArray(marks) && marks.length === 0) return Mark.none as ReadonlyArray<Mk>
+    if (!marks || (Array.isArray(marks) && marks.length === 0)) return Mark.none as ReadonlyArray<Mk>
     if (marks instanceof Mark) return [marks]
     const copy = (marks as ReadonlyArray<Mk>).slice()
     copy.sort((a, b) => a.type.rank - b.type.rank)

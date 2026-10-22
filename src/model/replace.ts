@@ -106,7 +106,8 @@ export class Slice<Sc extends AnySchema = AnySchema> implements Equal.Equal {
   /** @internal */
   static fromJSONUnsafe<Sc extends AnySchema>(schema: Sc, json: any): Slice<Sc> {
     if (!json) return Slice.empty
-    const openStart = json.openStart || 0, openEnd = json.openEnd || 0
+    const openStart = json.openStart || 0,
+      openEnd = json.openEnd || 0
     if (typeof openStart !== "number" || typeof openEnd !== "number") {
       throw new JSONError({ message: "Invalid input for Slice.fromJSON" })
     }
@@ -122,17 +123,20 @@ export class Slice<Sc extends AnySchema = AnySchema> implements Equal.Equal {
    * value on both side of the fragment.
    */
   static maxOpen<Sc extends AnySchema>(fragment: Fragment<Sc>, openIsolating = true): Slice<Sc> {
-    let openStart = 0, openEnd = 0
+    let openStart = 0,
+      openEnd = 0
     for (
       let n = fragment.content[0];
       n && !n.isLeaf && (openIsolating || !n.type.spec.isolating);
       n = n.content.content[0]
-    ) openStart++
+    )
+      openStart++
     for (
       let n = fragment.content[fragment.content.length - 1];
       n && !n.isLeaf && (openIsolating || !n.type.spec.isolating);
       n = n.content.content[n.content.content.length - 1]
-    ) openEnd++
+    )
+      openEnd++
     return new Slice(fragment, openStart, openEnd)
   }
 
@@ -191,7 +195,8 @@ function replaceOuter<Sc extends AnySchema>(
   slice: Slice<Sc>,
   depth: number
 ): Node<Sc> {
-  const index = $from.index(depth), node = $from.node(depth)
+  const index = $from.index(depth),
+    node = $from.node(depth)
   if (index === $to.index(depth) && depth < $from.depth - slice.openStart) {
     const inner = replaceOuter($from, $to, slice, depth + 1)
     return node.copy(node.content.replaceChild(index, inner))
@@ -199,11 +204,9 @@ function replaceOuter<Sc extends AnySchema>(
     return close(node, replaceTwoWay($from, $to, depth))
   } else if (!slice.openStart && !slice.openEnd && $from.depth === depth && $to.depth === depth) {
     // Simple, flat case
-    const parent = $from.parent, content = parent.content
-    return close(
-      parent,
-      content.cut(0, $from.parentOffset).append(slice.content).append(content.cut($to.parentOffset))
-    )
+    const parent = $from.parent,
+      content = parent.content
+    return close(parent, content.cut(0, $from.parentOffset).append(slice.content).append(content.cut($to.parentOffset)))
   } else {
     const { end, start } = prepareSliceForReplace(slice, $from)
     return close(node, replaceThreeWay($from, start, end, $to, depth))
@@ -303,7 +306,8 @@ function replaceTwoWay<Sc extends AnySchema>(
 }
 
 function prepareSliceForReplace<Sc extends AnySchema>(slice: Slice<Sc>, $along: ResolvedPos<Sc>) {
-  const extra = $along.depth - slice.openStart, parent = $along.node(extra)
+  const extra = $along.depth - slice.openStart,
+    parent = $along.node(extra)
   let node = parent.copy(slice.content)
   for (let i = extra - 1; i >= 0; i--) node = $along.node(i).copy(Fragment.from(node))
   return {

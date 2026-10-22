@@ -12,6 +12,7 @@
  *
  * @since 0.1.0
  */
+import * as Predicate from "effect/Predicate"
 import type { AnySchema, Node } from "./model.ts"
 import { type EditorState, Plugin } from "./state.ts"
 import { Decoration, DecorationSet } from "./view.ts"
@@ -90,7 +91,7 @@ export const placeholder = <Sc extends AnySchema = AnySchema>(
       decorations(state) {
         const found = findEmptyBlock(state, strategy)
         if (!found) return null
-        const text = typeof options.placeholder === "function"
+        const text = Predicate.isFunction(options.placeholder)
           ? options.placeholder(state, found.node, found.pos)
           : options.placeholder
         return DecorationSet.create(state.doc, [

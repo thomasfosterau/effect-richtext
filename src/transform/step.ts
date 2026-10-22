@@ -5,6 +5,8 @@
  */
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
+import * as Result from "effect/Result"
 import * as S from "effect/Schema"
 import * as SchemaGetter from "effect/SchemaGetter"
 import * as SchemaIssue from "effect/SchemaIssue"
@@ -117,10 +119,10 @@ export abstract class Step<Sc extends AnySchema = AnySchema> {
 
   /** Like `fromJSON`, but throws a `JSONError` (or other model error) for invalid input. */
   static fromJSONUnsafe<Sc extends AnySchema>(schema: Sc, json: any): Step<Sc> {
-    if (!json || typeof json !== "object" || !json.stepType) {
+    if (!Predicate.isObjectOrArray(json) || !("stepType" in json) || !json.stepType) {
       throw new JSONError({ message: "Invalid input for Step.fromJSON" })
     }
-    const type = stepsByID[json.stepType]
+    const type = stepsByID[String(json.stepType)]
     if (!type) throw new JSONError({ message: `No step type ${json.stepType} defined` })
     return type.fromJSONUnsafe(schema, json)
   }
@@ -135,7 +137,7 @@ export abstract class Step<Sc extends AnySchema = AnySchema> {
   static jsonID<C extends StepDeserializer>(id: string, stepClass: C): C {
     if (id in stepsByID) throw new TransformError({ message: "Duplicate use of step JSON ID " + id })
     stepsByID[id] = stepClass
-    const proto = (stepClass as unknown as { prototype?: object }).prototype
+    const proto: unknown = "prototype" in stepClass ? stepClass.prototype : undefined
     if (proto) (proto as { jsonID?: string }).jsonID = id
     return stepClass
   }
@@ -196,12 +198,7 @@ export class StepResult<Sc extends AnySchema = AnySchema> {
    * error (such as a `ReplaceError`).
    */
   static fromReplace<Sc extends AnySchema>(doc: Node<Sc>, from: number, to: number, slice: Slice<Sc>): StepResult<Sc> {
-    try {
-      return StepResult.ok(doc.replaceUnsafe(from, to, slice))
-    } catch (e) {
-      if (isModelError(e)) return StepResult.fail(e.message)
-      throw e
-    }
+    return failOnModelError(() => StepResult.ok(doc.replaceUnsafe(from, to, slice)))
   }
 }
 
@@ -212,18 +209,21 @@ export class StepResult<Sc extends AnySchema = AnySchema> {
  *
  * @internal
  */
-export const applyStep = <Sc extends AnySchema>(step: Step<Sc>, doc: Node<Sc>): StepResult<Sc> => {
-  try {
-    return step.apply(doc)
-  } catch (e) {
-    if (isModelError(e)) return StepResult.fail(e.message)
+export const applyStep = <Sc extends AnySchema>(step: Step<Sc>, doc: Node<Sc>): StepResult<Sc> =>
+  failOnModelError(() => step.apply(doc))
+
+/**
+ * Run `f`, converting a model error it throws to a failed result and
+ * rethrowing anything else unchanged.
+ */
+const failOnModelError = <Sc extends AnySchema>(f: () => StepResult<Sc>): StepResult<Sc> =>
+  Result.getOrElse(Result.try(f), (e) => {
+    if (isModelError(e)) return StepResult.fail<Sc>(e.message)
     throw e
-  }
-}
+  })
 
 const StepJSONSchema = S.declare(
-  (u: unknown): u is StepJSON =>
-    typeof u === "object" && u !== null && typeof (u as { stepType?: unknown }).stepType === "string",
+  (u: unknown): u is StepJSON => Predicate.isObjectOrArray(u) && "stepType" in u && Predicate.isString(u.stepType),
   { title: "StepJSON" }
 )
 
@@ -240,14 +240,9 @@ export const StepFromJSON = <Sc extends AnySchema>(schema: Sc): S.Codec<Step<Sc>
   return StepJSONSchema.pipe(
     S.decodeTo(target, {
       decode: SchemaGetter.transformEffect((json: StepJSON) =>
-        Effect.suspend(() => {
-          try {
-            return Effect.succeed(Step.fromJSONUnsafe(schema, json))
-          } catch (e) {
-            return Effect.fail(
-              new SchemaIssue.InvalidValue({ message: e instanceof Error ? e.message : String(e) }, json)
-            )
-          }
+        Effect.try({
+          try: () => Step.fromJSONUnsafe(schema, json),
+          catch: (e) => new SchemaIssue.InvalidValue({ message: Predicate.isError(e) ? e.message : String(e) }, json)
         })
       ),
       encode: SchemaGetter.transform((step: Step<Sc>) => step.toJSON())

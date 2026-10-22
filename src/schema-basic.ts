@@ -116,16 +116,18 @@ export const nodes = {
     },
     group: "inline",
     draggable: true,
-    parseDOM: [{
-      tag: "img[src]",
-      getAttrs(dom: HTMLElement) {
-        return {
-          src: dom.getAttribute("src"),
-          title: dom.getAttribute("title"),
-          alt: dom.getAttribute("alt")
+    parseDOM: [
+      {
+        tag: "img[src]",
+        getAttrs(dom: HTMLElement) {
+          return {
+            src: dom.getAttribute("src"),
+            title: dom.getAttribute("title"),
+            alt: dom.getAttribute("alt")
+          }
         }
       }
-    }],
+    ],
     toDOM(node) {
       const { alt, src, title } = node.attrs
       return ["img", { src, alt, title }]
@@ -144,7 +146,9 @@ export const nodes = {
   })
 }
 
-const emDOM: DOMOutputSpec = ["em", 0], strongDOM: DOMOutputSpec = ["strong", 0], codeDOM: DOMOutputSpec = ["code", 0]
+const emDOM: DOMOutputSpec = ["em", 0],
+  strongDOM: DOMOutputSpec = ["strong", 0],
+  codeDOM: DOMOutputSpec = ["code", 0]
 
 /**
  * The mark specs of the basic schema.
@@ -163,12 +167,14 @@ export const marks = {
       title: { schema: S.NullOr(S.String), default: null }
     },
     inclusive: false,
-    parseDOM: [{
-      tag: "a[href]",
-      getAttrs(dom: HTMLElement) {
-        return { href: dom.getAttribute("href"), title: dom.getAttribute("title") }
+    parseDOM: [
+      {
+        tag: "a[href]",
+        getAttrs(dom: HTMLElement) {
+          return { href: dom.getAttribute("href"), title: dom.getAttribute("title") }
+        }
       }
-    }],
+    ],
     toDOM(node) {
       const { href, title } = node.attrs
       return ["a", { href, title }, 0]

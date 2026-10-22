@@ -1,4 +1,5 @@
 import * as Effect from "effect/Effect"
+import * as Result from "effect/Result"
 
 /**
  * Lift a synchronous computation that signals expected failure by
@@ -7,14 +8,10 @@ import * as Effect from "effect/Effect"
  *
  * @internal
  */
-export const attempt = <A, E>(
-  f: () => A,
-  isExpected: (u: unknown) => u is E
-): Effect.Effect<A, E> =>
-  Effect.suspend(() => {
-    try {
-      return Effect.succeed(f())
-    } catch (e) {
-      return isExpected(e) ? Effect.fail(e) : Effect.die(e)
-    }
-  })
+export const attempt = <A, E>(f: () => A, isExpected: (u: unknown) => u is E): Effect.Effect<A, E> =>
+  Effect.suspend(() =>
+    Result.match(Result.try(f), {
+      onSuccess: Effect.succeed,
+      onFailure: (e) => (isExpected(e) ? Effect.fail(e) : Effect.die(e))
+    })
+  )

@@ -368,8 +368,8 @@ const adaptedStepClass = (CoreClass: any, FacadeClass: any): any => {
 const coreStep = <C extends T.Step>(
   facade: Step,
   target: unknown,
-  FacadeClass: abstract new(...args: Array<any>) => Step,
-  CoreClass: new(...args: Array<any>) => C,
+  FacadeClass: abstract new (...args: Array<any>) => Step,
+  CoreClass: new (...args: Array<any>) => C,
   args: Array<unknown>
 ): C => {
   if (target === FacadeClass) return new CoreClass(...args)

@@ -87,7 +87,7 @@ img.ProseMirror-separator {
  * @since 0.1.0
  * @category utils
  */
-export const injectCSSUnsafe = (doc: Document, css: string): () => void => {
+export const injectCSSUnsafe = (doc: Document, css: string): (() => void) => {
   const style = doc.createElement("style")
   style.textContent = css
   doc.head.appendChild(style)
@@ -131,4 +131,4 @@ export const injectViewCSS = (doc: Document): Effect.Effect<HTMLStyleElement, ne
  * @since 0.1.0
  * @category utils
  */
-export const injectViewCSSUnsafe = (doc: Document): () => void => injectCSSUnsafe(doc, viewCSS)
+export const injectViewCSSUnsafe = (doc: Document): (() => void) => injectCSSUnsafe(doc, viewCSS)

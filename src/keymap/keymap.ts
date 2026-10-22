@@ -6,15 +6,17 @@
  *
  * @since 0.1.0
  */
-import * as Data from "effect/Data"
+import * as Arr from "effect/Array"
 import * as Effect from "effect/Effect"
+import * as Predicate from "effect/Predicate"
+import * as Schema from "effect/Schema"
 import { base, keyName } from "w3c-keyname"
 import type { AnySchema } from "../model.ts"
 import { type Command, Plugin } from "../state.ts"
 import type { EditorView } from "../view/view.ts"
 
-const mac = typeof navigator !== "undefined" && /Mac|iP(hone|[oa]d)/.test(navigator.platform)
-const windows = typeof navigator !== "undefined" && /Win/.test(navigator.platform)
+const mac = !Predicate.isUndefined(globalThis.navigator) && /Mac|iP(hone|[oa]d)/.test(navigator.platform)
+const windows = !Predicate.isUndefined(globalThis.navigator) && /Win/.test(navigator.platform)
 
 /**
  * An invalid keymap: a key name with an unrecognized modifier, or two
@@ -23,9 +25,9 @@ const windows = typeof navigator !== "undefined" && /Win/.test(navigator.platfor
  * @since 0.1.0
  * @category errors
  */
-export class KeymapError extends Data.TaggedError("KeymapError")<{
-  readonly message: string
-}> {}
+export class KeymapError extends Schema.TaggedError<KeymapError>()("KeymapError", {
+  message: Schema.String
+}) {}
 
 /**
  * A set of key bindings, mapping key names to commands.
@@ -89,7 +91,10 @@ export function normalizeKeyName(name: string): string {
   const parts = name.split(/-(?!$)/)
   let result = parts[parts.length - 1]!
   if (result === "Space") result = " "
-  let alt = false, ctrl = false, shift = false, meta = false
+  let alt = false,
+    ctrl = false,
+    shift = false,
+    meta = false
   for (let i = 0; i < parts.length - 1; i++) {
     const mod = parts[i]!
     if (/^(cmd|meta|m)$/i.test(mod)) meta = true
@@ -158,7 +163,8 @@ export function matchBindings<A>(map: Record<string, A>, event: KeyboardEvent): 
       (event.altKey || event.metaKey || event.ctrlKey) &&
       // Ctrl-Alt may be used for AltGr on Windows
       !(windows && event.ctrlKey && event.altKey) &&
-      (baseName = base[event.keyCode]) && baseName !== name
+      (baseName = base[event.keyCode]) &&
+      baseName !== name
     ) {
       // Try falling back to the keyCode when there's a modifier
       // active, and our table produces a different name from the
@@ -232,14 +238,14 @@ export const keydownHandler = <const B extends Bindings>(
   return (view, event) =>
     Effect.suspend(() => {
       const candidates = matchBindings(map, event)
-      if (candidates.length === 0) return succeedFalse
+      if (Arr.isArrayEmpty(candidates)) return succeedFalse
       const loop = (i: number): Effect.Effect<boolean, any, any> =>
-        i === candidates.length ?
-          succeedFalse :
-          Effect.flatMap(
-            Effect.suspend(() => candidates[i]!(view.state, view.dispatch, view)),
-            (handled) => handled ? succeedTrue : loop(i + 1)
-          )
+        i === candidates.length
+          ? succeedFalse
+          : Effect.flatMap(
+              Effect.suspend(() => candidates[i]!(view.state, view.dispatch, view)),
+              (handled) => (handled ? succeedTrue : loop(i + 1))
+            )
       return loop(0)
     })
 }

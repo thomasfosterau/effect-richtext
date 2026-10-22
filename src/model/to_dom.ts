@@ -129,7 +129,8 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
     const active: Array<[Mark<any, any>, globalThis.Node]> = []
     fragment.forEach((node) => {
       if (active.length || node.marks.length) {
-        let keep = 0, rendered = 0
+        let keep = 0,
+          rendered = 0
         while (keep < active.length && rendered < node.marks.length) {
           const next = node.marks[rendered]!
           if (!this.marks[next.type.name]) {
@@ -242,11 +243,13 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
    * schema.
    */
   static fromSchema<Sc extends AnySchema>(schema: Sc): DOMSerializer<Sc> {
-    return (schema.cached.domSerializer as DOMSerializer<Sc> | undefined) ||
-      (schema.cached.domSerializer = new DOMSerializer<Sc>(
+    return (
+      (schema.cached.domSerializer as DOMSerializer<Sc> | undefined) ||
+      ((schema.cached.domSerializer = new DOMSerializer<Sc>(
         DOMSerializer.nodesFromSchema(schema),
         DOMSerializer.marksFromSchema(schema)
-      )) as DOMSerializer<Sc>
+      )) as DOMSerializer<Sc>)
+    )
   }
 
   /**
@@ -284,7 +287,7 @@ const suspiciousAttributeCache = new WeakMap<object, ReadonlyArray<unknown> | nu
 
 function suspiciousAttributes(attrs: object): ReadonlyArray<unknown> | null {
   let value = suspiciousAttributeCache.get(attrs)
-  if (value === undefined) suspiciousAttributeCache.set(attrs, value = suspiciousAttributesInner(attrs))
+  if (value === undefined) suspiciousAttributeCache.set(attrs, (value = suspiciousAttributesInner(attrs)))
   return value
 }
 
@@ -316,12 +319,10 @@ function renderSpecInner(
 ): RenderedSpec {
   if ((structure as globalThis.Node).nodeType != null) return { dom: structure as globalThis.Node }
   if ((structure as any).dom && (structure as any).dom.nodeType != null) return structure as RenderedSpec
-  let tagName = (structure as ReadonlyArray<unknown>)[0], suspicious
+  let tagName = (structure as ReadonlyArray<unknown>)[0],
+    suspicious
   if (typeof tagName != "string") throw new DOMSpecError({ message: "Invalid array passed to renderSpec" })
-  if (
-    blockArraysIn && (suspicious = suspiciousAttributes(blockArraysIn)) &&
-    suspicious.indexOf(structure) > -1
-  ) {
+  if (blockArraysIn && (suspicious = suspiciousAttributes(blockArraysIn)) && suspicious.indexOf(structure) > -1) {
     throw new DOMSpecError({
       message:
         "Using an array from an attribute object as a DOM spec. This may be an attempted cross site scripting attack."
@@ -333,8 +334,9 @@ function renderSpecInner(
     tagName = tagName.slice(space + 1)
   }
   let contentDOM: HTMLElement | undefined
-  const dom =
-    (xmlNS ? doc.createElementNS(xmlNS, tagName as string) : doc.createElement(tagName as string)) as HTMLElement
+  const dom = (
+    xmlNS ? doc.createElementNS(xmlNS, tagName as string) : doc.createElement(tagName as string)
+  ) as HTMLElement
   const spec = structure as ReadonlyArray<any>
   const attrs = spec[1]
   let start = 1

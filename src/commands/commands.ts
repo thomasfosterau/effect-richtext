@@ -5,8 +5,11 @@
  *
  * @since 0.1.0
  */
+import * as Arr from "effect/Array"
 import * as Effect from "effect/Effect"
+import * as Num from "effect/Number"
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import {
   type AnySchema,
   type ContentMatch,
@@ -77,8 +80,11 @@ export interface TextblockBoundaryView {
  * @category guards
  */
 export const isTextblockBoundaryView = (view: unknown): view is TextblockBoundaryView =>
-  typeof view === "object" && view !== null &&
-  typeof (view as { endOfTextblock?: unknown }).endOfTextblock === "function"
+  Predicate.isObjectOrArray(view) && Predicate.isFunction((view as { endOfTextblock?: unknown }).endOfTextblock)
+
+/** `isTextblockBoundaryView`, typed on the views commands receive. */
+const isBoundaryView = (view: EditorViewLike): view is Extract<EditorViewLike, TextblockBoundaryView> =>
+  Predicate.isObjectOrArray(view) && Predicate.isFunction((view as { endOfTextblock?: unknown }).endOfTextblock)
 
 // -----------------------------------------------------------------------------
 // Helpers
@@ -94,10 +100,8 @@ const lastChildOf = (node: Node<any>): Node<any> | undefined => node.content.con
 
 function atBlockStart(state: EditorState<any, any, any>, view: EditorViewLike): ResolvedPos<any> | null {
   const $cursor = cursorOf(state)
-  if (
-    !$cursor ||
-    (isTextblockBoundaryView(view) ? !view.endOfTextblock("backward", state) : $cursor.parentOffset > 0)
-  ) return null
+  if (!$cursor || (isBoundaryView(view) ? !view.endOfTextblock("backward", state) : $cursor.parentOffset > 0))
+    return null
   return $cursor
 }
 
@@ -105,10 +109,9 @@ function atBlockEnd(state: EditorState<any, any, any>, view: EditorViewLike): Re
   const $cursor = cursorOf(state)
   if (
     !$cursor ||
-    (isTextblockBoundaryView(view)
-      ? !view.endOfTextblock("forward", state)
-      : $cursor.parentOffset < $cursor.parent.content.size)
-  ) return null
+    (isBoundaryView(view) ? !view.endOfTextblock("forward", state) : $cursor.parentOffset < $cursor.parent.content.size)
+  )
+    return null
   return $cursor
 }
 
@@ -134,11 +137,7 @@ function findCutAfter($pos: ResolvedPos<any>): ResolvedPos<any> | null {
 }
 
 function textblockAt(node: Node<any>, side: "start" | "end", only = false): boolean {
-  for (
-    let scan: Node<any> | undefined = node;
-    scan;
-    scan = side === "start" ? firstChildOf(scan) : lastChildOf(scan)
-  ) {
+  for (let scan: Node<any> | undefined = node; scan; scan = side === "start" ? firstChildOf(scan) : lastChildOf(scan)) {
     if (scan.isTextblock) return true
     if (only && scan.childCount !== 1) return false
   }
@@ -160,7 +159,8 @@ function defaultBlockAt(match: ContentMatch): NodeType<any, any> | null {
 
 function joinTextblocksAround(state: EditorState<any, any, any>, $cut: ResolvedPos<any>, dispatching: boolean) {
   const before = $cut.nodeBeforeOrNull!
-  let beforeText = before, beforePos = $cut.pos - 1
+  let beforeText = before,
+    beforePos = $cut.pos - 1
   for (; !beforeText.isTextblock; beforePos--) {
     if (beforeText.type.spec.isolating) return false
     const child = lastChildOf(beforeText)
@@ -168,7 +168,8 @@ function joinTextblocksAround(state: EditorState<any, any, any>, $cut: ResolvedP
     beforeText = child
   }
   const after = $cut.nodeAfterOrNull!
-  let afterText = after, afterPos = $cut.pos + 1
+  let afterText = after,
+    afterPos = $cut.pos + 1
   for (; !afterText.isTextblock; afterPos++) {
     if (afterText.type.spec.isolating) return false
     const child = firstChildOf(afterText)
@@ -176,10 +177,8 @@ function joinTextblocksAround(state: EditorState<any, any, any>, $cut: ResolvedP
     afterText = child
   }
   const step = replaceStepOrNull(state.doc, beforePos, afterPos, Slice.empty) as ReplaceStep<any> | null
-  if (
-    !step || step.from !== beforePos ||
-    step instanceof ReplaceStep && step.slice.size >= afterPos - beforePos
-  ) return false
+  if (!step || step.from !== beforePos || (step instanceof ReplaceStep && step.slice.size >= afterPos - beforePos))
+    return false
   return done(dispatching, () => {
     const tr = state.tr.stepUnsafe(step)
     tr.setSelectionUnsafe(TextSelection.createUnsafe(tr.doc, beforePos))
@@ -188,7 +187,9 @@ function joinTextblocksAround(state: EditorState<any, any, any>, $cut: ResolvedP
 }
 
 function joinMaybeClear(state: EditorState<any, any, any>, $pos: ResolvedPos<any>, dispatching: boolean): SyncResult {
-  const before = $pos.nodeBeforeOrNull, after = $pos.nodeAfterOrNull, index = $pos.index()
+  const before = $pos.nodeBeforeOrNull,
+    after = $pos.nodeAfterOrNull,
+    index = $pos.index()
   if (!before || !after || !before.type.compatibleContent(after.type)) return false
   if (!before.content.size && $pos.parent.canReplace(index - 1, index)) {
     return done(dispatching, () => state.tr.deleteUnsafe($pos.pos - before.nodeSize, $pos.pos).scrollIntoView())
@@ -205,7 +206,8 @@ function deleteBarrier(
   dispatching: boolean,
   dir: number
 ): SyncResult {
-  const before = $cut.nodeBeforeOrNull!, after = $cut.nodeAfterOrNull!
+  const before = $cut.nodeBeforeOrNull!,
+    after = $cut.nodeAfterOrNull!
   let conn: ReadonlyArray<NodeType<any, any>> | null, match: ContentMatch
   const isolated = before.type.spec.isolating || after.type.spec.isolating
   if (!isolated) {
@@ -250,7 +252,8 @@ function deleteBarrier(
       if (at.isTextblock) break
       at = lastChildOf(at)!
     }
-    let afterText = after, afterDepth = 1
+    let afterText = after,
+      afterDepth = 1
     for (; !afterText.isTextblock; afterText = firstChildOf(afterText)!) afterDepth++
     if (at.canReplace(at.childCount, at.childCount, afterText.content)) {
       return done(dispatching, () => {
@@ -311,7 +314,8 @@ export const joinBackward: Command = syncCommand((state, dispatching, view) => {
 
   // If there is no node before this, try to lift
   if (!$cut) {
-    const range = $cursor.blockRangeOrNull(), target = range && liftTargetOrNull(range)
+    const range = $cursor.blockRangeOrNull(),
+      target = range && liftTargetOrNull(range)
     if (target == null) return false
     return done(dispatching, () => state.tr.liftUnsafe(range!, target).scrollIntoView())
   }
@@ -324,7 +328,7 @@ export const joinBackward: Command = syncCommand((state, dispatching, view) => {
   // If the node below has no content and the node above is
   // selectable, delete the node below and select the one above.
   if ($cursor.parent.content.size === 0 && (textblockAt(before, "end") || NodeSelection.isSelectable(before))) {
-    for (let depth = $cursor.depth;; depth--) {
+    for (let depth = $cursor.depth; ; depth--) {
       const delStep = replaceStepOrNull(state.doc, $cursor.beforeUnsafe(depth), $cursor.afterUnsafe(depth))
       if (delStep && isDeletingStep(delStep)) {
         return done(dispatching, () => {
@@ -395,16 +399,15 @@ export const selectNodeBackward: Command = syncCommand((state, dispatching, view
   if (!empty) return false
 
   if ($head.parent.isTextblock) {
-    if (isTextblockBoundaryView(view) ? !view.endOfTextblock("backward", state) : $head.parentOffset > 0) {
+    if (isBoundaryView(view) ? !view.endOfTextblock("backward", state) : $head.parentOffset > 0) {
       return false
     }
     $cut = findCutBefore($head)
   }
   const node = $cut && $cut.nodeBeforeOrNull
   if (!node || !NodeSelection.isSelectable(node)) return false
-  return done(
-    dispatching,
-    () => state.tr.setSelectionUnsafe(NodeSelection.createUnsafe(state.doc, $cut!.pos - node.nodeSize)).scrollIntoView()
+  return done(dispatching, () =>
+    state.tr.setSelectionUnsafe(NodeSelection.createUnsafe(state.doc, $cut!.pos - node.nodeSize)).scrollIntoView()
   )
 })
 
@@ -475,14 +478,14 @@ export const selectNodeForward: Command = syncCommand((state, dispatching, view)
       isTextblockBoundaryView(view)
         ? !view.endOfTextblock("forward", state)
         : $head.parentOffset < $head.parent.content.size
-    ) return false
+    )
+      return false
     $cut = findCutAfter($head)
   }
   const node = $cut && $cut.nodeAfterOrNull
   if (!node || !NodeSelection.isSelectable(node)) return false
-  return done(
-    dispatching,
-    () => state.tr.setSelectionUnsafe(NodeSelection.createUnsafe(state.doc, $cut!.pos)).scrollIntoView()
+  return done(dispatching, () =>
+    state.tr.setSelectionUnsafe(NodeSelection.createUnsafe(state.doc, $cut!.pos)).scrollIntoView()
   )
 })
 
@@ -495,7 +498,8 @@ export const selectNodeForward: Command = syncCommand((state, dispatching, view)
  * @category commands
  */
 export const joinUp: Command = syncCommand((state, dispatching) => {
-  const sel = state.selection, nodeSel = sel instanceof NodeSelection
+  const sel = state.selection,
+    nodeSel = sel instanceof NodeSelection
   let point: number
   if (nodeSel) {
     if (sel.node.isTextblock || !canJoin(state.doc, sel.from)) return false
@@ -546,7 +550,8 @@ export const joinDown: Command = syncCommand((state, dispatching) => {
  */
 export const lift: Command = syncCommand((state, dispatching) => {
   const { $from, $to } = state.selection
-  const range = $from.blockRangeOrNull($to), target = range && liftTargetOrNull(range)
+  const range = $from.blockRangeOrNull($to),
+    target = range && liftTargetOrNull(range)
   if (target == null) return false
   return done(dispatching, () => state.tr.liftUnsafe(range!, target).scrollIntoView())
 })
@@ -575,11 +580,13 @@ export const newlineInCode: Command = syncCommand((state, dispatching) => {
 export const exitCode: Command = syncCommand((state, dispatching) => {
   const { $anchor, $head } = state.selection
   if (!$head.parent.type.spec.code || !$head.sameParent($anchor)) return false
-  const above = $head.node(-1), after = $head.indexAfter(-1)
+  const above = $head.node(-1),
+    after = $head.indexAfter(-1)
   const type = defaultBlockAt(above.contentMatchAtUnsafe(after))
   if (!type || !above.canReplaceWith(after, after, type)) return false
   return done(dispatching, () => {
-    const pos = $head.afterUnsafe(), tr = state.tr.replaceWithUnsafe(pos, pos, type.createAndFillOrNull()!)
+    const pos = $head.afterUnsafe(),
+      tr = state.tr.replaceWithUnsafe(pos, pos, type.createAndFillOrNull()!)
     tr.setSelectionUnsafe(Selection.near(tr.doc.resolveUnsafe(pos), 1))
     return tr.scrollIntoView()
   })
@@ -593,7 +600,8 @@ export const exitCode: Command = syncCommand((state, dispatching) => {
  * @category commands
  */
 export const createParagraphNear: Command = syncCommand((state, dispatching) => {
-  const sel = state.selection, { $from, $to } = sel
+  const sel = state.selection,
+    { $from, $to } = sel
   if (sel instanceof AllSelection || $from.parent.inlineContent || $to.parent.inlineContent) return false
   const type = defaultBlockAt($to.parent.contentMatchAtUnsafe($to.indexAfter()))
   if (!type || !type.isTextblock) return false
@@ -621,7 +629,8 @@ export const liftEmptyBlock: Command = syncCommand((state, dispatching) => {
       return done(dispatching, () => state.tr.splitUnsafe(before).scrollIntoView())
     }
   }
-  const range = $cursor.blockRangeOrNull(), target = range && liftTargetOrNull(range)
+  const range = $cursor.blockRangeOrNull(),
+    target = range && liftTargetOrNull(range)
   if (target == null) return false
   return done(dispatching, () => state.tr.liftUnsafe(range!, target).scrollIntoView())
 })
@@ -650,7 +659,8 @@ export type SplitNodeType<Sc extends AnySchema = AnySchema> = (
  */
 export const splitBlockAs = <Sc extends AnySchema = AnySchema>(splitNode?: SplitNodeType<Sc>): Command<Sc> =>
   syncCommand<Sc>((state, dispatching) => {
-    const sel = state.selection, { $from, $to } = sel
+    const sel = state.selection,
+      { $from, $to } = sel
     if (sel instanceof NodeSelection && sel.node.isBlock) {
       if (!$from.parentOffset || !canSplit(state.doc, $from.pos)) return false
       return done(dispatching, () => state.tr.splitUnsafe($from.pos).scrollIntoView())
@@ -658,8 +668,11 @@ export const splitBlockAs = <Sc extends AnySchema = AnySchema>(splitNode?: Split
 
     if (!$from.depth) return false
     const types: Array<NodeTypeWithAttrs<any> | null> = []
-    let splitDepth = 0, deflt: NodeType<any, any> | null = null, atEnd = false, atStart = false
-    for (let d = $from.depth;; d--) {
+    let splitDepth = 0,
+      deflt: NodeType<any, any> | null = null,
+      atEnd = false,
+      atStart = false
+    for (let d = $from.depth; ; d--) {
       const node = $from.node(d)
       if (node.isBlock) {
         atEnd = $from.end(d) === $from.pos + ($from.depth - d)
@@ -686,7 +699,8 @@ export const splitBlockAs = <Sc extends AnySchema = AnySchema>(splitNode?: Split
     if (!can) return false
     tr.splitUnsafe(splitPos, types.length, types)
     if (!atEnd && atStart && $from.node(splitDepth).type !== deflt) {
-      const first = tr.mapping.map($from.beforeUnsafe(splitDepth)), $first = tr.doc.resolveUnsafe(first)
+      const first = tr.mapping.map($from.beforeUnsafe(splitDepth)),
+        $first = tr.doc.resolveUnsafe(first)
       if (deflt && $from.node(splitDepth - 1).canReplaceWith($first.index(), $first.index() + 1, deflt)) {
         tr.setNodeMarkupUnsafe(tr.mapping.map($from.beforeUnsafe(splitDepth)), deflt)
       }
@@ -739,7 +753,8 @@ export const selectAll: Command = syncCommand((state, dispatching) =>
 
 function selectTextblockSide(side: number): Command {
   return syncCommand((state, dispatching) => {
-    const sel = state.selection, $pos = side < 0 ? sel.$from : sel.$to
+    const sel = state.selection,
+      $pos = side < 0 ? sel.$from : sel.$to
     let depth = $pos.depth
     while ($pos.node(depth).isInline) {
       if (!depth) return false
@@ -747,9 +762,8 @@ function selectTextblockSide(side: number): Command {
     }
     if (!$pos.node(depth).isTextblock) return false
     return done(dispatching, () =>
-      state.tr.setSelectionUnsafe(
-        TextSelection.createUnsafe(state.doc, side < 0 ? $pos.start(depth) : $pos.end(depth))
-      ))
+      state.tr.setSelectionUnsafe(TextSelection.createUnsafe(state.doc, side < 0 ? $pos.start(depth) : $pos.end(depth)))
+    )
   })
 }
 
@@ -786,7 +800,8 @@ export const wrapIn = <Sc extends AnySchema, N extends NodeNames<Sc>>(
 ): Command<Sc> =>
   syncCommand<Sc>((state, dispatching) => {
     const { $from, $to } = state.selection
-    const range = $from.blockRangeOrNull($to), wrapping = range && findWrappingOrNull(range, nodeType, attrs)
+    const range = $from.blockRangeOrNull($to),
+      wrapping = range && findWrappingOrNull(range, nodeType, attrs)
     if (!wrapping) return false
     return done(dispatching, () => state.tr.wrapUnsafe(range!, wrapping).scrollIntoView())
   })
@@ -806,14 +821,18 @@ export const setBlockType = <Sc extends AnySchema, N extends NodeNames<Sc>>(
     let applicable = false
     const ranges = state.selection.ranges
     for (let i = 0; i < ranges.length && !applicable; i++) {
-      const { $from: { pos: from }, $to: { pos: to } } = ranges[i]!
+      const {
+        $from: { pos: from },
+        $to: { pos: to }
+      } = ranges[i]!
       state.doc.nodesBetween(from, to, (node, pos) => {
         if (applicable) return false
         if (!node.isTextblock || node.hasMarkup(nodeType, attrs)) return
         if (node.type === nodeType) {
           applicable = true
         } else {
-          const $pos = state.doc.resolveUnsafe(pos), index = $pos.index()
+          const $pos = state.doc.resolveUnsafe(pos),
+            index = $pos.index()
           applicable = $pos.parent.canReplaceWith(index, index + 1, nodeType)
         }
       })
@@ -822,7 +841,10 @@ export const setBlockType = <Sc extends AnySchema, N extends NodeNames<Sc>>(
     return done(dispatching, () => {
       const tr = state.tr
       for (let i = 0; i < ranges.length; i++) {
-        const { $from: { pos: from }, $to: { pos: to } } = ranges[i]!
+        const {
+          $from: { pos: from },
+          $to: { pos: to }
+        } = ranges[i]!
         tr.setBlockTypeUnsafe(from, to, nodeType, attrs)
       }
       return tr.scrollIntoView()
@@ -839,10 +861,8 @@ function markApplies(
     const { $from, $to } = ranges[i]!
     let can = $from.depth === 0 ? doc.inlineContent && doc.type.allowsMarkType(type) : false
     doc.nodesBetween($from.pos, $to.pos, (node, pos) => {
-      if (
-        can ||
-        !enterAtoms && node.isAtom && node.isInline && pos >= $from.pos && pos + node.nodeSize <= $to.pos
-      ) return false
+      if (can || (!enterAtoms && node.isAtom && node.isInline && pos >= $from.pos && pos + node.nodeSize <= $to.pos))
+        return false
       can = node.inlineContent && node.type.allowsMarkType(type)
     })
     if (can) return true
@@ -913,7 +933,9 @@ export const toggleMark = <Sc extends AnySchema, M extends MarkNames<Sc>>(
   const enterAtoms = (options && options.enterInlineAtoms) !== false
   const dropSpace = !(options && options.includeWhitespace)
   return syncCommand<Sc>((state, dispatching) => {
-    const sel = state.selection, empty = sel.empty, $cursor = cursorOf(state)
+    const sel = state.selection,
+      empty = sel.empty,
+      $cursor = cursorOf(state)
     let ranges = sel.ranges
     if ((empty && !$cursor) || !markApplies(state.doc, ranges, markType, enterAtoms)) return false
     if (!dispatching) return true
@@ -933,11 +955,14 @@ export const toggleMark = <Sc extends AnySchema, M extends MarkNames<Sc>>(
         let missing = false
         tr.doc.nodesBetween(r.$from.pos, r.$to.pos, (node, pos, parent) => {
           if (missing) return false
-          missing = !markType.findInSet(node.marks) && Option.isSome(parent) &&
+          missing =
+            !markType.findInSet(node.marks) &&
+            Option.isSome(parent) &&
             parent.value.type.allowsMarkType(markType) &&
-            !(node.isText && /^\s*$/.test(
-              node.textBetween(Math.max(0, r.$from.pos - pos), Math.min(node.nodeSize, r.$to.pos - pos))
-            ))
+            !(
+              node.isText &&
+              /^\s*$/.test(node.textBetween(Math.max(0, r.$from.pos - pos), Math.min(node.nodeSize, r.$to.pos - pos)))
+            )
         })
         return !missing
       })
@@ -947,8 +972,10 @@ export const toggleMark = <Sc extends AnySchema, M extends MarkNames<Sc>>(
       if (!add) {
         tr.removeMark($from.pos, $to.pos, markType)
       } else {
-        let from = $from.pos, to = $to.pos
-        const start = $from.nodeAfterOrNull, end = $to.nodeBeforeOrNull
+        let from = $from.pos,
+          to = $to.pos
+        const start = $from.nodeAfterOrNull,
+          end = $to.nodeBeforeOrNull
         const spaceStart = dropSpace && start && start.isText ? /^\s*/.exec((start as TextNode<Sc>).text)![0].length : 0
         const spaceEnd = dropSpace && end && end.isText ? /\s*$/.exec((end as TextNode<Sc>).text)![0].length : 0
         if (from + spaceStart < to) {
@@ -981,8 +1008,11 @@ function wrapDispatchForJoin<Sc extends AnySchema>(
       // by checking all node boundaries in their parent nodes.
       const joinable: Array<number> = []
       for (let i = 0; i < ranges.length; i += 2) {
-        const from = ranges[i]!, to = ranges[i + 1]!
-        const $from = tr.doc.resolveUnsafe(from), depth = $from.sharedDepth(to), parent = $from.node(depth)
+        const from = ranges[i]!,
+          to = ranges[i + 1]!
+        const $from = tr.doc.resolveUnsafe(from),
+          depth = $from.sharedDepth(to),
+          parent = $from.node(depth)
         for (let index = $from.indexAfter(depth), pos = $from.afterUnsafe(depth + 1); pos <= to; ++index) {
           const after = parent.content.content[index]
           if (!after) break
@@ -994,9 +1024,9 @@ function wrapDispatchForJoin<Sc extends AnySchema>(
         }
       }
       // Join the joinable points
-      joinable.sort((a, b) => a - b)
-      for (let i = joinable.length - 1; i >= 0; i--) {
-        if (canJoin(tr.doc, joinable[i]!)) tr.joinUnsafe(joinable[i]!)
+      const sorted = Arr.sort(joinable, Num.Order)
+      for (let i = sorted.length - 1; i >= 0; i--) {
+        if (canJoin(tr.doc, sorted[i]!)) tr.joinUnsafe(sorted[i]!)
       }
       return dispatch(tr)
     })
@@ -1018,7 +1048,7 @@ export const autoJoin = <Sc extends AnySchema, E, R>(
 ): Command<Sc, E, R> => {
   const canJoinNodes = Array.isArray(isJoinable)
     ? (node: Node<Sc>) => (isJoinable as ReadonlyArray<string>).indexOf(node.type.name) > -1
-    : isJoinable as (a: Node<Sc>, b: Node<Sc>) => boolean
+    : (isJoinable as (a: Node<Sc>, b: Node<Sc>) => boolean)
   return (state, dispatch, view) => command(state, dispatch && wrapDispatchForJoin(dispatch, canJoinNodes), view)
 }
 
@@ -1047,16 +1077,17 @@ export type CommandRequirements<C> = C extends (...args: any) => Effect.Effect<a
  * @since 0.1.0
  * @category combinators
  */
-export const chainCommands = <const Commands extends ReadonlyArray<Command<any, any, any>>>(
-  ...commands: Commands
-): Command<AnySchema, CommandError<Commands[number]>, CommandRequirements<Commands[number]>> =>
-(state, dispatch, view) => {
-  const loop = (i: number): Effect.Effect<boolean, any, any> =>
-    i === commands.length ?
-      succeedFalse :
-      Effect.flatMap(
-        Effect.suspend(() => commands[i]!(state, dispatch, view)),
-        (handled) => handled ? succeedTrue : loop(i + 1)
-      )
-  return loop(0)
-}
+export const chainCommands =
+  <const Commands extends ReadonlyArray<Command<any, any, any>>>(
+    ...commands: Commands
+  ): Command<AnySchema, CommandError<Commands[number]>, CommandRequirements<Commands[number]>> =>
+  (state, dispatch, view) => {
+    const loop = (i: number): Effect.Effect<boolean, any, any> =>
+      i === commands.length
+        ? succeedFalse
+        : Effect.flatMap(
+            Effect.suspend(() => commands[i]!(state, dispatch, view)),
+            (handled) => (handled ? succeedTrue : loop(i + 1))
+          )
+    return loop(0)
+  }

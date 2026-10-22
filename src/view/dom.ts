@@ -26,15 +26,15 @@ export type DOMSelectionRange = {
 }
 
 /** @internal */
-export const domIndex = function(node: DOMNode): number {
-  for (let index = 0;; index++) {
+export const domIndex = function (node: DOMNode): number {
+  for (let index = 0; ; index++) {
     node = node.previousSibling!
     if (!node) return index
   }
 }
 
 /** @internal */
-export const parentNode = function(node: DOMNode): DOMNode | null {
+export const parentNode = function (node: DOMNode): DOMNode | null {
   const parent = (node as HTMLSlotElement).assignedSlot || node.parentNode
   return parent && parent.nodeType == 11 ? (parent as ShadowRoot).host : parent
 }
@@ -45,7 +45,7 @@ let reusedRange: Range | null = null
 // objects are every expensive, and keep slowing down subsequent DOM
 // updates, for some reason.
 /** @internal */
-export const textRange = function(node: Text, from?: number, to?: number): Range {
+export const textRange = function (node: Text, from?: number, to?: number): Range {
   const range = reusedRange || (reusedRange = document.createRange())
   range.setEnd(node, to == null ? node.nodeValue!.length : to)
   range.setStart(node, from || 0)
@@ -53,7 +53,7 @@ export const textRange = function(node: Text, from?: number, to?: number): Range
 }
 
 /** @internal */
-export const clearReusedRange = function(): void {
+export const clearReusedRange = function (): void {
   reusedRange = null
 }
 
@@ -61,14 +61,13 @@ export const clearReusedRange = function(): void {
 // given one to see if the two are in the same place (i.e. after a
 // text node vs at the end of that text node)
 /** @internal */
-export const isEquivalentPosition = function(
+export const isEquivalentPosition = function (
   node: DOMNode,
   off: number,
   targetNode: DOMNode,
   targetOff: number
 ): boolean {
-  return !!targetNode && (scanFor(node, off, targetNode, targetOff, -1) ||
-    scanFor(node, off, targetNode, targetOff, 1))
+  return !!targetNode && (scanFor(node, off, targetNode, targetOff, -1) || scanFor(node, off, targetNode, targetOff, 1))
 }
 
 const atomElements = /^(img|br|input|textarea|hr)$/i
@@ -79,7 +78,10 @@ function scanFor(node: DOMNode, off: number, targetNode: DOMNode, targetOff: num
     if (off == (dir < 0 ? 0 : nodeSize(node))) {
       const parent = node.parentNode
       if (
-        !parent || parent.nodeType != 1 || hasBlockDesc(node) || atomElements.test(node.nodeName) ||
+        !parent ||
+        parent.nodeType != 1 ||
+        hasBlockDesc(node) ||
+        atomElements.test(node.nodeName) ||
         (node as HTMLElement).contentEditable == "false"
       ) {
         return false
@@ -163,12 +165,10 @@ export function hasBlockDesc(dom: DOMNode): boolean {
 // Work around Chrome issue https://bugs.chromium.org/p/chromium/issues/detail?id=447523
 // (isCollapsed inappropriately returns true in shadow dom)
 /** @internal */
-export const selectionCollapsed = function(domSel: DOMSelectionRange): boolean {
-  return !!domSel.focusNode && isEquivalentPosition(
-    domSel.focusNode,
-    domSel.focusOffset,
-    domSel.anchorNode!,
-    domSel.anchorOffset
+export const selectionCollapsed = function (domSel: DOMSelectionRange): boolean {
+  return (
+    !!domSel.focusNode &&
+    isEquivalentPosition(domSel.focusNode, domSel.focusOffset, domSel.anchorNode!, domSel.anchorOffset)
   )
 }
 
@@ -189,19 +189,16 @@ export function deepActiveElement(doc: Document): Element | null {
 }
 
 /** @internal */
-export function caretFromPoint(
-  doc: Document,
-  x: number,
-  y: number
-): { node: DOMNode; offset: number } | undefined {
+export function caretFromPoint(doc: Document, x: number, y: number): { node: DOMNode; offset: number } | undefined {
   if ((doc as any).caretPositionFromPoint) {
-    try { // Firefox throws for this call in hard-to-predict circumstances (#994)
+    try {
+      // Firefox throws for this call in hard-to-predict circumstances (#994)
       const pos = (doc as any).caretPositionFromPoint(x, y)
       // Clip the offset, because Chrome will return a text offset
       // into <input> nodes, which can't be treated as a regular DOM
       // offset
       if (pos) return { node: pos.offsetNode, offset: Math.min(nodeSize(pos.offsetNode), pos.offset) }
-    } catch (_) {
+    } catch {
       // ignore
     }
   }

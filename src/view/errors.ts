@@ -3,7 +3,7 @@
  *
  * @since 0.1.0
  */
-import * as Data from "effect/Data"
+import * as Schema from "effect/Schema"
 
 /**
  * An invalid view operation, such as asking for the document position
@@ -12,9 +12,9 @@ import * as Data from "effect/Data"
  * @since 0.1.0
  * @category errors
  */
-export class ViewError extends Data.TaggedError("ViewError")<{
-  readonly message: string
-}> {}
+export class ViewError extends Schema.TaggedError<ViewError>()("ViewError", {
+  message: Schema.String
+}) {}
 
 /**
  * @since 0.1.0

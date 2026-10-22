@@ -86,7 +86,9 @@ export class MarkdownParseState<Sc extends AnySchema = AnySchema> {
    */
   addText(text: string): void {
     if (!text) return
-    const top = this.top(), nodes = top.content, last = nodes[nodes.length - 1]
+    const top = this.top(),
+      nodes = top.content,
+      last = nodes[nodes.length - 1]
     const node = this.schema.textUnsafe(text, top.marks)
     const merged = last && maybeMerge(last, node)
     if (merged) nodes[nodes.length - 1] = merged
@@ -121,11 +123,7 @@ export class MarkdownParseState<Sc extends AnySchema = AnySchema> {
    * Add a node at the current position. Returns `null` (adding nothing)
    * when the content doesn't fit the node type.
    */
-  addNode(
-    type: NodeType<Sc, any>,
-    attrs: Attrs | null,
-    content?: ReadonlyArray<Node<Sc, any>>
-  ): Node<Sc, any> | null {
+  addNode(type: NodeType<Sc, any>, attrs: Attrs | null, content?: ReadonlyArray<Node<Sc, any>>): Node<Sc, any> | null {
     const top = this.top()
     const node = type.createAndFillOrNull(attrs, content, top ? top.marks : [])
     if (!node) return null
@@ -344,7 +342,7 @@ function listIsTight(tokens: ReadonlyArray<Token>, i: number): boolean {
   return false
 }
 
-const attrString = (value: string | number | null): string | null => value == null ? null : String(value)
+const attrString = (value: string | number | null): string | null => (value == null ? null : String(value))
 
 /**
  * A parser parsing unextended [CommonMark](http://commonmark.org/),
@@ -377,7 +375,7 @@ export const defaultMarkdownParser: MarkdownParser<typeof schema> = new Markdown
       getAttrs: (tok) => ({
         src: attrString(tok.attrGet("src")),
         title: attrString(tok.attrGet("title")) || null,
-        alt: tok.children![0] && tok.children![0].content || null
+        alt: (tok.children![0] && tok.children![0].content) || null
       })
     },
     hardbreak: { node: "hard_break" },

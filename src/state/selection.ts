@@ -162,9 +162,11 @@ export abstract class Selection<Sc extends AnySchema = AnySchema> {
       lastNode = lastNode!.content.content[lastNode!.childCount - 1]
     }
 
-    const mapFrom = tr.steps.length, ranges = this.ranges
+    const mapFrom = tr.steps.length,
+      ranges = this.ranges
     for (let i = 0; i < ranges.length; i++) {
-      const { $from, $to } = ranges[i]!, mapping = tr.mapping.slice(mapFrom)
+      const { $from, $to } = ranges[i]!,
+        mapping = tr.mapping.slice(mapFrom)
       tr.replaceRangeUnsafe(mapping.map($from.pos), mapping.map($to.pos), i ? Slice.empty : content)
       if (i === 0) {
         selectionToInsertionEnd(
@@ -178,10 +180,13 @@ export abstract class Selection<Sc extends AnySchema = AnySchema> {
 
   /** Replace the selection with the given node, appending the changes to the given transaction. */
   replaceWith(tr: Transaction<Sc>, node: Node<Sc>): void {
-    const mapFrom = tr.steps.length, ranges = this.ranges
+    const mapFrom = tr.steps.length,
+      ranges = this.ranges
     for (let i = 0; i < ranges.length; i++) {
-      const { $from, $to } = ranges[i]!, mapping = tr.mapping.slice(mapFrom)
-      const from = mapping.map($from.pos), to = mapping.map($to.pos)
+      const { $from, $to } = ranges[i]!,
+        mapping = tr.mapping.slice(mapFrom)
+      const from = mapping.map($from.pos),
+        to = mapping.map($to.pos)
       if (i) {
         tr.deleteRangeUnsafe(from, to)
       } else {
@@ -225,23 +230,24 @@ export abstract class Selection<Sc extends AnySchema = AnySchema> {
     if (inner) return inner
 
     for (let depth = $pos.depth - 1; depth >= 0; depth--) {
-      const found = dir < 0
-        ? findSelectionIn(
-          $pos.node(0),
-          $pos.node(depth),
-          $pos.beforeUnsafe(depth + 1),
-          $pos.index(depth),
-          dir,
-          textOnly
-        )
-        : findSelectionIn(
-          $pos.node(0),
-          $pos.node(depth),
-          $pos.afterUnsafe(depth + 1),
-          $pos.index(depth) + 1,
-          dir,
-          textOnly
-        )
+      const found =
+        dir < 0
+          ? findSelectionIn(
+              $pos.node(0),
+              $pos.node(depth),
+              $pos.beforeUnsafe(depth + 1),
+              $pos.index(depth),
+              dir,
+              textOnly
+            )
+          : findSelectionIn(
+              $pos.node(0),
+              $pos.node(depth),
+              $pos.afterUnsafe(depth + 1),
+              $pos.index(depth) + 1,
+              dir,
+              textOnly
+            )
       if (found) return found
     }
     return null
@@ -454,11 +460,7 @@ export class TextSelection<Sc extends AnySchema = AnySchema> extends Selection<S
    * `Selection.near` when the document doesn't contain a valid text
    * position.
    */
-  static between<Sc extends AnySchema>(
-    $anchor: ResolvedPos<Sc>,
-    $head: ResolvedPos<Sc>,
-    bias?: number
-  ): Selection<Sc> {
+  static between<Sc extends AnySchema>($anchor: ResolvedPos<Sc>, $head: ResolvedPos<Sc>, bias?: number): Selection<Sc> {
     const dPos = $anchor.pos - $head.pos
     if (!bias || dPos) bias = dPos >= 0 ? 1 : -1
     if (!$head.parent.inlineContent) {
@@ -472,7 +474,7 @@ export class TextSelection<Sc extends AnySchema = AnySchema> extends Selection<S
       } else {
         $anchor = (Selection.findFromOrNull($anchor, -bias, true) || Selection.findFromOrNull($anchor, bias, true))!
           .$anchor
-        if (($anchor.pos < $head.pos) !== (dPos < 0)) $anchor = $head
+        if ($anchor.pos < $head.pos !== dPos < 0) $anchor = $head
       }
     }
     return new TextSelection($anchor, $head)
@@ -482,7 +484,10 @@ export class TextSelection<Sc extends AnySchema = AnySchema> extends Selection<S
 Selection.jsonID("text", TextSelection)
 
 class TextBookmark<Sc extends AnySchema> implements SelectionBookmark<Sc> {
-  constructor(readonly anchor: number, readonly head: number) {}
+  constructor(
+    readonly anchor: number,
+    readonly head: number
+  ) {}
 
   map(mapping: Mappable): SelectionBookmark<Sc> {
     return new TextBookmark(mapping.map(this.anchor), mapping.map(this.head))
@@ -582,7 +587,8 @@ class NodeBookmark<Sc extends AnySchema> implements SelectionBookmark<Sc> {
   }
 
   resolve(doc: Node<Sc>): Selection<Sc> {
-    const $pos = doc.resolveUnsafe(this.anchor), node = $pos.nodeAfterOrNull
+    const $pos = doc.resolveUnsafe(this.anchor),
+      node = $pos.nodeAfterOrNull
     if (node && NodeSelection.isSelectable(node)) return new NodeSelection($pos)
     return Selection.near($pos)
   }
@@ -701,10 +707,9 @@ const SelectionJSONSchema = S.declare(
  * @category schemas
  */
 export const SelectionFromJSON = <Sc extends AnySchema>(doc: Node<Sc>): S.Codec<Selection<Sc>, SelectionJSON> => {
-  const target = S.declare(
-    (u: unknown): u is Selection<Sc> => u instanceof Selection && u.$anchor.doc === doc,
-    { title: "Selection" }
-  )
+  const target = S.declare((u: unknown): u is Selection<Sc> => u instanceof Selection && u.$anchor.doc === doc, {
+    title: "Selection"
+  })
   return SelectionJSONSchema.pipe(
     S.decodeTo(target, {
       decode: SchemaGetter.transformEffect((json: SelectionJSON) =>

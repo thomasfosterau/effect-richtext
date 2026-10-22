@@ -11,6 +11,7 @@
  * @since 0.1.0
  */
 // Ported from prosemirror-history (MIT, Marijn Haverbeke and others)
+import * as Arr from "effect/Array"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import RopeSequence from "rope-sequence"
@@ -55,7 +56,10 @@ interface PopResult {
 
 /** @internal */
 export class Branch {
-  constructor(readonly items: RopeSequence<Item>, readonly eventCount: number) {}
+  constructor(
+    readonly items: RopeSequence<Item>,
+    readonly eventCount: number
+  ) {}
 
   // Pop the latest event off the branch's history and apply it
   // to a document transform.
@@ -63,7 +67,7 @@ export class Branch {
     if (this.eventCount === 0) return null
 
     let end = this.items.length
-    for (;; end--) {
+    for (; ; end--) {
       const next = this.items.get(end - 1)
       if (next.selection) {
         --end
@@ -78,7 +82,8 @@ export class Branch {
     }
     const transform = state.tr
     let selection: SelectionBookmark<any> | undefined, remaining: Branch | undefined
-    const addAfter: Array<Item> = [], addBefore: Array<Item> = []
+    const addAfter: Array<Item> = [],
+      addBefore: Array<Item> = []
 
     this.items.forEach(
       (item, i) => {
@@ -164,9 +169,8 @@ export class Branch {
     const maps = new Mapping()
     this.items.forEach(
       (item, i) => {
-        const mirrorPos = item.mirrorOffset != null && i - item.mirrorOffset >= from
-          ? maps.maps.length - item.mirrorOffset
-          : undefined
+        const mirrorPos =
+          item.mirrorOffset != null && i - item.mirrorOffset >= from ? maps.maps.length - item.mirrorOffset : undefined
         maps.appendMap(item.map, mirrorPos)
       },
       from,
@@ -187,7 +191,8 @@ export class Branch {
   rebased(rebasedTransform: Transform<any>, rebasedCount: number): Branch {
     if (!this.eventCount) return this
 
-    const rebasedItems: Array<Item> = [], start = Math.max(0, this.items.length - rebasedCount)
+    const rebasedItems: Array<Item> = [],
+      start = Math.max(0, this.items.length - rebasedCount)
 
     const mapping = rebasedTransform.mapping
     let newUntil = rebasedTransform.steps.length
@@ -248,13 +253,15 @@ export class Branch {
           items.push(item)
           if (item.selection) events++
         } else if (item.step) {
-          const step = Option.getOrNull(item.step.map(remap.slice(mapFrom))), map = step && step.getMap()
+          const step = Option.getOrNull(item.step.map(remap.slice(mapFrom))),
+            map = step && step.getMap()
           mapFrom--
           if (map) remap.appendMap(map, mapFrom)
           if (step) {
             const selection = item.selection && item.selection.map(remap.slice(mapFrom))
             if (selection) events++
-            const newItem = new Item(map!.invert(), step, selection), last = items.length - 1
+            const newItem = new Item(map!.invert(), step, selection),
+              last = items.length - 1
             const merged = items.length ? items[last]!.merge(newItem) : undefined
             if (merged) items[last] = merged
             else items.push(newItem)
@@ -275,7 +282,7 @@ export class Branch {
 function cutOffEvents(items: RopeSequence<Item>, n: number): RopeSequence<Item> {
   let cutPoint: number | undefined
   items.forEach((item, i) => {
-    if (item.selection && (n-- === 0)) {
+    if (item.selection && n-- === 0) {
       cutPoint = i
       return false
     }
@@ -356,7 +363,7 @@ function applyTransaction(
   const appended = meta<Transaction<any>>(tr, "appendedTransaction")
   let rebased: number | undefined
 
-  if (tr.steps.length === 0) {
+  if (Arr.isReadonlyArrayEmpty(tr.steps)) {
     return history
   } else if (appended && meta(appended, historyKey)) {
     if (meta<HistoryMeta>(appended, historyKey)!.redo) {
@@ -379,8 +386,10 @@ function applyTransaction(
   } else if (meta(tr, "addToHistory") !== false && !(appended && meta(appended, "addToHistory") === false)) {
     // Group transforms that occur in quick succession into one event.
     const composition = meta<number>(tr, "composition")
-    const newGroup = history.prevTime === 0 ||
-      (!appended && history.prevComposition !== composition &&
+    const newGroup =
+      history.prevTime === 0 ||
+      (!appended &&
+        history.prevComposition !== composition &&
         (history.prevTime < (tr.time || 0) - options.newGroupDelay || !isAdjacentTo(tr, history.prevRanges)))
     const prevRanges = appended ? mapRanges(history.prevRanges, tr.mapping) : rangesFor(tr.mapping.maps)
     return new HistoryState(
@@ -430,8 +439,9 @@ function isAdjacentTo(transform: Transform<any>, prevRanges: ReadonlyArray<numbe
 
 function rangesFor(maps: ReadonlyArray<StepMap>): Array<number> {
   const result: Array<number> = []
-  for (let i = maps.length - 1; i >= 0 && result.length === 0; i--) {
+  for (let i = maps.length - 1; i >= 0; i--) {
     maps[i]!.forEach((_from, _to, from, to) => result.push(from, to))
+    if (Arr.isArrayNonEmpty(result)) break
   }
   return result
 }
@@ -440,7 +450,8 @@ function mapRanges(ranges: ReadonlyArray<number> | null, mapping: Mapping): Arra
   if (!ranges) return null
   const result: Array<number> = []
   for (let i = 0; i < ranges.length; i += 2) {
-    const from = mapping.map(ranges[i]!, 1), to = mapping.map(ranges[i + 1]!, -1)
+    const from = mapping.map(ranges[i]!, 1),
+      to = mapping.map(ranges[i + 1]!, -1)
     if (from <= to) result.push(from, to)
   }
   return result
@@ -454,7 +465,10 @@ function histTransaction<Sc extends AnySchema>(
   redo: boolean
 ): Transaction<Sc> | null {
   const preserveItems = mustPreserveItems(state)
-  const histOptions = (Option.getOrThrow(historyKey.get(state)).spec as any).config as HistoryConfig
+  const plugin = Option.getOrUndefined(historyKey.get(state))
+  // Unreachable: callers only get here after reading the plugin's state.
+  if (!plugin) return null
+  const histOptions = (plugin.spec as any).config as HistoryConfig
   const pop = (redo ? history.undone : history.done).popEvent(state, preserveItems)
   if (!pop) return null
 
@@ -470,7 +484,8 @@ function histTransaction<Sc extends AnySchema>(
   return pop.transform.setSelectionUnsafe(selection).setMeta(historyKey, { redo, historyState: newHist })
 }
 
-let cachedPreserveItems = false, cachedPreserveItemsPlugins: ReadonlyArray<Plugin<any, any, any, any>> | null = null
+let cachedPreserveItems = false,
+  cachedPreserveItemsPlugins: ReadonlyArray<Plugin<any, any, any, any>> | null = null
 // Check whether any plugin in the given state has a
 // `historyPreserveItems` property in its spec, in which case we must
 // preserve steps exactly as they came in, so that they can be
@@ -588,16 +603,18 @@ export const history = (config: HistoryOptions = {}): Plugin<HistoryState> => {
   })
 }
 
-const buildCommand = (redo: boolean, scroll: boolean): HistoryCommand => (state, dispatch) =>
-  Effect.suspend(() => {
-    const hist = Option.getOrUndefined(historyKey.getState(state))
-    if (!hist || (redo ? hist.undone : hist.done).eventCount === 0) return Effect.succeed(false)
-    if (dispatch) {
-      const tr = histTransaction(hist, state, redo)
-      if (tr) return Effect.as(dispatch(scroll ? tr.scrollIntoView() : tr), true)
-    }
-    return Effect.succeed(true)
-  })
+const buildCommand =
+  (redo: boolean, scroll: boolean): HistoryCommand =>
+  (state, dispatch) =>
+    Effect.suspend(() => {
+      const hist = Option.getOrUndefined(historyKey.getState(state))
+      if (!hist || (redo ? hist.undone : hist.done).eventCount === 0) return Effect.succeed(false)
+      if (dispatch) {
+        const tr = histTransaction(hist, state, redo)
+        if (tr) return Effect.as(dispatch(scroll ? tr.scrollIntoView() : tr), true)
+      }
+      return Effect.succeed(true)
+    })
 
 /**
  * A command that undoes the last change, if any.

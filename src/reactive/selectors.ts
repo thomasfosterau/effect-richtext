@@ -3,20 +3,21 @@
  *
  * @since 0.1.0
  */
-import type { AnySchema, Attrs, MarkType, NodeType } from "../model.ts"
+import * as Predicate from "effect/Predicate"
+import { type AnySchema, AttributeError, type Attrs, ContentError, type MarkType, type NodeType } from "../model.ts"
 import { type EditorState, NodeSelection } from "../state.ts"
 
 const markTypeOf = (state: EditorState<any, any, any>, type: MarkType<any, any> | string): MarkType<any, any> => {
-  if (typeof type !== "string") return type
+  if (!Predicate.isString(type)) return type
   const markType = state.schema.marks[type] as MarkType<any, any> | undefined
-  if (!markType) throw new Error("Unknown mark type " + type)
+  if (!markType) throw new AttributeError({ message: "Unknown mark type " + type })
   return markType
 }
 
 const nodeTypeOf = (state: EditorState<any, any, any>, type: NodeType<any, any> | string): NodeType<any, any> => {
-  if (typeof type !== "string") return type
+  if (!Predicate.isString(type)) return type
   const nodeType = state.schema.nodes[type] as NodeType<any, any> | undefined
-  if (!nodeType) throw new Error("Unknown node type " + type)
+  if (!nodeType) throw new ContentError({ message: "Unknown node type " + type })
   return nodeType
 }
 

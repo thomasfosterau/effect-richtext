@@ -4,13 +4,16 @@
  *
  * @since 0.1.0
  */
+import * as Predicate from "effect/Predicate"
 import * as S from "effect/Schema"
 import { Content, type ContentExpr, type ContentInput, type DOMOutputSpec, type NodeSpec, nodeSpec } from "./model.ts"
 
 /** @since 0.1.0 */
 export * from "./schema-list/commands.ts"
 
-const olDOM: DOMOutputSpec = ["ol", 0], ulDOM: DOMOutputSpec = ["ul", 0], liDOM: DOMOutputSpec = ["li", 0]
+const olDOM: DOMOutputSpec = ["ol", 0],
+  ulDOM: DOMOutputSpec = ["ul", 0],
+  liDOM: DOMOutputSpec = ["li", 0]
 
 /**
  * An ordered list node spec. Has a single attribute, `order`, which
@@ -22,12 +25,14 @@ const olDOM: DOMOutputSpec = ["ol", 0], ulDOM: DOMOutputSpec = ["ul", 0], liDOM:
  */
 export const orderedList = nodeSpec({
   attrs: { order: { schema: S.Number, default: 1 } },
-  parseDOM: [{
-    tag: "ol",
-    getAttrs(dom: HTMLElement) {
-      return { order: dom.hasAttribute("start") ? +dom.getAttribute("start")! : 1 }
+  parseDOM: [
+    {
+      tag: "ol",
+      getAttrs(dom: HTMLElement) {
+        return { order: dom.hasAttribute("start") ? +dom.getAttribute("start")! : 1 }
+      }
     }
-  }],
+  ],
   toDOM(node) {
     return node.attrs.order === 1 ? olDOM : ["ol", { start: node.attrs.order }, 0]
   }
@@ -106,5 +111,5 @@ export const addListNodes = <
     ...nodes,
     ordered_list: { ...orderedList, content: Content.oneOrMore("list_item"), group: listGroup },
     bullet_list: { ...bulletList, content: Content.oneOrMore("list_item"), group: listGroup },
-    list_item: { ...listItem, content: typeof itemContent === "string" ? Content.ref(itemContent) : itemContent }
+    list_item: { ...listItem, content: Predicate.isString(itemContent) ? Content.ref(itemContent) : itemContent }
   }) as any

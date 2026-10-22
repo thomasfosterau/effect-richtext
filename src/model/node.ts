@@ -162,7 +162,7 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
 
   /** Concatenates all the text nodes found in this node and its children. */
   get textContent(): string {
-    return (this.isLeaf && this.type.spec.leafText)
+    return this.isLeaf && this.type.spec.leafText
       ? this.type.spec.leafText(this)
       : this.textBetween(0, this.content.size, "")
   }
@@ -206,9 +206,7 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
   /** @internal */
   [Hash.symbol](): number {
     return Hash.combine(Hash.string(this.type.name))(
-      Hash.combine(Hash.structure(this.attrs as object))(
-        Hash.combine(Hash.array(this.marks))(Hash.hash(this.content))
-      )
+      Hash.combine(Hash.structure(this.attrs as object))(Hash.combine(Hash.array(this.marks))(Hash.hash(this.content)))
     )
   }
 
@@ -219,9 +217,11 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
 
   /** Check whether this node's markup correspond to the given type, attributes, and marks. */
   hasMarkup(type: NodeType<any, any>, attrs?: Attrs | null, marks?: ReadonlyArray<Mark<any, any>>): boolean {
-    return this.type === type &&
+    return (
+      this.type === type &&
       compareDeep(this.attrs, attrs || type.defaultAttrs || emptyAttrs) &&
       Mark.sameSet(this.marks, marks || Mark.none)
+    )
   }
 
   /** Create a new node with the same markup as this node, containing the given content (or empty, if no content is given). */
@@ -252,9 +252,11 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
   /** Like `slice`, but throws a `PositionError` for invalid positions. */
   sliceUnsafe(from: number, to: number = this.content.size, includeParents = false): Slice<Sc> {
     if (from === to) return Slice.empty
-    const $from = this.resolveUnsafe(from), $to = this.resolveUnsafe(to)
+    const $from = this.resolveUnsafe(from),
+      $to = this.resolveUnsafe(to)
     const depth = includeParents ? 0 : $from.sharedDepth(to)
-    const start = $from.start(depth), node = $from.node(depth)
+    const start = $from.start(depth),
+      node = $from.node(depth)
     const content = node.content.cut($from.pos - start, $to.pos - start)
     return new Slice(content, $from.depth - depth, $to.depth - depth)
   }
@@ -287,7 +289,7 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
   /** @internal */
   nodeAtOrNull(pos: number): Node<Sc> | null {
     if (pos < 0 || pos > this.content.size) return null
-    for (let node: Node<Sc> | undefined = this as Node<Sc>;;) {
+    for (let node: Node<Sc> | undefined = this as Node<Sc>; ;) {
       const { index, offset } = node.content.findIndex(pos)
       node = node.content.content[index]
       if (!node) return null
@@ -396,7 +398,10 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
 
   /** Get the content match in this node at the given index. */
   contentMatchAt(index: number): Effect.Effect<ContentMatch, ContentError> {
-    return attempt(() => this.contentMatchAtUnsafe(index), (u): u is ContentError => u instanceof ContentError)
+    return attempt(
+      () => this.contentMatchAtUnsafe(index),
+      (u): u is ContentError => u instanceof ContentError
+    )
   }
 
   /** Like `contentMatchAt`, but throws when the node's content is invalid. */

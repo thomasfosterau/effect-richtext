@@ -16,10 +16,10 @@
  * @since 0.1.0
  */
 import * as Context from "effect/Context"
-import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
+import * as Schema from "effect/Schema"
 import { attempt } from "./internal/attempt.ts"
 import {
   type AnySchema,
@@ -40,9 +40,9 @@ import {
  * @since 0.1.0
  * @category errors
  */
-export class MissingDocumentError extends Data.TaggedError("MissingDocumentError")<{
-  readonly message: string
-}> {}
+export class MissingDocumentError extends Schema.TaggedError<MissingDocumentError>()("MissingDocumentError", {
+  message: Schema.String
+}) {}
 
 /**
  * Something that can parse an HTML string into a document, like the
@@ -118,8 +118,9 @@ export const toHTML = <Sc extends AnySchema>(
   const document = resolveDocument(options.document)
   const container = document.createElement("div")
   if (content instanceof Fragment) {
-    if (content.childCount === 0) return ""
-    const schema = Option.getOrThrow(content.firstChild).type.schema as Sc
+    const first = content.firstChild
+    if (Option.isNone(first)) return ""
+    const schema = first.value.type.schema as Sc
     const serializer = options.serializer ?? DOMSerializer.fromSchema(schema)
     serializer.serializeFragment(content, { document }, container)
   } else {
@@ -197,9 +198,12 @@ export const sliceFromHTML = <Sc extends AnySchema>(
  * @since 0.1.0
  * @category services
  */
-export class HtmlEnvironment extends Context.Service<HtmlEnvironment, {
-  readonly document: Document
-}>()("effect-richtext/html/HtmlEnvironment") {
+export class HtmlEnvironment extends Context.Service<
+  HtmlEnvironment,
+  {
+    readonly document: Document
+  }
+>()("effect-richtext/html/HtmlEnvironment") {
   /**
    * A layer providing the given document.
    *
@@ -231,7 +235,7 @@ export const serialize = <Sc extends AnySchema>(
   content: Node<Sc, any> | Fragment<Sc, any>,
   options: Omit<ToHTMLOptions<Sc>, "document"> = {}
 ): Effect.Effect<string, never, HtmlEnvironment> =>
-  Effect.gen(function*() {
+  Effect.gen(function* () {
     const { document } = yield* HtmlEnvironment
     return yield* Effect.sync(() => toHTML(content, { ...options, document }))
   })
@@ -248,7 +252,7 @@ export const parse = <Sc extends AnySchema>(
   html: string,
   options: Omit<FromHTMLOptions<Sc>, "document"> = {}
 ): Effect.Effect<Node<Sc>, ModelError, HtmlEnvironment> =>
-  Effect.gen(function*() {
+  Effect.gen(function* () {
     const { document } = yield* HtmlEnvironment
     return yield* fromHTML(schema, html, { ...options, document })
   })
@@ -265,7 +269,7 @@ export const parseSlice = <Sc extends AnySchema>(
   html: string,
   options: Omit<FromHTMLOptions<Sc>, "document"> = {}
 ): Effect.Effect<Slice<Sc>, ModelError, HtmlEnvironment> =>
-  Effect.gen(function*() {
+  Effect.gen(function* () {
     const { document } = yield* HtmlEnvironment
     return yield* sliceFromHTML(schema, html, { ...options, document })
   })

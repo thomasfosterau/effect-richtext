@@ -54,7 +54,8 @@ const succeedFalse: Effect.Effect<boolean> = Effect.succeed(false)
 // A command that looks up a node or mark type by name in the state's
 // schema, and doesn't apply when the schema has no such type.
 const byNodeName =
-  (name: string, f: (type: NodeType<any, any>) => Command<any>): Command<any> => (state, dispatch, view) => {
+  (name: string, f: (type: NodeType<any, any>) => Command<any>): Command<any> =>
+  (state, dispatch, view) => {
     const type = state.schema.nodes[name]
     return type ? f(type)(state, dispatch, view) : succeedFalse
   }
@@ -172,13 +173,15 @@ export const defineCode = () => defineMarkSpec("code", basicMarks.code)
 // Base commands and keymap
 // -----------------------------------------------------------------------------
 
-type MarkArgs<Sc, M extends string> = AttrsOptional<MarkSpecOf<Sc, M>> extends true
-  ? [attrs?: MarkAttrsInput<Sc, M> | null, options?: ToggleMarkOptions]
-  : [attrs: MarkAttrsInput<Sc, M>, options?: ToggleMarkOptions]
+type MarkArgs<Sc, M extends string> =
+  AttrsOptional<MarkSpecOf<Sc, M>> extends true
+    ? [attrs?: MarkAttrsInput<Sc, M> | null, options?: ToggleMarkOptions]
+    : [attrs: MarkAttrsInput<Sc, M>, options?: ToggleMarkOptions]
 
-type NodeArgs<Sc, N extends string> = AttrsOptional<NodeSpecOf<Sc, N>> extends true
-  ? [attrs?: NodeAttrsInput<Sc, N> | null]
-  : [attrs: NodeAttrsInput<Sc, N>]
+type NodeArgs<Sc, N extends string> =
+  AttrsOptional<NodeSpecOf<Sc, N>> extends true
+    ? [attrs?: NodeAttrsInput<Sc, N> | null]
+    : [attrs: NodeAttrsInput<Sc, N>]
 
 /**
  * `toggleMark(name, attrs?, options?)`: toggles a mark of the editor's
@@ -231,20 +234,22 @@ export type BaseCommands = {
   readonly splitBlock: readonly []
 }
 
-const insertNode = (type: NodeType<any, any>, attrs: any): Command<any> => (state, dispatch) =>
-  Effect.suspend(() => {
-    const { $from } = state.selection
-    let applies = false
-    for (let d = $from.depth; d >= 0 && !applies; d--) {
-      const index = $from.index(d)
-      applies = $from.node(d).canReplaceWith(index, index, type)
-    }
-    const node = applies ? type.createAndFillOrNull(attrs) : null
-    if (!node) return succeedFalse
-    return dispatch
-      ? Effect.as(dispatch(state.tr.replaceSelectionWith(node).scrollIntoView()), true)
-      : Effect.succeed(true)
-  })
+const insertNode =
+  (type: NodeType<any, any>, attrs: any): Command<any> =>
+  (state, dispatch) =>
+    Effect.suspend(() => {
+      const { $from } = state.selection
+      let applies = false
+      for (let d = $from.depth; d >= 0 && !applies; d--) {
+        const index = $from.index(d)
+        applies = $from.node(d).canReplaceWith(index, index, type)
+      }
+      const node = applies ? type.createAndFillOrNull(attrs) : null
+      if (!node) return succeedFalse
+      return dispatch
+        ? Effect.as(dispatch(state.tr.replaceSelectionWith(node).scrollIntoView()), true)
+        : Effect.succeed(true)
+    })
 
 /**
  * Commands wrapping the core editing commands. Node and mark types are
@@ -258,19 +263,23 @@ const insertNode = (type: NodeType<any, any>, attrs: any): Command<any> => (stat
  */
 export const defineBaseCommands = (): CommandsExtension<BaseCommands> =>
   defineCommands({
-    toggleMark: (name: string, attrs?: any, options?: ToggleMarkOptions): Command<any> => (state, dispatch, view) => {
-      const type = state.schema.marks[name]
-      return type ? toggleMark(type, attrs ?? null, options)(state, dispatch, view) : succeedFalse
-    },
+    toggleMark:
+      (name: string, attrs?: any, options?: ToggleMarkOptions): Command<any> =>
+      (state, dispatch, view) => {
+        const type = state.schema.marks[name]
+        return type ? toggleMark(type, attrs ?? null, options)(state, dispatch, view) : succeedFalse
+      },
     setBlockType: (name: string, attrs?: any) => byNodeName(name, (type) => setBlockType(type, attrs ?? null)),
     wrapIn: (name: string, attrs?: any) => byNodeName(name, (type) => wrapIn(type, attrs ?? null)),
     insertNode: (name: string, attrs?: any) => byNodeName(name, (type) => insertNode(type, attrs ?? null)),
-    insertText: (text: string, from?: number, to?: number): Command<any> => (state, dispatch) =>
-      Effect.suspend(() =>
-        dispatch
-          ? Effect.as(dispatch(state.tr.insertTextUnsafe(text, from, to).scrollIntoView()), true)
-          : Effect.succeed(true)
-      ),
+    insertText:
+      (text: string, from?: number, to?: number): Command<any> =>
+      (state, dispatch) =>
+        Effect.suspend(() =>
+          dispatch
+            ? Effect.as(dispatch(state.tr.insertTextUnsafe(text, from, to).scrollIntoView()), true)
+            : Effect.succeed(true)
+        ),
     deleteSelection: () => deleteSelection,
     selectAll: () => selectAll,
     selectParentNode: () => selectParentNode,
@@ -348,7 +357,7 @@ export const defineList = () =>
     defineNodeSpec("bullet_list", listNodes.bullet_list),
     defineNodeSpec("list_item", listNodes.list_item),
     defineKeymap({
-      "Enter": listItemCommand(splitListItem),
+      Enter: listItemCommand(splitListItem),
       "Mod-[": listItemCommand(liftListItem),
       "Mod-]": listItemCommand(sinkListItem)
     }),

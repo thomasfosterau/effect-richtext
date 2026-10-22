@@ -35,7 +35,7 @@ export const adopt = <F extends object>(proto: object, core: object): F => link(
  * Register the facade factory for instances of a core class (and its
  * subclasses, unless they have their own factory). @internal
  */
-export const registerWrapper = (coreClass: abstract new(...args: any) => any, f: (core: any) => object): void => {
+export const registerWrapper = (coreClass: abstract new (...args: any) => any, f: (core: any) => object): void => {
   factories.set(coreClass.prototype, f)
 }
 
@@ -57,7 +57,7 @@ export const wrap = (x: any): any => {
 }
 
 /** The core object behind a facade (or the value itself). @internal */
-export const unwrap = (x: any): any => (x !== null && typeof x === "object" && CORE in x) ? x[CORE] : x
+export const unwrap = (x: any): any => (x !== null && typeof x === "object" && CORE in x ? x[CORE] : x)
 
 /**
  * Core objects created for user subclasses of facade classes are
@@ -152,31 +152,35 @@ export class TransformError extends Error {
   }
 }
 
+const rangeError = (message: string): Error => new RangeError(message)
+
+/** The exception ProseMirror throws for each core error tag. */
+const proseMirrorErrors: ReadonlyMap<string, (message: string) => Error> = new Map([
+  ["ReplaceError", (message: string): Error => new ReplaceError(message)],
+  ["TransformError", (message: string): Error => new TransformError(message)],
+  ["StepError", (message: string): Error => new TransformError(message)],
+  [
+    "SchemaDefinitionError",
+    (message: string): Error =>
+      message.indexOf("(in content expression") > -1 ? new SyntaxError(message) : new RangeError(message)
+  ],
+  ["PositionError", rangeError],
+  ["ContentError", rangeError],
+  ["AttributeError", rangeError],
+  ["JSONError", rangeError],
+  ["DOMSpecError", rangeError],
+  ["SelectionError", rangeError],
+  ["StateError", rangeError],
+  ["KeymapError", rangeError],
+  ["ViewError", rangeError]
+])
+
 /** Convert a core (tagged) error into the exception ProseMirror would throw. @internal */
 export const convertError = (e: unknown): unknown => {
   if (e === null || typeof e !== "object" || !("_tag" in e)) return e
   const message = (e as { message?: string }).message ?? String(e)
-  switch ((e as { _tag: string })._tag) {
-    case "ReplaceError":
-      return new ReplaceError(message)
-    case "TransformError":
-    case "StepError":
-      return new TransformError(message)
-    case "SchemaDefinitionError":
-      return message.indexOf("(in content expression") > -1 ? new SyntaxError(message) : new RangeError(message)
-    case "PositionError":
-    case "ContentError":
-    case "AttributeError":
-    case "JSONError":
-    case "DOMSpecError":
-    case "SelectionError":
-    case "StateError":
-    case "KeymapError":
-    case "ViewError":
-      return new RangeError(message)
-    default:
-      return e
-  }
+  const convert = proseMirrorErrors.get((e as { _tag: string })._tag)
+  return convert ? convert(message) : e
 }
 
 /** Run `f`, converting core errors into ProseMirror's exceptions. @internal */

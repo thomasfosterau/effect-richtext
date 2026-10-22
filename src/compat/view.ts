@@ -435,7 +435,7 @@ export interface EditorProps<P = any> {
   clipboardTextSerializer?: ((this: P, content: Slice, view: EditorView) => string) | undefined
   decorations?: ((this: P, state: EditorState) => DecorationSource | null | undefined) | undefined
   editable?: ((this: P, state: EditorState) => boolean) | undefined
-  attributes?: (({ [name: string]: string } | ((state: EditorState) => { [name: string]: string }))) | undefined
+  attributes?: ({ [name: string]: string } | ((state: EditorState) => { [name: string]: string })) | undefined
   scrollThreshold?: number | { top: number; right: number; bottom: number; left: number } | undefined
   scrollMargin?: number | { top: number; right: number; bottom: number; left: number } | undefined
 }

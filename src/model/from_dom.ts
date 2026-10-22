@@ -286,7 +286,8 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
     readonly rules: ReadonlyArray<ParseRule>
   ) {
     const matchedStyles: Array<string> = []
-    const tags: Array<TagParseRule> = [], styles: Array<StyleParseRule> = []
+    const tags: Array<TagParseRule> = [],
+      styles: Array<StyleParseRule> = []
     rules.forEach((rule) => {
       if (isTagRule(rule)) {
         tags.push(rule)
@@ -379,23 +380,21 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
     context?: RuleContext,
     after?: StyleParseRule
   ): Option.Option<StyleParseRule> {
-    return Option.fromNullishOr(
-      this.matchStyleOrNull(prop, value, context ?? new ParseContext(this, {}, false), after)
-    )
+    return Option.fromNullishOr(this.matchStyleOrNull(prop, value, context ?? new ParseContext(this, {}, false), after))
   }
 
   /** @internal */
   matchStyleOrNull(prop: string, value: string, context: RuleContext, after?: StyleParseRule): StyleParseRule | null {
     for (let i = after ? this.styles.indexOf(originOf(after)) + 1 : 0; i < this.styles.length; i++) {
-      const rule = this.styles[i]!, style = rule.style
+      const rule = this.styles[i]!,
+        style = rule.style
       if (
         style.indexOf(prop) != 0 ||
-        rule.context && !context.matchesContext(rule.context) ||
+        (rule.context && !context.matchesContext(rule.context)) ||
         // Test that the style string either precisely matches the prop,
         // or has an '=' sign after the prop, followed by the given
         // value.
-        style.length > prop.length &&
-          (style.charCodeAt(prop.length) != 61 || style.slice(prop.length + 1) != value)
+        (style.length > prop.length && (style.charCodeAt(prop.length) != 61 || style.slice(prop.length + 1) != value))
       ) {
         continue
       }
@@ -421,7 +420,8 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
       const priority = rule.priority == null ? 50 : rule.priority
       let i = 0
       for (; i < result.length; i++) {
-        const next = result[i]!, nextPriority = next.priority == null ? 50 : next.priority
+        const next = result[i]!,
+          nextPriority = next.priority == null ? 50 : next.priority
         if (nextPriority < priority) break
       }
       result.splice(i, 0, rule)
@@ -456,8 +456,10 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
    * schema.
    */
   static fromSchema<Sc extends AnySchema>(schema: Sc): DOMParser<Sc> {
-    return (schema.cached.domParser as DOMParser<Sc> | undefined) ||
-      (schema.cached.domParser = new DOMParser(schema, DOMParser.schemaRules(schema))) as DOMParser<Sc>
+    return (
+      (schema.cached.domParser as DOMParser<Sc> | undefined) ||
+      ((schema.cached.domParser = new DOMParser(schema, DOMParser.schemaRules(schema))) as DOMParser<Sc>)
+    )
   }
 }
 
@@ -510,12 +512,13 @@ const listTags: { readonly [tagName: string]: boolean } = { ol: true, ul: true }
 const hasOwn = (obj: object, key: string): boolean => Object.prototype.hasOwnProperty.call(obj, key)
 
 // Using a bitfield for node context options
-const OPT_PRESERVE_WS = 1, OPT_PRESERVE_WS_FULL = 2, OPT_OPEN_LEFT = 4
+const OPT_PRESERVE_WS = 1,
+  OPT_PRESERVE_WS_FULL = 2,
+  OPT_OPEN_LEFT = 4
 
 function wsOptionsFor(type: NodeType | null, preserveWhitespace: boolean | "full" | undefined, base: number) {
   if (preserveWhitespace != null) {
-    return (preserveWhitespace ? OPT_PRESERVE_WS : 0) |
-      (preserveWhitespace === "full" ? OPT_PRESERVE_WS_FULL : 0)
+    return (preserveWhitespace ? OPT_PRESERVE_WS : 0) | (preserveWhitespace === "full" ? OPT_PRESERVE_WS_FULL : 0)
   }
   return type && type.whitespace == "pre" ? OPT_PRESERVE_WS | OPT_PRESERVE_WS_FULL : base & ~OPT_OPEN_LEFT
 }
@@ -559,7 +562,8 @@ class NodeContext {
   }
 
   finish(openEnd: boolean): Node | Fragment {
-    if (!(this.options & OPT_PRESERVE_WS)) { // Strip trailing whitespace
+    if (!(this.options & OPT_PRESERVE_WS)) {
+      // Strip trailing whitespace
       const last = this.content[this.content.length - 1]
       let m: RegExpExecArray | null
       if (last && last.isText && (m = /[ \t\r\n\f]+$/.exec((last as TextNode).text))) {
@@ -632,16 +636,11 @@ class ParseContext implements RuleContext {
   addTextNode(dom: Text, marks: ReadonlyArray<Mark>) {
     let value = dom.nodeValue!
     const top = this.top
-    const preserveWS = (top.options & OPT_PRESERVE_WS_FULL) ?
-      "full"
-      : this.localPreserveWS || (top.options & OPT_PRESERVE_WS) > 0
+    const preserveWS =
+      top.options & OPT_PRESERVE_WS_FULL ? "full" : this.localPreserveWS || (top.options & OPT_PRESERVE_WS) > 0
     const schema = this.parser.schema as AnySchema
     const linebreak = Option.getOrNull(schema.linebreakReplacement)
-    if (
-      preserveWS === "full" ||
-      top.inlineContext(dom) ||
-      /[^ \t\r\n\f]/.test(value)
-    ) {
+    if (preserveWS === "full" || top.inlineContext(dom) || /[^ \t\r\n\f]/.test(value)) {
       if (!preserveWS) {
         value = value.replace(/[ \t\r\n\f]+/g, " ")
         // If this starts with whitespace, and there is no node before it, or
@@ -686,7 +685,8 @@ class ParseContext implements RuleContext {
     const name = dom.nodeName.toLowerCase()
     let ruleID: TagParseRule | null | undefined
     if (hasOwn(listTags, name) && this.parser.normalizeLists) normalizeList(dom)
-    const rule: AnyRule | null | undefined = (this.options.ruleFromNode && this.options.ruleFromNode(dom)) ||
+    const rule: AnyRule | null | undefined =
+      (this.options.ruleFromNode && this.options.ruleFromNode(dom)) ||
       (ruleID = this.parser.matchTagOrNull(dom, this, matchAfter))
     out: if (rule ? rule.ignore : hasOwn(ignoreTags, name)) {
       this.findInside(dom)
@@ -718,7 +718,7 @@ class ParseContext implements RuleContext {
           dom,
           rule as TagParseRule,
           innerMarks,
-          rule.consuming === false ? ruleID ?? undefined : undefined
+          rule.consuming === false ? (ruleID ?? undefined) : undefined
         )
       }
     }
@@ -752,9 +752,10 @@ class ParseContext implements RuleContext {
     // over the items.
     if (styles && styles.length) {
       for (let i = 0; i < this.parser.matchedStyles.length; i++) {
-        const name = this.parser.matchedStyles[i]!, value = styles.getPropertyValue(name)
+        const name = this.parser.matchedStyles[i]!,
+          value = styles.getPropertyValue(name)
         if (value) {
-          for (let after: StyleParseRule | undefined = undefined;;) {
+          for (let after: StyleParseRule | undefined = undefined; ;) {
             const rule = this.parser.matchStyleOrNull(name, value, this, after)
             if (!rule) break
             if (rule.ignore) return null
@@ -772,13 +773,9 @@ class ParseContext implements RuleContext {
   // Look up a handler for the given node. If none are found, return
   // false. Otherwise, apply it, use its return value to drive the way
   // the node's content is wrapped, and return true.
-  addElementByRule(
-    dom: HTMLElement,
-    rule: TagParseRule,
-    marks: ReadonlyArray<Mark>,
-    continueAfter?: TagParseRule
-  ) {
-    let sync = false, nodeType: NodeType | undefined
+  addElementByRule(dom: HTMLElement, rule: TagParseRule, marks: ReadonlyArray<Mark>, continueAfter?: TagParseRule) {
+    let sync = false,
+      nodeType: NodeType | undefined
     if (rule.node) {
       nodeType = (this.parser.schema as AnySchema).nodeType(rule.node)
       if (!nodeType.isLeaf) {
@@ -903,7 +900,7 @@ class ParseContext implements RuleContext {
     const top = this.top
     top.match = top.match && top.match.matchTypeOrNull(type)
     let options = wsOptionsFor(type, preserveWS, top.options)
-    if ((top.options & OPT_OPEN_LEFT) && top.content.length == 0) options |= OPT_OPEN_LEFT
+    if (top.options & OPT_OPEN_LEFT && top.content.length == 0) options |= OPT_OPEN_LEFT
     let applyMarks: ReadonlyArray<Mark> = Mark.none
     marks = marks.filter((m) => {
       if (top.type ? top.type.allowsMarkType(m.type) : markMayApply(m.type, type)) {
@@ -1011,11 +1008,12 @@ class ParseContext implements RuleContext {
           for (; depth >= minDepth; depth--) if (match(i - 1, depth)) return true
           return false
         } else {
-          const next = depth > 0 || (depth == 0 && useRoot) ?
-            this.nodes[depth]!.type
-            : option && depth >= minDepth ?
-            option.node(depth - minDepth).type
-            : null
+          const next =
+            depth > 0 || (depth == 0 && useRoot)
+              ? this.nodes[depth]!.type
+              : option && depth >= minDepth
+                ? option.node(depth - minDepth).type
+                : null
           if (!next || (next.name != part && !next.isInGroup(part))) return false
           depth--
         }

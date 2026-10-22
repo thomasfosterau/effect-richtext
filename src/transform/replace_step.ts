@@ -4,6 +4,7 @@
  * @since 0.1.0
  */
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import { type AnySchema, JSONError, type Node, Slice } from "../model.ts"
 import { type Mappable, StepMap } from "./map.ts"
 import { Step, type StepJSON, StepResult } from "./step.ts"
@@ -63,29 +64,34 @@ export class ReplaceStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
     if (!(other instanceof ReplaceStep) || other.structure || this.structure) return Option.none()
 
     if (this.from + this.slice.size === other.from && !this.slice.openEnd && !other.slice.openStart) {
-      const slice = this.slice.size + other.slice.size === 0
-        ? Slice.empty
-        : new Slice(this.slice.content.append(other.slice.content), this.slice.openStart, other.slice.openEnd)
+      const slice =
+        this.slice.size + other.slice.size === 0
+          ? Slice.empty
+          : new Slice(this.slice.content.append(other.slice.content), this.slice.openStart, other.slice.openEnd)
       return Option.some(new ReplaceStep(this.from, this.to + (other.to - other.from), slice, this.structure))
     } else if (other.to === this.from && !this.slice.openStart && !other.slice.openEnd) {
-      const slice = this.slice.size + other.slice.size === 0
-        ? Slice.empty
-        : new Slice(other.slice.content.append(this.slice.content), other.slice.openStart, this.slice.openEnd)
+      const slice =
+        this.slice.size + other.slice.size === 0
+          ? Slice.empty
+          : new Slice(other.slice.content.append(this.slice.content), other.slice.openStart, this.slice.openEnd)
       return Option.some(new ReplaceStep(other.from, this.to, slice, this.structure))
     }
     return Option.none()
   }
 
   toJSON(): StepJSON {
-    const json: Record<string, unknown> & { stepType: string } = { stepType: "replace", from: this.from, to: this.to }
-    if (this.slice.size) json.slice = this.slice.toJSON()
-    if (this.structure) json.structure = true
-    return json
+    return {
+      stepType: "replace",
+      from: this.from,
+      to: this.to,
+      ...(this.slice.size ? { slice: this.slice.toJSON() } : undefined),
+      ...(this.structure ? { structure: true } : undefined)
+    }
   }
 
   /** @internal */
   static override fromJSONUnsafe<Sc extends AnySchema>(schema: Sc, json: any): ReplaceStep<Sc> {
-    if (typeof json.from !== "number" || typeof json.to !== "number") {
+    if (!Predicate.isNumber(json.from) || !Predicate.isNumber(json.to)) {
       throw new JSONError({ message: "Invalid input for ReplaceStep.fromJSON" })
     }
     return new ReplaceStep(json.from, json.to, Slice.fromJSONUnsafe(schema, json.slice), !!json.structure)
@@ -138,10 +144,7 @@ export class ReplaceAroundStep<Sc extends AnySchema = AnySchema> extends Step<Sc
   }
 
   apply(doc: Node<Sc>): StepResult<Sc> {
-    if (
-      this.structure && (contentBetween(doc, this.from, this.gapFrom) ||
-        contentBetween(doc, this.gapTo, this.to))
-    ) {
+    if (this.structure && (contentBetween(doc, this.from, this.gapFrom) || contentBetween(doc, this.gapTo, this.to))) {
       return StepResult.fail("Structure gap-replace would overwrite content")
     }
 
@@ -177,34 +180,35 @@ export class ReplaceAroundStep<Sc extends AnySchema = AnySchema> extends Step<Sc
   }
 
   map(mapping: Mappable): Option.Option<Step<Sc>> {
-    const from = mapping.mapResult(this.from, 1), to = mapping.mapResult(this.to, -1)
+    const from = mapping.mapResult(this.from, 1),
+      to = mapping.mapResult(this.to, -1)
     const gapFrom = this.from === this.gapFrom ? from.pos : mapping.map(this.gapFrom, -1)
     const gapTo = this.to === this.gapTo ? to.pos : mapping.map(this.gapTo, 1)
     if ((from.deletedAcross && to.deletedAcross) || gapFrom < from.pos || gapTo > to.pos) return Option.none()
-    return Option.some(
-      new ReplaceAroundStep(from.pos, to.pos, gapFrom, gapTo, this.slice, this.insert, this.structure)
-    )
+    return Option.some(new ReplaceAroundStep(from.pos, to.pos, gapFrom, gapTo, this.slice, this.insert, this.structure))
   }
 
   toJSON(): StepJSON {
-    const json: Record<string, unknown> & { stepType: string } = {
+    return {
       stepType: "replaceAround",
       from: this.from,
       to: this.to,
       gapFrom: this.gapFrom,
       gapTo: this.gapTo,
-      insert: this.insert
+      insert: this.insert,
+      ...(this.slice.size ? { slice: this.slice.toJSON() } : undefined),
+      ...(this.structure ? { structure: true } : undefined)
     }
-    if (this.slice.size) json.slice = this.slice.toJSON()
-    if (this.structure) json.structure = true
-    return json
   }
 
   /** @internal */
   static override fromJSONUnsafe<Sc extends AnySchema>(schema: Sc, json: any): ReplaceAroundStep<Sc> {
     if (
-      typeof json.from !== "number" || typeof json.to !== "number" ||
-      typeof json.gapFrom !== "number" || typeof json.gapTo !== "number" || typeof json.insert !== "number"
+      !Predicate.isNumber(json.from) ||
+      !Predicate.isNumber(json.to) ||
+      !Predicate.isNumber(json.gapFrom) ||
+      !Predicate.isNumber(json.gapTo) ||
+      !Predicate.isNumber(json.insert)
     ) {
       throw new JSONError({ message: "Invalid input for ReplaceAroundStep.fromJSON" })
     }
@@ -224,7 +228,8 @@ Step.jsonID("replaceAround", ReplaceAroundStep)
 
 function contentBetween(doc: Node<any>, from: number, to: number): boolean {
   const $from = doc.resolveUnsafe(from)
-  let dist = to - from, depth = $from.depth
+  let dist = to - from,
+    depth = $from.depth
   while (dist > 0 && depth > 0 && $from.indexAfter(depth) === $from.node(depth).childCount) {
     depth--
     dist--

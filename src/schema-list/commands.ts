@@ -58,11 +58,13 @@ export function wrapRangeInList<Sc extends AnySchema, N extends NodeNames<Sc>>(
   listType: NodeType<Sc, N>,
   attrs: NodeAttrsInput<Sc, N> | null = null
 ): boolean {
-  let doJoin = false, outerRange = range
+  let doJoin = false,
+    outerRange = range
   const doc = range.$from.doc
   // This is at the top of an existing list item
   if (
-    range.depth >= 2 && range.$from.node(range.depth - 1).type.compatibleContent(listType) &&
+    range.depth >= 2 &&
+    range.$from.node(range.depth - 1).type.compatibleContent(listType) &&
     range.startIndex === 0
   ) {
     // Don't do anything if this is the top of the list
@@ -132,7 +134,8 @@ export const splitListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(
   itemAttrs?: NodeAttrsInput<Sc, N>
 ): Command<Sc> =>
   syncCommand<Sc>((state, dispatching) => {
-    const sel = state.selection, { $from, $to } = sel
+    const sel = state.selection,
+      { $from, $to } = sel
     const node = (sel as { node?: Node<any> }).node
     if ((node && node.isBlock) || $from.depth < 2 || !$from.sameParent($to)) return false
     const grandParent = $from.node(-1)
@@ -141,10 +144,8 @@ export const splitListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(
       // In an empty block. If this is a nested list, the wrapping
       // list item should be split. Otherwise, bail out and let next
       // command handle lifting.
-      if (
-        $from.depth === 3 || $from.node(-3).type !== itemType ||
-        $from.index(-2) !== $from.node(-2).childCount - 1
-      ) return false
+      if ($from.depth === 3 || $from.node(-3).type !== itemType || $from.index(-2) !== $from.node(-2).childCount - 1)
+        return false
       return done(dispatching, () => {
         let wrap: Fragment<any> = Fragment.empty
         const depthBefore = $from.index(-1) ? 1 : $from.index(-2) ? 2 : 3
@@ -153,11 +154,12 @@ export const splitListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(
         for (let d = $from.depth - depthBefore; d >= $from.depth - 3; d--) {
           wrap = Fragment.from($from.node(d).copy(wrap))
         }
-        const depthAfter = $from.indexAfter(-1) < $from.node(-2).childCount ?
-          1 :
-          $from.indexAfter(-2) < $from.node(-3).childCount ?
-          2 :
-          3
+        const depthAfter =
+          $from.indexAfter(-1) < $from.node(-2).childCount
+            ? 1
+            : $from.indexAfter(-2) < $from.node(-3).childCount
+              ? 2
+              : 3
         // Add a second list item with an empty default start node
         wrap = wrap.append(Fragment.from(itemType.createAndFillOrNull()))
         const start = $from.beforeUnsafe($from.depth - (depthBefore - 1))
@@ -173,9 +175,9 @@ export const splitListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(
     }
     const nextType = $to.pos === $from.end() ? grandParent.contentMatchAtUnsafe(0).defaultTypeOrNull : null
     const tr = state.tr.deleteUnsafe($from.pos, $to.pos)
-    const types: Array<NodeTypeWithAttrs<any> | null> | undefined = nextType ?
-      [itemAttrs ? { type: itemType, attrs: itemAttrs } as NodeTypeWithAttrs<any> : null, { type: nextType }] :
-      undefined
+    const types: Array<NodeTypeWithAttrs<any> | null> | undefined = nextType
+      ? [itemAttrs ? ({ type: itemType, attrs: itemAttrs } as NodeTypeWithAttrs<any>) : null, { type: nextType }]
+      : undefined
     if (!canSplit(tr.doc, $from.pos, 2, types)) return false
     return done(dispatching, () => tr.splitUnsafe($from.pos, 2, types).scrollIntoView())
   })
@@ -225,7 +227,9 @@ function liftToOuterList(
   itemType: NodeType<any, any>,
   range: NodeRange<any>
 ): SyncResult {
-  const tr = state.tr, end = range.end, endOfList = range.$to.end(range.depth)
+  const tr = state.tr,
+    end = range.end,
+    endOfList = range.$to.end(range.depth)
   if (end < endOfList) {
     // There are siblings after the lifted items, which must become
     // children of the last item
@@ -253,24 +257,30 @@ function liftToOuterList(
 }
 
 function liftOutOfList(state: EditorState<any, any, any>, range: NodeRange<any>): SyncResult {
-  const tr = state.tr, list = range.parent
+  const tr = state.tr,
+    list = range.parent
   // Merge the list items into a single big item
   for (let pos = range.end, i = range.endIndex - 1, e = range.startIndex; i > e; i--) {
     pos -= list.childUnsafe(i).nodeSize
     tr.deleteUnsafe(pos - 1, pos + 1)
   }
-  const $start = tr.doc.resolveUnsafe(range.start), item = $start.nodeAfterOrNull!
+  const $start = tr.doc.resolveUnsafe(range.start),
+    item = $start.nodeAfterOrNull!
   if (tr.mapping.map(range.end) !== range.start + item.nodeSize) return false
-  const atStart = range.startIndex === 0, atEnd = range.endIndex === list.childCount
-  const parent = $start.node(-1), indexBefore = $start.index(-1)
+  const atStart = range.startIndex === 0,
+    atEnd = range.endIndex === list.childCount
+  const parent = $start.node(-1),
+    indexBefore = $start.index(-1)
   if (
     !parent.canReplace(
       indexBefore + (atStart ? 0 : 1),
       indexBefore + 1,
       item.content.append(atEnd ? Fragment.empty : Fragment.from(list))
     )
-  ) return false
-  const start = $start.pos, end = start + item.nodeSize
+  )
+    return false
+  const start = $start.pos,
+    end = start + item.nodeSize
   // Strip off the surrounding list. At the sides where we're not at
   // the end of the list, the existing list is closed. At sides where
   // this is the end, it is overwritten to its end.
@@ -281,8 +291,9 @@ function liftOutOfList(state: EditorState<any, any, any>, range: NodeRange<any>)
       start + 1,
       end - 1,
       new Slice(
-        (atStart ? Fragment.empty : Fragment.from(list.copy(Fragment.empty)))
-          .append(atEnd ? Fragment.empty : Fragment.from(list.copy(Fragment.empty))),
+        (atStart ? Fragment.empty : Fragment.from(list.copy(Fragment.empty))).append(
+          atEnd ? Fragment.empty : Fragment.from(list.copy(Fragment.empty))
+        ),
         atStart ? 0 : 1,
         atEnd ? 0 : 1
       ),
@@ -309,7 +320,8 @@ export const sinkListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(item
     if (!range) return false
     const startIndex = range.startIndex
     if (startIndex === 0) return false
-    const parent = range.parent, nodeBefore = parent.childUnsafe(startIndex - 1)
+    const parent = range.parent,
+      nodeBefore = parent.childUnsafe(startIndex - 1)
     if (nodeBefore.type !== itemType) return false
 
     return done(dispatching, () => {
@@ -323,9 +335,10 @@ export const sinkListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(item
         nestedBefore ? 3 : 1,
         0
       )
-      const before = range.start, after = range.end
-      return state.tr.stepUnsafe(
-        new ReplaceAroundStep(before - (nestedBefore ? 3 : 1), after, before, after, slice, 1, true)
-      ).scrollIntoView()
+      const before = range.start,
+        after = range.end
+      return state.tr
+        .stepUnsafe(new ReplaceAroundStep(before - (nestedBefore ? 3 : 1), after, before, after, slice, 1, true))
+        .scrollIntoView()
     })
   })
