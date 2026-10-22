@@ -19,6 +19,7 @@
 // Ported from prosemirror-inputrules (MIT, Marijn Haverbeke and others)
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import type { AnySchema, Node, NodeAttrsInput, NodeNames, NodeType, ResolvedPos } from "./model.ts"
 import {
   type Dispatch,
@@ -147,7 +148,7 @@ export class InputRule<Sc extends AnySchema = AnySchema, E = never, R = never> {
     handler: string | InputRuleHandler<Sc, E, R>,
     options: InputRuleOptions = {}
   ) {
-    this.handler = typeof handler === "string" ? stringHandler(handler) : handler
+    this.handler = Predicate.isString(handler) ? stringHandler(handler) : handler
     this.undoable = options.undoable !== false
     this.inCode = options.inCode || false
     this.inCodeMark = options.inCodeMark !== false

@@ -7,6 +7,7 @@
  */
 // Ported from prosemirror-dropcursor (MIT, Marijn Haverbeke and others)
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import { type EditorState, Plugin, type PluginView } from "./state.ts"
 import { dropPoint } from "./transform.ts"
 import type { EditorView, PosAtCoords } from "./view.ts"
@@ -190,7 +191,7 @@ class DropCursorView implements PluginView {
 
     const node = pos && pos.inside >= 0 ? view.state.doc.nodeAtOrNull(pos.inside) : null
     const disableDropCursor = node ? (node.type.spec.disableDropCursor as DisableDropCursor | undefined) : undefined
-    const disabled = typeof disableDropCursor === "function" ? disableDropCursor(view, pos!, event) : disableDropCursor
+    const disabled = Predicate.isFunction(disableDropCursor) ? disableDropCursor(view, pos!, event) : disableDropCursor
 
     if (pos && !disabled) {
       let target = pos.pos

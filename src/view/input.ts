@@ -4,7 +4,9 @@
  *
  * @internal
  */
+import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
+import * as Result from "effect/Result"
 import { type Node, Slice } from "../model.ts"
 import { NodeSelection, Selection, TextSelection } from "../state.ts"
 import { dropPoint } from "../transform.ts"
@@ -22,7 +24,7 @@ type AnyView = EditorView<any, any, any>
 // to invoke when the event fires.
 const handlers: { [event: string]: (view: AnyView, event: Event) => void } = {}
 const editHandlers: { [event: string]: (view: AnyView, event: Event) => void } = {}
-const passiveHandlers: Record<string, boolean> = { touchstart: true, touchmove: true }
+const isPassiveEvent = (event: string): boolean => event === "touchstart" || event === "touchmove"
 
 /** @internal */
 export class InputState {
@@ -67,7 +69,7 @@ export function initInput(view: AnyView): void {
           handler(view, event)
         }
       }),
-      passiveHandlers[event] ? { passive: true } : undefined
+      isPassiveEvent(event) ? { passive: true } : undefined
     )
   }
   // On Safari, for reasons beyond my understanding, adding an input
@@ -612,7 +614,7 @@ export function clearComposition(view: AnyView): void {
     view.input.composing = false
     view.input.compositionEndedAt = timestampFromCustomEvent()
   }
-  while (view.input.compositionNodes.length > 0) view.input.compositionNodes.pop()!.markParentsDirty()
+  while (Arr.isArrayNonEmpty(view.input.compositionNodes)) view.input.compositionNodes.pop()!.markParentsDirty()
 }
 
 /** @internal */
@@ -829,11 +831,10 @@ handlers.dragend = (view) => {
 editHandlers.dragover = editHandlers.dragenter = (_, e) => e.preventDefault()
 
 editHandlers.drop = (view, event) => {
-  try {
-    handleDrop(view, event as DragEvent, view.dragging as Dragging | null)
-  } finally {
-    view.dragging = null
-  }
+  // try/finally: clear `dragging` even when handleDrop throws, then rethrow
+  const result = Result.try(() => handleDrop(view, event as DragEvent, view.dragging as Dragging | null))
+  view.dragging = null
+  if (Result.isFailure(result)) throw result.failure
 }
 
 function handleDrop(view: AnyView, event: DragEvent, dragging: Dragging | null) {

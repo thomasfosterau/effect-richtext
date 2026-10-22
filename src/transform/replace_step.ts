@@ -4,6 +4,7 @@
  * @since 0.1.0
  */
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import { type AnySchema, JSONError, type Node, Slice } from "../model.ts"
 import { type Mappable, StepMap } from "./map.ts"
 import { Step, type StepJSON, StepResult } from "./step.ts"
@@ -79,15 +80,18 @@ export class ReplaceStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
   }
 
   toJSON(): StepJSON {
-    const json: Record<string, unknown> & { stepType: string } = { stepType: "replace", from: this.from, to: this.to }
-    if (this.slice.size) json.slice = this.slice.toJSON()
-    if (this.structure) json.structure = true
-    return json
+    return {
+      stepType: "replace",
+      from: this.from,
+      to: this.to,
+      ...(this.slice.size ? { slice: this.slice.toJSON() } : undefined),
+      ...(this.structure ? { structure: true } : undefined)
+    }
   }
 
   /** @internal */
   static override fromJSONUnsafe<Sc extends AnySchema>(schema: Sc, json: any): ReplaceStep<Sc> {
-    if (typeof json.from !== "number" || typeof json.to !== "number") {
+    if (!Predicate.isNumber(json.from) || !Predicate.isNumber(json.to)) {
       throw new JSONError({ message: "Invalid input for ReplaceStep.fromJSON" })
     }
     return new ReplaceStep(json.from, json.to, Slice.fromJSONUnsafe(schema, json.slice), !!json.structure)
@@ -185,27 +189,26 @@ export class ReplaceAroundStep<Sc extends AnySchema = AnySchema> extends Step<Sc
   }
 
   toJSON(): StepJSON {
-    const json: Record<string, unknown> & { stepType: string } = {
+    return {
       stepType: "replaceAround",
       from: this.from,
       to: this.to,
       gapFrom: this.gapFrom,
       gapTo: this.gapTo,
-      insert: this.insert
+      insert: this.insert,
+      ...(this.slice.size ? { slice: this.slice.toJSON() } : undefined),
+      ...(this.structure ? { structure: true } : undefined)
     }
-    if (this.slice.size) json.slice = this.slice.toJSON()
-    if (this.structure) json.structure = true
-    return json
   }
 
   /** @internal */
   static override fromJSONUnsafe<Sc extends AnySchema>(schema: Sc, json: any): ReplaceAroundStep<Sc> {
     if (
-      typeof json.from !== "number" ||
-      typeof json.to !== "number" ||
-      typeof json.gapFrom !== "number" ||
-      typeof json.gapTo !== "number" ||
-      typeof json.insert !== "number"
+      !Predicate.isNumber(json.from) ||
+      !Predicate.isNumber(json.to) ||
+      !Predicate.isNumber(json.gapFrom) ||
+      !Predicate.isNumber(json.gapTo) ||
+      !Predicate.isNumber(json.insert)
     ) {
       throw new JSONError({ message: "Invalid input for ReplaceAroundStep.fromJSON" })
     }

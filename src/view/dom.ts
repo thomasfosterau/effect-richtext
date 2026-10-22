@@ -198,7 +198,7 @@ export function caretFromPoint(doc: Document, x: number, y: number): { node: DOM
       // into <input> nodes, which can't be treated as a regular DOM
       // offset
       if (pos) return { node: pos.offsetNode, offset: Math.min(nodeSize(pos.offsetNode), pos.offset) }
-    } catch (_) {
+    } catch {
       // ignore
     }
   }

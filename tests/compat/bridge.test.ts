@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest"
-import { Effect, Option } from "effect"
+import * as Effect from "effect/Effect"
 import {
   Fragment,
   fromCore as modelFromCore,
@@ -38,6 +38,7 @@ import * as CoreModel from "effect-richtext/model"
 import * as CoreState from "effect-richtext/state"
 import * as CoreTransform from "effect-richtext/transform"
 import ist from "../utils/ist.ts"
+import { getSome } from "../utils/option.ts"
 
 // A custom step, written exactly as for ProseMirror: it sets (or
 // toggles) a counter attribute stored in the step itself, replacing the
@@ -169,7 +170,7 @@ describe("compat bridge", () => {
     ist((back as CounterStep).text, "baz")
     const coreBack = CoreTransform.Step.fromJSONUnsafe(modelToCore(schema), json)
     ist(coreBack.toJSON().text, "baz")
-    const mapped = Option.getOrThrow(coreStep.map(new CoreTransform.Mapping([StepMap.offset(2)])))
+    const mapped = getSome(coreStep.map(new CoreTransform.Mapping([StepMap.offset(2)])))
     ist(mapped.toJSON().pos, 7)
   })
 
@@ -186,7 +187,7 @@ describe("compat bridge", () => {
     const core = transformToCore(step)
     ist(core instanceof CoreTransform.ReplaceStep)
     ist((step.map(new StepMap([0, 0, 1])) as ReplaceStep).from, 2)
-    Option.getOrThrow(core.map(StepMap.offset(1)))
+    getSome(core.map(StepMap.offset(1)))
     ist(mapped, 2)
     ist(new Transform(d).step(step).doc, doc(p("oo")), eq)
   })
@@ -238,7 +239,7 @@ describe("compat bridge", () => {
     ist(seen[0]!.doc.textContent, "a")
     // The core state sees the plugin's state.
     const core = stateToCore(state)
-    ist(Option.getOrThrow(stateToCore(plugin).getState(core)), 1)
+    ist(getSome(stateToCore(plugin).getState(core)), 1)
     ist(stateFromCore(core.plugins[0]!), plugin)
     // A core plugin used from the compat API.
     const corePlugin = new CoreState.Plugin({ props: { editable: () => false } })

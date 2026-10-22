@@ -1,5 +1,5 @@
 // Ported from prosemirror-view/test/webtest-domchange.ts (MIT, Marijn Haverbeke and others)
-import { assert, describe, it } from "@effect/vitest"
+import { describe, it } from "@effect/vitest"
 import { EditorState, TextSelection } from "effect-richtext/state"
 import { a, blockquote, br, doc, em, eq, h1, img as img_, p, pre, strong } from "effect-richtext/test-builder"
 import type { Step } from "effect-richtext/transform"
@@ -232,8 +232,8 @@ describe("DOM change", () => {
   it("does not repaint a text node when it's typed into", () => {
     const view = tempEditor({ doc: doc(p("fo<a>o")) })
     findTextNode(view.dom, "foo")!.nodeValue = "fojo"
-    let mutated = false,
-      observer = new MutationObserver(() => (mutated = true))
+    let mutated = false
+    const observer = new MutationObserver(() => (mutated = true))
     observer.observe(view.dom, { subtree: true, characterData: true, childList: true })
     flush(view)
     ist(view.state.doc, doc(p("fojo")), eq)
@@ -356,14 +356,14 @@ describe("DOM change", () => {
   })
 
   it("doesn't confuse backspace with delete", () => {
-    let steps: Step[],
-      view = tempEditor({
-        doc: doc(p("a<a>a")),
-        dispatchTransaction(tr) {
-          steps = tr.steps
-          view.updateState(view.state.applyUnsafe(tr))
-        }
-      })
+    let steps: Step[]
+    const view = tempEditor({
+      doc: doc(p("a<a>a")),
+      dispatchTransaction(tr) {
+        steps = tr.steps
+        view.updateState(view.state.applyUnsafe(tr))
+      }
+    })
 
     view.input.lastKeyCode = 8
     view.input.lastKeyCodeTime = Date.now()
@@ -376,14 +376,14 @@ describe("DOM change", () => {
   })
 
   it("can disambiguate a multiple-character backspace event", () => {
-    let steps: Step[],
-      view = tempEditor({
-        doc: doc(p("foo<a>foo")),
-        dispatchTransaction(tr) {
-          steps = tr.steps
-          view.updateState(view.state.applyUnsafe(tr))
-        }
-      })
+    let steps: Step[]
+    const view = tempEditor({
+      doc: doc(p("foo<a>foo")),
+      dispatchTransaction(tr) {
+        steps = tr.steps
+        view.updateState(view.state.applyUnsafe(tr))
+      }
+    })
 
     view.input.lastKeyCode = 8
     view.input.lastKeyCodeTime = Date.now()
@@ -396,14 +396,14 @@ describe("DOM change", () => {
   })
 
   it("doesn't confuse delete with backspace", () => {
-    let steps: Step[],
-      view = tempEditor({
-        doc: doc(p("a<a>a")),
-        dispatchTransaction(tr) {
-          steps = tr.steps
-          view.updateState(view.state.applyUnsafe(tr))
-        }
-      })
+    let steps: Step[]
+    const view = tempEditor({
+      doc: doc(p("a<a>a")),
+      dispatchTransaction(tr) {
+        steps = tr.steps
+        view.updateState(view.state.applyUnsafe(tr))
+      }
+    })
 
     findTextNode(view.dom, "aa")!.nodeValue = "a"
     flush(view)
@@ -414,14 +414,14 @@ describe("DOM change", () => {
   })
 
   it("doesn't confuse delete with backspace for multi-character deletions", () => {
-    let steps: Step[],
-      view = tempEditor({
-        doc: doc(p("one foo<a>foo three")),
-        dispatchTransaction(tr) {
-          steps = tr.steps
-          view.updateState(view.state.applyUnsafe(tr))
-        }
-      })
+    let steps: Step[]
+    const view = tempEditor({
+      doc: doc(p("one foo<a>foo three")),
+      dispatchTransaction(tr) {
+        steps = tr.steps
+        view.updateState(view.state.applyUnsafe(tr))
+      }
+    })
 
     findTextNode(view.dom, "one foofoo three")!.nodeValue = "one foo three"
     flush(view)
@@ -432,14 +432,14 @@ describe("DOM change", () => {
   })
 
   it("creates a correct step for an ambiguous selection-deletion", () => {
-    let steps: Step[],
-      view = tempEditor({
-        doc: doc(p("la<a>la<b>la")),
-        dispatchTransaction(tr) {
-          steps = tr.steps
-          view.updateState(view.state.applyUnsafe(tr))
-        }
-      })
+    let steps: Step[]
+    const view = tempEditor({
+      doc: doc(p("la<a>la<b>la")),
+      dispatchTransaction(tr) {
+        steps = tr.steps
+        view.updateState(view.state.applyUnsafe(tr))
+      }
+    })
 
     view.input.lastKeyCode = 8
     view.input.lastKeyCodeTime = Date.now()
@@ -452,14 +452,14 @@ describe("DOM change", () => {
   })
 
   it("creates a step that covers the entire selection for partially-matching replacement", () => {
-    let steps: Step[],
-      view = tempEditor({
-        doc: doc(p("one <a>two<b> three")),
-        dispatchTransaction(tr) {
-          steps = tr.steps
-          view.updateState(view.state.applyUnsafe(tr))
-        }
-      })
+    let steps: Step[]
+    const view = tempEditor({
+      doc: doc(p("one <a>two<b> three")),
+      dispatchTransaction(tr) {
+        steps = tr.steps
+        view.updateState(view.state.applyUnsafe(tr))
+      }
+    })
 
     findTextNode(view.dom, "one two three")!.nodeValue = "one t three"
     flush(view)
@@ -478,14 +478,14 @@ describe("DOM change", () => {
   })
 
   it("doesn't create steps in the middle of surrogate pairs", () => {
-    let steps: Step[] = [],
-      view = tempEditor({
-        doc: doc(p("👽<a>")),
-        dispatchTransaction(tr) {
-          steps = tr.steps
-          view.updateState(view.state.applyUnsafe(tr))
-        }
-      })
+    let steps: Step[] = []
+    const view = tempEditor({
+      doc: doc(p("👽<a>")),
+      dispatchTransaction(tr) {
+        steps = tr.steps
+        view.updateState(view.state.applyUnsafe(tr))
+      }
+    })
     findTextNode(view.dom, "👽")!.nodeValue = "💎👽"
     flush(view)
     ist(steps.length, 1)

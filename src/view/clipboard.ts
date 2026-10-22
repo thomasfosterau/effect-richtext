@@ -357,7 +357,7 @@ function addContext(slice: Slice<any>, context: string) {
   let array
   try {
     array = JSON.parse(context)
-  } catch (_) {
+  } catch {
     return slice
   }
   let { content, openEnd, openStart } = slice

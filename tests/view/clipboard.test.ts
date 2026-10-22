@@ -1,5 +1,5 @@
 // Ported from prosemirror-view/test/webtest-clipboard.ts (MIT, Marijn Haverbeke and others)
-import { assert, describe, it } from "@effect/vitest"
+import { describe, it } from "@effect/vitest"
 import { DocSchema, Fragment, Slice } from "effect-richtext/model"
 import { NodeSelection, TextSelection } from "effect-richtext/state"
 import { blockquote, br, doc, eq, hr, li, ol, p, strong, ul } from "effect-richtext/test-builder"

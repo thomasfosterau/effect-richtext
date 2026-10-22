@@ -1,9 +1,11 @@
 // Ported from prosemirror-model/test/test-content.ts (MIT, Marijn Haverbeke and others)
 import { assert, describe, it } from "@effect/vitest"
-import { Effect, Option } from "effect"
+import * as Effect from "effect/Effect"
+import * as Option from "effect/Option"
 import { Content, type ContentExpr, ContentMatch, DocSchema, type Node } from "effect-richtext/model"
 import { br, doc, eq, h1, hr, img, p, pre, schema } from "effect-richtext/test-builder"
 import ist from "../utils/ist.ts"
+import { getSome } from "../utils/option.ts"
 
 function compile(expr: ContentExpr<string>): ContentMatch {
   return ContentMatch.compile(expr, schema.nodes, "test")
@@ -32,21 +34,18 @@ function invalid(expr: string, types: string) {
 }
 
 function fill(expr: string, before: Node, after: Node, result: Node | null) {
-  const filled = Option.getOrThrow(get(expr).matchFragment(before.content)).fillBefore(after.content, true)
-  if (result) ist(Option.getOrThrow(filled), result.content, eq)
+  const filled = getSome(get(expr).matchFragment(before.content)).fillBefore(after.content, true)
+  if (result) ist(getSome(filled), result.content, eq)
   else ist(Option.isNone(filled))
 }
 
 function fill3(expr: string, before: Node, mid: Node, after: Node, left: Node | null, right?: Node) {
   const content = get(expr)
-  const a = Option.getOrNull(Option.getOrThrow(content.matchFragment(before.content)).fillBefore(mid.content))
+  const a = Option.getOrNull(getSome(content.matchFragment(before.content)).fillBefore(mid.content))
   const b =
     a &&
     Option.getOrNull(
-      Option.getOrThrow(content.matchFragment(before.content.append(a).append(mid.content))).fillBefore(
-        after.content,
-        true
-      )
+      getSome(content.matchFragment(before.content.append(a).append(mid.content))).fillBefore(after.content, true)
     )
   if (left) {
     ist(a!, left.content, eq)

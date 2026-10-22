@@ -31,8 +31,8 @@ function hasCompositionNode(_pm: EditorView) {
 function compose(pm: EditorView, start: () => Text, update: ((node: Text) => void)[], options: any = {}) {
   event(pm, "compositionstart")
   ist(pm.composing)
-  let node: Text,
-    sel = document.getSelection()!
+  let node: Text
+  const sel = document.getSelection()!
   for (let i = -1; i < update.length; i++) {
     if (i < 0) node = start()
     else update[i](node!)

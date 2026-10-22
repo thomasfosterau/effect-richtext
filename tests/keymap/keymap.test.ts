@@ -1,6 +1,9 @@
 // Ported from prosemirror-keymap/test/test-keymap.ts (MIT, Marijn Haverbeke and others)
 import { assert, describe, it } from "@effect/vitest"
-import { Context, Data, Effect, Layer } from "effect"
+import * as Context from "effect/Context"
+import * as Data from "effect/Data"
+import * as Effect from "effect/Effect"
+import * as Layer from "effect/Layer"
 import { keydownHandler, keymap, KeymapError, type KeymapView } from "effect-richtext/keymap"
 import type { AnySchema } from "effect-richtext/model"
 import { type Command, EditorState, type Plugin } from "effect-richtext/state"

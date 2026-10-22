@@ -1,6 +1,10 @@
 // Ported from prosemirror-state/test/test-state.ts (MIT, Marijn Haverbeke and others)
 import { assert, describe, it } from "@effect/vitest"
-import { Context, Data, Effect, Layer, Option } from "effect"
+import * as Context from "effect/Context"
+import * as Data from "effect/Data"
+import * as Effect from "effect/Effect"
+import * as Layer from "effect/Layer"
+import * as Option from "effect/Option"
 import type { AnySchema } from "effect-richtext/model"
 import {
   type Command,
@@ -14,6 +18,7 @@ import {
 import { doc, eq, p, schema } from "effect-richtext/test-builder"
 import ist from "../utils/ist.ts"
 import { TestState } from "./state.ts"
+import { getSome } from "../utils/option.ts"
 
 const messageCountKey = new PluginKey<number>("messageCount")
 const messageCountPlugin = new Plugin({
@@ -52,7 +57,7 @@ const transactionPlugin = new Plugin({
 })
 
 const count = (plugin: Plugin<number, any, any, any>, state: EditorState<any, any, any>) =>
-  Option.getOrThrow(plugin.getState(state))
+  getSome(plugin.getState(state))
 
 describe("State", () => {
   it("creates a default doc", () => {
@@ -106,9 +111,9 @@ describe("State", () => {
 
   it("supports specifying and persisting storedMarks", () => {
     const state = EditorState.createUnsafe({ doc: doc(p("ok")), storedMarks: [schema.markUnsafe("em")] })
-    ist(Option.getOrThrow(state.storedMarks).length, 1)
+    ist(getSome(state.storedMarks).length, 1)
     const copy = EditorState.fromJSONUnsafe({ schema }, state.toJSON())
-    ist(Option.getOrThrow(copy.storedMarks).length, 1)
+    ist(getSome(copy.storedMarks).length, 1)
   })
 
   it("supports reconfiguration", () => {
@@ -151,7 +156,7 @@ describe("State", () => {
     })
     const { transactions } = state.applyTransactionUnsafe(state.tr.insertTextUnsafe("X"))
     ist(transactions.length, 2)
-    ist(Option.getOrThrow(transactions[1]!.getMeta("appendedTransaction")), transactions[0])
+    ist(getSome(transactions[1]!.getMeta("appendedTransaction")), transactions[0])
   })
 
   it("supports JSON.stringify toJSON arguments", () => {
@@ -167,8 +172,8 @@ describe("Plugin", () => {
 
   it("can be found by key", () => {
     const state = EditorState.createUnsafe({ plugins: [messageCountPlugin], schema })
-    ist(Option.getOrThrow(messageCountKey.get(state)), messageCountPlugin)
-    ist(Option.getOrThrow(messageCountKey.getState(state)), 0)
+    ist(getSome(messageCountKey.get(state)), messageCountPlugin)
+    ist(getSome(messageCountKey.getState(state)), 0)
   })
 
   it("generates new keys", () => {
@@ -312,9 +317,9 @@ describe("EditorState (Effect API)", () => {
     ist(!tr.isGeneric)
     tr.addStoredMark(schema.markUnsafe("em"))
     ist(tr.storedMarksSet)
-    ist(Option.getOrThrow(tr.storedMarks).length, 1)
+    ist(getSome(tr.storedMarks).length, 1)
     tr.removeStoredMark(schema.marks.em)
-    ist(Option.getOrThrow(tr.storedMarks).length, 0)
+    ist(getSome(tr.storedMarks).length, 0)
     ist(!tr.scrolledIntoView)
     ist(state.applyUnsafe(tr.scrollIntoView()).doc, state.doc)
   })

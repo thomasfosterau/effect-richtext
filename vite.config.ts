@@ -120,17 +120,41 @@ export default defineConfig({
 
       // ---- Effect preset: ported-code allowances ---------------------------
       // src/ is a port of ProseMirror's synchronous, performance-sensitive
-      // algorithms (DESIGN.md), which predates the Effect oxlint preset. The
-      // rules below sit at `warn` so the port stays committable while each
-      // site stays reported; a new site is a defect, not headroom. Each count
-      // is the number of sites at the commit that introduced this block; flip
-      // a rule back to the preset's `error` and delete its line when its
-      // count reaches zero.
-      "effect/avoid-non-null-assertion": "warn",
-      "effect/require-safety-comment-for-type-assertion": "warn",
-      "effect/prefer-option-over-null": "warn",
-      "effect/imperative-loops": "warn",
-      "effect/avoid-any": "warn",
+      // algorithms (DESIGN.md) and tests/ ports its suites; both predate the
+      // Effect oxlint preset. The rules below sit at `warn` so the port stays
+      // committable while each site stays reported; a new site is a defect,
+      // not headroom. The trailing number is the rule's site count when this
+      // block was written; the remaining sites are tracked in
+      // thomasfosterau/effect-richtext#3. Lower the count as sites are
+      // fixed, and delete the line (back to the preset's `error`) when it
+      // reaches zero.
+      "effect/avoid-non-null-assertion": "warn", // 1315
+      "effect/require-safety-comment-for-type-assertion": "warn", // 1051
+      "effect/prefer-option-over-null": "warn", // 1011
+      "effect/imperative-loops": "warn", // 609
+      "effect/avoid-any": "warn", // 444
+      "effect/no-runtime-typeof": "warn", // 77
+      "effect/no-unsafe-dictionary-type": "warn", // 77
+      "effect/no-unknown-parameters": "warn", // 60
+      "effect/prefer-effect-is": "warn", // 50
+      "effect/avoid-object-type": "warn", // 37
+      "effect/no-known-value-widening": "warn", // 36
+      "effect/effect-run-in-body": "warn", // 34
+      "effect/avoid-try-catch": "warn", // 32
+      "effect/no-chained-type-assertions": "warn", // 25
+      "effect/use-clock-service": "warn", // 24
+      "effect/no-unknown-returns": "warn", // 22
+      "effect/avoid-direct-json": "warn", // 21
+      "effect/yield-in-for-loop": "warn", // 18
+      "effect/avoid-untagged-errors": "warn", // 13
+      "effect/avoid-native-object-helpers": "warn", // 11
+      "effect/no-length-comparison": "warn", // 10
+      "effect/prefer-arr-match": "warn", // 10
+      "effect/no-object-parameters": "warn", // 9
+      "typescript/no-this-alias": "warn", // 9
+      "effect/avoid-ts-ignore": "warn", // 8
+      "effect/avoid-data-tagged-error": "warn", // 8
+      "effect/prefer-arr-sort": "warn", // 4
       "typescript/no-explicit-any": "off",
       "typescript/no-empty-object-type": "off",
       "typescript/ban-ts-comment": "off",
@@ -284,16 +308,26 @@ export default defineConfig({
           // not trigger a mid-run re-optimization (which reloads the page).
           include: [
             "effect",
+            "effect/Array",
             "effect/Cause",
             "effect/Context",
             "effect/Data",
+            "effect/Deferred",
             "effect/Effect",
             "effect/Equal",
             "effect/Exit",
+            "effect/Fiber",
             "effect/Hash",
+            "effect/HashMap",
+            "effect/HashSet",
             "effect/Layer",
+            "effect/Match",
+            "effect/Number",
             "effect/Option",
+            "effect/Order",
+            "effect/Predicate",
             "effect/PubSub",
+            "effect/Result",
             "effect/Scheduler",
             "effect/Schema",
             "effect/SchemaGetter",

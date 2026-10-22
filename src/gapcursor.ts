@@ -12,6 +12,7 @@
 // Ported from prosemirror-gapcursor (MIT, Marijn Haverbeke and others)
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import { keydownHandler } from "./keymap.ts"
 import { type AnySchema, Fragment, JSONError, type Node, type NodeType, type ResolvedPos, Slice } from "./model.ts"
 import {
@@ -69,7 +70,7 @@ export class GapCursor<Sc extends AnySchema = AnySchema> extends Selection<Sc> {
 
   /** @internal */
   static override fromJSONUnsafe<Sc extends AnySchema>(doc: Node<Sc>, json: any): GapCursor<Sc> {
-    if (typeof json.pos !== "number") throw new JSONError({ message: "Invalid input for GapCursor.fromJSON" })
+    if (!Predicate.isNumber(json.pos)) throw new JSONError({ message: "Invalid input for GapCursor.fromJSON" })
     return new GapCursor(doc.resolveUnsafe(json.pos))
   }
 

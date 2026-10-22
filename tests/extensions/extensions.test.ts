@@ -1,5 +1,9 @@
 import { assert, describe, it } from "@effect/vitest"
-import { Context, Data, Effect, Exit, Layer, Option } from "effect"
+import * as Context from "effect/Context"
+import * as Data from "effect/Data"
+import * as Effect from "effect/Effect"
+import * as Exit from "effect/Exit"
+import * as Layer from "effect/Layer"
 import {
   createEditor,
   createEditorUnsafe,
@@ -25,6 +29,7 @@ import { undoDepth } from "effect-richtext/history"
 import { Content } from "effect-richtext/model"
 import { type Command, Plugin, TextSelection, Transaction } from "effect-richtext/state"
 import ist from "../utils/ist.ts"
+import { getSome } from "../utils/option.ts"
 
 const select = <T extends ExtensionTypes>(editor: Editor<T>, anchor: number, head = anchor) =>
   editor.dispatch(editor.state.tr.setSelectionUnsafe(TextSelection.createUnsafe(editor.state.doc, anchor, head)))
@@ -50,7 +55,7 @@ describe("union and priorities", () => {
     assert.deepStrictEqual(Object.keys(editor.schema.nodes), ["paragraph", "aside", "doc", "text", "quote"])
     assert.deepStrictEqual(Object.keys(editor.schema.marks), ["b", "a"])
     // The paragraph is the default block.
-    ist(editor.state.doc.firstChild.pipe(Option.getOrThrow).type.name, "paragraph")
+    ist(editor.state.doc.firstChild.pipe(getSome).type.name, "paragraph")
   })
 
   it("orders plugins and keymaps by priority", () => {
@@ -125,7 +130,7 @@ describe("union and priorities", () => {
     Effect.gen(function* () {
       const exit = yield* Effect.exit(createEditor(union(defineDoc(), defineParagraph())))
       ist(Exit.isFailure(exit))
-      const error = Exit.findErrorOption(exit).pipe(Option.getOrThrow)
+      const error = Exit.findErrorOption(exit).pipe(getSome)
       ist(error._tag, "SchemaDefinitionError")
     }).pipe(Effect.runSync))
 })
@@ -312,7 +317,7 @@ describe("Effect requirements and errors", () => {
       const editor = yield* createEditor(union(defineBasicExtension(), definePlugin(counter)))
       yield* editor.commands.insertText("a")
       yield* editor.chain().insertText("b").insertText("c").run()
-      ist(Option.getOrThrow(counter.getState(editor.state)), 4)
+      ist(getSome(counter.getState(editor.state)), 4)
     }).pipe(Effect.provide(Layer.succeed(Step, { size: 2 })), Effect.runSync))
 
   it("propagates plugin and command failures", () =>
@@ -333,10 +338,10 @@ describe("Effect requirements and errors", () => {
       )
       const viaPlugin = yield* Effect.exit(editor.commands.insertText("!"))
       ist(Exit.isFailure(viaPlugin))
-      ist(Exit.findErrorOption(viaPlugin).pipe(Option.getOrThrow)._tag, "Rejected")
+      ist(Exit.findErrorOption(viaPlugin).pipe(getSome)._tag, "Rejected")
       ist(editor.state.doc.textContent, "")
       const viaCommand = yield* Effect.exit(editor.commands.fail())
-      ist(Exit.findErrorOption(viaCommand).pipe(Option.getOrThrow)._tag, "Rejected")
+      ist(Exit.findErrorOption(viaCommand).pipe(getSome)._tag, "Rejected")
       const viaChain = yield* Effect.exit(editor.chain().insertText("a").insertText("!").run())
       ist(Exit.isFailure(viaChain))
       ist(editor.state.doc.textContent, "")
@@ -354,7 +359,7 @@ describe("Effect requirements and errors", () => {
     Effect.gen(function* () {
       const exit = yield* Effect.exit(createEditor(union(minimal(), defineHistory(), defineHistory())))
       ist(Exit.isFailure(exit))
-      ist(Exit.findErrorOption(exit).pipe(Option.getOrThrow)._tag, "StateError")
+      ist(Exit.findErrorOption(exit).pipe(getSome)._tag, "StateError")
     }).pipe(Effect.runSync))
 
   it("works with only the base commands", () =>

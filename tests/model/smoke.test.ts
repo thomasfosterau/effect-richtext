@@ -1,5 +1,8 @@
 import { assert, describe, it } from "@effect/vitest"
-import { Effect, Equal, Option, Schema } from "effect"
+import * as Effect from "effect/Effect"
+import * as Equal from "effect/Equal"
+import * as Option from "effect/Option"
+import * as Schema from "effect/Schema"
 import { Content, DocSchema, NodeFromJSON, Slice } from "effect-richtext/model"
 import { doc, p, schema, strong } from "effect-richtext/test-builder"
 

@@ -1,6 +1,7 @@
 // Node-level tests for the transactions produced by input rules.
 import { describe, it } from "@effect/vitest"
-import { Effect, Option } from "effect"
+import * as Effect from "effect/Effect"
+import * as Option from "effect/Option"
 import {
   emDash,
   InputRule,

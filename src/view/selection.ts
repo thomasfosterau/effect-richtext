@@ -261,7 +261,7 @@ export function hasSelection(view: AnyView): boolean {
       view.dom.contains(sel.anchorNode.nodeType == 3 ? sel.anchorNode.parentNode : sel.anchorNode) &&
       (view.editable || view.dom.contains(sel.focusNode!.nodeType == 3 ? sel.focusNode!.parentNode : sel.focusNode))
     )
-  } catch (_) {
+  } catch {
     return false
   }
 }

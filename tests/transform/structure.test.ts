@@ -1,10 +1,12 @@
 // Ported from prosemirror-transform/test/test-structure.ts (MIT, Marijn Haverbeke and others)
 import { assert, describe, it } from "@effect/vitest"
-import { Effect, Option } from "effect"
+import * as Effect from "effect/Effect"
+import * as Option from "effect/Option"
 import { Content, DocSchema, type Node, Slice } from "effect-richtext/model"
 import { eq, schema as baseSchema } from "effect-richtext/test-builder"
 import { canSplit, findWrapping, liftTarget, Transform } from "effect-richtext/transform"
 import ist from "../utils/ist.ts"
+import { getSome } from "../utils/option.ts"
 
 const schema = DocSchema.makeUnsafe({
   nodes: {
@@ -153,7 +155,7 @@ describe("liftTarget", () => {
     const p = s.nodeUnsafe("p", null, [s.textUnsafe("A")])
     const d = s.nodeUnsafe("doc", null, [s.nodeUnsafe("section", null, [s.nodeUnsafe("heading", null, [p, p, p]), p])])
     const block = (a: number, b?: number) =>
-      Option.getOrThrow(d.resolveUnsafe(a).blockRange(b === undefined ? undefined : d.resolveUnsafe(b)))
+      getSome(d.resolveUnsafe(a).blockRange(b === undefined ? undefined : d.resolveUnsafe(b)))
     ist(Option.getOrNull(liftTarget(block(3))), null)
     ist(Option.getOrNull(liftTarget(block(6))), null)
     ist(Option.getOrNull(liftTarget(block(3, 6))), null)

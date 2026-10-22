@@ -1,6 +1,6 @@
 // Ported from prosemirror-state/test/state.ts (MIT, Marijn Haverbeke and others)
 // Wrapper object to make writing state tests easier.
-import { Effect } from "effect"
+import * as Effect from "effect/Effect"
 import type { AnySchema, Node } from "effect-richtext/model"
 import {
   type Command,

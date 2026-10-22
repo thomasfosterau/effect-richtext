@@ -282,8 +282,8 @@ describe("EditorView", () => {
 
   it("returns correct screen coordinates for wrapped lines", () => {
     const view = tempEditor({})
-    let top = view.coordsAtPos(1),
-      pos = 1,
+    const top = view.coordsAtPos(1)
+    let pos = 1,
       end: { left: number; top: number; right: number; bottom: number } | undefined
     for (let i = 0; i < 100; i++) {
       view.dispatch(view.state.tr.insertText("a bc de fg h"))

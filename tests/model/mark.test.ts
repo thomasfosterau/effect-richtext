@@ -1,6 +1,10 @@
 // Ported from prosemirror-model/test/test-mark.ts (MIT, Marijn Haverbeke and others)
 import { assert, describe, it } from "@effect/vitest"
-import { Effect, Equal, Hash, Option, Schema } from "effect"
+import * as Effect from "effect/Effect"
+import * as Equal from "effect/Equal"
+import * as Hash from "effect/Hash"
+import * as Option from "effect/Option"
+import * as Schema from "effect/Schema"
 import { Content, DocSchema, Mark, type Node } from "effect-richtext/model"
 import { a, doc, em, p, schema, tagsOf } from "effect-richtext/test-builder"
 import ist from "../utils/ist.ts"

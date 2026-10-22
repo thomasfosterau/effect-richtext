@@ -1,5 +1,5 @@
 // Ported from prosemirror-view/test/webtest-markview.ts (MIT, Marijn Haverbeke and others)
-import { assert, describe, it } from "@effect/vitest"
+import { describe, it } from "@effect/vitest"
 import { doc, p, strong } from "effect-richtext/test-builder"
 import type { ViewMutationRecord } from "effect-richtext/view"
 import ist from "../utils/ist.ts"

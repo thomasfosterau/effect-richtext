@@ -4,6 +4,7 @@
  *
  * @since 0.1.0
  */
+import * as Predicate from "effect/Predicate"
 import * as S from "effect/Schema"
 import { Content, type ContentExpr, type ContentInput, type DOMOutputSpec, type NodeSpec, nodeSpec } from "./model.ts"
 
@@ -110,5 +111,5 @@ export const addListNodes = <
     ...nodes,
     ordered_list: { ...orderedList, content: Content.oneOrMore("list_item"), group: listGroup },
     bullet_list: { ...bulletList, content: Content.oneOrMore("list_item"), group: listGroup },
-    list_item: { ...listItem, content: typeof itemContent === "string" ? Content.ref(itemContent) : itemContent }
+    list_item: { ...listItem, content: Predicate.isString(itemContent) ? Content.ref(itemContent) : itemContent }
   }) as any

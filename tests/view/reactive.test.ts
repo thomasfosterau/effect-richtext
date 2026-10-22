@@ -1,7 +1,11 @@
 // Tests for effect-richtext/reactive with a real view, and for the
 // view's `subscribe` listener hook.
 import { assert, describe, it } from "@effect/vitest"
-import { Effect, Exit, Fiber, Option, Scope } from "effect"
+import * as Effect from "effect/Effect"
+import * as Exit from "effect/Exit"
+import * as Fiber from "effect/Fiber"
+import * as Option from "effect/Option"
+import * as Scope from "effect/Scope"
 import { baseKeymap } from "effect-richtext/commands"
 import { keymap } from "effect-richtext/keymap"
 import type { AnySchema } from "effect-richtext/model"

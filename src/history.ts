@@ -11,6 +11,7 @@
  * @since 0.1.0
  */
 // Ported from prosemirror-history (MIT, Marijn Haverbeke and others)
+import * as Arr from "effect/Array"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import RopeSequence from "rope-sequence"
@@ -362,7 +363,7 @@ function applyTransaction(
   const appended = meta<Transaction<any>>(tr, "appendedTransaction")
   let rebased: number | undefined
 
-  if (tr.steps.length === 0) {
+  if (Arr.isReadonlyArrayEmpty(tr.steps)) {
     return history
   } else if (appended && meta(appended, historyKey)) {
     if (meta<HistoryMeta>(appended, historyKey)!.redo) {
@@ -438,8 +439,9 @@ function isAdjacentTo(transform: Transform<any>, prevRanges: ReadonlyArray<numbe
 
 function rangesFor(maps: ReadonlyArray<StepMap>): Array<number> {
   const result: Array<number> = []
-  for (let i = maps.length - 1; i >= 0 && result.length === 0; i--) {
+  for (let i = maps.length - 1; i >= 0; i--) {
     maps[i]!.forEach((_from, _to, from, to) => result.push(from, to))
+    if (Arr.isArrayNonEmpty(result)) break
   }
   return result
 }
@@ -463,7 +465,10 @@ function histTransaction<Sc extends AnySchema>(
   redo: boolean
 ): Transaction<Sc> | null {
   const preserveItems = mustPreserveItems(state)
-  const histOptions = (Option.getOrThrow(historyKey.get(state)).spec as any).config as HistoryConfig
+  const plugin = Option.getOrUndefined(historyKey.get(state))
+  // Unreachable: callers only get here after reading the plugin's state.
+  if (!plugin) return null
+  const histOptions = (plugin.spec as any).config as HistoryConfig
   const pop = (redo ? history.undone : history.done).popEvent(state, preserveItems)
   if (!pop) return null
 

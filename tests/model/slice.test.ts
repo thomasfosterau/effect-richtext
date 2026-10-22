@@ -1,6 +1,8 @@
 // Ported from prosemirror-model/test/test-slice.ts (MIT, Marijn Haverbeke and others)
 import { assert, describe, it } from "@effect/vitest"
-import { Effect, Equal, Hash } from "effect"
+import * as Effect from "effect/Effect"
+import * as Equal from "effect/Equal"
+import * as Hash from "effect/Hash"
 import { Fragment, type Node, Slice } from "effect-richtext/model"
 import { a, blockquote, doc, em, li, p, schema, tagsOf, ul } from "effect-richtext/test-builder"
 import ist from "../utils/ist.ts"

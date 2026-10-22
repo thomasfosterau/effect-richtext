@@ -1,11 +1,12 @@
 // Ported from prosemirror-view/test/webtest-view.ts (MIT, Marijn Haverbeke and others)
-import { assert, describe, it } from "@effect/vitest"
-import { Option } from "effect"
+import { describe, it } from "@effect/vitest"
+import * as Option from "effect/Option"
 import { DocSchema } from "effect-richtext/model"
 import { EditorState } from "effect-richtext/state"
 import { doc, em, hr, li, p, schema, strong, ul } from "effect-richtext/test-builder"
 import { EditorView } from "effect-richtext/view"
 import ist from "../utils/ist.ts"
+import { getSome } from "../utils/option.ts"
 import { tempEditor, workspace } from "./helpers.ts"
 
 const space = workspace()
@@ -102,8 +103,8 @@ describe("EditorView", () => {
 
   it("can be queried for a node's DOM representation", () => {
     const view = tempEditor({ doc: doc(p("foo"), hr()) })
-    ist(Option.getOrThrow(view.nodeDOM(0)).nodeName, "P")
-    ist(Option.getOrThrow(view.nodeDOM(5)).nodeName, "HR")
+    ist(getSome(view.nodeDOM(0)).nodeName, "P")
+    ist(getSome(view.nodeDOM(5)).nodeName, "HR")
     ist(Option.isNone(view.nodeDOM(3)))
   })
 

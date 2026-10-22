@@ -118,8 +118,9 @@ export const toHTML = <Sc extends AnySchema>(
   const document = resolveDocument(options.document)
   const container = document.createElement("div")
   if (content instanceof Fragment) {
-    if (content.childCount === 0) return ""
-    const schema = Option.getOrThrow(content.firstChild).type.schema as Sc
+    const first = content.firstChild
+    if (Option.isNone(first)) return ""
+    const schema = first.value.type.schema as Sc
     const serializer = options.serializer ?? DOMSerializer.fromSchema(schema)
     serializer.serializeFragment(content, { document }, container)
   } else {

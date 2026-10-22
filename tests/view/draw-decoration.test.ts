@@ -1,6 +1,9 @@
 // Ported from prosemirror-view/test/webtest-draw-decoration.ts (MIT, Marijn Haverbeke and others)
-import { assert, describe, it } from "@effect/vitest"
-import { Option } from "effect"
+import { describe, it } from "@effect/vitest"
+import * as Arr from "effect/Array"
+import * as Option from "effect/Option"
+import * as Order from "effect/Order"
+import * as Predicate from "effect/Predicate"
 import { DocSchema } from "effect-richtext/model"
 import { Plugin, TextSelection } from "effect-richtext/state"
 import { blockquote, doc, em, h1, hr, img, p, schema, strong } from "effect-richtext/test-builder"
@@ -10,7 +13,7 @@ import ist from "../utils/ist.ts"
 import { tempEditor } from "./helpers.ts"
 
 function make(str: string | Decoration): Decoration {
-  if (typeof str != "string") return str
+  if (!Predicate.isString(str)) return str
   const match = /^(\d+)(?:-(\d+))?-(.+)$/.exec(str)!
   if (match[3] == "widget") {
     const widget = document.createElement("button")
@@ -84,21 +87,21 @@ describe("Decoration drawing", () => {
     const iNodes = view.dom.querySelectorAll("i")
     ist(iNodes.length, 2)
     ist(
-      Array.prototype.map
-        .call(iNodes, (n) => n.className)
-        .sort()
-        .join(),
+      Arr.sort(
+        Array.from(iNodes, (n) => n.className),
+        Order.String
+      ).join(),
       "a,c"
     )
   })
 
   it("draws overlapping inline decorations", () => {
     const view = tempEditor({ doc: doc(p("abcdef")), plugins: [decoPlugin(["3-5-foo", "4-6-bar", "1-7-baz"])] })
-    const baz = view.dom.querySelectorAll(".baz") as any as HTMLElement[]
+    const baz = Array.from(view.dom.querySelectorAll<HTMLElement>(".baz"))
     ist(baz.length, 5)
     ist(Array.prototype.map.call(baz, (x) => x.textContent).join("-"), "ab-c-d-e-f")
     function classes(n: HTMLElement) {
-      return n.className.split(" ").sort().join(" ")
+      return Arr.sort(n.className.split(" "), Order.String).join(" ")
     }
     ist(classes(baz[1]), "baz foo")
     ist(classes(baz[2]), "bar baz foo")
@@ -107,7 +110,7 @@ describe("Decoration drawing", () => {
 
   it("draws multiple widgets", () => {
     const view = tempEditor({ doc: doc(p("foobar")), plugins: [decoPlugin(["1-widget", "4-widget", "7-widget"])] })
-    const found = view.dom.querySelectorAll("button") as any as HTMLElement[]
+    const found = Array.from(view.dom.querySelectorAll("button"))
     ist(found.length, 3)
     ist(found[0].nextSibling!.textContent, "foo")
     ist(found[1].nextSibling!.textContent, "bar")

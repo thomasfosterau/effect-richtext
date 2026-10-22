@@ -4,13 +4,15 @@
  *
  * @since 0.1.0
  */
+import * as Arr from "effect/Array"
+import type * as Order from "effect/Order"
 import type { Mark, Node } from "../model.ts"
 import type { EditorState } from "../state.ts"
 import type { Mappable, Mapping } from "../transform.ts"
 import type { DOMNode } from "./dom.ts"
 import type { EditorView } from "./view.ts"
 
-function compareObjs(a: { [prop: string]: any }, b: { [prop: string]: any }) {
+function compareObjs(a: Readonly<Record<string, unknown>>, b: Readonly<Record<string, unknown>>) {
   if (a == b) return true
   for (const p in a) if (a[p] !== b[p]) return false
   for (const p in b) if (!(p in a)) return false
@@ -450,7 +452,7 @@ export class DecorationSet implements DecorationSource {
 
   /** Map the set of decorations in response to a change in the document. */
   map(mapping: Mapping, doc: Node<any, any>, options?: DecorationMapOptions): DecorationSet {
-    if (this == empty || mapping.maps.length == 0) return this
+    if (this == empty || Arr.isReadonlyArrayEmpty(mapping.maps)) return this
     return this.mapInner(mapping, doc, 0, 0, options || noSpec)
   }
 
@@ -472,7 +474,7 @@ export class DecorationSet implements DecorationSource {
     if (this.children.length) {
       return mapChildren(this.children, newLocal || [], mapping, node, offset, oldOffset, options)
     } else {
-      return newLocal ? new DecorationSet(newLocal.sort(byPos), none) : empty
+      return newLocal ? new DecorationSet(Arr.sort(newLocal, byPos), none) : empty
     }
   }
 
@@ -519,7 +521,7 @@ export class DecorationSet implements DecorationSource {
     for (let i = 0; i < local.length; i++) if (!local[i]!.type.valid(doc, local[i]!)) local.splice(i--, 1)
 
     return new DecorationSet(
-      local.length ? this.local.concat(local).sort(byPos) : this.local,
+      local.length ? Arr.sort(this.local.concat(local), byPos) : this.local,
       children || this.children
     )
   }
@@ -529,7 +531,7 @@ export class DecorationSet implements DecorationSource {
    * the ones in the given array.
    */
   remove(decorations: Array<Decoration>): DecorationSet {
-    if (decorations.length == 0 || this == empty) return this
+    if (Arr.isReadonlyArrayEmpty(decorations) || this == empty) return this
     return this.removeInner(decorations, 0)
   }
 
@@ -596,7 +598,7 @@ export class DecorationSet implements DecorationSource {
       }
     }
     if (local) {
-      const localSet = new DecorationSet(local.sort(byPos), none)
+      const localSet = new DecorationSet(Arr.sort(local, byPos), none)
       return child ? new DecorationGroup([localSet, child]) : localSet
     }
     return child || empty
@@ -704,27 +706,22 @@ export class DecorationGroup implements DecorationSource {
         for (let j = 0; j < locals.length; j++) result.push(locals[j]!)
       }
     }
-    return result ? removeOverlap(sorted ? result : result.sort(byPos)) : none
+    return result ? removeOverlap(sorted ? result : Arr.sort(result, byPos)) : none
   }
 
   // Create a group for the given array of decoration sets, or return
   // a single set when possible.
   static from(members: ReadonlyArray<DecorationSource>): DecorationSource {
-    switch (members.length) {
-      case 0:
-        return empty
-      case 1:
-        return members[0]!
-      default:
-        return new DecorationGroup(
-          members.every((m) => m instanceof DecorationSet)
-            ? (members as ReadonlyArray<DecorationSet>)
-            : members.reduce(
-                (r, m) => r.concat(m instanceof DecorationSet ? m : (m as DecorationGroup).members),
-                [] as Array<DecorationSet>
-              )
-        )
-    }
+    if (Arr.isReadonlyArrayEmpty(members)) return empty
+    if (members.length == 1) return members[0]!
+    return new DecorationGroup(
+      members.every((m) => m instanceof DecorationSet)
+        ? (members as ReadonlyArray<DecorationSet>)
+        : members.reduce(
+            (r, m) => r.concat(m instanceof DecorationSet ? m : (m as DecorationGroup).members),
+            [] as Array<DecorationSet>
+          )
+    )
   }
 
   forEachSet(f: (set: DecorationSet) => void): void {
@@ -835,7 +832,7 @@ function mapChildren(
     }
   }
 
-  return new DecorationSet(newLocal.sort(byPos), children)
+  return new DecorationSet(Arr.sort(newLocal, byPos), children)
 }
 
 function moveSpans(spans: Array<Decoration>, offset: number) {
@@ -924,7 +921,7 @@ function buildTree(
       }
     }
   })
-  const locals = moveSpans(hasNulls ? withoutNulls(spans) : (spans as Array<Decoration>), -offset).sort(byPos)
+  const locals = Arr.sort(moveSpans(hasNulls ? withoutNulls(spans) : (spans as Array<Decoration>), -offset), byPos)
   for (let i = 0; i < locals.length; i++) {
     if (!locals[i]!.type.valid(node, locals[i]!)) {
       if (options.onRemove) options.onRemove(locals[i]!.spec)
@@ -937,9 +934,9 @@ function buildTree(
 // Used to sort decorations so that ones with a low start position
 // come first, and within a set with the same start position, those
 // with an smaller end position come first.
-function byPos(a: Decoration, b: Decoration) {
-  return a.from - b.from || a.to - b.to
-}
+// Same ordering as `a.from - b.from || a.to - b.to`.
+const byPos: Order.Order<Decoration> = (a, b) =>
+  a.from < b.from ? -1 : a.from > b.from ? 1 : a.to < b.to ? -1 : a.to > b.to ? 1 : 0
 
 // Scan a sorted array of decorations for partially overlapping spans,
 // and split those so that only fully overlapping spans are left (to

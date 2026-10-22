@@ -192,8 +192,8 @@ describe("EditorView draw", () => {
       newParagraphs.push(s.node("paragraph", null, [s.text("para " + i)], [s.mark("m")]))
     }
     view.dispatch(view.state.tr.replaceWith(0, 8, newParagraphs))
-    let currentChildren = Array.from(view.dom.querySelectorAll("p")),
-      sameAtEnd = 0
+    const currentChildren = Array.from(view.dom.querySelectorAll("p"))
+    let sameAtEnd = 0
     while (
       sameAtEnd < currentChildren.length &&
       sameAtEnd < initialChildren.length &&

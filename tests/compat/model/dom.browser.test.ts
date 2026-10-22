@@ -581,10 +581,10 @@ describe("DOMParser", () => {
       return () => {
         const dom = document.createElement("div")
         dom.innerHTML = html
-        let tag = dom.querySelector("var"),
+        const tag = dom.querySelector("var"),
           prev = tag.previousSibling!,
-          next = tag.nextSibling,
-          pos
+          next = tag.nextSibling
+        let pos
         if (prev && next && prev.nodeType == 3 && next.nodeType == 3) {
           pos = { node: prev, offset: prev.nodeValue.length }
           prev.nodeValue += next.nodeValue

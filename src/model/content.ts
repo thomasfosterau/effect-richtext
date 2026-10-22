@@ -19,7 +19,11 @@
  *
  * @since 0.1.0
  */
+import * as Arr from "effect/Array"
+import * as Match from "effect/Match"
 import * as Option from "effect/Option"
+import * as Order from "effect/Order"
+import * as Predicate from "effect/Predicate"
 import { SchemaDefinitionError } from "./errors.ts"
 import { Fragment } from "./fragment.ts"
 import type { NodeType } from "./schema.ts"
@@ -94,14 +98,13 @@ const variance = { _Refs: (_: never) => _ }
 const make = <R extends string>(ast: ExprAST): ContentExpr<R> => ({ [TypeId]: variance as any, ast })
 
 const toAST = (input: ContentInput<string>): ExprAST =>
-  typeof input === "string" ? { _tag: "Name", name: input } : input.ast
+  Predicate.isString(input) ? { _tag: "Name", name: input } : input.ast
 
 /**
  * @since 0.1.0
  * @category guards
  */
-export const isContentExpr = (u: unknown): u is ContentExpr<string> =>
-  typeof u === "object" && u !== null && TypeId in u
+export const isContentExpr = (u: unknown): u is ContentExpr<string> => Predicate.isObjectOrArray(u) && TypeId in u
 
 /**
  * Reference a single node type or group by name.
@@ -200,32 +203,25 @@ export const parse = (source: string): ContentExpr<string> => {
  */
 export const format = (expr: ContentInput<string>): string => formatAST(toAST(expr), 0)
 
-const formatAST = (ast: ExprAST, prec: number): string => {
-  switch (ast._tag) {
-    case "Name":
-      return ast.name
-    case "Choice": {
+const formatAST = (ast: ExprAST, prec: number): string =>
+  Match.valueTags(ast, {
+    Name: (ast) => ast.name,
+    Choice: (ast) => {
       const s = ast.exprs.map((e) => formatAST(e, 1)).join(" | ")
       return prec > 0 ? `(${s})` : s
-    }
-    case "Seq": {
+    },
+    Seq: (ast) => {
       const s = ast.exprs.map((e) => formatAST(e, 2)).join(" ")
       return prec > 1 ? `(${s})` : s
-    }
-    case "Plus":
-      return formatAST(ast.expr, 3) + "+"
-    case "Star":
-      return formatAST(ast.expr, 3) + "*"
-    case "Opt":
-      return formatAST(ast.expr, 3) + "?"
-    case "Range":
-      return (
-        formatAST(ast.expr, 3) + "{" + ast.min + (ast.max === ast.min ? "" : "," + (ast.max < 0 ? "" : ast.max)) + "}"
-      )
-  }
-}
+    },
+    Plus: (ast) => formatAST(ast.expr, 3) + "+",
+    Star: (ast) => formatAST(ast.expr, 3) + "*",
+    Opt: (ast) => formatAST(ast.expr, 3) + "?",
+    Range: (ast) =>
+      formatAST(ast.expr, 3) + "{" + ast.min + (ast.max === ast.min ? "" : "," + (ast.max < 0 ? "" : ast.max)) + "}"
+  })
 
-const isEmptyAST = (ast: ExprAST) => ast._tag === "Seq" && ast.exprs.length === 0
+const isEmptyAST = (ast: ExprAST) => Predicate.isTagged(ast, "Seq") && Arr.isReadonlyArrayEmpty(ast.exprs)
 
 // -----------------------------------------------------------------------------
 // String parser (for Content.parse)
@@ -366,7 +362,7 @@ export class ContentMatch {
     if (content === undefined) return ContentMatch.empty
     // A plain string in a spec's `content` field is read as ProseMirror
     // content expression syntax (a bare name parses to itself).
-    const ast = typeof content === "string" ? parse(content).ast : content.ast
+    const ast = Predicate.isString(content) ? parse(content).ast : content.ast
     if (isEmptyAST(ast)) return ContentMatch.empty
     const source = formatAST(ast, 0)
     const ctx: ResolveContext = { inline: null, nodeTypes, source, typeName }
@@ -399,14 +395,15 @@ export class ContentMatch {
 
   /** @internal */
   matchFragmentOrNull(frag: Fragment, start = 0, end = frag.childCount): ContentMatch | null {
-    let cur: ContentMatch | null = this
-    for (let i = start; cur && i < end; i++) cur = cur.matchTypeOrNull(frag.content[i]!.type)
+    if (start >= end) return this
+    let cur = this.matchTypeOrNull(frag.content[start]!.type)
+    for (let i = start + 1; cur && i < end; i++) cur = cur.matchTypeOrNull(frag.content[i]!.type)
     return cur
   }
 
   /** @internal */
   get inlineContent(): boolean {
-    return this.next.length !== 0 && this.next[0]!.type.isInline
+    return Arr.isReadonlyArrayNonEmpty(this.next) && this.next[0].type.isInline
   }
 
   /** Get the first matching node type at this match position that can be generated. */
@@ -567,36 +564,32 @@ function resolveName(ctx: ResolveContext, name: string): ReadonlyArray<NodeType>
     const type = types[typeName]!
     if (type.isInGroup(name)) result.push(type)
   }
-  if (result.length === 0) fail(ctx, "No node type or group '" + name + "' found")
+  if (Arr.isArrayEmpty(result)) fail(ctx, "No node type or group '" + name + "' found")
   return result
 }
 
 function resolve(ast: ExprAST, ctx: ResolveContext): Expr {
-  switch (ast._tag) {
-    case "Name": {
+  return Match.valueTags(ast, {
+    Name: (ast): Expr => {
       const exprs = resolveName(ctx, ast.name).map((type): Expr => {
         if (ctx.inline === null) ctx.inline = type.isInline
         else if (ctx.inline !== type.isInline) fail(ctx, "Mixing inline and block content")
         return { type: "name", value: type }
       })
       return exprs.length === 1 ? exprs[0]! : { type: "choice", exprs }
-    }
-    case "Choice":
-      return { type: "choice", exprs: ast.exprs.map((e) => resolve(e, ctx)) }
-    case "Seq":
-      return { type: "seq", exprs: ast.exprs.map((e) => resolve(e, ctx)) }
-    case "Plus":
-      return { type: "plus", expr: resolve(ast.expr, ctx) }
-    case "Star":
-      return { type: "star", expr: resolve(ast.expr, ctx) }
-    case "Opt":
-      return { type: "opt", expr: resolve(ast.expr, ctx) }
-    case "Range":
+    },
+    Choice: (ast): Expr => ({ type: "choice", exprs: ast.exprs.map((e) => resolve(e, ctx)) }),
+    Seq: (ast): Expr => ({ type: "seq", exprs: ast.exprs.map((e) => resolve(e, ctx)) }),
+    Plus: (ast): Expr => ({ type: "plus", expr: resolve(ast.expr, ctx) }),
+    Star: (ast): Expr => ({ type: "star", expr: resolve(ast.expr, ctx) }),
+    Opt: (ast): Expr => ({ type: "opt", expr: resolve(ast.expr, ctx) }),
+    Range: (ast): Expr => {
       if (ast.min < 0 || (ast.max >= 0 && ast.max < ast.min) || !Number.isInteger(ast.min)) {
         fail(ctx, `Invalid repetition range {${ast.min},${ast.max}}`)
       }
       return { type: "range", min: ast.min, max: ast.max, expr: resolve(ast.expr, ctx) }
-  }
+    }
+  })
 }
 
 // The code below compiles a regular-expression-like language into a
@@ -630,59 +623,57 @@ function nfa(expr: Expr): Array<Array<Edge>> {
   }
 
   function compile(expr: Expr, from: number): Array<Edge> {
-    switch (expr.type) {
-      case "choice":
-        return expr.exprs.reduce((out, expr) => out.concat(compile(expr, from)), [] as Array<Edge>)
-      case "seq": {
-        if (expr.exprs.length === 0) return [edge(from)]
-        for (let i = 0; ; i++) {
-          const next = compile(expr.exprs[i]!, from)
-          if (i === expr.exprs.length - 1) return next
-          connect(next, (from = node()))
-        }
-      }
-      case "star": {
-        const loop = node()
-        edge(from, loop)
-        connect(compile(expr.expr, loop), loop)
-        return [edge(loop)]
-      }
-      case "plus": {
-        const loop = node()
-        connect(compile(expr.expr, from), loop)
-        connect(compile(expr.expr, loop), loop)
-        return [edge(loop)]
-      }
-      case "opt":
-        return [edge(from)].concat(compile(expr.expr, from))
-      case "range": {
-        let cur = from
-        for (let i = 0; i < expr.min; i++) {
-          const next = node()
-          connect(compile(expr.expr, cur), next)
-          cur = next
-        }
-        if (expr.max === -1) {
-          connect(compile(expr.expr, cur), cur)
-        } else {
-          for (let i = expr.min; i < expr.max; i++) {
+    return Match.value(expr).pipe(
+      Match.discriminatorsExhaustive("type")({
+        choice: (expr) => expr.exprs.reduce((out, expr) => out.concat(compile(expr, from)), [] as Array<Edge>),
+        seq: (expr) => {
+          if (Arr.isReadonlyArrayEmpty(expr.exprs)) return [edge(from)]
+          let cur = from
+          for (let i = 0; ; i++) {
+            const next = compile(expr.exprs[i]!, cur)
+            if (i === expr.exprs.length - 1) return next
+            connect(next, (cur = node()))
+          }
+        },
+        star: (expr) => {
+          const loop = node()
+          edge(from, loop)
+          connect(compile(expr.expr, loop), loop)
+          return [edge(loop)]
+        },
+        plus: (expr) => {
+          const loop = node()
+          connect(compile(expr.expr, from), loop)
+          connect(compile(expr.expr, loop), loop)
+          return [edge(loop)]
+        },
+        opt: (expr) => [edge(from)].concat(compile(expr.expr, from)),
+        range: (expr) => {
+          let cur = from
+          for (let i = 0; i < expr.min; i++) {
             const next = node()
-            edge(cur, next)
             connect(compile(expr.expr, cur), next)
             cur = next
           }
-        }
-        return [edge(cur)]
-      }
-      case "name":
-        return [edge(from, undefined, expr.value)]
-    }
+          if (expr.max === -1) {
+            connect(compile(expr.expr, cur), cur)
+          } else {
+            for (let i = expr.min; i < expr.max; i++) {
+              const next = node()
+              edge(cur, next)
+              connect(compile(expr.expr, cur), next)
+              cur = next
+            }
+          }
+          return [edge(cur)]
+        },
+        name: (expr) => [edge(from, undefined, expr.value)]
+      })
+    )
   }
 }
 
-function cmp(a: number, b: number) {
-  return b - a
-}
+const descending: Order.Order<number> = Order.flip(Order.Number)
 
 // Get the set of nodes reachable by null edges from `node`. Omit
 // nodes with only a single null-out-edge, since they may lead to
@@ -690,7 +681,7 @@ function cmp(a: number, b: number) {
 function nullFrom(nfa: Array<Array<Edge>>, node: number): ReadonlyArray<number> {
   const result: Array<number> = []
   scan(node)
-  return result.sort(cmp)
+  return Arr.sort(result, descending)
 
   function scan(node: number): void {
     const edges = nfa[node]!
@@ -725,7 +716,7 @@ function dfa(nfa: Array<Array<Edge>>): ContentMatch {
     })
     const state = (labeled[states.join(",")] = new ContentMatch(states.indexOf(nfa.length - 1) > -1))
     for (let i = 0; i < out.length; i++) {
-      const states = out[i]![1].sort(cmp)
+      const states = Arr.sort(out[i]![1], descending)
       state.next.push({ type: out[i]![0], next: labeled[states.join(",")] || explore(states) })
     }
     return state

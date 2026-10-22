@@ -612,7 +612,7 @@ export class ViewDesc {
           domSel.extend(headDOM.node, headDOM.offset)
         }
         domSelExtended = true
-      } catch (_) {
+      } catch {
         // In some cases with Chrome the selection is empty after calling
         // collapse, even when it should be valid. This appears to be a bug, but
         // it is difficult to isolate. If this happens fallback to the old path
@@ -1786,7 +1786,7 @@ class ViewTreeUpdater {
     if (
       !lastChild || // Empty textblock
       !(lastChild instanceof TextViewDesc) ||
-      /\n$/.test(textOf(lastChild.node)) ||
+      textOf(lastChild.node).endsWith("\n") ||
       (this.view.requiresGeckoHackNode && /\s$/.test(textOf(lastChild.node)))
     ) {
       // Avoid bugs in Safari's cursor drawing (#1165) and Chrome's mouse selection (#1152)

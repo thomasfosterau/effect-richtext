@@ -249,7 +249,10 @@ export function setBlockType(
 }
 
 function replaceNewlines(tr: Transform<any>, node: Node<any>, pos: number, mapFrom: number): void {
-  const linebreak = Option.getOrThrow(node.type.schema.linebreakReplacement) as NodeType<any, any>
+  // Only called when the schema has a linebreak replacement (`convertNewlines === true`).
+  const replacement = node.type.schema.linebreakReplacement
+  if (Option.isNone(replacement)) return
+  const linebreak = replacement.value as NodeType<any, any>
   node.forEach((child, offset) => {
     if (child.isText) {
       let m: RegExpExecArray | null

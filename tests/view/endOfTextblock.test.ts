@@ -1,5 +1,5 @@
 // Ported from prosemirror-view/test/webtest-endOfTextblock.ts (MIT, Marijn Haverbeke and others)
-import { assert, describe, it } from "@effect/vitest"
+import { describe, it } from "@effect/vitest"
 import { TextSelection } from "effect-richtext/state"
 import { a, doc, p, schema } from "effect-richtext/test-builder"
 import { Decoration, DecorationSet } from "effect-richtext/view"
@@ -54,20 +54,20 @@ describe("EditorView.endOfTextblock", () => {
   })
 
   it("works for vertical motion at the end of a wrapped block", () => {
-    const view = tempEditor({ doc: doc(p(new Array(100).join("foo ") + "<a>foo")) })
+    const view = tempEditor({ doc: doc(p("foo ".repeat(99) + "<a>foo")) })
     ist(!view.endOfTextblock("up"))
     ist(view.endOfTextblock("down"))
   })
 
   it("works for vertical motion at the start of a wrapped block", () => {
-    const view = tempEditor({ doc: doc(p("foo <a>" + new Array(100).join("foo "))) })
+    const view = tempEditor({ doc: doc(p("foo <a>" + "foo ".repeat(99))) })
     ist(view.endOfTextblock("up"))
     ist(!view.endOfTextblock("down"))
   })
 
   it("works for virtual motion when in a mark", () => {
     const view = tempEditor({
-      doc: doc(p(a("fo<a>o "), new Array(50).join("foo "), a("fo<b>o "), new Array(50).join("foo "), a("fo<c>o")))
+      doc: doc(p(a("fo<a>o "), "foo ".repeat(49), a("fo<b>o "), "foo ".repeat(49), a("fo<c>o")))
     })
     ist(view.endOfTextblock("up"))
     ist(!view.endOfTextblock("down"))

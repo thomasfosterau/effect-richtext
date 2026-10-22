@@ -1,6 +1,6 @@
 // Ported from prosemirror-commands/test/test-commands.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
-import { Effect, Option } from "effect"
+import * as Effect from "effect/Effect"
 import {
   autoJoin,
   createParagraphNear,
@@ -32,7 +32,6 @@ import {
   builders,
   doc,
   em,
-  eq,
   h1,
   hr,
   img,
@@ -46,8 +45,9 @@ import {
 } from "effect-richtext/test-builder"
 import ist from "../utils/ist.ts"
 import { apply, mkState, run } from "./apply.ts"
+import { getSome } from "../utils/option.ts"
 
-const storedMarkCount = (state: EditorState<any>) => Option.getOrThrow(state.storedMarks).length
+const storedMarkCount = (state: EditorState<any>) => getSome(state.storedMarks).length
 
 describe("joinBackward", () => {
   it("can join paragraphs", () => apply(doc(p("hi"), p("<a>there")), joinBackward, doc(p("hithere"))))

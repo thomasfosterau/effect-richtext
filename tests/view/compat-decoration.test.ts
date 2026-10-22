@@ -3,6 +3,9 @@
 // ../utils/ist.ts, ./view.js -> ./compat-view.ts, mocha describe/it ->
 // @effect/vitest; type-only imports marked as such) and dprint formatting
 import { describe, it } from "@effect/vitest"
+import * as Arr from "effect/Array"
+import * as Order from "effect/Order"
+import * as EffectSchema from "effect/Schema"
 import type { Node } from "effect-richtext/compat/model"
 import { Fragment, NodeRange, Schema, Slice } from "effect-richtext/compat/model"
 import { blockquote, builders, doc, h1, li, p, schema, ul } from "effect-richtext/compat/test-builder"
@@ -11,6 +14,8 @@ import { Decoration, DecorationSet } from "effect-richtext/compat/view"
 import ist from "../utils/ist.ts"
 
 const widget = document.createElement("button")
+
+const encodeStrings = EffectSchema.encodeSync(EffectSchema.fromJsonString(EffectSchema.Array(EffectSchema.String)))
 
 type DecoSpec =
   | Decoration
@@ -248,23 +253,24 @@ describe("DecorationSet", () => {
       const tr = new Transform(d).delete(2, 6),
         dropped: string[] = []
       set.map(tr.mapping, tr.doc, { onRemove: (o) => dropped.push(o.name) })
-      ist(JSON.stringify(dropped), '["a"]')
+      ist(encodeStrings(dropped), '["a"]')
       const tr2 = new Transform(d).delete(0, d.content.size),
         dropped2: string[] = []
       set.map(tr2.mapping, tr2.doc, { onRemove: (o) => dropped2.push(o.name) })
-      ist(JSON.stringify(dropped2.sort()), '["a","b"]')
+      ist(encodeStrings(Arr.sort(dropped2, Order.String)), '["a","b"]')
     })
 
     it("respects the side option on widgets", () => {
       const d = doc(p("foo"))
       const set = build(d, { pos: 3, side: -1, name: "a" }, { pos: 3, name: "b" })
       const tr = new Transform(d).replaceWith(3, 3, schema.text("ay"))
-      const result = set
-        .map(tr.mapping, tr.doc)
-        .find()
-        .map((d) => d.from + "-" + d.spec.name)
-        .sort()
-        .join(", ")
+      const result = Arr.sort(
+        set
+          .map(tr.mapping, tr.doc)
+          .find()
+          .map((d) => d.from + "-" + d.spec.name),
+        Order.String
+      ).join(", ")
       ist(result, "3-a, 5-b")
     })
 
@@ -375,7 +381,7 @@ describe("DecorationSet", () => {
         getMap() {
           return new StepMap(this.ranges)
         }
-        merge(other: MyStep) {
+        merge(_other: MyStep) {
           return null
         }
       }
@@ -420,8 +426,8 @@ describe("DecorationSet", () => {
       // a structure like a 5 rows 2 cols table
       const row = blockquote(blockquote(p("1111")), blockquote(p("2222")))
       const d = doc(blockquote(row, row, row, row, row))
-      let decorations: DecoSpec[] = [],
-        i = 0
+      const decorations: DecoSpec[] = []
+      let i = 0
       const tr = new Transform(d)
       d.descendants((node, pos) => {
         if (node.type.name === "paragraph") {

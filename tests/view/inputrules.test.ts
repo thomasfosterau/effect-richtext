@@ -1,7 +1,13 @@
 // Tests for effect-richtext/inputrules (prosemirror-inputrules has no
 // test suite of its own).
 import { assert, describe, it } from "@effect/vitest"
-import { Cause, Context, Data, Deferred, Effect, Layer, Option } from "effect"
+import * as Cause from "effect/Cause"
+import * as Context from "effect/Context"
+import * as Data from "effect/Data"
+import * as Deferred from "effect/Deferred"
+import * as Effect from "effect/Effect"
+import * as Layer from "effect/Layer"
+import * as Option from "effect/Option"
 import {
   type AppliedInputRule,
   ellipsis,
@@ -19,6 +25,7 @@ import { EditorState, type Plugin, TextSelection } from "effect-richtext/state"
 import { blockquote, code, doc, eq, h1, h2, li, ol, p, pre, schema, strong, ul } from "effect-richtext/test-builder"
 import { EditorView } from "effect-richtext/view"
 import ist from "../utils/ist.ts"
+import { getSome } from "../utils/option.ts"
 import { findTextNode, flush, selFor, tempEditor, workspace } from "./helpers.ts"
 
 class Counter extends Context.Service<Counter, { readonly step: number }>()("test/Counter") {}
@@ -223,7 +230,7 @@ describe("inputRules", () => {
     const view = tempEditor({ doc: doc(p("a<a>")), plugins: [plugin] })
     ist(Option.isNone(Option.flatten(plugin.getState(view.state))))
     type(view, "--")
-    const applied = Option.getOrThrow(Option.flatten(plugin.getState(view.state))) as AppliedInputRule
+    const applied = getSome(Option.flatten(plugin.getState(view.state))) as AppliedInputRule
     ist(applied.text, "-")
     ist(applied.from, 3)
   })

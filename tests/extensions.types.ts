@@ -2,7 +2,10 @@
 // `vp run check` type-checks this file (tsconfig.test.json), and every
 // `@ts-expect-error` directive is an assertion that the statement below it
 // must NOT compile.
-import { Context, Data, Effect, Schema } from "effect"
+import * as Context from "effect/Context"
+import * as Data from "effect/Data"
+import * as Effect from "effect/Effect"
+import * as Schema from "effect/Schema"
 import {
   createEditor,
   createEditorUnsafe,

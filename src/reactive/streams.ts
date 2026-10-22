@@ -104,7 +104,7 @@ export interface Source<Sc extends AnySchema, R, E> {
  *
  * @internal
  */
-export const makeRef = <A>(initial: A): Effect.Effect<SubscriptionRef.SubscriptionRef<A>, never, Scope.Scope> =>
+export const acquireRef = <A>(initial: A): Effect.Effect<SubscriptionRef.SubscriptionRef<A>, never, Scope.Scope> =>
   Effect.acquireRelease(SubscriptionRef.make(initial), (ref) => PubSub.shutdown(ref.pubsub))
 
 /**
@@ -126,11 +126,11 @@ export const setRefUnsafe = <A>(ref: SubscriptionRef.SubscriptionRef<A>, value: 
  *
  * @internal
  */
-export const makeSource = <Sc extends AnySchema, R, E>(
+export const acquireSource = <Sc extends AnySchema, R, E>(
   initial: EditorState<Sc, R, E>
 ): Effect.Effect<Source<Sc, R, E>, never, Scope.Scope> =>
   Effect.zipWith(
-    makeRef(initial),
+    acquireRef(initial),
     Effect.acquireRelease(PubSub.unbounded<TransactionEvent<Sc, R, E>>(), PubSub.shutdown),
     (ref, pubsub) => ({ ref, pubsub })
   )
@@ -164,7 +164,7 @@ export const publishTransactions = <Sc extends AnySchema, R, E>(
  *
  * @internal
  */
-export const makeStreams = <Sc extends AnySchema, R, E>(
+export const streamsOf = <Sc extends AnySchema, R, E>(
   source: Source<Sc, R, E>,
   view?: EditorViewLike
 ): EditorStreams<Sc, R, E> => {

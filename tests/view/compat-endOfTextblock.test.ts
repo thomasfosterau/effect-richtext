@@ -57,20 +57,20 @@ describe("EditorView.endOfTextblock", () => {
   })
 
   it("works for vertical motion at the end of a wrapped block", () => {
-    const view = tempEditor({ doc: doc(p(new Array(100).join("foo ") + "<a>foo")) })
+    const view = tempEditor({ doc: doc(p("foo ".repeat(99) + "<a>foo")) })
     ist(!view.endOfTextblock("up"))
     ist(view.endOfTextblock("down"))
   })
 
   it("works for vertical motion at the start of a wrapped block", () => {
-    const view = tempEditor({ doc: doc(p("foo <a>" + new Array(100).join("foo "))) })
+    const view = tempEditor({ doc: doc(p("foo <a>" + "foo ".repeat(99))) })
     ist(view.endOfTextblock("up"))
     ist(!view.endOfTextblock("down"))
   })
 
   it("works for virtual motion when in a mark", () => {
     const view = tempEditor({
-      doc: doc(p(a("fo<a>o "), new Array(50).join("foo "), a("fo<b>o "), new Array(50).join("foo "), a("fo<c>o")))
+      doc: doc(p(a("fo<a>o "), "foo ".repeat(49), a("fo<b>o "), "foo ".repeat(49), a("fo<c>o")))
     })
     ist(view.endOfTextblock("up"))
     ist(!view.endOfTextblock("down"))

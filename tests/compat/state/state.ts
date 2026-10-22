@@ -8,7 +8,7 @@ import { type Command, EditorState, NodeSelection, Selection, TextSelection } fr
 
 // Wrapper object to make writing state tests easier.
 
-export function selFor(doc: Node) {
+function selFor(doc: Node) {
   const a = (doc as any).tag.a
   if (a != null) {
     const $a = doc.resolve(a)

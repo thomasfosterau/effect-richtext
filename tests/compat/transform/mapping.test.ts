@@ -16,8 +16,8 @@ function testMapping(mapping: Mapping, ...cases: [number, number, number?, boole
 }
 
 function testDel(mapping: Mapping, pos: number, side: number, flags: string) {
-  let r = mapping.mapResult(pos, side),
-    found = ""
+  const r = mapping.mapResult(pos, side)
+  let found = ""
   if (r.deleted) found += "d"
   if (r.deletedBefore) found += "b"
   if (r.deletedAfter) found += "a"

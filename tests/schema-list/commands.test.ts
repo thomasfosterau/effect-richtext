@@ -1,6 +1,5 @@
 // Ported from prosemirror-schema-list/test/test-commands.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
-import { Option } from "effect"
 import {
   liftListItem,
   sinkListItem,
@@ -11,6 +10,7 @@ import {
 import { blockquote, doc, em, li, ol, p, schema, strong, ul } from "effect-richtext/test-builder"
 import { apply, mkState, run } from "../commands/apply.ts"
 import ist from "../utils/ist.ts"
+import { getSome } from "../utils/option.ts"
 
 describe("wrapInList", () => {
   const wrap = wrapInList(schema.nodes.bullet_list)
@@ -80,15 +80,15 @@ describe("splitListItemKeepMarks", () => {
   it("keeps the marks active at the cursor", () => {
     const state = run(mkState(doc(ul(li(p(em("foo<a>"), "bar"))))), split)
     ist(state.doc, doc(ul(li(p(em("foo"))), li(p("bar")))), (a, b) => a.eq(b))
-    ist(Option.getOrThrow(state.storedMarks).length, 1)
+    ist(getSome(state.storedMarks).length, 1)
   })
 
   it("keeps stored marks", () => {
     let state = mkState(doc(ul(li(p("foo<a>")))))
     state = state.applyUnsafe(state.tr.addStoredMark(schema.markUnsafe("strong")))
     state = run(state, split)
-    ist(Option.getOrThrow(state.storedMarks).length, 1)
-    ist(strong("x").flat[0]!.marks[0]!.eq(Option.getOrThrow(state.storedMarks)[0]!))
+    ist(getSome(state.storedMarks).length, 1)
+    ist(strong("x").flat[0]!.marks[0]!.eq(getSome(state.storedMarks)[0]!))
   })
 })
 

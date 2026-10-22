@@ -1,5 +1,5 @@
 import { describe, it } from "@effect/vitest"
-import { Option } from "effect"
+import * as Option from "effect/Option"
 import { keymap } from "effect-richtext/compat/keymap"
 import { toCore as modelToCore } from "effect-richtext/compat/model"
 import { EditorState, Plugin, toCore as stateToCore } from "effect-richtext/compat/state"

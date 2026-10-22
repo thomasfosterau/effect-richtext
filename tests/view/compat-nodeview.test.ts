@@ -134,32 +134,32 @@ describe("nodeViews prop", () => {
   })
 
   it("has its destroy method called", () => {
-    let destroyed = false,
-      view = tempEditor({
-        doc: doc(p("foo", br())),
-        nodeViews: {
-          hard_break() {
-            return { dom: document.createElement("br"), destroy: () => (destroyed = true) }
-          }
+    let destroyed = false
+    const view = tempEditor({
+      doc: doc(p("foo", br())),
+      nodeViews: {
+        hard_break() {
+          return { dom: document.createElement("br"), destroy: () => (destroyed = true) }
         }
-      })
+      }
+    })
     ist(!destroyed)
     view.dispatch(view.state.tr.delete(3, 5))
     ist(destroyed)
   })
 
   it("can query its own position", () => {
-    let get: () => number | undefined,
-      view = tempEditor({
-        doc: doc(blockquote(p("abc"), p("foo", br()))),
-        nodeViews: {
-          hard_break(_n, _v, getPos) {
-            ist(getPos(), 10)
-            get = getPos
-            return { dom: document.createElement("br") }
-          }
+    let get: () => number | undefined
+    const view = tempEditor({
+      doc: doc(blockquote(p("abc"), p("foo", br()))),
+      nodeViews: {
+        hard_break(_n, _v, getPos) {
+          ist(getPos(), 10)
+          get = getPos
+          return { dom: document.createElement("br") }
         }
-      })
+      }
+    })
     ist(get!(), 10)
     view.dispatch(view.state.tr.insertText("a"))
     ist(get!(), 11)

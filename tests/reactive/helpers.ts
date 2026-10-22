@@ -1,9 +1,9 @@
-import { Effect, type Fiber, Stream } from "effect"
+import * as Effect from "effect/Effect"
+import type * as Fiber from "effect/Fiber"
+import * as Stream from "effect/Stream"
 
 /** Let forked fibers run until they block. */
-export const settle: Effect.Effect<void> = Effect.gen(function* () {
-  for (let i = 0; i < 20; i++) yield* Effect.yieldNow
-})
+export const settle: Effect.Effect<void> = Effect.replicateEffect(Effect.yieldNow, 20, { discard: true })
 
 /**
  * Start collecting the first `n` elements of a stream (or all of them,

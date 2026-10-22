@@ -1,10 +1,13 @@
 // Ported from prosemirror-state/test/test-selection.ts (MIT, Marijn Haverbeke and others)
 import { assert, describe, it } from "@effect/vitest"
-import { Effect, Option, Schema } from "effect"
+import * as Effect from "effect/Effect"
+import * as Option from "effect/Option"
+import * as Schema from "effect/Schema"
 import { AllSelection, NodeSelection, Selection, SelectionFromJSON, TextSelection } from "effect-richtext/state"
 import { a, blockquote, br, doc, em, eq, hr, img, li, p, pre, schema, ul } from "effect-richtext/test-builder"
 import ist from "../utils/ist.ts"
 import { TestState } from "./state.ts"
+import { getSome } from "../utils/option.ts"
 
 describe("Selection", () => {
   it("should follow changes", () => {
@@ -71,13 +74,13 @@ describe("Selection", () => {
   it("preserves the marks of a deleted selection", () => {
     const state = new TestState({ doc: doc(p("foo", em("<a>bar<b>"), "baz")) })
     state.deleteSelection()
-    ist(Option.getOrThrow(state.state.storedMarks).length, 1)
+    ist(getSome(state.state.storedMarks).length, 1)
   })
 
   it("doesn't preserve non-inclusive marks of a deleted selection", () => {
     const state = new TestState({ doc: doc(p("foo", a(em("<a>bar<b>")), "baz")) })
     state.deleteSelection()
-    ist(Option.getOrThrow(state.state.storedMarks).length, 1)
+    ist(getSome(state.state.storedMarks).length, 1)
   })
 
   it("doesn't preserve marks when deleting a selection at the end of a block", () => {
@@ -90,7 +93,7 @@ describe("Selection", () => {
     const state = new TestState({ doc: doc(p("foo", a("ba", em("<a>r<b>")), "baz")) })
     state.deleteSelection()
     ist(
-      Option.getOrThrow(state.state.storedMarks)
+      getSome(state.state.storedMarks)
         .map((x) => x.type.name)
         .join(),
       "em"
@@ -100,7 +103,7 @@ describe("Selection", () => {
   it("keeps non-inclusive marks when still inside them", () => {
     const state = new TestState({ doc: doc(p("foo", a("b", em("<a>a<b>"), "r"), "baz")) })
     state.deleteSelection()
-    ist(Option.getOrThrow(state.state.storedMarks).length, 2)
+    ist(getSome(state.state.storedMarks).length, 2)
   })
 
   it("preserves marks when typing over marked text", () => {
@@ -201,7 +204,7 @@ describe("TextSelection.between", () => {
   it("will fall back to a node selection", () => {
     const d = doc(hr, "<a>")
     const s = TextSelection.between(d.resolveUnsafe(d.tag.a!), d.resolveUnsafe(d.tag.a!))
-    ist((s as NodeSelection).node, Option.getOrThrow(d.firstChild))
+    ist((s as NodeSelection).node, getSome(d.firstChild))
   })
 
   it("will collapse towards the other argument", () => {
@@ -218,7 +221,7 @@ describe("TextSelection.between", () => {
 describe("Selection (Effect API)", () => {
   it("finds selections with options", () => {
     const d = doc(p("foo"), hr(), p("bar"))
-    ist(Option.getOrThrow(Selection.findFrom(d.resolveUnsafe(0), 1)).from, 1)
+    ist(getSome(Selection.findFrom(d.resolveUnsafe(0), 1)).from, 1)
     ist(Option.isNone(Selection.findFrom(d.resolveUnsafe(0), -1)))
     ist(Option.isSome(Selection.findFrom(d.resolveUnsafe(5), 1, false)))
     ist(Selection.atEnd(d).from, 10)

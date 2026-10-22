@@ -1,7 +1,16 @@
 // Tests for the Effect-specific API of the view: scoped creation,
 // context capture, Effect-returning handlers and error reporting.
 import { assert, describe, it } from "@effect/vitest"
-import { Cause, Context, Data, Deferred, Effect, Exit, Layer, Option } from "effect"
+import * as Cause from "effect/Cause"
+import * as Context from "effect/Context"
+import * as Deferred from "effect/Deferred"
+import * as Effect from "effect/Effect"
+import * as Exit from "effect/Exit"
+import * as Layer from "effect/Layer"
+import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
+import * as Result from "effect/Result"
+import * as Schema from "effect/Schema"
 import { baseKeymap } from "effect-richtext/commands"
 import { history } from "effect-richtext/history"
 import { keymap } from "effect-richtext/keymap"
@@ -10,11 +19,12 @@ import { EditorState, Plugin, type Transaction } from "effect-richtext/state"
 import { doc, eq, p, schema } from "effect-richtext/test-builder"
 import { EditorView } from "effect-richtext/view"
 import ist from "../utils/ist.ts"
+import { getSome } from "../utils/option.ts"
 import { selFor, workspace } from "./helpers.ts"
 
 class Counter extends Context.Service<Counter, { readonly step: number }>()("test/Counter") {}
 
-class Boom extends Data.TaggedError("Boom")<{ readonly reason: string }> {}
+class Boom extends Schema.TaggedError<Boom>()("Boom", { reason: Schema.String }) {}
 
 // A plugin whose state hook requires a service.
 const stepCountPlugin = new Plugin({
@@ -25,7 +35,7 @@ const stepCountPlugin = new Plugin({
   }
 })
 
-const count = (state: EditorState<any, any, any>) => Option.getOrThrow(stepCountPlugin.getState(state))
+const count = (state: EditorState<any, any, any>) => getSome(stepCountPlugin.getState(state))
 
 const keyDown = (view: EditorView<any, any, any>, key: string, keyCode: number) => {
   const event = new KeyboardEvent("keydown", { key, keyCode, bubbles: true, cancelable: true } as KeyboardEventInit)
@@ -34,6 +44,9 @@ const keyDown = (view: EditorView<any, any, any>, key: string, keyCode: number) 
 }
 
 const startDoc = () => doc(p("foo<a>"))
+
+/** What `f` throws, or `undefined` when it returns normally. */
+const thrownBy = (f: () => unknown): unknown => Option.getOrUndefined(Result.getFailure(Result.try(f)))
 
 describe("EditorView (Effect API)", () => {
   it.effect("destroys the view when its scope closes", () =>
@@ -149,12 +162,7 @@ describe("EditorView (Effect API)", () => {
       ist(Exit.isFailure(exit))
       ist(errors.length, 2)
       // `dispatchUnsafe` throws it.
-      let thrown: unknown
-      try {
-        view.dispatchUnsafe(view.state.tr.setMeta("boom", true))
-      } catch (e) {
-        thrown = e
-      }
+      const thrown = thrownBy(() => view.dispatchUnsafe(view.state.tr.setMeta("boom", true)))
       ist((thrown as Boom).reason, "filter")
     }).pipe(Effect.scoped)
   )
@@ -184,34 +192,29 @@ describe("EditorView (Effect API)", () => {
     }).pipe(Effect.scoped)
   )
 
-  it("supports makeUnsafe with an explicit context", () => {
-    const d = startDoc()
-    const state = Effect.runSync(
-      EditorState.create({ doc: d, selection: selFor(d), plugins: [stepCountPlugin] }).pipe(
+  it.effect("supports makeUnsafe with an explicit context", () =>
+    Effect.gen(function* () {
+      const d = startDoc()
+      const state = yield* EditorState.create({ doc: d, selection: selFor(d), plugins: [stepCountPlugin] }).pipe(
         Effect.provideService(Counter, { step: 3 })
       )
-    )
-    const view = EditorView.makeUnsafe(workspace(), { state }, Context.make(Counter, { step: 3 }))
-    try {
-      view.dispatchUnsafe(view.state.tr.insertTextUnsafe("a"))
-      ist(count(view.state), 3)
-    } finally {
-      view.destroy()
-    }
-  })
+      const view = EditorView.makeUnsafe(workspace(), { state }, Context.make(Counter, { step: 3 }))
+      yield* Effect.sync(() => {
+        view.dispatchUnsafe(view.state.tr.insertTextUnsafe("a"))
+        ist(count(view.state), 3)
+      }).pipe(Effect.ensuring(Effect.sync(() => view.destroy())))
+    })
+  )
 
   it("rejects direct plugins with state", () => {
     const d = startDoc()
     const state = EditorState.createUnsafe({ doc: d, schema })
-    let thrown: unknown
-    try {
+    const thrown = thrownBy(() =>
       EditorView.makeUnsafe(workspace(), {
         state,
         plugins: [new Plugin({ state: { init: () => 0, apply: (_tr: Transaction<AnySchema>, v: number) => v } })]
       })
-    } catch (e) {
-      thrown = e
-    }
-    ist(thrown instanceof Error)
+    )
+    ist(Predicate.isError(thrown))
   })
 })

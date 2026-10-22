@@ -1,6 +1,5 @@
 // Ported from prosemirror-view/test/webtest-selection.ts (MIT, Marijn Haverbeke and others)
-import { assert, describe, it } from "@effect/vitest"
-import { Option } from "effect"
+import { describe, it } from "@effect/vitest"
 import type { Node as PMNode } from "effect-richtext/model"
 import { NodeSelection, Selection } from "effect-richtext/state"
 import {
@@ -20,6 +19,7 @@ import {
 import type { EditorView } from "effect-richtext/view"
 import { Decoration, DecorationSet } from "effect-richtext/view"
 import ist from "../utils/ist.ts"
+import { getSome } from "../utils/option.ts"
 import { findTextNode, flush, tempEditor, workspace } from "./helpers.ts"
 
 const img = img_({
@@ -185,7 +185,7 @@ describe("EditorView", () => {
       setTimeout(() => {
         allPositions(view.state.doc).forEach((pos) => {
           const coords = view.coordsAtPos(pos)
-          const found = Option.getOrThrow(view.posAtCoords({ top: coords.top + 1, left: coords.left })).pos
+          const found = getSome(view.posAtCoords({ top: coords.top + 1, left: coords.left })).pos
           ist(found, pos)
           setSel(view, pos)
         })
@@ -233,7 +233,7 @@ describe("EditorView", () => {
         ist(prevAfter.top < coords.top || (prevAfter.top == coords.top && prevAfter.left < coords.left))
       }
       prevAfter = coords
-      const found = Option.getOrThrow(view.posAtCoords({ top: coords.top + 1, left: coords.left })).pos
+      const found = getSome(view.posAtCoords({ top: coords.top + 1, left: coords.left })).pos
       ist(found, pos)
       const coordsBefore = view.coordsAtPos(pos, -1)
       if (prevBefore) {
@@ -276,15 +276,15 @@ describe("EditorView", () => {
     const view = tempEditor({ doc: doc(p("one"), blockquote(p("two"), p("three"))) })
     ;[1, 2, 4, 7, 14, 15].forEach((pos) => {
       const coords = view.coordsAtPos(pos)
-      const found = Option.getOrThrow(view.posAtCoords({ top: coords.top + 1, left: coords.left })).pos
+      const found = getSome(view.posAtCoords({ top: coords.top + 1, left: coords.left })).pos
       ist(found, pos)
     })
   })
 
   it("returns correct screen coordinates for wrapped lines", () => {
     const view = tempEditor({})
-    let top = view.coordsAtPos(1),
-      pos = 1,
+    const top = view.coordsAtPos(1)
+    let pos = 1,
       end: { left: number; top: number; right: number; bottom: number } | undefined
     for (let i = 0; i < 100; i++) {
       view.dispatchUnsafe(view.state.tr.insertTextUnsafe("a bc de fg h"))
@@ -292,7 +292,7 @@ describe("EditorView", () => {
       end = view.coordsAtPos(pos)!
       if (end.bottom > top.bottom + 4) break
     }
-    ist(Option.getOrThrow(view.posAtCoords({ left: end!.left + 50, top: end!.top + 5 })).pos, pos)
+    ist(getSome(view.posAtCoords({ left: end!.left + 50, top: end!.top + 5 })).pos, pos)
   })
 
   it("makes arrow motion go through selectable inline nodes", () => {

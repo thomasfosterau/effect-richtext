@@ -1,7 +1,10 @@
 // Browser tests for effect-richtext/extensions: mounting editors and
 // keyboard handling through extension keymaps.
 import { assert, describe, it } from "@effect/vitest"
-import { Context, Effect, Layer, Option } from "effect"
+import * as Context from "effect/Context"
+import * as Effect from "effect/Effect"
+import * as Layer from "effect/Layer"
+import * as Option from "effect/Option"
 import {
   createEditor,
   createEditorUnsafe,
@@ -14,6 +17,7 @@ import {
 } from "effect-richtext/extensions"
 import { type Command, Plugin, TextSelection, type Transaction } from "effect-richtext/state"
 import ist from "../utils/ist.ts"
+import { getSome } from "../utils/option.ts"
 import { workspace } from "./helpers.ts"
 
 const mac = typeof navigator !== "undefined" && /Mac|iP(hone|[oa]d)/.test(navigator.platform)
@@ -38,7 +42,7 @@ describe("Editor (view)", () => {
       yield* Effect.scoped(
         Effect.gen(function* () {
           yield* editor.mount(place)
-          const view = Option.getOrThrow(editor.view)
+          const view = getSome(editor.view)
           ist(view.dom.parentNode, place)
           ist(view.dom.innerHTML, "<p>hello</p>")
           // Commands go through the view.
@@ -61,18 +65,18 @@ describe("Editor (view)", () => {
     Effect.gen(function* () {
       const editor = createEditorUnsafe(defineBasicExtension(), { doc: "<p>a</p>" })
       yield* editor.mount(workspace())
-      const first = Option.getOrThrow(editor.view)
+      const first = getSome(editor.view)
       yield* editor.unmount
       ist(first.isDestroyed)
       ist(Option.isNone(editor.view))
       yield* editor.commands.insertText("b", 2)
       yield* editor.mount(workspace())
-      const second = Option.getOrThrow(editor.view)
+      const second = getSome(editor.view)
       ist(second.dom.innerHTML, "<p>ab</p>")
       // Mounting again replaces the current view.
       yield* editor.mount(workspace())
       ist(second.isDestroyed)
-      ist(Option.getOrThrow(editor.view).dom.innerHTML, "<p>ab</p>")
+      ist(getSome(editor.view).dom.innerHTML, "<p>ab</p>")
     }).pipe(Effect.scoped)
   )
 
@@ -84,11 +88,11 @@ describe("Editor (view)", () => {
         attributes: { "data-test": "yes" },
         dispatchTransaction: (tr) => {
           seen.push(tr)
-          const view = Option.getOrThrow(editor.view)
+          const view = getSome(editor.view)
           view.updateState(view.state.applyUnsafe(tr))
         }
       })
-      const view = Option.getOrThrow(editor.view)
+      const view = getSome(editor.view)
       ist(view.dom.getAttribute("data-test"), "yes")
       yield* editor.commands.insertText("b", 2)
       ist(seen.length, 1)
@@ -100,7 +104,7 @@ describe("Editor (view)", () => {
     Effect.gen(function* () {
       const editor = createEditorUnsafe(defineBasicExtension(), { doc: "<p>foobar</p>" })
       yield* editor.mount(workspace())
-      const view = Option.getOrThrow(editor.view)
+      const view = getSome(editor.view)
       yield* editor.dispatch(editor.state.tr.setSelectionUnsafe(TextSelection.createUnsafe(editor.state.doc, 4)))
       // Enter: base keymap (splitBlock)
       ist(keyDown(view.dom, "Enter", 13).defaultPrevented)
@@ -124,7 +128,7 @@ describe("Editor (view)", () => {
         selection: atEnd
       })
       yield* editor.mount(workspace())
-      const view = Option.getOrThrow(editor.view)
+      const view = getSome(editor.view)
       ist(keyDown(view.dom, "Enter", 13).defaultPrevented)
       ist(editor.state.doc.toString(), `doc(bullet_list(list_item(paragraph("one")), list_item(paragraph)))`)
     }).pipe(Effect.scoped)
@@ -150,7 +154,7 @@ describe("Editor (view)", () => {
         { doc: "<p>ab</p>", selection: atEnd }
       )
       yield* editor.mount(workspace())
-      const view = Option.getOrThrow(editor.view)
+      const view = getSome(editor.view)
       ist(keyDown(view.dom, "Enter", 13).defaultPrevented)
       // The base keymap (low) handles Enter before the lowest keymap.
       assert.deepStrictEqual(log, ["high", "default"])
@@ -168,10 +172,10 @@ describe("Editor (view)", () => {
       })
       const editor = yield* createEditor(union(defineBasicExtension(), definePlugin(ticks)), { doc: "<p>x</p>" })
       yield* editor.mount(workspace())
-      const view = Option.getOrThrow(editor.view)
+      const view = getSome(editor.view)
       yield* editor.dispatch(editor.state.tr.setSelectionUnsafe(TextSelection.createUnsafe(editor.state.doc, 2)))
       ist(keyDown(view.dom, "Enter", 13).defaultPrevented)
-      ist(Option.getOrThrow(ticks.getState(editor.state)), 6)
+      ist(getSome(ticks.getState(editor.state)), 6)
     }).pipe(Effect.scoped, Effect.provide(Layer.succeed(Tick, { by: 3 })))
   )
 })

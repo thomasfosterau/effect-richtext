@@ -1,6 +1,10 @@
 // Ported from prosemirror-model/test/test-node.ts (MIT, Marijn Haverbeke and others)
 import { assert, describe, it } from "@effect/vitest"
-import { Effect, Equal, Hash, Option, Schema } from "effect"
+import * as Effect from "effect/Effect"
+import * as Equal from "effect/Equal"
+import * as Hash from "effect/Hash"
+import * as Option from "effect/Option"
+import * as Schema from "effect/Schema"
 import { Content, DocFromJSON, DocSchema, Fragment, type Node, NodeFromJSON } from "effect-richtext/model"
 import {
   a,
@@ -20,6 +24,7 @@ import {
   ul
 } from "effect-richtext/test-builder"
 import ist from "../utils/ist.ts"
+import { getSome } from "../utils/option.ts"
 
 const customSchema = DocSchema.makeUnsafe({
   nodes: {
@@ -372,7 +377,7 @@ describe("Node", () => {
     it("returns Options for absent children", () => {
       const d = doc(p("a"), hr())
       assert.isTrue(Option.isSome(d.firstChild))
-      assert.strictEqual(Option.getOrThrow(d.lastChild).type.name, "horizontal_rule")
+      assert.strictEqual(getSome(d.lastChild).type.name, "horizontal_rule")
       assert.isTrue(Option.isNone(hr().firstChild))
       assert.isTrue(Option.isNone(d.maybeChild(2)))
       assert.isTrue(Option.isNone(d.nodeAt(100)))

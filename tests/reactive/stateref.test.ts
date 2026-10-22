@@ -1,5 +1,13 @@
 import { assert, describe, it } from "@effect/vitest"
-import { Context, Data, Effect, Exit, Fiber, Layer, Option, Scope, Stream } from "effect"
+import * as Context from "effect/Context"
+import * as Data from "effect/Data"
+import * as Effect from "effect/Effect"
+import * as Exit from "effect/Exit"
+import * as Fiber from "effect/Fiber"
+import * as Layer from "effect/Layer"
+import * as Option from "effect/Option"
+import * as Scope from "effect/Scope"
+import * as Stream from "effect/Stream"
 import { lift, toggleMark, wrapIn } from "effect-richtext/commands"
 import type { AnySchema, Node } from "effect-richtext/model"
 import { StateRef } from "effect-richtext/reactive"
@@ -8,6 +16,7 @@ import { blockquote, doc, eq, h1, p, schema, strong } from "effect-richtext/test
 import { selFor } from "../state/state.ts"
 import ist from "../utils/ist.ts"
 import { collect } from "./helpers.ts"
+import { getSome } from "../utils/option.ts"
 
 const stateFor = (d: Node<any>, plugins?: ReadonlyArray<Plugin<any, any, any, never>>) =>
   EditorState.createUnsafe({ doc: d, selection: selFor(d), plugins })
@@ -37,7 +46,7 @@ describe("StateRef", () => {
       ist((yield* ref.state.get).doc, doc(p("foo!?")), eq)
       // Late subscribers get the current state.
       const late = yield* Stream.runHead(ref.state.changes)
-      ist(Option.getOrThrow(late).doc, doc(p("foo!?")), eq)
+      ist(getSome(late).doc, doc(p("foo!?")), eq)
     }).pipe(Effect.scoped)
   )
 
@@ -165,7 +174,7 @@ describe("StateRef", () => {
       const dispatch: Effect.Effect<void, unknown, never> = ref.dispatch(ref.state.getUnsafe().tr.insertTextUnsafe("b"))
       yield* dispatch
       ref.dispatchUnsafe(ref.state.getUnsafe().tr.insertTextUnsafe("c"))
-      ist(Option.getOrThrow(countPlugin.getState(ref.state.getUnsafe())), 6)
+      ist(getSome(countPlugin.getState(ref.state.getUnsafe())), 6)
     }).pipe(Effect.scoped, Effect.provide(Layer.succeed(Step, { step: 3 })))
   )
 

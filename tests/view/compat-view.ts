@@ -62,6 +62,6 @@ export function requireFocus(pm: EditorView) {
 }
 
 export function flush(view: EditorView) {
-  // @ts-ignore: view.domObserver is an internal API
-  view.domObserver.flush()
+  // `domObserver` is an internal API the facade's public type does not declare.
+  ;(view as EditorView & { readonly domObserver: { flush(): void } }).domObserver.flush()
 }

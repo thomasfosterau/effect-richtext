@@ -1,6 +1,8 @@
 // Ported from prosemirror-transform/test/test-step.ts (MIT, Marijn Haverbeke and others)
 import { assert, describe, it } from "@effect/vitest"
-import { Effect, Option, Schema } from "effect"
+import * as Effect from "effect/Effect"
+import * as Option from "effect/Option"
+import * as Schema from "effect/Schema"
 import { Fragment, Slice } from "effect-richtext/model"
 import { doc, eq, p, schema } from "effect-richtext/test-builder"
 import {
@@ -13,6 +15,7 @@ import {
   Transform
 } from "effect-richtext/transform"
 import ist from "../utils/ist.ts"
+import { getSome } from "../utils/option.ts"
 
 const testDoc = doc(p("foobar"))
 
@@ -32,11 +35,7 @@ describe("Step", () => {
           step2 = mkStep(from2, to2, val2)
         const merged = step1.merge(step2)
         ist(Option.isSome(merged))
-        ist(
-          Option.getOrThrow(merged).apply(testDoc).getUnsafe(),
-          step2.apply(step1.apply(testDoc).getUnsafe()).getUnsafe(),
-          eq
-        )
+        ist(getSome(merged).apply(testDoc).getUnsafe(), step2.apply(step1.apply(testDoc).getUnsafe()).getUnsafe(), eq)
       }
     }
     function no(from1: number, to1: number, val1: string | null, from2: number, to2: number, val2: string | null) {

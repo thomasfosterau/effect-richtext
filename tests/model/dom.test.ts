@@ -1,7 +1,8 @@
 // Ported from prosemirror-model/test/test-dom.ts
 // (MIT licensed, copyright Marijn Haverbeke and others).
 import { assert, describe, it } from "@effect/vitest"
-import { Effect, Option } from "effect"
+import * as Effect from "effect/Effect"
+import * as Option from "effect/Option"
 import {
   Content,
   DocSchema,
@@ -37,6 +38,7 @@ import {
   ul
 } from "effect-richtext/test-builder"
 import ist from "../utils/ist.ts"
+import { getSome } from "../utils/option.ts"
 
 const xmlDocument = document.implementation.createDocument(null, "tag", null)
 
@@ -962,16 +964,16 @@ describe("DOMParser", () => {
       const em = document.createElement("em")
       const rule = parser.matchTag(em)
       assert.isTrue(Option.isSome(rule))
-      assert.strictEqual(Option.getOrThrow(rule).mark, "em")
+      assert.strictEqual(getSome(rule).mark, "em")
       assert.isTrue(Option.isNone(parser.matchTag(document.createElement("u"))))
-      assert.strictEqual(Option.getOrThrow(parser.matchStyle("font-weight", "bold")).mark, "strong")
+      assert.strictEqual(getSome(parser.matchStyle("font-weight", "bold")).mark, "strong")
       assert.isTrue(Option.isNone(parser.matchStyle("font-weight", "100")))
     })
 
     it("does not mutate rules when computing attributes", () => {
       const img = document.createElement("img")
       img.setAttribute("src", "x.png")
-      const rule = Option.getOrThrow(parser.matchTag(img))
+      const rule = getSome(parser.matchTag(img))
       assert.strictEqual(rule.attrs?.src, "x.png")
       assert.isTrue(parser.tags.every((r) => r.attrs === undefined || r.tag !== "img[src]"))
     })
@@ -1060,7 +1062,7 @@ describe("DOMSerializer", () => {
 
     it("serializeMark returns an option", () => {
       assert.isTrue(Option.isNone(noEm.serializeMark(schema.marks.em.createUnsafe(), true, { document })))
-      const strongDOM = Option.getOrThrow(serializer.serializeMark(schema.marks.strong.createUnsafe(), true))
+      const strongDOM = getSome(serializer.serializeMark(schema.marks.strong.createUnsafe(), true))
       assert.strictEqual(strongDOM.dom.nodeName, "STRONG")
       assert.strictEqual(strongDOM.contentDOM, strongDOM.dom)
     })

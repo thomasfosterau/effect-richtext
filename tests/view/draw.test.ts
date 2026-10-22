@@ -1,5 +1,5 @@
 // Ported from prosemirror-view/test/webtest-draw.ts (MIT, Marijn Haverbeke and others)
-import { assert, describe, it } from "@effect/vitest"
+import { describe, it } from "@effect/vitest"
 import { DocSchema } from "effect-richtext/model"
 import { Plugin } from "effect-richtext/state"
 import { doc, h1, hr, p, pre, schema, strong } from "effect-richtext/test-builder"
@@ -189,8 +189,8 @@ describe("EditorView draw", () => {
       newParagraphs.push(s.nodeUnsafe("paragraph", null, [s.textUnsafe("para " + i)], [s.markUnsafe("m")]))
     }
     view.dispatchUnsafe(view.state.tr.replaceWithUnsafe(0, 8, newParagraphs))
-    let currentChildren = Array.from(view.dom.querySelectorAll("p")),
-      sameAtEnd = 0
+    const currentChildren = Array.from(view.dom.querySelectorAll("p"))
+    let sameAtEnd = 0
     while (
       sameAtEnd < currentChildren.length &&
       sameAtEnd < initialChildren.length &&

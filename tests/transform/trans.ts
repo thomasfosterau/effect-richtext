@@ -1,5 +1,5 @@
 // Ported from prosemirror-transform/test/trans.ts (MIT, Marijn Haverbeke and others)
-import { Schema } from "effect"
+import * as Schema from "effect/Schema"
 import type { Node } from "effect-richtext/model"
 import { eq } from "effect-richtext/test-builder"
 import { Mapping, Step, StepFromJSON, Transform } from "effect-richtext/transform"

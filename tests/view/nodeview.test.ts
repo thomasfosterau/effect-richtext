@@ -1,6 +1,6 @@
 // Ported from prosemirror-view/test/webtest-nodeview.ts (MIT, Marijn Haverbeke and others)
-import { assert, describe, it } from "@effect/vitest"
-import { Option } from "effect"
+import { describe, it } from "@effect/vitest"
+import * as Option from "effect/Option"
 import { Plugin } from "effect-richtext/state"
 import { blockquote, br, doc, p } from "effect-richtext/test-builder"
 import { Decoration, DecorationSet, type ViewMutationRecord } from "effect-richtext/view"
@@ -132,32 +132,32 @@ describe("nodeViews prop", () => {
   })
 
   it("has its destroy method called", () => {
-    let destroyed = false,
-      view = tempEditor({
-        doc: doc(p("foo", br())),
-        nodeViews: {
-          hard_break() {
-            return { dom: document.createElement("br"), destroy: () => (destroyed = true) }
-          }
+    let destroyed = false
+    const view = tempEditor({
+      doc: doc(p("foo", br())),
+      nodeViews: {
+        hard_break() {
+          return { dom: document.createElement("br"), destroy: () => (destroyed = true) }
         }
-      })
+      }
+    })
     ist(!destroyed)
     view.dispatchUnsafe(view.state.tr.deleteUnsafe(3, 5))
     ist(destroyed)
   })
 
   it("can query its own position", () => {
-    let get: () => number | undefined,
-      view = tempEditor({
-        doc: doc(blockquote(p("abc"), p("foo", br()))),
-        nodeViews: {
-          hard_break(_n, _v, getPos) {
-            ist(getPos(), 10)
-            get = getPos
-            return { dom: document.createElement("br") }
-          }
+    let get: () => number | undefined
+    const view = tempEditor({
+      doc: doc(blockquote(p("abc"), p("foo", br()))),
+      nodeViews: {
+        hard_break(_n, _v, getPos) {
+          ist(getPos(), 10)
+          get = getPos
+          return { dom: document.createElement("br") }
         }
-      })
+      }
+    })
     ist(get!(), 10)
     view.dispatchUnsafe(view.state.tr.insertTextUnsafe("a"))
     ist(get!(), 11)

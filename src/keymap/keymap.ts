@@ -6,15 +6,17 @@
  *
  * @since 0.1.0
  */
+import * as Arr from "effect/Array"
 import * as Effect from "effect/Effect"
+import * as Predicate from "effect/Predicate"
 import * as Schema from "effect/Schema"
 import { base, keyName } from "w3c-keyname"
 import type { AnySchema } from "../model.ts"
 import { type Command, Plugin } from "../state.ts"
 import type { EditorView } from "../view/view.ts"
 
-const mac = typeof navigator !== "undefined" && /Mac|iP(hone|[oa]d)/.test(navigator.platform)
-const windows = typeof navigator !== "undefined" && /Win/.test(navigator.platform)
+const mac = !Predicate.isUndefined(globalThis.navigator) && /Mac|iP(hone|[oa]d)/.test(navigator.platform)
+const windows = !Predicate.isUndefined(globalThis.navigator) && /Win/.test(navigator.platform)
 
 /**
  * An invalid keymap: a key name with an unrecognized modifier, or two
@@ -236,7 +238,7 @@ export const keydownHandler = <const B extends Bindings>(
   return (view, event) =>
     Effect.suspend(() => {
       const candidates = matchBindings(map, event)
-      if (candidates.length === 0) return succeedFalse
+      if (Arr.isArrayEmpty(candidates)) return succeedFalse
       const loop = (i: number): Effect.Effect<boolean, any, any> =>
         i === candidates.length
           ? succeedFalse

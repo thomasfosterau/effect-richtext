@@ -1,8 +1,10 @@
 // Ported from prosemirror-model/test/test-resolve.ts (MIT, Marijn Haverbeke and others)
 import { assert, describe, it } from "@effect/vitest"
-import { Effect, Option } from "effect"
+import * as Effect from "effect/Effect"
+import * as Option from "effect/Option"
 import { blockquote, doc, em, p } from "effect-richtext/test-builder"
 import ist from "../utils/ist.ts"
+import { getSome } from "../utils/option.ts"
 
 const testDoc = doc(p("ab"), blockquote(p(em("cd"), "ef")))
 const _doc = { node: testDoc, start: 0, end: 12 }
@@ -106,13 +108,13 @@ describe("Node", () => {
     })
 
     it("computes block ranges", () => {
-      const range = Option.getOrThrow(testDoc.resolveUnsafe(7).blockRange(testDoc.resolveUnsafe(9)))
+      const range = getSome(testDoc.resolveUnsafe(7).blockRange(testDoc.resolveUnsafe(9)))
       assert.strictEqual(range.depth, 1)
       assert.strictEqual(range.start, 5)
       assert.strictEqual(range.end, 11)
       assert.strictEqual(range.startIndex, 0)
       assert.strictEqual(range.endIndex, 1)
-      const top = Option.getOrThrow(testDoc.resolveUnsafe(2).blockRange(testDoc.resolveUnsafe(7)))
+      const top = getSome(testDoc.resolveUnsafe(2).blockRange(testDoc.resolveUnsafe(7)))
       assert.strictEqual(top.depth, 0)
       assert.strictEqual(top.start, 0)
       assert.strictEqual(top.end, 12)

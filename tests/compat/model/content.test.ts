@@ -13,8 +13,8 @@ function get(expr: string) {
 }
 
 function match(expr: string, types: string) {
-  let m = get(expr),
-    ts = types ? types.split(" ").map((t) => schema.nodes[t]) : []
+  const ts = types ? types.split(" ").map((t) => schema.nodes[t]) : []
+  let m = get(expr)
   for (let i = 0; m && i < ts.length; i++) m = m.matchType(ts[i])!
   return m && m.validEnd
 }

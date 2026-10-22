@@ -45,15 +45,17 @@ export function tempEditor(inProps: TempEditorProps = {}): EditorView<any> {
     tempView = null
   }
 
-  const props: any = {}
-  for (const n in inProps) if (n != "plugins") props[n] = (inProps as any)[n]
-  props.state = EditorState.createUnsafe({
+  const { plugins, ...rest } = inProps
+  const state = EditorState.createUnsafe({
     doc: inProps.doc,
     schema,
     selection: inProps.doc && selFor(inProps.doc),
-    plugins: inProps && inProps.plugins
+    plugins
   })
-  return (tempView = EditorView.makeUnsafe(space, props as DirectEditorProps<any>))
+  // The fixtures' plugins declare no failures the view could surface, so the
+  // state's error channel is narrowed to the view's default (`never`).
+  const props: DirectEditorProps<any> = { ...rest, state: state as EditorState<any> }
+  return (tempView = EditorView.makeUnsafe(space, props))
 }
 
 export function findTextNode(node: Node, text: string): Text | undefined {

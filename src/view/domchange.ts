@@ -4,6 +4,7 @@
  *
  * @internal
  */
+import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
 import {
   DOMParser,
@@ -29,7 +30,9 @@ type AnyView = EditorView<any, any, any>
 // readDOMChange.
 
 function parseBetween(view: AnyView, from_: number, to_: number) {
-  let { from, fromOffset, node: parent, to, toOffset } = view.docView.parseRange(from_, to_)
+  const range = view.docView.parseRange(from_, to_)
+  const { from, fromOffset, node: parent, to } = range
+  let toOffset = range.toOffset
 
   const domSel = view.domSelectionRange()
   let find: Array<DOMPosition> | undefined
@@ -397,11 +400,11 @@ function isMarkChange(
     update
   for (let i = 0; i < prevMarks.length; i++) added = prevMarks[i]!.removeFromSet(added)
   for (let i = 0; i < curMarks.length; i++) removed = curMarks[i]!.removeFromSet(removed)
-  if (added.length == 1 && removed.length == 0) {
+  if (added.length == 1 && Arr.isReadonlyArrayEmpty(removed)) {
     mark = added[0]!
     type = "add"
     update = (node: Node<any, any>) => node.mark(mark!.addToSet(node.marks))
-  } else if (added.length == 0 && removed.length == 1) {
+  } else if (Arr.isReadonlyArrayEmpty(added) && removed.length == 1) {
     mark = removed[0]!
     type = "remove"
     update = (node: Node<any, any>) => node.mark(mark!.removeFromSet(node.marks))
@@ -479,7 +482,10 @@ function findDiff(
 ) {
   let start = Option.getOrNull(a.findDiffStart(b, pos))
   if (start == null) return null
-  let { a: endA, b: endB } = Option.getOrThrow(a.findDiffEnd(b, pos + a.size, pos + b.size))
+  // findDiffEnd is None exactly when findDiffStart is (identical fragments)
+  const diffEnd = Option.getOrNull(a.findDiffEnd(b, pos + a.size, pos + b.size))
+  if (diffEnd == null) return null
+  let { a: endA, b: endB } = diffEnd
   if (preferredSide == "end") {
     const adjust = Math.max(0, start - Math.min(endA, endB))
     preferredPos -= endA + adjust - start

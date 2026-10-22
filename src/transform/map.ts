@@ -4,6 +4,9 @@
  * @since 0.1.0
  */
 import * as Option from "effect/Option"
+import * as S from "effect/Schema"
+
+const encodeRanges = S.encodeSync(S.fromJsonString(S.Array(S.Number)))
 
 /**
  * There are several things that positions can be mapped through.
@@ -208,7 +211,7 @@ export class StepMap implements Mappable {
 
   /** @internal */
   toString(): string {
-    return (this.inverted ? "-" : "") + JSON.stringify(this.ranges)
+    return (this.inverted ? "-" : "") + encodeRanges(this.ranges)
   }
 
   /**

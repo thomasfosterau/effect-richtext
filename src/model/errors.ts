@@ -8,6 +8,8 @@
  *
  * @since 0.1.0
  */
+import * as HashSet from "effect/HashSet"
+import * as Predicate from "effect/Predicate"
 import * as Schema from "effect/Schema"
 
 /**
@@ -101,7 +103,7 @@ export type ModelError =
   | JSONError
   | DOMSpecError
 
-const modelErrorTags: ReadonlySet<string> = new Set([
+const modelErrorTags: HashSet.HashSet<string> = HashSet.make(
   "PositionError",
   "ReplaceError",
   "ContentError",
@@ -109,11 +111,11 @@ const modelErrorTags: ReadonlySet<string> = new Set([
   "SchemaDefinitionError",
   "JSONError",
   "DOMSpecError"
-])
+)
 
 /**
  * @since 0.1.0
  * @category guards
  */
 export const isModelError = (u: unknown): u is ModelError =>
-  typeof u === "object" && u !== null && modelErrorTags.has((u as { _tag?: unknown })._tag as string)
+  Predicate.isObjectOrArray(u) && HashSet.has(modelErrorTags, (u as { _tag?: unknown })._tag as string)

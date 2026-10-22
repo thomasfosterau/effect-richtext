@@ -1,12 +1,14 @@
 // Ported from prosemirror-history/test/test-history.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
-import { Effect, Option } from "effect"
+import * as Effect from "effect/Effect"
+import * as Option from "effect/Option"
 import { closeHistory, history, type HistoryCommand, redo, redoDepth, undo, undoDepth } from "effect-richtext/history"
 import { Fragment, type Node, Slice } from "effect-richtext/model"
 import { EditorState, Plugin, TextSelection } from "effect-richtext/state"
 import { doc, eq, p, schema } from "effect-richtext/test-builder"
 import { ReplaceStep } from "effect-richtext/transform"
 import ist from "../utils/ist.ts"
+import { getSome } from "../utils/option.ts"
 
 type State = EditorState<typeof schema, never, any>
 
@@ -29,7 +31,7 @@ function command(state: State, command: HistoryCommand): State {
 function compress(state: State) {
   // NOTE: This is mutating stuff that shouldn't be mutated. Not safe
   // to do outside of these tests.
-  const hist = Option.getOrThrow(plugin.getState(state)) as any
+  const hist = getSome(plugin.getState(state)) as any
   hist.done = hist.done.compress()
 }
 
@@ -388,7 +390,7 @@ describe("history", () => {
     const tr = state.tr
     tr.stepUnsafe(rightStep.invert(baseDoc))
     tr.stepUnsafe(leftStep)
-    tr.stepUnsafe(Option.getOrThrow(rightStep.map(tr.mapping.slice(1))))
+    tr.stepUnsafe(getSome(rightStep.map(tr.mapping.slice(1))))
     tr.mapping.setMirror(0, tr.steps.length - 1)
     tr.setMeta("addToHistory", false)
     tr.setMeta("rebased", 1)

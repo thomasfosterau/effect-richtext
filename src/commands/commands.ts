@@ -5,8 +5,11 @@
  *
  * @since 0.1.0
  */
+import * as Arr from "effect/Array"
 import * as Effect from "effect/Effect"
+import * as Num from "effect/Number"
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import {
   type AnySchema,
   type ContentMatch,
@@ -77,9 +80,11 @@ export interface TextblockBoundaryView {
  * @category guards
  */
 export const isTextblockBoundaryView = (view: unknown): view is TextblockBoundaryView =>
-  typeof view === "object" &&
-  view !== null &&
-  typeof (view as { endOfTextblock?: unknown }).endOfTextblock === "function"
+  Predicate.isObjectOrArray(view) && Predicate.isFunction((view as { endOfTextblock?: unknown }).endOfTextblock)
+
+/** `isTextblockBoundaryView`, typed on the views commands receive. */
+const isBoundaryView = (view: EditorViewLike): view is Extract<EditorViewLike, TextblockBoundaryView> =>
+  Predicate.isObjectOrArray(view) && Predicate.isFunction((view as { endOfTextblock?: unknown }).endOfTextblock)
 
 // -----------------------------------------------------------------------------
 // Helpers
@@ -95,7 +100,7 @@ const lastChildOf = (node: Node<any>): Node<any> | undefined => node.content.con
 
 function atBlockStart(state: EditorState<any, any, any>, view: EditorViewLike): ResolvedPos<any> | null {
   const $cursor = cursorOf(state)
-  if (!$cursor || (isTextblockBoundaryView(view) ? !view.endOfTextblock("backward", state) : $cursor.parentOffset > 0))
+  if (!$cursor || (isBoundaryView(view) ? !view.endOfTextblock("backward", state) : $cursor.parentOffset > 0))
     return null
   return $cursor
 }
@@ -104,9 +109,7 @@ function atBlockEnd(state: EditorState<any, any, any>, view: EditorViewLike): Re
   const $cursor = cursorOf(state)
   if (
     !$cursor ||
-    (isTextblockBoundaryView(view)
-      ? !view.endOfTextblock("forward", state)
-      : $cursor.parentOffset < $cursor.parent.content.size)
+    (isBoundaryView(view) ? !view.endOfTextblock("forward", state) : $cursor.parentOffset < $cursor.parent.content.size)
   )
     return null
   return $cursor
@@ -396,7 +399,7 @@ export const selectNodeBackward: Command = syncCommand((state, dispatching, view
   if (!empty) return false
 
   if ($head.parent.isTextblock) {
-    if (isTextblockBoundaryView(view) ? !view.endOfTextblock("backward", state) : $head.parentOffset > 0) {
+    if (isBoundaryView(view) ? !view.endOfTextblock("backward", state) : $head.parentOffset > 0) {
       return false
     }
     $cut = findCutBefore($head)
@@ -1021,9 +1024,9 @@ function wrapDispatchForJoin<Sc extends AnySchema>(
         }
       }
       // Join the joinable points
-      joinable.sort((a, b) => a - b)
-      for (let i = joinable.length - 1; i >= 0; i--) {
-        if (canJoin(tr.doc, joinable[i]!)) tr.joinUnsafe(joinable[i]!)
+      const sorted = Arr.sort(joinable, Num.Order)
+      for (let i = sorted.length - 1; i >= 0; i--) {
+        if (canJoin(tr.doc, sorted[i]!)) tr.joinUnsafe(sorted[i]!)
       }
       return dispatch(tr)
     })

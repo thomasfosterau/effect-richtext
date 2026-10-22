@@ -1,6 +1,6 @@
 // Ported from prosemirror-view/test/webtest-composition.ts (MIT, Marijn Haverbeke and others)
-import { assert, describe, it } from "@effect/vitest"
-import { Option } from "effect"
+import { describe, it } from "@effect/vitest"
+import * as Option from "effect/Option"
 import type { EditorState } from "effect-richtext/state"
 import { Plugin } from "effect-richtext/state"
 import { code, doc, em, eq, p, schema, strong } from "effect-richtext/test-builder"
@@ -29,8 +29,8 @@ function hasCompositionNode(_pm: EditorView) {
 function compose(pm: EditorView, start: () => Text, update: ((node: Text) => void)[], options: any = {}) {
   event(pm, "compositionstart")
   ist(pm.composing)
-  let node: Text,
-    sel = document.getSelection()!
+  let node: Text
+  const sel = document.getSelection()!
   for (let i = -1; i < update.length; i++) {
     if (i < 0) node = start()
     else update[i](node!)

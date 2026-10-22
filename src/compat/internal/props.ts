@@ -20,9 +20,7 @@ import { runSync, unwrap, unwrapArray, wrap, wrapArray } from "./core.ts"
 export type PropsCache = WeakMap<object, any>
 
 const wrapArgs = (args: ArrayLike<unknown>): Array<unknown> => {
-  const result = new Array(args.length)
-  for (let i = 0; i < args.length; i++) result[i] = wrap(args[i])
-  return result
+  return Array.from(args, (arg) => wrap(arg))
 }
 
 const unwrapResult = (result: unknown): unknown => (Array.isArray(result) ? unwrapArray(result) : unwrap(result))

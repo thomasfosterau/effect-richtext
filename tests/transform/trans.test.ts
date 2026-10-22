@@ -1,6 +1,7 @@
 // Ported from prosemirror-transform/test/test-trans.ts (MIT, Marijn Haverbeke and others)
 import { assert, describe, it } from "@effect/vitest"
-import { Effect, Option } from "effect"
+import * as Effect from "effect/Effect"
+import * as Option from "effect/Option"
 import {
   type Attrs,
   Content,
@@ -37,6 +38,7 @@ import {
 import { findWrapping, liftTarget, Transform } from "effect-richtext/transform"
 import ist from "../utils/ist.ts"
 import { testTransform } from "./trans.ts"
+import { getSome } from "../utils/option.ts"
 
 type Node_ = Node<any>
 
@@ -103,7 +105,7 @@ describe("Transform", () => {
         schema.nodeUnsafe("doc", null, schema.textUnsafe("hi", [schema.markUnsafe("comment", { id: 10 })]))
       )
       tr.addMark(0, 2, schema.markUnsafe("comment", { id: 20 }))
-      ist(tr.doc.firstChild.pipe(Option.getOrThrow).marks.length, 2)
+      ist(tr.doc.firstChild.pipe(getSome).marks.length, 2)
     })
 
     it("can remove multiple excluded marks", () => {
@@ -118,10 +120,10 @@ describe("Transform", () => {
           schema.textUnsafe("hi", [schema.markUnsafe("small1"), schema.markUnsafe("small2")])
         )
       )
-      ist(tr.doc.firstChild.pipe(Option.getOrThrow).marks.length, 2)
+      ist(tr.doc.firstChild.pipe(getSome).marks.length, 2)
       tr.addMark(0, 2, schema.markUnsafe("big"))
-      ist(tr.doc.firstChild.pipe(Option.getOrThrow).marks.length, 1)
-      ist(tr.doc.firstChild.pipe(Option.getOrThrow).marks[0].type.name, "big")
+      ist(tr.doc.firstChild.pipe(getSome).marks.length, 1)
+      ist(tr.doc.firstChild.pipe(getSome).marks[0].type.name, "big")
     })
   })
 
@@ -171,9 +173,9 @@ describe("Transform", () => {
           schema.textUnsafe("hi", [schema.markUnsafe("comment", { id: 1 }), schema.markUnsafe("comment", { id: 2 })])
         )
       )
-      ist(tr.doc.firstChild.pipe(Option.getOrThrow).marks.length, 2)
+      ist(tr.doc.firstChild.pipe(getSome).marks.length, 2)
       tr.removeMark(0, 2, schema.marks["comment"])
-      ist(tr.doc.firstChild.pipe(Option.getOrThrow).marks.length, 0)
+      ist(tr.doc.firstChild.pipe(getSome).marks.length, 0)
     })
   })
 
@@ -344,10 +346,10 @@ describe("Transform", () => {
 
   describe("lift", () => {
     function lift(doc: Node_, expect: Node_) {
-      const range = Option.getOrThrow(
+      const range = getSome(
         doc.resolveUnsafe(tag(doc, "a")).blockRange(doc.resolveUnsafe(tag$(doc, "b") || tag(doc, "a")))
       )
-      testTransform(new Transform(doc).liftUnsafe(range, Option.getOrThrow(liftTarget(range))), expect)
+      testTransform(new Transform(doc).liftUnsafe(range, getSome(liftTarget(range))), expect)
     }
 
     it("can lift a block out of the middle of its parent", () =>
@@ -394,11 +396,11 @@ describe("Transform", () => {
 
   describe("wrap", () => {
     function wrap(doc: Node_, expect: Node, type: string, attrs?: Attrs) {
-      const range = Option.getOrThrow(
+      const range = getSome(
         doc.resolveUnsafe(tag(doc, "a")).blockRange(doc.resolveUnsafe(tag$(doc, "b") || tag(doc, "a")))
       )
       testTransform(
-        new Transform(doc).wrapUnsafe(range, Option.getOrThrow(findWrapping(range, schema.nodes[type]!, attrs))),
+        new Transform(doc).wrapUnsafe(range, getSome(findWrapping(range, schema.nodes[type]!, attrs))),
         expect
       )
     }
@@ -714,7 +716,7 @@ describe("Transform", () => {
           .sliceUnsafe(1, 3)
       )
       ist(tr.doc.childCount, 2)
-      ist(tr.doc.lastChild.pipe(Option.getOrThrow).marks.length, 1)
+      ist(tr.doc.lastChild.pipe(getSome).marks.length, 1)
     })
 
     // A schema that enforces a heading and a body at the top level
@@ -1208,7 +1210,7 @@ describe("Transform", () => {
         )
         assert.strictEqual(posErr._tag, "PositionError")
         const wrapErr = yield* Effect.flip(
-          new Transform(doc(p("<a>x"))).wrap(Option.getOrThrow(doc(p("x")).resolveUnsafe(1).blockRange()), [
+          new Transform(doc(p("<a>x"))).wrap(getSome(doc(p("x")).resolveUnsafe(1).blockRange()), [
             { type: schema.nodes.paragraph },
             { type: schema.nodes.blockquote }
           ])

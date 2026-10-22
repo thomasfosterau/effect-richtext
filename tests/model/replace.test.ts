@@ -1,6 +1,6 @@
 // Ported from prosemirror-model/test/test-replace.ts (MIT, Marijn Haverbeke and others)
 import { assert, describe, it } from "@effect/vitest"
-import { Effect } from "effect"
+import * as Effect from "effect/Effect"
 import { type Node, Slice } from "effect-richtext/model"
 import { blockquote, doc, eq, h1, li, p, tagsOf, ul } from "effect-richtext/test-builder"
 import ist from "../utils/ist.ts"

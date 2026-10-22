@@ -1,7 +1,8 @@
 // Ported from prosemirror-gapcursor/test/test-gapcursor.ts (MIT, Marijn Haverbeke and others),
 // plus tests for the plugin.
 import { describe, it } from "@effect/vitest"
-import { Effect, Option } from "effect"
+import * as Effect from "effect/Effect"
+import * as Option from "effect/Option"
 import { GapCursor, gapCursor, gapCursorCSS } from "effect-richtext/gapcursor"
 import { Content, DocSchema, type Node } from "effect-richtext/model"
 import { EditorState, NodeSelection, Selection, TextSelection } from "effect-richtext/state"
@@ -9,6 +10,7 @@ import { doc, eq, hr, p } from "effect-richtext/test-builder"
 import { StepMap } from "effect-richtext/transform"
 import { injectCSSUnsafe } from "effect-richtext/view-css"
 import ist from "../utils/ist.ts"
+import { getSome } from "../utils/option.ts"
 import { tempEditor } from "./helpers.ts"
 
 const schema = DocSchema.makeUnsafe({
@@ -75,8 +77,8 @@ describe("GapCursor", () => {
   const between = 6
 
   it("finds gap cursor positions", () => {
-    ist(Option.getOrThrow(GapCursor.findGapCursorFrom(d.resolveUnsafe(between), 1)).pos, between)
-    ist(Option.getOrThrow(GapCursor.findGapCursorFrom(d.resolveUnsafe(7), -1)).pos, 7)
+    ist(getSome(GapCursor.findGapCursorFrom(d.resolveUnsafe(between), 1)).pos, between)
+    ist(getSome(GapCursor.findGapCursorFrom(d.resolveUnsafe(7), -1)).pos, 7)
     // Selectable atoms stop the search
     ist(Option.isNone(GapCursor.findGapCursorFrom(d.resolveUnsafe(5), 1)))
     ist(Option.isNone(GapCursor.findGapCursorFrom(d.resolveUnsafe(between), 1, true)))

@@ -636,7 +636,7 @@ function endOfTextblockHorizontal(
     try {
       sel.collapse(anchorNode, anchorOffset)
       if (oldNode && (oldNode != anchorNode || oldOff != anchorOffset) && sel.extend) sel.extend(oldNode, oldOff)
-    } catch (_) {
+    } catch {
       // ignore
     }
     if (oldBidiLevel != null) (sel as any).caretBidiLevel = oldBidiLevel

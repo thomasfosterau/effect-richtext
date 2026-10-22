@@ -506,7 +506,8 @@ export interface Flattened {
 const mergeSpec = <S extends NodeSpec | MarkSpec>(base: S | undefined, over: S): S => {
   if (!base) return over
   const attrs = base.attrs || over.attrs ? { ...base.attrs, ...over.attrs } : undefined
-  return { ...base, ...over, ...(attrs ? { attrs } : {}) }
+  const merged = { ...base, ...over }
+  return attrs ? { ...merged, attrs } : merged
 }
 
 /**

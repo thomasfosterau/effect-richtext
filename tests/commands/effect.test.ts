@@ -1,6 +1,9 @@
 // Tests for the Effect-specific behaviour of commands (not ported from ProseMirror).
 import { assert, describe, it } from "@effect/vitest"
-import { Context, Data, Effect, Layer } from "effect"
+import * as Context from "effect/Context"
+import * as Data from "effect/Data"
+import * as Effect from "effect/Effect"
+import * as Layer from "effect/Layer"
 import {
   autoJoin,
   baseKeymap,

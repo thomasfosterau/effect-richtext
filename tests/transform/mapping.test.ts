@@ -1,8 +1,9 @@
 // Ported from prosemirror-transform/test/test-mapping.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
-import { Option } from "effect"
+import * as Option from "effect/Option"
 import { Mapping, StepMap } from "effect-richtext/transform"
 import ist from "../utils/ist.ts"
+import { getSome } from "../utils/option.ts"
 
 function testMapping(mapping: Mapping, ...cases: Array<[number, number, number?, boolean?]>) {
   const inverted = mapping.invert()
@@ -89,8 +90,8 @@ describe("Mapping", () => {
 
   it("exposes mirrors as options", () => {
     const m = mk([2, 4, 0], [2, 0, 4], { 0: 1 })
-    ist(Option.getOrThrow(m.getMirror(0)), 1)
-    ist(Option.getOrThrow(m.getMirror(1)), 0)
+    ist(getSome(m.getMirror(0)), 1)
+    ist(getSome(m.getMirror(1)), 0)
     ist(Option.isNone(m.getMirror(2)))
   })
 
