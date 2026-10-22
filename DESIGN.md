@@ -14,7 +14,7 @@ This document records the design decisions agreed for the project and the conven
 | Document typing | Schemas are fully typed. Node/mark names are literal unions, attributes are described with Effect `Schema`s, and **content expressions are typed combinators** (`Content.seq`, `Content.oneOrMore`, …) so the allowed children of every node type are known statically. |
 | Plugin requirements | Plugins and commands carry their Effect requirements (`R`) in their types; editor state/view accumulate them. |
 | Packaging | **One package**, everything (core, extras, ProseMirror compatibility layer) exposed as subpath modules. |
-| Tooling | Effect-style: pnpm, `tsc -b`, Vitest + `@effect/vitest` (happy-dom; Vitest browser mode with Playwright for view tests), oxlint + dprint, docgen, Changesets, tstyche. |
+| Tooling | The family's Vite+ toolchain on pnpm 11: `vp check` (Oxfmt + Oxlint with the Effect preset), native `tsc` 7 patched by `@effect/tsgo`, Vitest via `vite-plus/test` + `@effect/vitest` (happy-dom; browser mode with Playwright for view tests), `vp pack` (tsdown), docgen, fallow, Changesets. Commands and gates live in [AGENTS.md](./AGENTS.md). |
 | Extras (after core) | Extensions + chainable commands; editing essentials (history, input rules, basic/list schemas, gap/drop cursor, placeholder); reactive bindings (SubscriptionRef/Stream); HTML + Markdown serializers. |
 
 ## Module layout
@@ -58,7 +58,7 @@ Every fallible public operation comes in two flavours:
 
 `Unsafe` variants exist because editors run model code on every keystroke and the ported algorithms are deeply synchronous. Library internals call the `Unsafe` variants (or `@internal` `...OrNull` helpers) and only the public surface is wrapped, using `attempt` from `src/internal/attempt.ts`, which turns expected tagged errors into failures and anything else into defects.
 
-Errors are `Data.TaggedError` classes with a `message` field, one family per layer (`model/errors.ts`, `transform/errors.ts`, …). Each layer exports a union type and an `is…Error` guard.
+Errors are `Schema.TaggedError` classes with a `message` field, one family per layer (`model/errors.ts`, `transform/errors.ts`, …). Each layer exports a union type and an `is…Error` guard.
 
 ### Mutable builders
 
@@ -170,13 +170,13 @@ yield * editor.mount(place) // EditorView.make: needs Scope | R
 - **Subclassing.** A subclass of the facade `Step` or `Selection` gets a core object that calls back into it, so custom steps and selections work in core transforms, the history and the view. Subclasses of built-in steps and selections (`class MyStep extends ReplaceStep`) get an instance of a generated subclass of the core class that calls the facade's overrides; facade methods call the core class's own implementation (`callBase`), so overrides can call `super`. `Step.jsonID` / `Selection.jsonID` register deserializers with the core.
 - **Commands and plugins.** ProseMirror commands are plain `(state, dispatch?, view?) => boolean` functions; `fromCoreCommand` / `toCoreCommand` convert to and from core commands, running them synchronously. `new Plugin(spec)` keeps the ProseMirror spec and props (bound to the facade plugin) and creates a core plugin whose state hooks, filters, plugin views and props convert their arguments to facades and their results back (`compat/internal/props.ts`); translations are cached so re-translated props keep their identity.
 - **View.** `new EditorView(place, props)` creates the core view with `EditorView.makeUnsafe` and translated props; `someProp`, `props` and `dispatch` follow ProseMirror. Node and mark views returned by ProseMirror-style constructors are adapted with a proxy.
-- **Tests.** ProseMirror's own test suites run against the facades with import-only changes: `test/compat/<package>/*.test.ts` (node project) and `test/compat/model/dom.browser.test.ts` plus `test/view/compat-*.test.ts` (browser project). Each file lists any other change in its header comment.
+- **Tests.** ProseMirror's own test suites run against the facades with import-only changes: `tests/compat/<package>/*.test.ts` (node project) and `tests/compat/model/dom.browser.test.ts` plus `tests/view/compat-*.test.ts` (browser project). Each file lists any other change in its header comment.
 
 ### Tests
 
-- Tests live in `test/<module>/*.test.ts` and use `@effect/vitest` (`it.effect` for Effect tests, `assert` rather than `expect`).
-- ProseMirror's test suites are ported as faithfully as possible; `test/utils/ist.ts` reproduces the `ist` helper so ported tests stay close to the originals.
-- View tests run in Chromium via Vitest browser mode (`test/view/**`).
-- Type-level tests live in `typetest/*.tst.ts` (tstyche, `pnpm test-types`). They use `typetest/tsconfig.json`, which disables the Effect language service plugin: its "floating Effect" diagnostic would otherwise make every `toBeCallableWith` on an Effect-returning function fail (and every negative one pass vacuously).
+- Tests live in `tests/<module>/*.test.ts` and use `@effect/vitest` (`it.effect` for Effect tests, `assert` rather than `expect`). They import the package by name (`effect-richtext/model`), which `vite.config.ts` and `tsconfig.test.json` resolve to `src/`.
+- ProseMirror's test suites are ported as faithfully as possible; `tests/utils/ist.ts` reproduces the `ist` helper so ported tests stay close to the originals.
+- View tests run in Chromium via Vitest browser mode (`tests/view/**`, the `browser` project).
+- Type-level tests live in `tests/**/*.types.ts`: never executed, type-checked by `vp run check`. An `Expect<Equals<A, B>>` alias asserts a type, and each `@ts-expect-error` directive asserts that the statement below it must not compile. A failing call's Effect is discarded with `void` so the Effect language service's floating-Effect diagnostic stays quiet.
 
 ProseMirror is MIT licensed, copyright Marijn Haverbeke and others; ported code and tests retain that notice (see `LICENSE`).

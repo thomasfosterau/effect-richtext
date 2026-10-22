@@ -8,9 +8,17 @@ A reimplementation of the core [ProseMirror](https://prosemirror.net) toolkit (`
 - **Faithful port.** ProseMirror's own test suites are ported and pass (model, transform, state, commands, keymap, history, markdown, and all of prosemirror-view's browser tests in real Chromium).
 - **Nice-to-haves**, all additive and unopinionated: extensions with typed `editor.commands` / `editor.chain()` / `editor.can()`, input rules, gap and drop cursors, placeholders, undo history, reactive bindings (`SubscriptionRef`/`Stream`), HTML and Markdown serializers.
 
-See [`DESIGN.md`](./DESIGN.md) for the design decisions and conventions.
+See [`DESIGN.md`](https://github.com/thomasfosterau/effect-richtext/blob/trunk/DESIGN.md) for the design decisions and conventions.
 
 > Status: experimental (0.x). APIs may change.
+
+## Install
+
+```sh
+pnpm add effect-richtext effect
+```
+
+`effect` (4.x) is a peer dependency: your application provides the single copy. The package is ESM-only and has no `.` entry; import the modules you use by subpath.
 
 ## Modules
 
@@ -63,7 +71,7 @@ const schema = DocSchema.makeUnsafe({
   marks: { strong: { toDOM: () => ["strong", 0] } }
 })
 
-const program = Effect.gen(function* () {
+const mountEditor = Effect.fn("mountEditor")(function* (place: HTMLElement) {
   const state = yield* EditorState.create({
     schema,
     plugins: [
@@ -72,35 +80,40 @@ const program = Effect.gen(function* () {
       keymap(baseKeymap)
     ]
   })
-  const view = yield* EditorView.make(document.body, { state })
+  const view = yield* EditorView.make(place, { state })
   yield* view.dispatch(view.state.tr.insertTextUnsafe("Hello"))
   // ...the view is destroyed when the scope closes
 })
 
-Effect.runFork(Effect.scoped(Effect.andThen(program, Effect.never)))
+Effect.runFork(Effect.scoped(Effect.andThen(mountEditor(document.body), Effect.never)))
 ```
 
 With `effect-richtext/extensions`, the same editor is:
 
 ```ts
-const editor = yield * createEditor(defineBasicExtension())
-yield * editor.mount(document.body)
-yield * editor.chain().setBlockType("heading", { level: 2 }).toggleMark("strong").run()
+import { Effect } from "effect"
+import { createEditor, defineBasicExtension } from "effect-richtext/extensions"
+
+const mountBasicEditor = Effect.fn("mountBasicEditor")(function* (place: HTMLElement) {
+  const editor = yield* createEditor(defineBasicExtension())
+  yield* editor.mount(place)
+  yield* editor.chain().setBlockType("heading", { level: 2 }).toggleMark("strong").run()
+})
 ```
 
 ## Development
 
+Contributor setup, hooks and single checks are in [CONTRIBUTING.md](https://github.com/thomasfosterau/effect-richtext/blob/trunk/CONTRIBUTING.md); the gates every change runs are in [AGENTS.md](https://github.com/thomasfosterau/effect-richtext/blob/trunk/AGENTS.md#verification). In short, with pnpm 11:
+
 ```sh
 pnpm install
-pnpm check          # tsc -b
-pnpm test           # vitest (node + browser projects)
-pnpm test-types     # tstyche type tests
-pnpm lint-fix       # oxlint + dprint
-pnpm docgen         # API docs
+vp check              # format + lint
+vp run check          # type gate (src + tests, including type-level tests)
+vp run test:unit      # node tests
+vp run test:browser   # prosemirror-view's suites in Chromium
+vp run build          # dist/
 ```
-
-Browser tests run in Chromium through Vitest browser mode and Playwright. To use a preinstalled Chromium, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE`.
 
 ## License
 
-MIT. Portions are derived from ProseMirror, © Marijn Haverbeke and others (MIT); see [`LICENSE`](./LICENSE).
+MIT. Portions are derived from ProseMirror, © Marijn Haverbeke and others (MIT); see [`LICENSE`](https://github.com/thomasfosterau/effect-richtext/blob/trunk/LICENSE).

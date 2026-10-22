@@ -2,7 +2,7 @@
   "$schema": "./node_modules/@effect/docgen/schema.json",
   "runExamples": true,
   "exclude": ["src/internal/**/*.ts", "src/compat/internal/**/*.ts"],
-  "srcLink": "https://github.com/thomasfosterau/effect-richtext/tree/main/src/",
+  "srcLink": "https://github.com/thomasfosterau/effect-richtext/tree/trunk/src/",
   "parseCompilerOptions": {
     "noEmit": true,
     "module": "esnext",

@@ -47,7 +47,6 @@ catalog:
   # Must equal `vitest` below (its peer is the exact vitest version).
   "@vitest/coverage-istanbul": 5.0.5
   effect: 4.0.2
-  effect-solutions: ^0.5.3
   fallow: 3.34.1
   # The `node` test project's DOM.
   happy-dom: ^20.14.5

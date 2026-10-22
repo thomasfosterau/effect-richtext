@@ -182,7 +182,6 @@
     "@vitest/browser-playwright": "catalog:",
     "@vitest/coverage-istanbul": "catalog:",
     "effect": "catalog:",
-    "effect-solutions": "catalog:",
     "fallow": "catalog:",
     "happy-dom": "catalog:",
     "playwright": "catalog:",
