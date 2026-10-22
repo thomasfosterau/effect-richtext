@@ -123,7 +123,10 @@ export class Configuration<Sc extends AnySchema> {
   readonly plugins: Array<AnyPlugin> = []
   readonly pluginsByKey: Record<string, AnyPlugin> = Object.create(null)
 
-  constructor(readonly schema: Sc, plugins?: ReadonlyArray<AnyPlugin>) {
+  constructor(
+    readonly schema: Sc,
+    plugins?: ReadonlyArray<AnyPlugin>
+  ) {
     this.fields = baseFields.slice()
     if (plugins) {
       plugins.forEach((plugin) => {
@@ -266,13 +269,14 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
   filterTransaction(tr: Transaction<Sc>, ignore = -1): Effect.Effect<boolean, E, R> {
     const plugins = this.config.plugins
     const self = this
-    return Effect.gen(function*() {
+    return Effect.gen(function* () {
       for (let i = 0; i < plugins.length; i++) {
         if (i === ignore) continue
-        const plugin = plugins[i]!, filter = plugin.spec.filterTransaction
+        const plugin = plugins[i]!,
+          filter = plugin.spec.filterTransaction
         if (filter) {
           const result = filter.call(plugin, tr, self)
-          const ok = Effect.isEffect(result) ? yield* (result as Effect.Effect<boolean, E, R>) : result
+          const ok = Effect.isEffect(result) ? yield* result as Effect.Effect<boolean, E, R> : result
           if (!ok) return false
         }
       }
@@ -314,9 +318,11 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
     for (;;) {
       let haveNew = false
       for (let i = 0; i < plugins.length; i++) {
-        const plugin = plugins[i]!, append = plugin.spec.appendTransaction
+        const plugin = plugins[i]!,
+          append = plugin.spec.appendTransaction
         if (append) {
-          const n = seen ? seen[i]!.n : 0, oldState = seen ? seen[i]!.state : this
+          const n = seen ? seen[i]!.n : 0,
+            oldState = seen ? seen[i]!.state : this
           let tr: Transaction<Sc> | null | undefined | void = undefined
           if (n < trs.length) {
             const result = append.call(plugin, n ? trs.slice(n) : trs, oldState, newState)
@@ -353,7 +359,8 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
     const plugins = this.config.plugins
     for (let i = 0; i < plugins.length; i++) {
       if (i === ignore) continue
-      const plugin = plugins[i]!, filter = plugin.spec.filterTransaction
+      const plugin = plugins[i]!,
+        filter = plugin.spec.filterTransaction
       if (filter) {
         const result = filter.call(plugin, tr, this)
         if (Effect.isEffect(result)) return NeedsEffect
@@ -366,7 +373,8 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
   /** @internal */
   applyInnerSync(tr: Transaction<Sc>): EditorState<Sc, R, E> | typeof NeedsEffect {
     if (!tr.before.eq(this.doc)) throw new StateError({ message: "Applying a mismatched transaction" })
-    const newInstance = new EditorState<Sc, R, E>(this.config), fields = this.config.fields
+    const newInstance = new EditorState<Sc, R, E>(this.config),
+      fields = this.config.fields
     for (let i = 0; i < fields.length; i++) {
       const field = fields[i]!
       const result = field.apply.call(field.self, tr, this.slots[field.name], this, newInstance)
@@ -379,7 +387,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
   /** @internal */
   applyTransactionEffect(rootTr: Transaction<Sc>): Effect.Effect<ApplyResult<Sc, R, E>, E | StateError, R> {
     const self = this
-    return Effect.gen(function*() {
+    return Effect.gen(function* () {
       if (!(yield* self.filterTransaction(rootTr))) return { state: self, transactions: [] }
 
       const trs: Array<Transaction<Sc>> = [rootTr]
@@ -392,15 +400,17 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
       for (;;) {
         let haveNew = false
         for (let i = 0; i < plugins.length; i++) {
-          const plugin = plugins[i]!, append = plugin.spec.appendTransaction
+          const plugin = plugins[i]!,
+            append = plugin.spec.appendTransaction
           if (append) {
-            const n = seen ? seen[i]!.n : 0, oldState = seen ? seen[i]!.state : self
+            const n = seen ? seen[i]!.n : 0,
+              oldState = seen ? seen[i]!.state : self
             let tr: Transaction<Sc> | null | undefined | void = undefined
             if (n < trs.length) {
               const result = append.call(plugin, n ? trs.slice(n) : trs, oldState, newState)
               tr = Effect.isEffect(result)
-                ? yield* (result as Effect.Effect<Transaction<Sc> | null | undefined, E, R>)
-                : result as Transaction<Sc> | null | undefined
+                ? yield* result as Effect.Effect<Transaction<Sc> | null | undefined, E, R>
+                : (result as Transaction<Sc> | null | undefined)
             }
             if (tr && (yield* newState.filterTransaction(tr, i))) {
               tr.setMeta("appendedTransaction", rootTr)
@@ -431,17 +441,16 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
   /** @internal */
   applyInner(tr: Transaction<Sc>): Effect.Effect<EditorState<Sc, R, E>, E | StateError, R> {
     const self = this
-    return Effect.gen(function*() {
+    return Effect.gen(function* () {
       if (!tr.before.eq(self.doc)) {
         return yield* Effect.fail(new StateError({ message: "Applying a mismatched transaction" }))
       }
-      const newInstance = new EditorState<Sc, R, E>(self.config), fields = self.config.fields
+      const newInstance = new EditorState<Sc, R, E>(self.config),
+        fields = self.config.fields
       for (let i = 0; i < fields.length; i++) {
         const field = fields[i]!
         const result = field.apply.call(field.self, tr, self.slots[field.name], self, newInstance)
-        newInstance.slots[field.name] = Effect.isEffect(result)
-          ? yield* (result as Effect.Effect<unknown, E, R>)
-          : result
+        newInstance.slots[field.name] = Effect.isEffect(result) ? yield* result as Effect.Effect<unknown, E, R> : result
       }
       return newInstance
     })
@@ -462,16 +471,18 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
     PluginRequirements<P>
   > {
     const self = this
-    return Effect.gen(function*() {
+    return Effect.gen(function* () {
       const $config = yield* trySync(() => new Configuration(self.schema, config.plugins))
-      const fields = $config.fields, instance = new EditorState<Sc, PluginRequirements<P>, PluginErrors<P>>($config)
+      const fields = $config.fields,
+        instance = new EditorState<Sc, PluginRequirements<P>, PluginErrors<P>>($config)
       for (let i = 0; i < fields.length; i++) {
-        const field = fields[i]!, name = field.name
+        const field = fields[i]!,
+          name = field.name
         if (Object.prototype.hasOwnProperty.call(self.slots, name)) {
           instance.slots[name] = self.slots[name]
         } else {
           const result = field.init.call(field.self, config, instance)
-          instance.slots[name] = Effect.isEffect(result) ? yield* (result as Effect.Effect<unknown, any, any>) : result
+          instance.slots[name] = Effect.isEffect(result) ? yield* result as Effect.Effect<unknown, any, any> : result
         }
       }
       return instance
@@ -501,7 +512,8 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
         if (prop === "doc" || prop === "selection") {
           throw new StateError({ message: "The JSON fields `doc` and `selection` are reserved" })
         }
-        const plugin = pluginFields[prop]!, state = plugin.spec.state
+        const plugin = pluginFields[prop]!,
+          state = plugin.spec.state
         if (state && state.toJSON) result[prop] = state.toJSON.call(plugin, this.slots[plugin.key])
       }
     }
@@ -516,8 +528,8 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
     PluginErrors<P> | StateError,
     PluginRequirements<P>
   > {
-    return Effect.gen(function*() {
-      const schema = config.doc ? config.doc.type.schema as Sc : config.schema
+    return Effect.gen(function* () {
+      const schema = config.doc ? (config.doc.type.schema as Sc) : config.schema
       if (!schema) return yield* Effect.fail(new StateError({ message: "Either `doc` or `schema` must be provided" }))
       const $config = yield* trySync(() => new Configuration(schema, config.plugins))
       const instance = new EditorState<Sc, PluginRequirements<P>, PluginErrors<P>>($config)
@@ -525,7 +537,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
         const field = $config.fields[i]!
         const result = yield* trySync(() => field.init.call(field.self, config, instance))
         instance.slots[field.name] = Effect.isEffect(result)
-          ? yield* (result as Effect.Effect<unknown, any, any>)
+          ? yield* result as Effect.Effect<unknown, any, any>
           : result
       }
       return instance
@@ -558,7 +570,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
     PluginErrors<P> | StateError | SelectionError | ModelError,
     PluginRequirements<P>
   > {
-    return Effect.gen(function*() {
+    return Effect.gen(function* () {
       const data = json as Record<string, any> | null | undefined
       if (!data || typeof data !== "object") {
         return yield* Effect.fail(new StateError({ message: "Invalid input for EditorState.fromJSON" }))
@@ -585,15 +597,18 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
           let done = false
           if (pluginFields) {
             for (const prop in pluginFields) {
-              const plugin = pluginFields[prop]!, state = plugin.spec.state
+              const plugin = pluginFields[prop]!,
+                state = plugin.spec.state
               if (
-                plugin.key === field.name && state && state.fromJSON &&
+                plugin.key === field.name &&
+                state &&
+                state.fromJSON &&
                 Object.prototype.hasOwnProperty.call(data, prop)
               ) {
                 // This field belongs to a plugin mapped to a JSON field, read it from there.
                 const result = state.fromJSON.call(plugin, config, data[prop], instance)
                 instance.slots[field.name] = Effect.isEffect(result)
-                  ? yield* (result as Effect.Effect<unknown, any, any>)
+                  ? yield* result as Effect.Effect<unknown, any, any>
                   : result
                 done = true
                 break
@@ -603,7 +618,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
           if (!done) {
             const result = field.init.call(field.self, config, instance)
             instance.slots[field.name] = Effect.isEffect(result)
-              ? yield* (result as Effect.Effect<unknown, any, any>)
+              ? yield* result as Effect.Effect<unknown, any, any>
               : result
           }
         }

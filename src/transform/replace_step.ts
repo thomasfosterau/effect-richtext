@@ -63,14 +63,16 @@ export class ReplaceStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
     if (!(other instanceof ReplaceStep) || other.structure || this.structure) return Option.none()
 
     if (this.from + this.slice.size === other.from && !this.slice.openEnd && !other.slice.openStart) {
-      const slice = this.slice.size + other.slice.size === 0
-        ? Slice.empty
-        : new Slice(this.slice.content.append(other.slice.content), this.slice.openStart, other.slice.openEnd)
+      const slice =
+        this.slice.size + other.slice.size === 0
+          ? Slice.empty
+          : new Slice(this.slice.content.append(other.slice.content), this.slice.openStart, other.slice.openEnd)
       return Option.some(new ReplaceStep(this.from, this.to + (other.to - other.from), slice, this.structure))
     } else if (other.to === this.from && !this.slice.openStart && !other.slice.openEnd) {
-      const slice = this.slice.size + other.slice.size === 0
-        ? Slice.empty
-        : new Slice(other.slice.content.append(this.slice.content), other.slice.openStart, this.slice.openEnd)
+      const slice =
+        this.slice.size + other.slice.size === 0
+          ? Slice.empty
+          : new Slice(other.slice.content.append(this.slice.content), other.slice.openStart, this.slice.openEnd)
       return Option.some(new ReplaceStep(other.from, this.to, slice, this.structure))
     }
     return Option.none()
@@ -138,10 +140,7 @@ export class ReplaceAroundStep<Sc extends AnySchema = AnySchema> extends Step<Sc
   }
 
   apply(doc: Node<Sc>): StepResult<Sc> {
-    if (
-      this.structure && (contentBetween(doc, this.from, this.gapFrom) ||
-        contentBetween(doc, this.gapTo, this.to))
-    ) {
+    if (this.structure && (contentBetween(doc, this.from, this.gapFrom) || contentBetween(doc, this.gapTo, this.to))) {
       return StepResult.fail("Structure gap-replace would overwrite content")
     }
 
@@ -177,13 +176,12 @@ export class ReplaceAroundStep<Sc extends AnySchema = AnySchema> extends Step<Sc
   }
 
   map(mapping: Mappable): Option.Option<Step<Sc>> {
-    const from = mapping.mapResult(this.from, 1), to = mapping.mapResult(this.to, -1)
+    const from = mapping.mapResult(this.from, 1),
+      to = mapping.mapResult(this.to, -1)
     const gapFrom = this.from === this.gapFrom ? from.pos : mapping.map(this.gapFrom, -1)
     const gapTo = this.to === this.gapTo ? to.pos : mapping.map(this.gapTo, 1)
     if ((from.deletedAcross && to.deletedAcross) || gapFrom < from.pos || gapTo > to.pos) return Option.none()
-    return Option.some(
-      new ReplaceAroundStep(from.pos, to.pos, gapFrom, gapTo, this.slice, this.insert, this.structure)
-    )
+    return Option.some(new ReplaceAroundStep(from.pos, to.pos, gapFrom, gapTo, this.slice, this.insert, this.structure))
   }
 
   toJSON(): StepJSON {
@@ -203,8 +201,11 @@ export class ReplaceAroundStep<Sc extends AnySchema = AnySchema> extends Step<Sc
   /** @internal */
   static override fromJSONUnsafe<Sc extends AnySchema>(schema: Sc, json: any): ReplaceAroundStep<Sc> {
     if (
-      typeof json.from !== "number" || typeof json.to !== "number" ||
-      typeof json.gapFrom !== "number" || typeof json.gapTo !== "number" || typeof json.insert !== "number"
+      typeof json.from !== "number" ||
+      typeof json.to !== "number" ||
+      typeof json.gapFrom !== "number" ||
+      typeof json.gapTo !== "number" ||
+      typeof json.insert !== "number"
     ) {
       throw new JSONError({ message: "Invalid input for ReplaceAroundStep.fromJSON" })
     }
@@ -224,7 +225,8 @@ Step.jsonID("replaceAround", ReplaceAroundStep)
 
 function contentBetween(doc: Node<any>, from: number, to: number): boolean {
   const $from = doc.resolveUnsafe(from)
-  let dist = to - from, depth = $from.depth
+  let dist = to - from,
+    depth = $from.depth
   while (dist > 0 && depth > 0 && $from.indexAfter(depth) === $from.node(depth).childCount) {
     depth--
     dist--

@@ -54,7 +54,9 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     size?: number
   ) {
     this.size = size || 0
-    if (size == null) { for (let i = 0; i < content.length; i++) this.size += content[i]!.nodeSize }
+    if (size == null) {
+      for (let i = 0; i < content.length; i++) this.size += content[i]!.nodeSize
+    }
   }
 
   [Symbol.iterator](): Iterator<Node<Sc, N>> {
@@ -66,24 +68,14 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
    * positions (relative to start of this fragment). Doesn't descend
    * into a node when the callback returns `false`.
    */
-  nodesBetween(
-    from: number,
-    to: number,
-    f: NodeVisitor<Sc>,
-    nodeStart = 0,
-    parent?: Node<Sc>
-  ): void {
+  nodesBetween(from: number, to: number, f: NodeVisitor<Sc>, nodeStart = 0, parent?: Node<Sc>): void {
     const parentOption: Option.Option<Node<Sc>> = parent ? Option.some(parent) : Option.none()
     for (let i = 0, pos = 0; pos < to; i++) {
-      const child = this.content[i]!, end = pos + child.nodeSize
+      const child = this.content[i]!,
+        end = pos + child.nodeSize
       if (end > from && f(child, nodeStart + pos, parentOption, i) !== false && child.content.size) {
         const start = pos + 1
-        child.nodesBetween(
-          Math.max(0, from - start),
-          Math.min(child.content.size, to - start),
-          f,
-          nodeStart + start
-        )
+        child.nodesBetween(Math.max(0, from - start), Math.min(child.content.size, to - start), f, nodeStart + start)
       }
       pos = end
     }
@@ -105,23 +97,31 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     blockSeparator?: string | null,
     leafText?: string | null | ((leafNode: Node<Sc>) => string)
   ): string {
-    let text = "", first = true
-    this.nodesBetween(from, to, (node, pos) => {
-      const nodeText = node.isText
-        ? (node as unknown as TextNode<Sc>).text.slice(Math.max(from, pos) - pos, to - pos)
-        : !node.isLeaf
-        ? ""
-        : leafText
-        ? (typeof leafText === "function" ? leafText(node) : leafText)
-        : node.type.spec.leafText
-        ? node.type.spec.leafText(node)
-        : ""
-      if (node.isBlock && (node.isLeaf && nodeText || node.isTextblock) && blockSeparator) {
-        if (first) first = false
-        else text += blockSeparator
-      }
-      text += nodeText
-    }, 0)
+    let text = "",
+      first = true
+    this.nodesBetween(
+      from,
+      to,
+      (node, pos) => {
+        const nodeText = node.isText
+          ? (node as unknown as TextNode<Sc>).text.slice(Math.max(from, pos) - pos, to - pos)
+          : !node.isLeaf
+            ? ""
+            : leafText
+              ? typeof leafText === "function"
+                ? leafText(node)
+                : leafText
+              : node.type.spec.leafText
+                ? node.type.spec.leafText(node)
+                : ""
+        if (node.isBlock && ((node.isLeaf && nodeText) || node.isTextblock) && blockSeparator) {
+          if (first) first = false
+          else text += blockSeparator
+        }
+        text += nodeText
+      },
+      0
+    )
     return text
   }
 
@@ -129,7 +129,8 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   append<N2 extends NodeNames<Sc>>(other: Fragment<Sc, N2>): Fragment<Sc, N | N2> {
     if (!other.size) return this
     if (!this.size) return other
-    const last = this.content[this.content.length - 1]!, first = other.content[0]!
+    const last = this.content[this.content.length - 1]!,
+      first = other.content[0]!
     const content: Array<Node<Sc, N | N2>> = this.content.slice()
     let i = 0
     if (last.isText && last.sameMarkup(first)) {
@@ -291,8 +292,9 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     if (pos > this.size || pos < 0) {
       throw new PositionError({ message: `Position ${pos} outside of fragment (${this})` })
     }
-    for (let i = 0, curPos = 0;; i++) {
-      const cur = this.content[i]!, end = curPos + cur.nodeSize
+    for (let i = 0, curPos = 0; ; i++) {
+      const cur = this.content[i]!,
+        end = curPos + cur.nodeSize
       if (end >= pos) {
         if (end === pos) return retIndex(i + 1, end)
         return retIndex(i, curPos)

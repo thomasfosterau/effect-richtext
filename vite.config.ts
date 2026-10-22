@@ -1,0 +1,315 @@
+/**
+ * The one Vite+ configuration for this single-package repository: the
+ * format / lint / staged passes (read statically by `vp fmt` / `vp lint` /
+ * `vp staged`), the task graph (`check`, `build`, `test:unit`,
+ * `test:browser`, `test:coverage`, `docgen`), the `vp pack` (tsdown)
+ * settings, and the two vitest projects (`node` under happy-dom, `browser` in
+ * real Chromium).
+ *
+ * Shaped after the effect-web library's root config and `vite.package.ts`:
+ * every comment that explains a load-bearing decision travels with the
+ * config.
+ *
+ * @copyright Thomas Foster
+ */
+
+import { recommended } from "@effect/tsgo/oxlint-presets"
+import effect from "@mpsuesser/oxlint-plugin-effect"
+import { defineConfig } from "vite-plus"
+import { playwright } from "vite-plus/test/browser-playwright"
+
+const srcDir = new URL("./src/", import.meta.url).pathname
+
+/**
+ * The public entry points: `src/<entry>.ts` → `dist/<entry>.js`. A new entry
+ * is added here, to `exports` in package.json and to `entry` in
+ * .fallowrc.json.
+ */
+const entries = [
+  "commands",
+  "dropcursor",
+  "extensions",
+  "gapcursor",
+  "history",
+  "html",
+  "inputrules",
+  "keymap",
+  "markdown",
+  "model",
+  "placeholder",
+  "reactive",
+  "schema-basic",
+  "schema-list",
+  "state",
+  "test-builder",
+  "transform",
+  "view",
+  "view-css",
+  "compat/commands",
+  "compat/keymap",
+  "compat/model",
+  "compat/orderedmap",
+  "compat/schema-basic",
+  "compat/schema-list",
+  "compat/state",
+  "compat/test-builder",
+  "compat/transform",
+  "compat/view"
+]
+
+/**
+ * Input fingerprint for the cached tasks: auto tracking minus node_modules
+ * bookkeeping churn (pnpm rewrites `.modules.yaml` on every install), with
+ * the lockfile back explicitly so a dependency upgrade still invalidates a
+ * type-check or a test run.
+ */
+const cacheInputs = [{ auto: true }, "!node_modules/**", "!docs/**", "!coverage/**", "pnpm-lock.yaml"]
+
+const testEnv = ["VITEST_MAX_WORKERS", "NODE_OPTIONS", "PLAYWRIGHT_CHROMIUM_EXECUTABLE"]
+
+const maxWorkers = process.env.VITEST_MAX_WORKERS
+const chromium = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
+
+export default defineConfig({
+  // Staged-file checks run by `vp staged` (pre-commit).
+  staged: {
+    "*.{js,ts,css,json,md}": "vp check --fix"
+  },
+  // The repo's own style, carried over from its dprint config: no
+  // semicolons, no trailing commas, 120 columns.
+  fmt: {
+    semi: false,
+    trailingComma: "none",
+    printWidth: 120,
+    arrowParens: "always",
+    ignorePatterns: ["**/dist/**", "**/docs/**", "**/coverage/**", "CHANGELOG.md"],
+    overrides: [
+      {
+        files: ["**/*.md"],
+        options: {
+          proseWrap: "never"
+        }
+      }
+    ]
+  },
+  lint: {
+    ignorePatterns: ["**/dist/**", "**/docs/**", "**/coverage/**", "**/node_modules/**"],
+    extends: [recommended, effect.configs.recommended],
+    categories: {
+      correctness: "error"
+    },
+    rules: {
+      "eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_"
+        }
+      ],
+      "eslint/prefer-const": "warn",
+      "eslint/no-console": "error",
+      "typescript/consistent-type-imports": "error",
+      // `casting-awareness` is an awareness prompt, not a defect rule — it
+      // fires on every `as`, including the narrowings the DOM types
+      // structurally require. Stays visible as a warning.
+      "effect/casting-awareness": "warn",
+      // Hard-codes abbreviations (`Arr`, `P`, `R`, …) with no options, so it is
+      // unsatisfiable under the full-name convention (`import { Effect,
+      // Option } from "effect"`) this library shares with its consumers.
+      "effect/prefer-namespace-imports": "off",
+      "typescript/no-explicit-any": "off",
+      "typescript/no-empty-object-type": "off",
+      "typescript/ban-ts-comment": "off",
+      "unicorn/no-empty-file": "off",
+      "vite-plus/prefer-vite-plus-imports": "error"
+    },
+    overrides: [
+      // Build/test configs are evaluated by Vite and Vitest in bare Node,
+      // before any Effect runtime exists — there is no `Config` provider to
+      // read from and no `FileSystem` service to call, so `process.env` and
+      // `node:*` are the only things that work there. The Effect preset's
+      // service rules have no satisfiable fix in these files.
+      {
+        files: ["vite.config.ts"],
+        rules: {
+          "effect/avoid-node-imports": "off",
+          "effect/avoid-sync-fs": "off",
+          "effect/avoid-process-env": "off",
+          "effect/use-console-service": "off",
+          "effect/use-filesystem-service": "off",
+          "effect/use-path-service": "off",
+          // `...(process.env.X ? { x } : {})` is how a vitest option is left
+          // unset under `exactOptionalPropertyTypes`.
+          "effect/no-conditional-empty-object-spread": "off"
+        }
+      },
+      // Type-level tests: the expect-error directives ARE the assertions
+      // (a statement that must fail to compile), and every binding exists to
+      // be asserted against, never to be read.
+      {
+        files: ["tests/**/*.types.ts"],
+        rules: {
+          "eslint/no-unused-vars": "off",
+          "effect/avoid-ts-ignore": "off"
+        }
+      },
+      // Test fixtures are the seams under test, not domain code.
+      {
+        files: ["tests/**/*.ts"],
+        rules: {
+          "eslint/no-console": "off"
+        }
+      }
+    ],
+    // Type-aware linting is intentionally disabled: type checking stays the
+    // `check` task's job (native tsc, Effect-patched).
+    options: {
+      typeAware: false,
+      typeCheck: false
+    },
+    jsPlugins: [
+      {
+        name: "vite-plus",
+        specifier: "vite-plus/oxlint-plugin"
+      }
+    ]
+  },
+  run: {
+    tasks: {
+      // The type gate: `src` under the native, Effect-patched `tsc`, then the
+      // tests (including the type-level `tests/*.types.ts`, whose
+      // expect-error directives are the assertions) under tsconfig.test.json,
+      // which resolves the package name to `src/` so no build is needed first.
+      check: {
+        command: "tsc -p tsconfig.json && tsc -p tsconfig.test.json",
+        cache: { input: cacheInputs, output: [] }
+      },
+      // The published artifact (`vp pack` → tsdown, see `pack` below).
+      build: {
+        command: "vp pack",
+        cache: { input: cacheInputs, output: ["dist/**"] }
+      },
+      "test:unit": {
+        command: "vp test run --project node",
+        cache: { env: testEnv, input: cacheInputs, output: [] }
+      },
+      // prosemirror-view's suites, in headless Chromium through Playwright.
+      "test:browser": {
+        command: "vp test run --project browser",
+        cache: { env: testEnv, input: cacheInputs, output: [] }
+      },
+      // Both projects under one Istanbul coverage map
+      // (`coverage/coverage-final.json`), which `fallow audit` reads for exact
+      // per-function CRAP scores (`health.coverage` in .fallowrc.json).
+      // Without it fallow estimates every function as uncovered, and any
+      // function with cyclomatic complexity ≥ 5 fails the gate on its own.
+      // Run this before `fallow audit` (the Claude Code PreToolUse hook
+      // `.claude/hooks/fallow-gate.sh` runs the audit on `git commit` /
+      // `git push` but never refreshes this map).
+      "test:coverage": {
+        command: "vp test run --coverage",
+        cache: false
+      },
+      // Compiles AND RUNS every JSDoc `@example` (see docgen.json). Examples
+      // import the package by name exactly as a consumer would, which
+      // resolves through `exports` to `dist/` — hence the build edge.
+      docgen: {
+        command: "docgen",
+        dependsOn: ["build"],
+        cache: { input: cacheInputs, output: ["docs/**"] }
+      }
+    }
+  },
+  // One output file per source module (`unbundle`), the layout the old
+  // `tsc -b` emit had: package.json's `sideEffects` list names the modules
+  // whose top-level statements register things (`Selection.jsonID`, the
+  // compat wrappers, the test-builder's `tag` getter), and that list only
+  // stays true if those statements stay in those files.
+  pack: {
+    entry: Object.fromEntries(entries.map((entry) => [entry, `src/${entry}.ts`])),
+    unbundle: true,
+    format: "esm",
+    platform: "neutral",
+    dts: true,
+    outDir: "dist",
+    clean: true
+  },
+  resolve: {
+    // Tests import the package by name, exactly as a consumer would (and as
+    // tsconfig.test.json's `paths` type-checks them), so the runner resolves
+    // that name to `src/` rather than to the built `dist/` that `exports`
+    // points at — a test run never needs a build first.
+    alias: [{ find: /^effect-richtext\/(.+)$/, replacement: `${srcDir}$1.ts` }]
+  },
+  test: {
+    ...(maxWorkers === undefined ? {} : { maxWorkers: Number(maxWorkers) }),
+    coverage: {
+      provider: "istanbul",
+      // `json` writes coverage-final.json, the Istanbul map `fallow audit`
+      // reads.
+      reporter: ["text-summary", "json-summary", "json"],
+      reportsDirectory: "./coverage",
+      include: ["src/**/*.ts"],
+      exclude: ["**/*.d.ts"]
+    },
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "node",
+          include: ["tests/**/*.test.ts"],
+          exclude: ["tests/view/**", "tests/browser/**", "tests/**/*.browser.test.ts"],
+          environment: "happy-dom",
+          sequence: { concurrent: true }
+        }
+      },
+      {
+        extends: true,
+        optimizeDeps: {
+          // Pre-bundle every dependency the tests import so a cold run does
+          // not trigger a mid-run re-optimization (which reloads the page).
+          include: [
+            "effect",
+            "effect/Cause",
+            "effect/Context",
+            "effect/Data",
+            "effect/Effect",
+            "effect/Equal",
+            "effect/Exit",
+            "effect/Hash",
+            "effect/Layer",
+            "effect/Option",
+            "effect/PubSub",
+            "effect/Scheduler",
+            "effect/Schema",
+            "effect/SchemaGetter",
+            "effect/SchemaIssue",
+            "effect/Scope",
+            "effect/Semaphore",
+            "effect/Stream",
+            "effect/SubscriptionRef",
+            "@effect/vitest",
+            "markdown-it",
+            "rope-sequence",
+            "w3c-keyname"
+          ]
+        },
+        test: {
+          name: "browser",
+          include: ["tests/view/**/*.test.ts", "tests/browser/**/*.test.ts", "tests/**/*.browser.test.ts"],
+          browser: {
+            enabled: true,
+            headless: true,
+            // `PLAYWRIGHT_CHROMIUM_EXECUTABLE` points the provider at a
+            // preinstalled Chromium (agent containers ship one under
+            // /opt/pw-browsers); unset, Playwright uses its own download.
+            provider: playwright({
+              launchOptions: chromium === undefined ? {} : { executablePath: chromium }
+            }),
+            instances: [{ browser: "chromium" }]
+          }
+        }
+      }
+    ]
+  }
+})

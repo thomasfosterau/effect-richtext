@@ -153,8 +153,11 @@ export class MarkdownSerializer<Sc extends AnySchema = AnySchema> {
 
 function backticksFor(node: Node<any, any>, side: number): string {
   const ticks = /`+/g
-  let m: RegExpExecArray | null, len = 0
-  if (node.isText) { while ((m = ticks.exec((node as TextNode<any>).text))) len = Math.max(len, m[0].length) }
+  let m: RegExpExecArray | null,
+    len = 0
+  if (node.isText) {
+    while ((m = ticks.exec((node as TextNode<any>).text))) len = Math.max(len, m[0].length)
+  }
   let result = len > 0 && side > 0 ? " `" : "`"
   for (let i = 0; i < len; i++) result += "`"
   if (len > 0 && side < 0) result += " "
@@ -165,9 +168,11 @@ function isPlainURL(link: Mark<any, any>, parent: Node<any, any>, index: number)
   if (link.attrs.title || !/^\w+:/.test(link.attrs.href)) return false
   const content = parent.childUnsafe(index)
   if (
-    !content.isText || (content as TextNode<any>).text != link.attrs.href ||
+    !content.isText ||
+    (content as TextNode<any>).text != link.attrs.href ||
     content.marks[content.marks.length - 1] != link
-  ) return false
+  )
+    return false
   return index == parent.childCount - 1 || !link.isInSet(parent.childUnsafe(index + 1).marks)
 }
 
@@ -178,96 +183,105 @@ function isPlainURL(link: Mark<any, any>, parent: Node<any, any>, index: number)
  * @since 0.1.0
  * @category serializers
  */
-export const defaultMarkdownSerializer: MarkdownSerializer = new MarkdownSerializer({
-  blockquote(state, node) {
-    state.wrapBlock("> ", null, node, () => state.renderContent(node))
-  },
-  code_block(state, node) {
-    // Make sure the front matter fences are longer than any dash sequence within it
-    const backticks = node.textContent.match(/`{3,}/gm)
-    const fence = backticks ? (backticks.sort().slice(-1)[0] + "`") : "```"
+export const defaultMarkdownSerializer: MarkdownSerializer = new MarkdownSerializer(
+  {
+    blockquote(state, node) {
+      state.wrapBlock("> ", null, node, () => state.renderContent(node))
+    },
+    code_block(state, node) {
+      // Make sure the front matter fences are longer than any dash sequence within it
+      const backticks = node.textContent.match(/`{3,}/gm)
+      const fence = backticks ? backticks.sort().slice(-1)[0] + "`" : "```"
 
-    state.write(fence + (node.attrs.params || "") + "\n")
-    state.text(node.textContent, false)
-    // Add a newline to the current content before adding closing marker
-    state.write("\n")
-    state.write(fence)
-    state.closeBlock(node)
-  },
-  heading(state, node) {
-    state.write(state.repeat("#", node.attrs.level) + " ")
-    state.renderInline(node, false)
-    state.closeBlock(node)
-  },
-  horizontal_rule(state, node) {
-    state.write(node.attrs.markup || "---")
-    state.closeBlock(node)
-  },
-  bullet_list(state, node) {
-    state.renderList(node, "  ", () => (node.attrs.bullet || "*") + " ")
-  },
-  ordered_list(state, node) {
-    const start = node.attrs.order || 1
-    const maxW = String(start + node.childCount - 1).length
-    const space = state.repeat(" ", maxW + 2)
-    state.renderList(node, space, (i) => {
-      const nStr = String(start + i)
-      return state.repeat(" ", maxW - nStr.length) + nStr + ". "
-    })
-  },
-  list_item(state, node) {
-    state.renderContent(node)
-  },
-  paragraph(state, node) {
-    state.renderInline(node)
-    state.closeBlock(node)
-  },
+      state.write(fence + (node.attrs.params || "") + "\n")
+      state.text(node.textContent, false)
+      // Add a newline to the current content before adding closing marker
+      state.write("\n")
+      state.write(fence)
+      state.closeBlock(node)
+    },
+    heading(state, node) {
+      state.write(state.repeat("#", node.attrs.level) + " ")
+      state.renderInline(node, false)
+      state.closeBlock(node)
+    },
+    horizontal_rule(state, node) {
+      state.write(node.attrs.markup || "---")
+      state.closeBlock(node)
+    },
+    bullet_list(state, node) {
+      state.renderList(node, "  ", () => (node.attrs.bullet || "*") + " ")
+    },
+    ordered_list(state, node) {
+      const start = node.attrs.order || 1
+      const maxW = String(start + node.childCount - 1).length
+      const space = state.repeat(" ", maxW + 2)
+      state.renderList(node, space, (i) => {
+        const nStr = String(start + i)
+        return state.repeat(" ", maxW - nStr.length) + nStr + ". "
+      })
+    },
+    list_item(state, node) {
+      state.renderContent(node)
+    },
+    paragraph(state, node) {
+      state.renderInline(node)
+      state.closeBlock(node)
+    },
 
-  image(state, node) {
-    state.write(
-      "![" + state.esc(node.attrs.alt || "") + "](" + node.attrs.src.replace(/[()]/g, "\\$&") +
-        (node.attrs.title ? " \"" + node.attrs.title.replace(/"/g, "\\\"") + "\"" : "") + ")"
-    )
-  },
-  hard_break(state, node, parent, index) {
-    for (let i = index + 1; i < parent.childCount; i++) {
-      if (parent.childUnsafe(i).type != node.type) {
-        state.write("\\\n")
-        return
+    image(state, node) {
+      state.write(
+        "![" +
+          state.esc(node.attrs.alt || "") +
+          "](" +
+          node.attrs.src.replace(/[()]/g, "\\$&") +
+          (node.attrs.title ? ' "' + node.attrs.title.replace(/"/g, '\\"') + '"' : "") +
+          ")"
+      )
+    },
+    hard_break(state, node, parent, index) {
+      for (let i = index + 1; i < parent.childCount; i++) {
+        if (parent.childUnsafe(i).type != node.type) {
+          state.write("\\\n")
+          return
+        }
       }
+    },
+    text(state, node) {
+      state.text((node as TextNode<any>).text, !state.inAutolink)
     }
   },
-  text(state, node) {
-    state.text((node as TextNode<any>).text, !state.inAutolink)
+  {
+    em: { open: "*", close: "*", mixable: true, expelEnclosingWhitespace: true },
+    strong: { open: "**", close: "**", mixable: true, expelEnclosingWhitespace: true },
+    link: {
+      open(state, mark, parent, index) {
+        state.inAutolink = isPlainURL(mark, parent, index)
+        return state.inAutolink ? "<" : "["
+      },
+      close(state, mark) {
+        const { inAutolink } = state
+        state.inAutolink = undefined
+        return inAutolink
+          ? ">"
+          : "](" +
+              mark.attrs.href.replace(/[()"]/g, "\\$&") +
+              (mark.attrs.title ? ` "${mark.attrs.title.replace(/"/g, '\\"')}"` : "") +
+              ")"
+      },
+      mixable: true
+    },
+    code: {
+      open(_state, _mark, parent, index) {
+        return backticksFor(parent.childUnsafe(index), -1)
+      },
+      close(_state, _mark, parent, index) {
+        return backticksFor(parent.childUnsafe(index - 1), 1)
+      },
+      escape: false
+    }
   }
-}, {
-  em: { open: "*", close: "*", mixable: true, expelEnclosingWhitespace: true },
-  strong: { open: "**", close: "**", mixable: true, expelEnclosingWhitespace: true },
-  link: {
-    open(state, mark, parent, index) {
-      state.inAutolink = isPlainURL(mark, parent, index)
-      return state.inAutolink ? "<" : "["
-    },
-    close(state, mark) {
-      const { inAutolink } = state
-      state.inAutolink = undefined
-      return inAutolink
-        ? ">"
-        : "](" + mark.attrs.href.replace(/[()"]/g, "\\$&") +
-          (mark.attrs.title ? ` "${mark.attrs.title.replace(/"/g, "\\\"")}"` : "") + ")"
-    },
-    mixable: true
-  },
-  code: {
-    open(_state, _mark, parent, index) {
-      return backticksFor(parent.childUnsafe(index), -1)
-    },
-    close(_state, _mark, parent, index) {
-      return backticksFor(parent.childUnsafe(index - 1), 1)
-    },
-    escape: false
-  }
-})
+)
 
 /**
  * This is an object used to track state and expose methods related to
@@ -438,7 +452,9 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
       // If whitespace has to be expelled from the node, adjust
       // leading and trailing accordingly.
       if (
-        node && node.isText && marks.some((mark) => {
+        node &&
+        node.isText &&
+        marks.some((mark) => {
           const info = this.getMark(mark.type.name)
           return info && info.expelEnclosingWhitespace && !mark.isInSet(active)
         })
@@ -451,7 +467,9 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
         }
       }
       if (
-        node && node.isText && marks.some((mark) => {
+        node &&
+        node.isText &&
+        marks.some((mark) => {
           const info = this.getMark(mark.type.name)
           return info && info.expelEnclosingWhitespace && !this.isMarkAhead(parent, index + 1, mark)
         })
@@ -479,9 +497,17 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
           if (!this.getMark(other.type.name).mixable) break
           if (mark.eq(other)) {
             if (i > j) {
-              marks = marks.slice(0, j).concat(mark).concat(marks.slice(j, i)).concat(marks.slice(i + 1, len))
+              marks = marks
+                .slice(0, j)
+                .concat(mark)
+                .concat(marks.slice(j, i))
+                .concat(marks.slice(i + 1, len))
             } else if (j > i) {
-              marks = marks.slice(0, i).concat(marks.slice(i + 1, j)).concat(mark).concat(marks.slice(j, len))
+              marks = marks
+                .slice(0, i)
+                .concat(marks.slice(i + 1, j))
+                .concat(mark)
+                .concat(marks.slice(j, len))
             }
             continue outer
           }
@@ -511,7 +537,8 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
         // may not be escaped.
         if (noEsc && node.isText) {
           this.text(
-            this.markString(inner!, true, parent, index) + (node as TextNode<Sc>).text +
+            this.markString(inner!, true, parent, index) +
+              (node as TextNode<Sc>).text +
               this.markString(inner!, false, parent, index + 1),
             false
           )
@@ -563,16 +590,14 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
    * special meaning only at the start of the line.
    */
   esc(str: string, startOfLine = false): string {
-    str = str.replace(
-      /[`*\\~[\]_]/g,
-      (m, i) =>
-        m == "_" && i > 0 && i + 1 < str.length && str[i - 1]!.match(/\w/) && str[i + 1]!.match(/\w/) ? m : "\\" + m
+    str = str.replace(/[`*\\~[\]_]/g, (m, i) =>
+      m == "_" && i > 0 && i + 1 < str.length && str[i - 1]!.match(/\w/) && str[i + 1]!.match(/\w/) ? m : "\\" + m
     )
     if (startOfLine) {
-      str = str.replace(/^(\+[ ]|[-*>])/, "\\$&").replace(/^(\s*)(#{1,6})(\s|$)/, "$1\\$2$3").replace(
-        /^(\s*\d+)\.\s/,
-        "$1\\. "
-      )
+      str = str
+        .replace(/^(\+[ ]|[-*>])/, "\\$&")
+        .replace(/^(\s*)(#{1,6})(\s|$)/, "$1\\$2$3")
+        .replace(/^(\s*\d+)\.\s/, "$1\\. ")
     }
     if (this.options.escapeExtraCharacters) str = str.replace(this.options.escapeExtraCharacters, "\\$&")
     return str
@@ -580,7 +605,7 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
 
   /** @internal */
   quote(str: string): string {
-    const wrap = str.indexOf("\"") == -1 ? "\"\"" : str.indexOf("'") == -1 ? "''" : "()"
+    const wrap = str.indexOf('"') == -1 ? '""' : str.indexOf("'") == -1 ? "''" : "()"
     return wrap[0] + str + wrap[1]
   }
 
@@ -612,7 +637,7 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
 
   /** @internal */
   isMarkAhead(parent: Node<Sc, any>, index: number, mark: Mark<Sc, any>): boolean {
-    for (;; index++) {
+    for (; ; index++) {
       if (index >= parent.childCount) return false
       const next = parent.childUnsafe(index)
       if (next.type.name != this.options.hardBreakNodeName) return mark.isInSet(next.marks)

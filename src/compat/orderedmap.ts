@@ -26,7 +26,7 @@ export class OrderedMap<T = any> {
   /** Retrieve the value stored under `key`, or `undefined`. */
   get(key: string): T | undefined {
     const found = this.find(key)
-    return found === -1 ? undefined : this.content[found + 1] as T
+    return found === -1 ? undefined : (this.content[found + 1] as T)
   }
 
   /**
@@ -36,7 +36,8 @@ export class OrderedMap<T = any> {
    */
   update(key: string, value: T, newKey?: string): OrderedMap<T> {
     const self = newKey && newKey !== key ? this.remove(newKey) : this
-    const found = self.find(key), content = self.content.slice()
+    const found = self.find(key),
+      content = self.content.slice()
     if (found === -1) {
       content.push(newKey || key, value)
     } else {
@@ -72,7 +73,8 @@ export class OrderedMap<T = any> {
    * is added to the end.
    */
   addBefore(place: string, key: string, value: T): OrderedMap<T> {
-    const without = this.remove(key), content = without.content.slice()
+    const without = this.remove(key),
+      content = without.content.slice()
     const found = without.find(place)
     content.splice(found === -1 ? content.length : found, 0, key, value)
     return new OrderedMap(content)
@@ -133,7 +135,9 @@ export class OrderedMap<T = any> {
   static from<T>(map: MapLike<T>): OrderedMap<T> {
     if (map instanceof OrderedMap) return map
     const content: Array<string | T> = []
-    if (map) { for (const prop in map) content.push(prop, (map as Record<string, T>)[prop]!) }
+    if (map) {
+      for (const prop in map) content.push(prop, (map as Record<string, T>)[prop]!)
+    }
     return new OrderedMap(content)
   }
 }

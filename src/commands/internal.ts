@@ -30,16 +30,17 @@ export type SyncResult<Sc extends AnySchema = AnySchema> = boolean | Transaction
  *
  * @internal
  */
-export const syncCommand = <Sc extends AnySchema = AnySchema>(
-  body: (state: EditorState<Sc, any, any>, dispatching: boolean, view: EditorViewLike) => SyncResult<Sc>
-): Command<Sc> =>
-(state, dispatch, view) =>
-  Effect.suspend(() => {
-    const result = body(state, dispatch !== undefined, view)
-    if (result === true) return succeedTrue
-    if (result === false) return succeedFalse
-    return dispatch ? Effect.as(dispatch(result), true) : succeedTrue
-  })
+export const syncCommand =
+  <Sc extends AnySchema = AnySchema>(
+    body: (state: EditorState<Sc, any, any>, dispatching: boolean, view: EditorViewLike) => SyncResult<Sc>
+  ): Command<Sc> =>
+  (state, dispatch, view) =>
+    Effect.suspend(() => {
+      const result = body(state, dispatch !== undefined, view)
+      if (result === true) return succeedTrue
+      if (result === false) return succeedFalse
+      return dispatch ? Effect.as(dispatch(result), true) : succeedTrue
+    })
 
 /**
  * When dispatching, build the transaction; otherwise just report that
@@ -60,10 +61,10 @@ export const keepMarks = <Sc extends AnySchema>(
   state: EditorState<Sc, any, any>,
   dispatch: Dispatch<Sc> | undefined
 ): Dispatch<Sc> | undefined =>
-  dispatch && ((tr) =>
+  dispatch &&
+  ((tr) =>
     Effect.suspend(() => {
-      const marks = state.storedMarksOrNull ||
-        (state.selection.$to.parentOffset && state.selection.$from.marks())
+      const marks = state.storedMarksOrNull || (state.selection.$to.parentOffset && state.selection.$from.marks())
       if (marks) tr.ensureMarks(marks)
       return dispatch(tr)
     }))

@@ -70,7 +70,7 @@ export const fragmentInput = (content: unknown): any => {
   return unwrap(content)
 }
 
-const marksInput = (marks: ReadonlyArray<Mark> | null | undefined): any => marks == null ? marks : unwrapArray(marks)
+const marksInput = (marks: ReadonlyArray<Mark> | null | undefined): any => (marks == null ? marks : unwrapArray(marks))
 
 const nullable = <A>(o: Option.Option<A>): any => wrap(Option.getOrNull(o))
 
@@ -356,13 +356,10 @@ export class TextNode extends Node {
   }
 }
 
-const visitor = (f: (node: Node, pos: number, parent: Node | null, index: number) => boolean | void) =>
-(
-  node: M.Node,
-  pos: number,
-  parent: Option.Option<M.Node>,
-  index: number
-) => f(wrap(node), pos, nullable(parent), index)
+const visitor =
+  (f: (node: Node, pos: number, parent: Node | null, index: number) => boolean | void) =>
+  (node: M.Node, pos: number, parent: Option.Option<M.Node>, index: number) =>
+    f(wrap(node), pos, nullable(parent), index)
 
 const leafTextInput = (leafText: null | undefined | string | ((leafNode: Node) => string)) =>
   typeof leafText === "function" ? (node: M.Node) => leafText(wrap(node)) : leafText
@@ -729,7 +726,14 @@ export class ResolvedPos {
 
   /** @internal */
   constructor(pos: number, path: Array<any>, parentOffset: number) {
-    link(this, new M.ResolvedPos(pos, path.map((x, i) => i % 3 === 0 ? unwrap(x) : x), parentOffset))
+    link(
+      this,
+      new M.ResolvedPos(
+        pos,
+        path.map((x, i) => (i % 3 === 0 ? unwrap(x) : x)),
+        parentOffset
+      )
+    )
   }
 
   /** The position that was resolved. */
@@ -739,7 +743,7 @@ export class ResolvedPos {
 
   /** @internal */
   get path(): Array<any> {
-    return this._path ??= this[CORE].path.map((x, i) => i % 3 === 0 ? wrap(x) : x)
+    return (this._path ??= this[CORE].path.map((x, i) => (i % 3 === 0 ? wrap(x) : x)))
   }
 
   /** The offset this position has into its parent node. */
@@ -1041,7 +1045,7 @@ ContentMatch.empty = wrap(M.ContentMatch.empty)
  */
 export interface AttributeSpec {
   default?: any | undefined
-  validate?: ((string | ((value: any) => void))) | undefined
+  validate?: (string | ((value: any) => void)) | undefined
 }
 
 /**
@@ -1132,7 +1136,7 @@ export interface TagParseRule extends GenericParseRule {
   namespace?: string | undefined
   node?: string | undefined
   getAttrs?: ((node: HTMLElement) => Attrs | false | null) | undefined
-  contentElement?: ((string | HTMLElement | ((node: HTMLElement) => HTMLElement))) | undefined
+  contentElement?: (string | HTMLElement | ((node: HTMLElement) => HTMLElement)) | undefined
   getContent?: ((node: globalThis.Node, schema: Schema) => Fragment) | undefined
   preserveWhitespace?: boolean | "full" | undefined
 }
@@ -1491,7 +1495,8 @@ export class Schema<Nodes extends string = any, Marks extends string = any> {
     for (const prop in spec) instanceSpec[prop] = (spec as any)[prop]
     instanceSpec.nodes = OrderedMap.from(spec.nodes)
     instanceSpec.marks = OrderedMap.from(spec.marks || {})
-    const nodes: Record<string, M.NodeSpec> = {}, marks: Record<string, M.MarkSpec> = {}
+    const nodes: Record<string, M.NodeSpec> = {},
+      marks: Record<string, M.MarkSpec> = {}
     instanceSpec.nodes.forEach((name: string, s: NodeSpec) => {
       nodes[name] = translateNodeSpec(s)
     })
@@ -1510,14 +1515,16 @@ export class Schema<Nodes extends string = any, Marks extends string = any> {
     content?: Fragment | Node | ReadonlyArray<Node>,
     marks?: ReadonlyArray<Mark>
   ): Node {
-    return wrap(guard(() =>
-      this[CORE].nodeUnsafe(
-        typeof type === "string" ? type : type[CORE] as any,
-        attrs,
-        fragmentInput(content),
-        marksInput(marks)
+    return wrap(
+      guard(() =>
+        this[CORE].nodeUnsafe(
+          typeof type === "string" ? type : (type[CORE] as any),
+          attrs,
+          fragmentInput(content),
+          marksInput(marks)
+        )
       )
-    ))
+    )
   }
 
   /** Create a text node in the schema. Empty text nodes are not allowed. */
@@ -1527,7 +1534,7 @@ export class Schema<Nodes extends string = any, Marks extends string = any> {
 
   /** Create a mark with the given type and attributes. */
   mark(type: string | MarkType, attrs?: Attrs | null): Mark {
-    return wrap(guard(() => this[CORE].markUnsafe(typeof type === "string" ? type : type[CORE] as any, attrs)))
+    return wrap(guard(() => this[CORE].markUnsafe(typeof type === "string" ? type : (type[CORE] as any), attrs)))
   }
 
   /** Deserialize a node from its JSON representation. */
@@ -1563,7 +1570,8 @@ function initSchema(schema: Schema, core: M.DocSchema, spec: any) {
 
 registerWrapper(M.DocSchema, (core: M.DocSchema) => {
   const schema = adopt<Schema>(Schema.prototype, core)
-  const nodes: Record<string, NodeSpec> = {}, marks: Record<string, MarkSpec> = {}
+  const nodes: Record<string, NodeSpec> = {},
+    marks: Record<string, MarkSpec> = {}
   for (const name in core.spec.nodes) nodes[name] = originalSpec(core.spec.nodes[name])
   for (const name in core.spec.marks) marks[name] = originalSpec(core.spec.marks[name])
   initSchema(schema, core, {
@@ -1629,7 +1637,10 @@ export class DOMParser {
   /** Create a parser that targets the given schema, using the given parsing rules. */
   constructor(schema: Schema, rules: ReadonlyArray<ParseRule>) {
     this._rules = rules
-    link(this, guard(() => new M.DOMParser(schema[CORE], rules.map(translateRule))))
+    link(
+      this,
+      guard(() => new M.DOMParser(schema[CORE], rules.map(translateRule)))
+    )
   }
 
   /** The schema into which the parser parses. */
@@ -1768,8 +1779,10 @@ export class DOMSerializer {
 
   /** Build a serializer using the `toDOM` properties in a schema's node and mark specs. */
   static fromSchema(schema: Schema): DOMSerializer {
-    return schema.cached.domSerializer as DOMSerializer ||
+    return (
+      (schema.cached.domSerializer as DOMSerializer) ||
       (schema.cached.domSerializer = new DOMSerializer(this.nodesFromSchema(schema), this.marksFromSchema(schema)))
+    )
   }
 
   /** Gather the serializers in a schema's node specs into an object. */

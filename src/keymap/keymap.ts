@@ -89,7 +89,10 @@ export function normalizeKeyName(name: string): string {
   const parts = name.split(/-(?!$)/)
   let result = parts[parts.length - 1]!
   if (result === "Space") result = " "
-  let alt = false, ctrl = false, shift = false, meta = false
+  let alt = false,
+    ctrl = false,
+    shift = false,
+    meta = false
   for (let i = 0; i < parts.length - 1; i++) {
     const mod = parts[i]!
     if (/^(cmd|meta|m)$/i.test(mod)) meta = true
@@ -158,7 +161,8 @@ export function matchBindings<A>(map: Record<string, A>, event: KeyboardEvent): 
       (event.altKey || event.metaKey || event.ctrlKey) &&
       // Ctrl-Alt may be used for AltGr on Windows
       !(windows && event.ctrlKey && event.altKey) &&
-      (baseName = base[event.keyCode]) && baseName !== name
+      (baseName = base[event.keyCode]) &&
+      baseName !== name
     ) {
       // Try falling back to the keyCode when there's a modifier
       // active, and our table produces a different name from the
@@ -234,12 +238,12 @@ export const keydownHandler = <const B extends Bindings>(
       const candidates = matchBindings(map, event)
       if (candidates.length === 0) return succeedFalse
       const loop = (i: number): Effect.Effect<boolean, any, any> =>
-        i === candidates.length ?
-          succeedFalse :
-          Effect.flatMap(
-            Effect.suspend(() => candidates[i]!(view.state, view.dispatch, view)),
-            (handled) => handled ? succeedTrue : loop(i + 1)
-          )
+        i === candidates.length
+          ? succeedFalse
+          : Effect.flatMap(
+              Effect.suspend(() => candidates[i]!(view.state, view.dispatch, view)),
+              (handled) => (handled ? succeedTrue : loop(i + 1))
+            )
       return loop(0)
     })
 }

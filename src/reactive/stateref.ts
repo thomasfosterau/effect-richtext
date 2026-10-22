@@ -77,7 +77,7 @@ export interface StateRef<Sc extends AnySchema = AnySchema, R = never, E = never
 export const make = <Sc extends AnySchema, R = never, E = never>(
   initial: EditorState<Sc, R, E>
 ): Effect.Effect<StateRef<Sc, R, E>, never, Scope.Scope | R> =>
-  Effect.gen(function*() {
+  Effect.gen(function* () {
     const context = yield* Effect.context<R>()
     const source = yield* makeSource(initial)
     const semaphore = Semaphore.makeUnsafe(1)
@@ -102,18 +102,13 @@ export const make = <Sc extends AnySchema, R = never, E = never>(
     const set = (state: EditorState<Sc, R, E>): Effect.Effect<void> =>
       semaphore.withPermit(Effect.sync(() => setState(source, state)))
 
-    const execute = <CE, CR>(
-      command: Command<Sc, CE, CR>
-    ): Effect.Effect<boolean, CE | E | StateFailure, CR> =>
+    const execute = <CE, CR>(command: Command<Sc, CE, CR>): Effect.Effect<boolean, CE | E | StateFailure, CR> =>
       Effect.suspend(() => {
         let failure: Cause.Cause<E | StateFailure> | undefined
         const commandDispatch: Dispatch<Sc> = (tr) =>
-          failure
-            ? Effect.void
-            : Effect.catchCause(dispatch(tr), (cause) => Effect.sync(() => void (failure = cause)))
-        return Effect.flatMap(
-          command(source.ref.value, commandDispatch),
-          (result) => failure ? Effect.failCause(failure) : Effect.succeed(result)
+          failure ? Effect.void : Effect.catchCause(dispatch(tr), (cause) => Effect.sync(() => void (failure = cause)))
+        return Effect.flatMap(command(source.ref.value, commandDispatch), (result) =>
+          failure ? Effect.failCause(failure) : Effect.succeed(result)
         )
       })
 

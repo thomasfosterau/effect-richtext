@@ -137,8 +137,11 @@ export abstract class Selection {
   /** Initialize a selection with the head and anchor and ranges. */
   constructor($anchor: ResolvedPos, $head: ResolvedPos, ranges?: ReadonlyArray<SelectionRange>) {
     if (($anchor as unknown) === INTERNAL) {
-      const [CoreClass, args] = $head as unknown as [new(...args: Array<any>) => S.Selection, Array<unknown>]
-      link(this, guard(() => coreSelection(this, new.target, CoreClass, args)))
+      const [CoreClass, args] = $head as unknown as [new (...args: Array<any>) => S.Selection, Array<unknown>]
+      link(
+        this,
+        guard(() => coreSelection(this, new.target, CoreClass, args))
+      )
     } else {
       const args = [$anchor[CORE], $head[CORE], ranges && unwrapArray(ranges)]
       link(this, coreSelection(this, new.target, S.Selection as any, args))
@@ -286,7 +289,8 @@ const adaptedSelectionClasses = new Map<object, any>()
 const adaptedSelectionClass = (CoreClass: any, FacadeClass: any): any => {
   let found = adaptedSelectionClasses.get(CoreClass)
   if (!found) {
-    const base = FacadeClass.prototype, baseVisible = getterOf(base, "visible")
+    const base = FacadeClass.prototype,
+      baseVisible = getterOf(base, "visible")
     found = class extends CoreClass {
       declare facade: Selection
       get visible(): boolean {
@@ -297,9 +301,7 @@ const adaptedSelectionClass = (CoreClass: any, FacadeClass: any): any => {
         return this.facade.eq === base.eq ? super.eq(other) : this.facade.eq(wrap(other))
       }
       map(doc: M.Node, mapping: Mappable): S.Selection {
-        return this.facade.map === base.map
-          ? super.map(doc, mapping)
-          : this.facade.map(wrap(doc), wrap(mapping))[CORE]
+        return this.facade.map === base.map ? super.map(doc, mapping) : this.facade.map(wrap(doc), wrap(mapping))[CORE]
       }
       content(): M.Slice {
         return this.facade.content === base.content ? super.content() : this.facade.content()[CORE]
@@ -330,16 +332,17 @@ const adaptedSelectionClass = (CoreClass: any, FacadeClass: any): any => {
 const coreSelection = (
   facade: Selection,
   target: unknown,
-  CoreClass: new(...args: Array<any>) => S.Selection,
+  CoreClass: new (...args: Array<any>) => S.Selection,
   args: Array<unknown>
 ): S.Selection => {
-  const FacadeClass = CoreClass === S.TextSelection
-    ? TextSelection
-    : CoreClass === S.NodeSelection
-    ? NodeSelection
-    : CoreClass === S.AllSelection
-    ? AllSelection
-    : Selection
+  const FacadeClass =
+    CoreClass === S.TextSelection
+      ? TextSelection
+      : CoreClass === S.NodeSelection
+        ? NodeSelection
+        : CoreClass === S.AllSelection
+          ? AllSelection
+          : Selection
   if (target === FacadeClass) return new CoreClass(...args)
   const core = new (adaptedSelectionClass(CoreClass, FacadeClass))(...args)
   core.facade = facade
@@ -490,7 +493,7 @@ registerWrapper(S.AllSelection, (core) => adopt(AllSelection.prototype, core))
  */
 export type Command = (state: EditorState, dispatch?: (tr: Transaction) => void, view?: EditorView) => boolean
 
-const metaKey = (key: string | Plugin | PluginKey): string => typeof key === "string" ? key : key.key
+const metaKey = (key: string | Plugin | PluginKey): string => (typeof key === "string" ? key : key.key)
 
 /**
  * An editor state transaction, which can be applied to a state to
@@ -691,14 +694,15 @@ const configs = new WeakMap<object, EditorStateConfig>()
 
 const facadeConfig = (config: any): any => configs.get(config) ?? config
 
-const pluginViewToCore = (pluginView: PluginView): S.PluginView<any> => ({
-  get update() {
-    return pluginView.update && ((view: any, prevState: any) => pluginView.update!(wrap(view), wrap(prevState)))
-  },
-  get destroy() {
-    return pluginView.destroy && (() => pluginView.destroy!())
-  }
-} as S.PluginView<any>)
+const pluginViewToCore = (pluginView: PluginView): S.PluginView<any> =>
+  ({
+    get update() {
+      return pluginView.update && ((view: any, prevState: any) => pluginView.update!(wrap(view), wrap(prevState)))
+    },
+    get destroy() {
+      return pluginView.destroy && (() => pluginView.destroy!())
+    }
+  }) as S.PluginView<any>
 
 const pluginSpecToCore = (spec: PluginSpec<any>, self: Plugin): S.PluginSpec<any> => {
   const result: Record<string, any> = { ...spec }
@@ -710,7 +714,8 @@ const pluginSpecToCore = (spec: PluginSpec<any>, self: Plugin): S.PluginSpec<any
       apply: (tr: any, value: any, oldState: any, newState: any) =>
         state.apply.call(self, wrap(tr), value, wrap(oldState), wrap(newState)),
       toJSON: state.toJSON && ((value: any) => state.toJSON!.call(self, value)),
-      fromJSON: state.fromJSON &&
+      fromJSON:
+        state.fromJSON &&
         ((config: any, value: any, instance: any) =>
           state.fromJSON!.call(self, facadeConfig(config), value, wrap(instance)))
     }
@@ -749,7 +754,10 @@ export class Plugin<PluginState = any> {
     ;(this as any).spec = spec
     ;(this as any).props = {}
     if (spec.props) bindProps(spec.props, this, this.props)
-    link(this, guard(() => new S.Plugin(pluginSpecToCore(spec, this))))
+    link(
+      this,
+      guard(() => new S.Plugin(pluginSpecToCore(spec, this)))
+    )
   }
 
   /** @internal */
@@ -925,7 +933,9 @@ export class EditorState {
     pluginFields?: { [propName: string]: Plugin }
   ): EditorState {
     const fields: Record<string, any> | undefined = pluginFields && {}
-    if (pluginFields) { for (const prop in pluginFields) fields![prop] = unwrap(pluginFields[prop]) }
+    if (pluginFields) {
+      for (const prop in pluginFields) fields![prop] = unwrap(pluginFields[prop])
+    }
     return wrap(runSync(S.EditorState.fromJSON(configToCore(config), json, fields) as Effect.Effect<any>))
   }
 }
@@ -973,13 +983,7 @@ export const toCoreCommand = (command: Command): S.Command<any> => {
   let found = coreCommands.get(command)
   if (!found) {
     found = (state, dispatch, view) =>
-      Effect.sync(() =>
-        command(
-          wrap(state),
-          dispatch && ((tr) => runSync(dispatch(tr[CORE]))),
-          view && wrap(view)
-        )
-      )
+      Effect.sync(() => command(wrap(state), dispatch && ((tr) => runSync(dispatch(tr[CORE]))), view && wrap(view)))
     coreCommands.set(command, found)
     pmCommands.set(found, command)
   }

@@ -43,9 +43,9 @@ export type Tags = { readonly [tag: string]: number }
  * @since 0.1.0
  * @category models
  */
-export type TaggedNode<Sc extends AnySchema = AnySchema, N extends NodeNames<Sc> = NodeNames<Sc>> =
-  & Node<Sc, N>
-  & { readonly tag: Tags }
+export type TaggedNode<Sc extends AnySchema = AnySchema, N extends NodeNames<Sc> = NodeNames<Sc>> = Node<Sc, N> & {
+  readonly tag: Tags
+}
 
 /**
  * The flattened output of a mark builder.
@@ -64,19 +64,16 @@ export interface Flat<Sc extends AnySchema = AnySchema> {
  * @since 0.1.0
  * @category models
  */
-export type ChildSpec<Sc extends AnySchema = AnySchema> =
-  | string
-  | Node<Sc>
-  | Flat<Sc>
-  | NodeBuilder<Sc, any>
+export type ChildSpec<Sc extends AnySchema = AnySchema> = string | Node<Sc> | Flat<Sc> | NodeBuilder<Sc, any>
 
 /**
  * @since 0.1.0
  * @category models
  */
-export type NodeBuilder<Sc extends AnySchema = AnySchema, N extends NodeNames<Sc> = NodeNames<Sc>> =
-  & ((attrsOrFirstChild?: Attrs | ChildSpec<Sc>, ...children: Array<ChildSpec<Sc>>) => TaggedNode<Sc, N>)
-  & { readonly flat?: ReadonlyArray<Node<Sc>> }
+export type NodeBuilder<Sc extends AnySchema = AnySchema, N extends NodeNames<Sc> = NodeNames<Sc>> = ((
+  attrsOrFirstChild?: Attrs | ChildSpec<Sc>,
+  ...children: Array<ChildSpec<Sc>>
+) => TaggedNode<Sc, N>) & { readonly flat?: ReadonlyArray<Node<Sc>> }
 
 /**
  * @since 0.1.0
@@ -130,7 +127,8 @@ function flatten<Sc extends AnySchema>(
     if (typeof child === "string") {
       const re = /<(\w+)>/g
       let m: RegExpExecArray | null
-      let at = 0, out = ""
+      let at = 0,
+        out = ""
       while ((m = re.exec(child))) {
         out += child.slice(at, m.index)
         pos += m.index - at
@@ -180,7 +178,7 @@ function block<Sc extends AnySchema, N extends NodeNames<Sc>>(
   type: NodeType<Sc, N>,
   attrs: Attrs | null = null
 ): NodeBuilder<Sc, N> {
-  const result = function(...args: Array<any>) {
+  const result = function (...args: Array<any>) {
     const myAttrs = takeAttrs(attrs, args)
     const { nodes, tag } = flatten(type.schema, args as Array<ChildSpec<Sc>>, (n) => n)
     return withTag(type.createUnsafe(myAttrs as any, nodes as any), tag)
@@ -196,7 +194,7 @@ function block<Sc extends AnySchema, N extends NodeNames<Sc>>(
 }
 
 function mark<Sc extends AnySchema>(type: MarkType<Sc>, attrs: Attrs | null): MarkBuilder<Sc> {
-  return function(...args: Array<any>) {
+  return function (...args: Array<any>) {
     const m = type.createUnsafe(takeAttrs(attrs, args) as any)
     const { nodes, tag } = flatten(type.schema, args as Array<ChildSpec<Sc>>, (n) => {
       const newMarks = m.addToSet(n.marks)
@@ -213,15 +211,13 @@ function mark<Sc extends AnySchema>(type: MarkType<Sc>, attrs: Attrs | null): Ma
  * @since 0.1.0
  * @category models
  */
-export type Builders<Sc extends AnySchema, Extra extends Record<string, Attrs> = {}> =
-  & { readonly schema: Sc }
-  & { readonly [K in NodeNames<Sc>]: NodeBuilder<Sc, K> }
-  & { readonly [K in MarkNames<Sc>]: MarkBuilder<Sc> }
-  & {
-    readonly [K in keyof Extra]: Extra[K] extends { readonly nodeType: infer T extends NodeNames<Sc> } ?
-      NodeBuilder<Sc, T>
-      : MarkBuilder<Sc>
-  }
+export type Builders<Sc extends AnySchema, Extra extends Record<string, Attrs> = {}> = { readonly schema: Sc } & {
+  readonly [K in NodeNames<Sc>]: NodeBuilder<Sc, K>
+} & { readonly [K in MarkNames<Sc>]: MarkBuilder<Sc> } & {
+  readonly [K in keyof Extra]: Extra[K] extends { readonly nodeType: infer T extends NodeNames<Sc> }
+    ? NodeBuilder<Sc, T>
+    : MarkBuilder<Sc>
+}
 
 /**
  * Create builders for the given schema. `names` can be used to define
@@ -248,7 +244,8 @@ export function builders<Sc extends AnySchema, const Extra extends Record<string
       const typeName = value.nodeType || value.markType || name
       delete value.nodeType
       delete value.markType
-      const nodeType = schema.nodes[typeName], markType = schema.marks[typeName]
+      const nodeType = schema.nodes[typeName],
+        markType = schema.marks[typeName]
       if (nodeType) result[name] = block(nodeType, value)
       else if (markType) result[name] = mark(markType, value)
     }

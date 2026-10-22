@@ -151,9 +151,11 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
 
   /** @internal */
   get nodeAfterOrNull(): Node<Sc> | null {
-    const parent = this.parent, index = this.index(this.depth)
+    const parent = this.parent,
+      index = this.index(this.depth)
     if (index === parent.childCount) return null
-    const dOff = this.pos - this.path[this.path.length - 1], child = parent.content.content[index]!
+    const dOff = this.pos - this.path[this.path.length - 1],
+      child = parent.content.content[index]!
     return dOff ? child.cut(dOff) : child
   }
 
@@ -190,7 +192,8 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
    * returned.
    */
   marks(): ReadonlyArray<Mark<Sc>> {
-    const parent = this.parent, index = this.index()
+    const parent = this.parent,
+      index = this.index()
 
     // In an empty parent, return the empty array
     if (parent.content.size === 0) return Mark.none
@@ -198,7 +201,8 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
     // When inside a text node, just return the text node's marks
     if (this.textOffset) return parent.content.content[index]!.marks
 
-    let main = parent.content.content[index - 1], other = parent.content.content[index]
+    let main = parent.content.content[index - 1],
+      other = parent.content.content[index]
     // If the `after` flag is true of there is no node before, make the
     // node after this position the main reference.
     if (!main) {
@@ -303,8 +307,9 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
       throw new PositionError({ message: "Position " + pos + " out of range" })
     }
     const path: Array<Node<Sc> | number> = []
-    let start = 0, parentOffset = pos
-    for (let node = doc;;) {
+    let start = 0,
+      parentOffset = pos
+    for (let node = doc; ;) {
       const { index, offset } = node.content.findIndex(parentOffset)
       const rem = parentOffset - offset
       path.push(node, index, start + offset)
@@ -326,9 +331,9 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
         if (elt.pos === pos) return elt
       }
     } else {
-      resolveCache.set(doc, cache = new ResolveCache())
+      resolveCache.set(doc, (cache = new ResolveCache()))
     }
-    const result = cache.elts[cache.i] = ResolvedPos.resolve(doc, pos)
+    const result = (cache.elts[cache.i] = ResolvedPos.resolve(doc, pos))
     cache.i = (cache.i + 1) % resolveCacheSize
     return result
   }
@@ -339,7 +344,8 @@ class ResolveCache {
   i = 0
 }
 
-const resolveCacheSize = 12, resolveCache = new WeakMap<Node<any>, ResolveCache>()
+const resolveCacheSize = 12,
+  resolveCache = new WeakMap<Node<any>, ResolveCache>()
 
 /**
  * Represents a flat range of content, i.e. one that starts and ends in

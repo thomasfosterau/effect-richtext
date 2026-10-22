@@ -1,28 +1,12 @@
 # effect-richtext
 
-A reimplementation of the core [ProseMirror](https://prosemirror.net) toolkit
-(`prosemirror-model`, `-transform`, `-state`, `-view`, `-keymap`, `-commands`)
-on top of [Effect](https://effect.website) 4, in a single package.
+A reimplementation of the core [ProseMirror](https://prosemirror.net) toolkit (`prosemirror-model`, `-transform`, `-state`, `-view`, `-keymap`, `-commands`) on top of [Effect](https://effect.website) 4, in a single package.
 
-- **Strongly typed documents.** Node and mark names are literal types, attributes
-  are described with Effect `Schema`s, and content expressions are typed
-  combinators, so the schema knows which children each node accepts:
-  `doc` built from a `text` node is a compile error, and `node.is("heading")`
-  narrows `node.attrs` to `{ level: number }`.
-- **Effect everywhere.** Every fallible operation returns an `Effect` with tagged
-  errors (`PositionError`, `ReplaceError`, `StepError`, …). Each also has a
-  synchronous `…Unsafe` twin for hot paths. Absent values are `Option`s.
-- **Typed plugin requirements.** Plugins, commands and view props may return
-  Effects that need services; those requirements (`R`) and errors (`E`) are
-  tracked through `EditorState` and `EditorView`, and provided with ordinary
-  Effect layers. The view is created in a `Scope` and destroyed with it.
-- **Faithful port.** ProseMirror's own test suites are ported and pass (model,
-  transform, state, commands, keymap, history, markdown, and all of
-  prosemirror-view's browser tests in real Chromium).
-- **Nice-to-haves**, all additive and unopinionated: extensions with typed
-  `editor.commands` / `editor.chain()` / `editor.can()`, input rules, gap and
-  drop cursors, placeholders, undo history, reactive bindings
-  (`SubscriptionRef`/`Stream`), HTML and Markdown serializers.
+- **Strongly typed documents.** Node and mark names are literal types, attributes are described with Effect `Schema`s, and content expressions are typed combinators, so the schema knows which children each node accepts: `doc` built from a `text` node is a compile error, and `node.is("heading")` narrows `node.attrs` to `{ level: number }`.
+- **Effect everywhere.** Every fallible operation returns an `Effect` with tagged errors (`PositionError`, `ReplaceError`, `StepError`, …). Each also has a synchronous `…Unsafe` twin for hot paths. Absent values are `Option`s.
+- **Typed plugin requirements.** Plugins, commands and view props may return Effects that need services; those requirements (`R`) and errors (`E`) are tracked through `EditorState` and `EditorView`, and provided with ordinary Effect layers. The view is created in a `Scope` and destroyed with it.
+- **Faithful port.** ProseMirror's own test suites are ported and pass (model, transform, state, commands, keymap, history, markdown, and all of prosemirror-view's browser tests in real Chromium).
+- **Nice-to-haves**, all additive and unopinionated: extensions with typed `editor.commands` / `editor.chain()` / `editor.can()`, input rules, gap and drop cursors, placeholders, undo history, reactive bindings (`SubscriptionRef`/`Stream`), HTML and Markdown serializers.
 
 See [`DESIGN.md`](./DESIGN.md) for the design decisions and conventions.
 
@@ -79,7 +63,7 @@ const schema = DocSchema.makeUnsafe({
   marks: { strong: { toDOM: () => ["strong", 0] } }
 })
 
-const program = Effect.gen(function*() {
+const program = Effect.gen(function* () {
   const state = yield* EditorState.create({
     schema,
     plugins: [
@@ -115,10 +99,8 @@ pnpm lint-fix       # oxlint + dprint
 pnpm docgen         # API docs
 ```
 
-Browser tests run in Chromium through Vitest browser mode and Playwright. To
-use a preinstalled Chromium, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE`.
+Browser tests run in Chromium through Vitest browser mode and Playwright. To use a preinstalled Chromium, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE`.
 
 ## License
 
-MIT. Portions are derived from ProseMirror, © Marijn Haverbeke and others
-(MIT); see [`LICENSE`](./LICENSE).
+MIT. Portions are derived from ProseMirror, © Marijn Haverbeke and others (MIT); see [`LICENSE`](./LICENSE).

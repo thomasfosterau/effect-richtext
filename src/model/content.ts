@@ -80,10 +80,14 @@ type SyntaxChar = " " | "+" | "*" | "?" | "|" | "(" | ")" | "{" | "}" | ","
  * @since 0.1.0
  * @category type-level
  */
-export type SpecRefs<C> = C extends ContentExpr<infer R> ? R
-  : C extends `${string}${SyntaxChar}${string}` ? string
-  : C extends string ? C
-  : never
+export type SpecRefs<C> =
+  C extends ContentExpr<infer R>
+    ? R
+    : C extends `${string}${SyntaxChar}${string}`
+      ? string
+      : C extends string
+        ? C
+        : never
 
 const variance = { _Refs: (_: never) => _ }
 
@@ -215,8 +219,9 @@ const formatAST = (ast: ExprAST, prec: number): string => {
     case "Opt":
       return formatAST(ast.expr, 3) + "?"
     case "Range":
-      return formatAST(ast.expr, 3) + "{" + ast.min + (ast.max === ast.min ? "" : "," + (ast.max < 0 ? "" : ast.max)) +
-        "}"
+      return (
+        formatAST(ast.expr, 3) + "{" + ast.min + (ast.max === ast.min ? "" : "," + (ast.max < 0 ? "" : ast.max)) + "}"
+      )
   }
 }
 
@@ -525,13 +530,15 @@ export class ContentMatch {
       }
     }
     scan(this)
-    return seen.map((m, i) => {
-      let out = i + (m.validEnd ? "*" : " ") + " "
-      for (let i = 0; i < m.next.length; i++) {
-        out += (i ? ", " : "") + m.next[i]!.type.name + "->" + seen.indexOf(m.next[i]!.next)
-      }
-      return out
-    }).join("\n")
+    return seen
+      .map((m, i) => {
+        let out = i + (m.validEnd ? "*" : " ") + " "
+        for (let i = 0; i < m.next.length; i++) {
+          out += (i ? ", " : "") + m.next[i]!.type.name + "->" + seen.indexOf(m.next[i]!.next)
+        }
+        return out
+      })
+      .join("\n")
   }
 
   /** The match state of nodes that allow no content. */
@@ -619,7 +626,7 @@ function nfa(expr: Expr): Array<Array<Edge>> {
     return edge
   }
   function connect(edges: Array<Edge>, to: number) {
-    edges.forEach((edge) => edge.to = to)
+    edges.forEach((edge) => (edge.to = to))
   }
 
   function compile(expr: Expr, from: number): Array<Edge> {
@@ -628,10 +635,10 @@ function nfa(expr: Expr): Array<Array<Edge>> {
         return expr.exprs.reduce((out, expr) => out.concat(compile(expr, from)), [] as Array<Edge>)
       case "seq": {
         if (expr.exprs.length === 0) return [edge(from)]
-        for (let i = 0;; i++) {
+        for (let i = 0; ; i++) {
           const next = compile(expr.exprs[i]!, from)
           if (i === expr.exprs.length - 1) return next
-          connect(next, from = node())
+          connect(next, (from = node()))
         }
       }
       case "star": {
@@ -711,12 +718,12 @@ function dfa(nfa: Array<Array<Edge>>): ContentMatch {
         let set: Array<number> | undefined
         for (let i = 0; i < out.length; i++) if (out[i]![0] === term) set = out[i]![1]
         nullFrom(nfa, to!).forEach((node) => {
-          if (!set) out.push([term, set = []])
+          if (!set) out.push([term, (set = [])])
           if (set.indexOf(node) === -1) set.push(node)
         })
       })
     })
-    const state = labeled[states.join(",")] = new ContentMatch(states.indexOf(nfa.length - 1) > -1)
+    const state = (labeled[states.join(",")] = new ContentMatch(states.indexOf(nfa.length - 1) > -1))
     for (let i = 0; i < out.length; i++) {
       const states = out[i]![1].sort(cmp)
       state.next.push({ type: out[i]![0], next: labeled[states.join(",")] || explore(states) })
@@ -738,9 +745,12 @@ function checkForDeadEnds(match: ContentMatch, source: string) {
     }
     if (dead) {
       throw new SchemaDefinitionError({
-        message: "Only non-generatable nodes (" + nodes.join(", ") +
+        message:
+          "Only non-generatable nodes (" +
+          nodes.join(", ") +
           ") in a required position (see https://prosemirror.net/docs/guide/#generatable) (in content expression '" +
-          source + "')"
+          source +
+          "')"
       })
     }
   }

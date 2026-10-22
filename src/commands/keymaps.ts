@@ -39,12 +39,12 @@ const del = chainCommands(deleteSelection, joinForward, selectNodeForward)
  * @category keymaps
  */
 export const pcBaseKeymap: { readonly [key: string]: Command } = {
-  "Enter": chainCommands(newlineInCode, createParagraphNear, liftEmptyBlock, splitBlock),
+  Enter: chainCommands(newlineInCode, createParagraphNear, liftEmptyBlock, splitBlock),
   "Mod-Enter": exitCode,
-  "Backspace": backspace,
+  Backspace: backspace,
   "Mod-Backspace": backspace,
   "Shift-Backspace": backspace,
-  "Delete": del,
+  Delete: del,
   "Mod-Delete": del,
   "Mod-a": selectAll
 }

@@ -166,10 +166,10 @@ export interface PluginSpec<PState = any, Sc extends AnySchema = AnySchema, E = 
    */
   readonly appendTransaction?:
     | ((
-      transactions: ReadonlyArray<Transaction<Sc>>,
-      oldState: EditorState<Sc, any, any>,
-      newState: EditorState<Sc, any, any>
-    ) => MaybeEffect<Transaction<Sc> | null | undefined | void, E, R>)
+        transactions: ReadonlyArray<Transaction<Sc>>,
+        oldState: EditorState<Sc, any, any>,
+        newState: EditorState<Sc, any, any>
+      ) => MaybeEffect<Transaction<Sc> | null | undefined | void, E, R>)
     | undefined
 
   /**
@@ -276,8 +276,10 @@ export type AnyPlugin = Plugin<any, any, any, any>
  * @since 0.1.0
  * @category type-level
  */
-export type PluginErrors<P extends ReadonlyArray<AnyPlugin>> = P[number] extends infer X ?
-  X extends Plugin<any, any, infer E, any> ? E : never
+export type PluginErrors<P extends ReadonlyArray<AnyPlugin>> = P[number] extends infer X
+  ? X extends Plugin<any, any, infer E, any>
+    ? E
+    : never
   : never
 
 /**
@@ -286,8 +288,10 @@ export type PluginErrors<P extends ReadonlyArray<AnyPlugin>> = P[number] extends
  * @since 0.1.0
  * @category type-level
  */
-export type PluginRequirements<P extends ReadonlyArray<AnyPlugin>> = P[number] extends infer X ?
-  X extends Plugin<any, any, any, infer R> ? R : never
+export type PluginRequirements<P extends ReadonlyArray<AnyPlugin>> = P[number] extends infer X
+  ? X extends Plugin<any, any, any, infer R>
+    ? R
+    : never
   : never
 
 /** @internal */

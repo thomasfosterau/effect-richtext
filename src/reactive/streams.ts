@@ -75,10 +75,7 @@ export interface EditorStreams<Sc extends AnySchema = AnySchema, R = never, E = 
    * A projection of the state, emitted again whenever it changes, as
    * determined by `eq` (default: `Equal.equals`).
    */
-  readonly select: <A>(
-    f: (state: EditorState<Sc, R, E>) => A,
-    eq?: (self: A, that: A) => boolean
-  ) => Stream.Stream<A>
+  readonly select: <A>(f: (state: EditorState<Sc, R, E>) => A, eq?: (self: A, that: A) => boolean) => Stream.Stream<A>
   /** Whether a mark is active in the selection (see `isMarkActive`). */
   readonly isMarkActive: (type: MarkType<Sc, any> | MarkNames<Sc>) => Stream.Stream<boolean>
   /** Whether a node is selected or wraps the selection (see `isNodeActive`). */
@@ -180,8 +177,14 @@ export const makeStreams = <Sc extends AnySchema, R, E>(
   return {
     state: { get: SubscriptionRef.get(ref), getUnsafe: () => ref.value, changes },
     transactions: Stream.fromPubSub(pubsub),
-    docChanges: select((state) => state.doc, (a, b) => a === b),
-    selection: select((state) => state.selection, (a, b) => a.eq(b)),
+    docChanges: select(
+      (state) => state.doc,
+      (a, b) => a === b
+    ),
+    selection: select(
+      (state) => state.selection,
+      (a, b) => a.eq(b)
+    ),
     select,
     isMarkActive: (type) => select((state) => selectors.isMarkActive(state, type)),
     isNodeActive: (type, attrs) => select((state) => selectors.isNodeActive(state, type, attrs)),

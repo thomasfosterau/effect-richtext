@@ -30,10 +30,13 @@ export function serializeForClipboard(
   }
 
   const serializer = view.someProp("clipboardSerializer") || DOMSerializer.fromSchema(view.state.schema)
-  const doc = detachedDoc(), wrap = doc.createElement("div")
+  const doc = detachedDoc(),
+    wrap = doc.createElement("div")
   wrap.appendChild(serializer.serializeFragment(content, { document: doc }))
 
-  let firstChild = wrap.firstChild, needsWrap, wrappers = 0
+  let firstChild = wrap.firstChild,
+    needsWrap,
+    wrappers = 0
   while (firstChild && firstChild.nodeType == 1 && (needsWrap = wrapMap[firstChild.nodeName.toLowerCase()])) {
     for (let i = needsWrap.length - 1; i >= 0; i--) {
       const wrapper = doc.createElement(needsWrap[i]!)
@@ -51,7 +54,8 @@ export function serializeForClipboard(
     )
   }
 
-  const text = view.someProp("clipboardTextSerializer", (f) => f(slice, view)) ||
+  const text =
+    view.someProp("clipboardTextSerializer", (f) => f(slice, view)) ||
     slice.content.textBetween(0, slice.content.size, "\n\n")
 
   return { dom: wrap, text, slice }
@@ -86,7 +90,8 @@ export function parseFromClipboard(
       slice = parsed
     } else {
       const marks = $context.marks()
-      const { schema } = view.state, serializer = DOMSerializer.fromSchema(schema)
+      const { schema } = view.state,
+        serializer = DOMSerializer.fromSchema(schema)
       dom = document.createElement("div")
       text.split(/(?:\r\n?|\n)+/).forEach((block) => {
         const p = dom!.appendChild(document.createElement("p"))
@@ -113,26 +118,26 @@ export function parseFromClipboard(
   }
 
   if (!slice) {
-    const parser = view.someProp("clipboardParser") || view.someProp("domParser") ||
-      DOMParser.fromSchema(view.state.schema)
+    const parser =
+      view.someProp("clipboardParser") || view.someProp("domParser") || DOMParser.fromSchema(view.state.schema)
     slice = parser.parseSliceUnsafe(dom!, {
       preserveWhitespace: !!(asText || sliceData),
       context: $context,
       ruleFromNode(dom) {
-        if (
-          dom.nodeName == "BR" && !dom.nextSibling &&
-          dom.parentNode && !inlineParents.test(dom.parentNode.nodeName)
-        ) return { ignore: true }
+        if (dom.nodeName == "BR" && !dom.nextSibling && dom.parentNode && !inlineParents.test(dom.parentNode.nodeName))
+          return { ignore: true }
         return null
       }
     })
   }
   if (sliceData) {
     slice = addContext(closeSlice(slice, +sliceData[1]!, +sliceData[2]!), sliceData[4]!)
-  } else { // HTML wasn't created by ProseMirror. Make sure top-level siblings are coherent
+  } else {
+    // HTML wasn't created by ProseMirror. Make sure top-level siblings are coherent
     slice = Slice.maxOpen(normalizeSiblings(slice.content, $context), true)
     if (slice.openStart || slice.openEnd) {
-      let openStart = 0, openEnd = 0
+      let openStart = 0,
+        openEnd = 0
       for (
         let node = slice.content.content[0];
         openStart < slice.openStart && !node!.type.spec.isolating;
@@ -173,15 +178,16 @@ function normalizeSiblings(fragment: Fragment<any, any>, $context: ResolvedPos<a
   for (let d = $context.depth; d >= 0; d--) {
     const parent = $context.node(d)
     let match = parent.contentMatchAtUnsafe($context.index(d))
-    let lastWrap: ReadonlyArray<NodeType<any, any>> | undefined, result: Array<Node<any, any>> | null = []
+    let lastWrap: ReadonlyArray<NodeType<any, any>> | undefined,
+      result: Array<Node<any, any>> | null = []
     fragment.forEach((node) => {
       if (!result) return
       const wrap = match.findWrappingOrNull(node.type)
       let inLast
-      if (!wrap) return result = null
+      if (!wrap) return (result = null)
       if (
-        (inLast = result.length && lastWrap!.length &&
-          addToSibling(wrap, lastWrap!, node, result[result.length - 1]!, 0))
+        (inLast =
+          result.length && lastWrap!.length && addToSibling(wrap, lastWrap!, node, result[result.length - 1]!, 0))
       ) {
         result[result.length - 1] = inLast
       } else {
@@ -248,9 +254,13 @@ function closeRange(
   if (fragment.childCount > 1) openEnd = 0
   if (depth < to - 1) inner = closeRange(inner, side, from, to, depth + 1, openEnd)
   if (depth >= from) {
-    inner = side < 0
-      ? node.contentMatchAtUnsafe(0).fillBeforeOrNull(inner, openEnd <= depth)!.append(inner)
-      : inner.append(node.contentMatchAtUnsafe(node.childCount).fillBeforeOrNull(Fragment.empty, true)!)
+    inner =
+      side < 0
+        ? node
+            .contentMatchAtUnsafe(0)
+            .fillBeforeOrNull(inner, openEnd <= depth)!
+            .append(inner)
+        : inner.append(node.contentMatchAtUnsafe(node.childCount).fillBeforeOrNull(Fragment.empty, true)!)
   }
   return fragment.replaceChild(side < 0 ? 0 : fragment.childCount - 1, node.copy(inner))
 }
@@ -298,8 +308,8 @@ function maybeWrapTrusted(html: string): string {
   // innerHTML, even on a detached document. This wraps the string in
   // a way that makes the browser allow us to use its parser again.
   if (!_policy) {
-    _policy = trustedTypes.defaultPolicy ||
-      trustedTypes.createPolicy("ProseMirrorClipboard", { createHTML: (s: string) => s })
+    _policy =
+      trustedTypes.defaultPolicy || trustedTypes.createPolicy("ProseMirrorClipboard", { createHTML: (s: string) => s })
   }
   return _policy.createHTML(html)
 }
@@ -311,10 +321,18 @@ function readHTML(html: string) {
   const firstTag = /<([a-z][^>\s]+)/i.exec(html)
   let wrap
   if ((wrap = firstTag && wrapMap[firstTag[1]!.toLowerCase()])) {
-    html = wrap.map((n) => "<" + n + ">").join("") + html + wrap.map((n) => "</" + n + ">").reverse().join("")
+    html =
+      wrap.map((n) => "<" + n + ">").join("") +
+      html +
+      wrap
+        .map((n) => "</" + n + ">")
+        .reverse()
+        .join("")
   }
   elt.innerHTML = maybeWrapTrusted(html)
-  if (wrap) { for (let i = 0; i < wrap.length; i++) elt = elt.querySelector(wrap[i]!) || elt }
+  if (wrap) {
+    for (let i = 0; i < wrap.length; i++) elt = elt.querySelector(wrap[i]!) || elt
+  }
   return elt
 }
 

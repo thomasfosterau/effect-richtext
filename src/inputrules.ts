@@ -177,8 +177,10 @@ function stringHandler(string: string): InputRuleHandler<any> {
  * @since 0.1.0
  * @category type-level
  */
-export type InputRuleErrors<Rules extends ReadonlyArray<InputRule<any, any, any>>> = Rules[number] extends infer X ?
-  X extends InputRule<any, infer E, any> ? E : never
+export type InputRuleErrors<Rules extends ReadonlyArray<InputRule<any, any, any>>> = Rules[number] extends infer X
+  ? X extends InputRule<any, infer E, any>
+    ? E
+    : never
   : never
 
 /**
@@ -187,8 +189,10 @@ export type InputRuleErrors<Rules extends ReadonlyArray<InputRule<any, any, any>
  * @since 0.1.0
  * @category type-level
  */
-export type InputRuleRequirements<Rules extends ReadonlyArray<InputRule<any, any, any>>> = Rules[number] extends
-  infer X ? X extends InputRule<any, any, infer R> ? R : never
+export type InputRuleRequirements<Rules extends ReadonlyArray<InputRule<any, any, any>>> = Rules[number] extends infer X
+  ? X extends InputRule<any, any, infer R>
+    ? R
+    : never
   : never
 
 // -----------------------------------------------------------------------------
@@ -249,9 +253,14 @@ export interface InputRulesConfig<Rules extends ReadonlyArray<InputRule<any, any
  * @since 0.1.0
  * @category constructors
  */
-export const inputRules = <const Rules extends ReadonlyArray<InputRule<any, any, any>>>(
-  { rules }: InputRulesConfig<Rules>
-): Plugin<InputRulesState, AnySchema, InputRuleErrors<Rules>, InputRuleRequirements<Rules>> => {
+export const inputRules = <const Rules extends ReadonlyArray<InputRule<any, any, any>>>({
+  rules
+}: InputRulesConfig<Rules>): Plugin<
+  InputRulesState,
+  AnySchema,
+  InputRuleErrors<Rules>,
+  InputRuleRequirements<Rules>
+> => {
   const plugin: Plugin<InputRulesState, AnySchema, any, any> = new Plugin<InputRulesState, AnySchema, any, any>({
     state: {
       init: () => Option.none(),
@@ -314,13 +323,10 @@ function run(
   deflt: (() => Transaction<any>) | undefined
 ): HandlerResult<any, any> {
   if (view.composing) return false
-  const state = view.state, $from = state.doc.resolveUnsafe(from)
-  const textBefore = $from.parent.textBetween(
-    Math.max(0, $from.parentOffset - MAX_MATCH),
-    $from.parentOffset,
-    null,
-    "￼"
-  ) + text
+  const state = view.state,
+    $from = state.doc.resolveUnsafe(from)
+  const textBefore =
+    $from.parent.textBetween(Math.max(0, $from.parentOffset - MAX_MATCH), $from.parentOffset, null, "￼") + text
   return tryRules({ view, state, $from, from, to, text, textBefore, rules, plugin, deflt, sync: true }, 0)
 }
 
@@ -373,7 +379,7 @@ function runEffectRule(
   effect: Effect.Effect<Option.Option<Transaction<any>>, unknown, unknown>,
   next: number
 ): Effect.Effect<boolean, unknown, unknown> {
-  if (cx.sync) queueMicrotask(() => cx.sync = false)
+  if (cx.sync) queueMicrotask(() => (cx.sync = false))
   return effect.pipe(
     Effect.flatMap((result): Effect.Effect<boolean, unknown, unknown> => {
       if (Option.isSome(result)) {
@@ -421,7 +427,8 @@ export const undoInputRule: InputRuleCommand = (state, dispatch) =>
       const undoable = Option.getOrNull(Option.flatten(plugin.getState(state) as Option.Option<InputRulesState>))
       if (!undoable) continue
       if (!dispatch) return Effect.succeed(true)
-      const tr = state.tr, toUndo = undoable.transform
+      const tr = state.tr,
+        toUndo = undoable.transform
       for (let j = toUndo.steps.length - 1; j >= 0; j--) tr.stepUnsafe(toUndo.steps[j]!.invert(toUndo.docs[j]!))
       if (undoable.text) {
         const marks = tr.doc.resolveUnsafe(undoable.from).marks()
@@ -481,13 +488,16 @@ export const wrappingInputRule = <Sc extends AnySchema, N extends NodeNames<Sc>>
   new InputRule<Sc>(regexp, (state, match, start, end) => {
     const attrs = resolveAttrs(getAttrs, match)
     const tr = state.tr.deleteUnsafe(start, end)
-    const $start = tr.doc.resolveUnsafe(start), range = $start.blockRangeOrNull()
+    const $start = tr.doc.resolveUnsafe(start),
+      range = $start.blockRangeOrNull()
     const wrapping = range && findWrappingOrNull(range, nodeType, attrs)
     if (!wrapping) return null
     tr.wrapUnsafe(range!, wrapping)
     const before = tr.doc.resolveUnsafe(start - 1).nodeBeforeOrNull
     if (
-      before && before.type === nodeType && canJoin(tr.doc, start - 1) &&
+      before &&
+      before.type === nodeType &&
+      canJoin(tr.doc, start - 1) &&
       (!joinPredicate || joinPredicate(match, before))
     ) {
       tr.joinUnsafe(start - 1)
@@ -515,9 +525,7 @@ export const textblockTypeInputRule = <Sc extends AnySchema, N extends NodeNames
     const $start = state.doc.resolveUnsafe(start)
     const attrs = resolveAttrs(getAttrs, match)
     if (!$start.node(-1).canReplaceWith($start.index(-1), $start.indexAfter(-1), nodeType)) return null
-    return state.tr
-      .deleteUnsafe(start, end)
-      .setBlockTypeUnsafe(start, start, nodeType, attrs)
+    return state.tr.deleteUnsafe(start, end).setBlockTypeUnsafe(start, start, nodeType, attrs)
   })
 
 // -----------------------------------------------------------------------------

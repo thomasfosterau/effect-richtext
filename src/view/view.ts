@@ -169,10 +169,10 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
    */
   readonly handleDOMEvents?:
     | {
-      readonly [event in keyof DOMEventMap]?:
-        | ((this: P, view: EditorView<Sc, any, any>, event: DOMEventMap[event]) => HandlerResult<R, E>)
-        | undefined
-    }
+        readonly [event in keyof DOMEventMap]?:
+          | ((this: P, view: EditorView<Sc, any, any>, event: DOMEventMap[event]) => HandlerResult<R, E>)
+          | undefined
+      }
     | undefined
 
   /** Called when the editor receives a `keydown` event. */
@@ -192,13 +192,13 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
    */
   readonly handleTextInput?:
     | ((
-      this: P,
-      view: EditorView<Sc, any, any>,
-      from: number,
-      to: number,
-      text: string,
-      deflt: () => Transaction<Sc>
-    ) => HandlerResult<R, E>)
+        this: P,
+        view: EditorView<Sc, any, any>,
+        from: number,
+        to: number,
+        text: string,
+        deflt: () => Transaction<Sc>
+      ) => HandlerResult<R, E>)
     | undefined
 
   /**
@@ -207,14 +207,14 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
    */
   readonly handleClickOn?:
     | ((
-      this: P,
-      view: EditorView<Sc, any, any>,
-      pos: number,
-      node: Node<Sc>,
-      nodePos: number,
-      event: MouseEvent,
-      direct: boolean
-    ) => HandlerResult<R, E>)
+        this: P,
+        view: EditorView<Sc, any, any>,
+        pos: number,
+        node: Node<Sc>,
+        nodePos: number,
+        event: MouseEvent,
+        direct: boolean
+      ) => HandlerResult<R, E>)
     | undefined
 
   /** Called when the editor is clicked, after `handleClickOn` handlers have been called. */
@@ -225,14 +225,14 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
   /** Called for each node around a double click. */
   readonly handleDoubleClickOn?:
     | ((
-      this: P,
-      view: EditorView<Sc, any, any>,
-      pos: number,
-      node: Node<Sc>,
-      nodePos: number,
-      event: MouseEvent,
-      direct: boolean
-    ) => HandlerResult<R, E>)
+        this: P,
+        view: EditorView<Sc, any, any>,
+        pos: number,
+        node: Node<Sc>,
+        nodePos: number,
+        event: MouseEvent,
+        direct: boolean
+      ) => HandlerResult<R, E>)
     | undefined
 
   /** Called when the editor is double-clicked, after `handleDoubleClickOn`. */
@@ -243,14 +243,14 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
   /** Called for each node around a triple click. */
   readonly handleTripleClickOn?:
     | ((
-      this: P,
-      view: EditorView<Sc, any, any>,
-      pos: number,
-      node: Node<Sc>,
-      nodePos: number,
-      event: MouseEvent,
-      direct: boolean
-    ) => HandlerResult<R, E>)
+        this: P,
+        view: EditorView<Sc, any, any>,
+        pos: number,
+        node: Node<Sc>,
+        nodePos: number,
+        event: MouseEvent,
+        direct: boolean
+      ) => HandlerResult<R, E>)
     | undefined
 
   /** Called when the editor is triple-clicked, after `handleTripleClickOn`. */
@@ -274,12 +274,12 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
    */
   readonly handleDrop?:
     | ((
-      this: P,
-      view: EditorView<Sc, any, any>,
-      event: DragEvent,
-      slice: Slice<Sc>,
-      moved: boolean
-    ) => HandlerResult<R, E>)
+        this: P,
+        view: EditorView<Sc, any, any>,
+        event: DragEvent,
+        slice: Slice<Sc>,
+        moved: boolean
+      ) => HandlerResult<R, E>)
     | undefined
 
   /**
@@ -303,11 +303,11 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
    */
   readonly createSelectionBetween?:
     | ((
-      this: P,
-      view: EditorView<Sc, any, any>,
-      anchor: ResolvedPos<Sc>,
-      head: ResolvedPos<Sc>
-    ) => Selection<Sc> | null | undefined)
+        this: P,
+        view: EditorView<Sc, any, any>,
+        anchor: ResolvedPos<Sc>,
+        head: ResolvedPos<Sc>
+      ) => Selection<Sc> | null | undefined)
     | undefined
 
   /**
@@ -345,12 +345,12 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
    */
   readonly clipboardTextParser?:
     | ((
-      this: P,
-      text: string,
-      $context: ResolvedPos<Sc>,
-      plain: boolean,
-      view: EditorView<Sc, any, any>
-    ) => Slice<Sc> | null | undefined)
+        this: P,
+        text: string,
+        $context: ResolvedPos<Sc>,
+        plain: boolean,
+        view: EditorView<Sc, any, any>
+      ) => Slice<Sc> | null | undefined)
     | undefined
 
   /**
@@ -411,9 +411,7 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
     | undefined
 
   /** A set of document decorations to show in the view. */
-  readonly decorations?:
-    | ((this: P, state: EditorState<Sc>) => DecorationSource | null | undefined)
-    | undefined
+  readonly decorations?: ((this: P, state: EditorState<Sc>) => DecorationSource | null | undefined) | undefined
 
   /** When this returns false, the content of the view is not directly editable. */
   readonly editable?: ((this: P, state: EditorState<Sc>) => boolean) | undefined
@@ -453,9 +451,11 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
  * @since 0.1.0
  * @category models
  */
-export interface DirectEditorProps<Sc extends AnySchema = AnySchema, R = never, E = never>
-  extends EditorProps<Sc, R, E>
-{
+export interface DirectEditorProps<Sc extends AnySchema = AnySchema, R = never, E = never> extends EditorProps<
+  Sc,
+  R,
+  E
+> {
   /** The current state of the editor. */
   readonly state: EditorState<Sc, R, E>
 
@@ -604,7 +604,11 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
   input: InputState = new InputState()
   private prevDirectPlugins: ReadonlyArray<Plugin<any, any, any, any>> = []
   private pluginViews: Array<PluginView<any>> = []
-  private listeners: Array<(update: ViewUpdate<Sc, R, E>) => void> = []
+  // Typed without `R` / `E`: a listener only reads the update, and a field
+  // mentioning them in a parameter position makes the view invariant in
+  // both, so `EditorView<S, never, never>` would stop being assignable to
+  // `EditorView<S, any, any>` under TypeScript 7.
+  private listeners: Array<(update: ViewUpdate<Sc, any, any>) => void> = []
   private dispatching: ReadonlyArray<Transaction<Sc>> | null = null
   /** @internal */
   declare domObserver: DOMObserver
@@ -647,9 +651,8 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     this.nodeViews = buildNodeViews(this)
     this.docView = docViewDesc(this.state.doc, computeDocDeco(this), viewDecorations(this), this.dom, this)
 
-    this.domObserver = new DOMObserver(
-      this,
-      (from, to, typeOver, added) => readDOMChange(this, from, to, typeOver, added)
+    this.domObserver = new DOMObserver(this, (from, to, typeOver, added) =>
+      readDOMChange(this, from, to, typeOver, added)
     )
     this.domObserver.start()
     initInput(this)
@@ -774,7 +777,8 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     // nested updates (made by plugin views, for example).
     const transactions = this.dispatching ?? []
     this.dispatching = null
-    let redraw = false, updateSel = false
+    let redraw = false,
+      updateSel = false
     // When stored marks are added, stop composition, so that they can
     // be displayed.
     if (state.storedMarksOrNull && this.composing) {
@@ -796,17 +800,19 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
 
     this.editable = getEditable(this)
     updateCursorWrapper(this)
-    const innerDeco = viewDecorations(this), outerDeco = computeDocDeco(this)
+    const innerDeco = viewDecorations(this),
+      outerDeco = computeDocDeco(this)
 
-    const scroll = prev.plugins != state.plugins && !prev.doc.eq(state.doc)
-      ? "reset"
-      : state.scrollToSelection > prev.scrollToSelection
-      ? "to selection"
-      : "preserve"
+    const scroll =
+      prev.plugins != state.plugins && !prev.doc.eq(state.doc)
+        ? "reset"
+        : state.scrollToSelection > prev.scrollToSelection
+          ? "to selection"
+          : "preserve"
     const updateDoc = redraw || !this.docView.matchesNode(state.doc, outerDeco, innerDeco)
     if (updateDoc || !state.selection.eq(prev.selection)) updateSel = true
-    const oldScrollPos = scroll == "preserve" && updateSel && this.dom.style.overflowAnchor == null &&
-      storeScrollPos(this)
+    const oldScrollPos =
+      scroll == "preserve" && updateSel && this.dom.style.overflowAnchor == null && storeScrollPos(this)
 
     if (updateSel) {
       this.domObserver.stop()
@@ -815,8 +821,13 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
       // state where the thing the user sees differs from the
       // selection reported by the Selection object (#710, #973,
       // #1011, #1013, #1035).
-      let forceSelUpdate = updateDoc && (browser.ie || browser.chrome) && !this.composing &&
-        !prev.selection.empty && !state.selection.empty && selectionContextChanged(prev.selection, state.selection)
+      let forceSelUpdate =
+        updateDoc &&
+        (browser.ie || browser.chrome) &&
+        !this.composing &&
+        !prev.selection.empty &&
+        !state.selection.empty &&
+        selectionContextChanged(prev.selection, state.selection)
       if (updateDoc) {
         // If the node that the selection points into is written to,
         // Chrome sometimes starts misreporting the selection, so this
@@ -837,8 +848,11 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
       // drag selection.
       if (
         forceSelUpdate ||
-        !(this.input.mouseDown && this.domObserver.currentSelection.eq(this.domSelectionRange()) &&
-          anchorInRightPlace(this))
+        !(
+          this.input.mouseDown &&
+          this.domObserver.currentSelection.eq(this.domSelectionRange()) &&
+          anchorInRightPlace(this)
+        )
       ) {
         selectionToDOM(this, forceSelUpdate)
       } else {
@@ -1090,7 +1104,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
           if (!(search as any).getSelection) {
             Object.getPrototypeOf(search).getSelection = () => (search as DOMNode).ownerDocument!.getSelection()
           }
-          return this._root = search as Document | ShadowRoot
+          return (this._root = search as Document | ShadowRoot)
         }
       }
     }
@@ -1284,9 +1298,8 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
             )
           })
         }
-        return Effect.map(
-          this.state.applyTransaction(tr),
-          (result) => this.withDispatching(result.transactions, () => this.updateState(result.state))
+        return Effect.map(this.state.applyTransaction(tr), (result) =>
+          this.withDispatching(result.transactions, () => this.updateState(result.state))
         )
       }),
       this.context
@@ -1326,8 +1339,13 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
   domSelectionRange(): DOMSelectionRange {
     const sel = this.domSelection()
     if (!sel) return { focusNode: null, focusOffset: 0, anchorNode: null, anchorOffset: 0 }
-    return browser.safari && this.root.nodeType === 11 &&
-        deepActiveElement(this.dom.ownerDocument) == this.dom && safariShadowSelectionRange(this, sel) || sel
+    return (
+      (browser.safari &&
+        this.root.nodeType === 11 &&
+        deepActiveElement(this.dom.ownerDocument) == this.dom &&
+        safariShadowSelectionRange(this, sel)) ||
+      sel
+    )
   }
 
   /** @internal */
@@ -1342,9 +1360,8 @@ function computeDocDeco(view: EditorView<any, any, any>) {
   attrs.contenteditable = String(view.editable)
 
   view.someProp("attributes", (prop) => {
-    const value: { readonly [name: string]: string } | null | undefined = typeof prop == "function"
-      ? prop(view.state as EditorState<any>)
-      : prop
+    const value: { readonly [name: string]: string } | null | undefined =
+      typeof prop == "function" ? prop(view.state as EditorState<any>) : prop
     if (value) {
       for (const attr in value) {
         if (attr == "class") {
@@ -1401,7 +1418,8 @@ function buildNodeViews(view: EditorView<any, any, any>) {
 }
 
 function changedNodeViews(a: NodeViewSet, b: NodeViewSet) {
-  let nA = 0, nB = 0
+  let nA = 0,
+    nB = 0
   for (const prop in a) {
     if (a[prop] != b[prop]) return true
     nA++

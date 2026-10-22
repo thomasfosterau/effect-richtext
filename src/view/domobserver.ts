@@ -49,8 +49,12 @@ class SelectionState {
   }
 
   eq(sel: DOMSelectionRange) {
-    return sel.anchorNode == this.anchorNode && sel.anchorOffset == this.anchorOffset &&
-      sel.focusNode == this.focusNode && sel.focusOffset == this.focusOffset
+    return (
+      sel.anchorNode == this.anchorNode &&
+      sel.anchorOffset == this.anchorOffset &&
+      sel.focusNode == this.focusNode &&
+      sel.focusOffset == this.focusOffset
+    )
   }
 }
 
@@ -68,14 +72,17 @@ export class DOMObserver {
     readonly view: AnyView,
     readonly handleDOMChange: (from: number, to: number, typeOver: boolean, added: Array<DOMNode>) => void
   ) {
-    this.observer = window.MutationObserver &&
+    this.observer =
+      window.MutationObserver &&
       new window.MutationObserver((mutations) => {
         for (let i = 0; i < mutations.length; i++) this.queue.push(mutations[i]!)
         if (
-          browser.ie && browser.ie_version <= 11 && mutations.some(
+          browser.ie &&
+          browser.ie_version <= 11 &&
+          mutations.some(
             (m) =>
-              m.type == "childList" && m.removedNodes.length ||
-              m.type == "characterData" && m.oldValue!.length > m.target.nodeValue!.length
+              (m.type == "childList" && m.removedNodes.length) ||
+              (m.type == "characterData" && m.oldValue!.length > m.target.nodeValue!.length)
           )
         ) {
           // IE11 will sometimes (on backspacing out a single character
@@ -84,9 +91,9 @@ export class DOMObserver {
           // ProseMirror to miss the change (see #930)
           this.flushSoon()
         } else if (
-          browser.safari && view.composing && mutations.some(
-            (m) => m.type == "childList" && m.target.nodeName == "TR"
-          )
+          browser.safari &&
+          view.composing &&
+          mutations.some((m) => m.type == "childList" && m.target.nodeName == "TR")
         ) {
           // Safari does weird stuff when finishing a composition in a
           // table cell, which tends to involve inserting inappropriate
@@ -99,9 +106,11 @@ export class DOMObserver {
       })
     if (useCharData) {
       this.onCharData = (e) => {
-        this.queue.push(
-          { target: e.target as DOMNode, type: "characterData", oldValue: (e as any).prevValue } as MutationRecord
-        )
+        this.queue.push({
+          target: e.target as DOMNode,
+          type: "characterData",
+          oldValue: (e as any).prevValue
+        } as MutationRecord)
         this.flushSoon()
       }
     }
@@ -159,7 +168,7 @@ export class DOMObserver {
 
   suppressSelectionUpdates() {
     this.suppressingSelectionUpdates = true
-    setTimeout(() => this.suppressingSelectionUpdates = false, 50)
+    setTimeout(() => (this.suppressingSelectionUpdates = false), 50)
   }
 
   onSelectionChange() {
@@ -195,7 +204,8 @@ export class DOMObserver {
     }
     const desc = container && this.view.docView.nearestDesc(container)
     if (
-      desc && desc.ignoreMutation({
+      desc &&
+      desc.ignoreMutation({
         type: "selection",
         target: container!.nodeType == 3 ? container!.parentNode! : container!
       })
@@ -207,7 +217,9 @@ export class DOMObserver {
   }
 
   pendingRecords() {
-    if (this.observer) { for (const mut of this.observer.takeRecords()) this.queue.push(mut) }
+    if (this.observer) {
+      for (const mut of this.observer.takeRecords()) this.queue.push(mut)
+    }
     return this.queue
   }
 
@@ -218,10 +230,15 @@ export class DOMObserver {
     if (mutations.length) this.queue = []
 
     const sel = view.domSelectionRange()
-    const newSel = !this.suppressingSelectionUpdates && !this.currentSelection.eq(sel) && hasFocusAndSelection(view) &&
+    const newSel =
+      !this.suppressingSelectionUpdates &&
+      !this.currentSelection.eq(sel) &&
+      hasFocusAndSelection(view) &&
       !this.ignoreSelectionChange(sel)
 
-    let from = -1, to = -1, typeOver = false
+    let from = -1,
+      to = -1,
+      typeOver = false
     const added: Array<DOMNode> = []
     if (view.editable) {
       for (let i = 0; i < mutations.length; i++) {
@@ -271,9 +288,12 @@ export class DOMObserver {
     // start of the document after focus, restore the selection from
     // the state
     if (
-      from < 0 && newSel && view.input.lastFocus > Date.now() - 200 &&
+      from < 0 &&
+      newSel &&
+      view.input.lastFocus > Date.now() - 200 &&
       Math.max(view.input.lastTouch, view.input.lastClick.time) < Date.now() - 300 &&
-      selectionCollapsed(sel) && (readSel = selectionFromDOM(view)) &&
+      selectionCollapsed(sel) &&
+      (readSel = selectionFromDOM(view)) &&
       readSel.eq(Selection.near(view.state.doc.resolveUnsafe(0), 1))
     ) {
       view.input.lastFocus = 0
@@ -302,7 +322,8 @@ export class DOMObserver {
     const desc = this.view.docView.nearestDesc(mut.target)
     if (
       mut.type == "attributes" &&
-      (desc == this.view.docView || mut.attributeName == "contenteditable" ||
+      (desc == this.view.docView ||
+        mut.attributeName == "contenteditable" ||
         // Firefox sometimes fires spurious events for null/empty styles
         (mut.attributeName == "style" && !mut.oldValue && !(mut.target as HTMLElement).getAttribute("style")))
     ) {
@@ -319,7 +340,8 @@ export class DOMObserver {
       if (desc.contentDOM && desc.contentDOM != desc.dom && !desc.contentDOM.contains(mut.target)) {
         return { from: desc.posBefore, to: desc.posAfter }
       }
-      let prev = mut.previousSibling, next = mut.nextSibling
+      let prev = mut.previousSibling,
+        next = mut.nextSibling
       if (browser.ie && browser.ie_version <= 11 && mut.addedNodes.length) {
         // IE11 gives us incorrect next/prev siblings for some
         // insertions, so if there are added nodes, recompute those
@@ -331,18 +353,15 @@ export class DOMObserver {
           if (!nextSibling || Array.prototype.indexOf.call(mut.addedNodes, nextSibling) < 0) next = nextSibling
         }
       }
-      const fromOffset = prev && prev.parentNode == mut.target
-        ? domIndex(prev) + 1
-        : 0
+      const fromOffset = prev && prev.parentNode == mut.target ? domIndex(prev) + 1 : 0
       const from = desc.localPosFromDOM(mut.target, fromOffset, -1)
-      const toOffset = next && next.parentNode == mut.target
-        ? domIndex(next)
-        : mut.target.childNodes.length
+      const toOffset = next && next.parentNode == mut.target ? domIndex(next) : mut.target.childNodes.length
       const to = desc.localPosFromDOM(mut.target, toOffset, 1)
       return { from, to }
     } else if (mut.type == "attributes") {
       return { from: desc.posAtStart - desc.border, to: desc.posAtEnd + desc.border }
-    } else { // "characterData"
+    } else {
+      // "characterData"
       this.lastChangedTextNode = mut.target as Text
       return {
         from: desc.posAtStart,
@@ -375,8 +394,10 @@ function checkCSS(view: AnyView) {
 }
 
 function rangeToSelectionRange(view: AnyView, range: StaticRange) {
-  let anchorNode = range.startContainer, anchorOffset = range.startOffset
-  let focusNode = range.endContainer, focusOffset = range.endOffset
+  let anchorNode = range.startContainer,
+    anchorOffset = range.startOffset
+  let focusNode = range.endContainer,
+    focusOffset = range.endOffset
 
   const currentAnchor = view.domAtPos(view.state.selection.anchor)
   // Since such a range doesn't distinguish between anchor and head,
@@ -433,15 +454,18 @@ function fixUpBadSafariComposition(view: AnyView, addedNodes: ReadonlyArray<DOMN
   for (const node of addedNodes) {
     if (node.parentNode?.nodeName == "TR") {
       let nextCell = node.nextSibling
-      while (nextCell && (nextCell.nodeName != "TD" && nextCell.nodeName != "TH")) nextCell = nextCell.nextSibling
+      while (nextCell && nextCell.nodeName != "TD" && nextCell.nodeName != "TH") nextCell = nextCell.nextSibling
       if (nextCell) {
         let parent = nextCell
         for (;;) {
           const first = parent.firstChild
           if (
-            !first || first.nodeType != 1 || (first as HTMLElement).contentEditable == "false" ||
+            !first ||
+            first.nodeType != 1 ||
+            (first as HTMLElement).contentEditable == "false" ||
             /^(BR|IMG)$/.test(first.nodeName)
-          ) break
+          )
+            break
           parent = first
         }
         parent.insertBefore(node, parent.firstChild)

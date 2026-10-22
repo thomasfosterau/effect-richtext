@@ -1,28 +1,46 @@
 {
-  "$schema": "http://json.schemastore.org/tsconfig",
+  "$schema": "./node_modules/@effect/tsgo/schema.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "NodeNext",
+    // The family's shared options (effect-web's tsconfig.base.json), plus this
+    // repo's stricter unused-parameter and switch-fallthrough checks.
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "target": "es2022",
+    "lib": ["es2022", "dom", "dom.iterable"],
     "moduleDetection": "force",
-    "verbatimModuleSyntax": true,
+    // Source imports are written `./x.ts`; the build rewrites them to `./x.js`.
     "rewriteRelativeImportExtensions": true,
-    "declarationMap": true,
-    "sourceMap": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
     "strict": true,
+    // Optional members are spelled `?: T | undefined` because of this flag: a
+    // consumer forwarding an optional of its own must still compile.
     "exactOptionalPropertyTypes": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
-    "skipLibCheck": true,
     "noErrorTruncation": true,
-    "incremental": true,
-    "composite": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "noEmit": true,
     "types": [],
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "plugins": [{
-      "name": "@effect/language-service",
-      "namespaceImportPackages": ["effect"]
-    }]
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "namespaceImportPackages": ["effect"],
+        // The severities below keep every Effect rule visible in the editor,
+        // but a "warning" still fails the patched tsc by default — this flag
+        // is what actually makes warnings non-blocking in the check task.
+        "ignoreEffectWarningsInTscExitCode": true,
+        "diagnosticSeverity": {
+          // `@effect/vitest`'s `it` and parts of `effect` used here are marked
+          // `@stability unstable`, so as a warning this fires on every test
+          // and buries the warnings that matter. Still reported, as a
+          // suggestion.
+          "unstableApiUsage": "suggestion"
+        }
+      }
+    ]
   }
 }

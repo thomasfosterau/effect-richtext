@@ -25,32 +25,36 @@ const wrapArgs = (args: ArrayLike<unknown>): Array<unknown> => {
   return result
 }
 
-const unwrapResult = (result: unknown): unknown => Array.isArray(result) ? unwrapArray(result) : unwrap(result)
+const unwrapResult = (result: unknown): unknown => (Array.isArray(result) ? unwrapArray(result) : unwrap(result))
 
 const cached = <A extends object, B>(cache: PropsCache | undefined, key: A, make: () => B): B => {
   if (!cache) return make()
   let found = cache.get(key)
-  if (found === undefined) cache.set(key, found = make())
+  if (found === undefined) cache.set(key, (found = make()))
   return found
 }
 
 /** Wrap a ProseMirror-style function so that it can be called with core values. @internal */
-export const toCoreFunction = (f: (...args: Array<any>) => any, self: unknown): (...args: Array<any>) => any =>
-  function(this: unknown, ...args: Array<any>) {
+export const toCoreFunction = (f: (...args: Array<any>) => any, self: unknown): ((...args: Array<any>) => any) =>
+  function (this: unknown, ...args: Array<any>) {
     return unwrapResult(f.apply(self, wrapArgs(args)))
   }
 
 /** Wrap a core function so that it can be called with facades. @internal */
-export const fromCoreFunction = (f: (...args: Array<any>) => any, self: unknown): (...args: Array<any>) => any =>
-  function(this: unknown, ...args: Array<any>) {
-    let result = f.apply(self, args.map((a) => Array.isArray(a) ? unwrapArray(a) : unwrap(a)))
+export const fromCoreFunction = (f: (...args: Array<any>) => any, self: unknown): ((...args: Array<any>) => any) =>
+  function (this: unknown, ...args: Array<any>) {
+    let result = f.apply(
+      self,
+      args.map((a) => (Array.isArray(a) ? unwrapArray(a) : unwrap(a)))
+    )
     if (Effect.isEffect(result)) result = runSync(result as Effect.Effect<unknown, unknown>)
     return Array.isArray(result) ? wrapArray(result) : wrap(result)
   }
 
 /** Adapt a ProseMirror-style node or mark view object for the core view. @internal */
 export const viewObjectToCore = (view: any): any =>
-  view && new Proxy(view, {
+  view &&
+  new Proxy(view, {
     get(target, prop) {
       const value = target[prop]
       if (prop === "update" && typeof value === "function") {
@@ -65,8 +69,15 @@ const translateViews = (views: Record<string, any>, cache: PropsCache | undefine
   const result: Record<string, any> = {}
   for (const name in views) {
     const ctor = views[name]
-    result[name] = ctor &&
-      cached(cache, ctor, () => (...args: Array<any>) => viewObjectToCore(ctor(...wrapArgs(args))))
+    result[name] =
+      ctor &&
+      cached(
+        cache,
+        ctor,
+        () =>
+          (...args: Array<any>) =>
+            viewObjectToCore(ctor(...wrapArgs(args)))
+      )
   }
   return result
 }

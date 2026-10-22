@@ -15,19 +15,25 @@ type AnyView = EditorView<any, any, any>
 
 /** @internal */
 export function selectionFromDOM(view: AnyView, origin: string | null = null): Selection<any> | null {
-  const domSel = view.domSelectionRange(), doc = view.state.doc
+  const domSel = view.domSelectionRange(),
+    doc = view.state.doc
   if (!domSel.focusNode) return null
   let nearestDesc: ViewDesc | undefined = view.docView.nearestDesc(domSel.focusNode)
   const inWidget = nearestDesc && nearestDesc.size == 0
   let head = view.docView.posFromDOM(domSel.focusNode, domSel.focusOffset, 1)
   if (head < 0) return null
-  let $head = doc.resolveUnsafe(head), anchor, selection: Selection<any> | undefined
+  let $head = doc.resolveUnsafe(head),
+    anchor,
+    selection: Selection<any> | undefined
   if (selectionCollapsed(domSel)) {
     anchor = head
     while (nearestDesc && !nearestDesc.node) nearestDesc = nearestDesc.parent
     const nearestDescNode = (nearestDesc as NodeViewDesc | undefined)?.node
     if (
-      nearestDesc && nearestDescNode!.isAtom && NodeSelection.isSelectable(nearestDescNode!) && nearestDesc.parent &&
+      nearestDesc &&
+      nearestDescNode!.isAtom &&
+      NodeSelection.isSelectable(nearestDescNode!) &&
+      nearestDesc.parent &&
       !(nearestDescNode!.isInline && isOnEdge(domSel.focusNode, domSel.focusOffset, nearestDesc.dom))
     ) {
       const pos = nearestDesc.posBefore
@@ -35,7 +41,8 @@ export function selectionFromDOM(view: AnyView, origin: string | null = null): S
     }
   } else {
     if (domSel instanceof view.dom.ownerDocument.defaultView!.Selection && domSel.rangeCount > 1) {
-      let min = head, max = head
+      let min = head,
+        max = head
       for (let i = 0; i < domSel.rangeCount; i++) {
         const range = domSel.getRangeAt(i)
         min = Math.min(min, view.docView.posFromDOM(range.startContainer, range.startOffset, 1))
@@ -75,9 +82,11 @@ export function selectionToDOM(view: AnyView, force = false): void {
   // in Safari. And the drag selection delay is to workarond issues
   // which only present in Chrome.
   if (!force && view.input.mouseDown && view.input.mouseDown.allowDefault && browser.chrome) {
-    const domSel = view.domSelectionRange(), curSel = view.domObserver.currentSelection
+    const domSel = view.domSelectionRange(),
+      curSel = view.domObserver.currentSelection
     if (
-      domSel.anchorNode && curSel.anchorNode &&
+      domSel.anchorNode &&
+      curSel.anchorNode &&
       isEquivalentPosition(domSel.anchorNode, domSel.anchorOffset, curSel.anchorNode, curSel.anchorOffset)
     ) {
       view.input.mouseDown.delayedSelectionSync = true
@@ -122,7 +131,7 @@ export function selectionToDOM(view: AnyView, force = false): void {
 // between non-editable block nodes. We briefly make something
 // editable, set the selection, then set it uneditable again.
 
-const brokenSelectBetweenUneditable = browser.safari || browser.chrome && browser.chrome_version < 63
+const brokenSelectBetweenUneditable = browser.safari || (browser.chrome && browser.chrome_version < 63)
 
 function temporarilyEditableNear(view: AnyView, pos: number) {
   const { node, offset } = view.docView.domFromPos(pos, 0)
@@ -162,10 +171,11 @@ function removeClassOnSelectionChange(view: AnyView) {
   const doc = view.dom.ownerDocument
   doc.removeEventListener("selectionchange", view.input.hideSelectionGuard!)
   const domSel = view.domSelectionRange()
-  const node = domSel.anchorNode, offset = domSel.anchorOffset
+  const node = domSel.anchorNode,
+    offset = domSel.anchorOffset
   doc.addEventListener(
     "selectionchange",
-    view.input.hideSelectionGuard = () => {
+    (view.input.hideSelectionGuard = () => {
       if (domSel.anchorNode != node || domSel.anchorOffset != offset) {
         doc.removeEventListener("selectionchange", view.input.hideSelectionGuard!)
         setTimeout(() => {
@@ -174,14 +184,15 @@ function removeClassOnSelectionChange(view: AnyView) {
           }
         }, 20)
       }
-    }
+    })
   )
 }
 
 function selectCursorWrapper(view: AnyView) {
   const domSel = view.domSelection()
   if (!domSel) return
-  const node = view.cursorWrapper!.dom, img = node.nodeName == "IMG"
+  const node = view.cursorWrapper!.dom,
+    img = node.nodeName == "IMG"
   if (img) domSel.collapse(node.parentNode!, domIndex(node) + 1)
   else domSel.collapse(node, 0)
   // Kludge to kill 'control selection' in IE11 when selecting an
@@ -226,8 +237,10 @@ export function selectionBetween(
   $head: ResolvedPos<any>,
   bias?: number
 ): Selection<any> {
-  return view.someProp("createSelectionBetween", (f) => f(view, $anchor, $head)) ||
+  return (
+    view.someProp("createSelectionBetween", (f) => f(view, $anchor, $head)) ||
     TextSelection.between($anchor, $head, bias)
+  )
 }
 
 /** @internal */
@@ -244,8 +257,10 @@ export function hasSelection(view: AnyView): boolean {
     // Firefox will raise 'permission denied' errors when accessing
     // properties of `sel.anchorNode` when it's in a generated CSS
     // element.
-    return view.dom.contains(sel.anchorNode.nodeType == 3 ? sel.anchorNode.parentNode : sel.anchorNode) &&
+    return (
+      view.dom.contains(sel.anchorNode.nodeType == 3 ? sel.anchorNode.parentNode : sel.anchorNode) &&
       (view.editable || view.dom.contains(sel.focusNode!.nodeType == 3 ? sel.focusNode!.parentNode : sel.focusNode))
+    )
   } catch (_) {
     return false
   }

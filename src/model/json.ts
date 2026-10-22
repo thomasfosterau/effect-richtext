@@ -83,10 +83,14 @@ const NodeJSONSchema: S.Codec<NodeJSON> = S.suspend(() =>
     type: S.String,
     attrs: S.optionalKey(S.Record(S.String, S.Unknown)),
     content: S.optionalKey(S.Array(NodeJSONSchema)),
-    marks: S.optionalKey(S.Array(S.Struct({
-      type: S.String,
-      attrs: S.optionalKey(S.Record(S.String, S.Unknown))
-    }))),
+    marks: S.optionalKey(
+      S.Array(
+        S.Struct({
+          type: S.String,
+          attrs: S.optionalKey(S.Record(S.String, S.Unknown))
+        })
+      )
+    ),
     text: S.optionalKey(S.String)
   })
 ) as any
@@ -140,10 +144,9 @@ export const NodeFromJSON = <Sc extends AnySchema>(schema: Sc): S.Codec<Node<Sc>
  * @category schemas
  */
 export const DocFromJSON = <Sc extends AnySchema>(schema: Sc): S.Codec<Node<Sc>, NodeJSON> => {
-  const target = S.declare(
-    (u: unknown): u is Node<Sc> => u instanceof Node && u.type === schema.topNodeType,
-    { title: "Document" }
-  )
+  const target = S.declare((u: unknown): u is Node<Sc> => u instanceof Node && u.type === schema.topNodeType, {
+    title: "Document"
+  })
   return NodeJSONSchema.pipe(
     S.decodeTo(target, {
       decode: SchemaGetter.transformEffect((json: NodeJSON) =>

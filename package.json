@@ -1,96 +1,203 @@
 {
+  "$schema": "https://www.schemastore.org/package",
   "name": "effect-richtext",
   "version": "0.0.0",
-  "description": "An Effect-native reimplementation of the ProseMirror rich text editing toolkit",
-  "homepage": "https://github.com/thomasfosterau/effect-richtext",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/thomasfosterau/effect-richtext"
+  "description": "An Effect-native reimplementation of the ProseMirror rich text editing toolkit: typed schemas and documents, transforms, editor state, a DOM view, keymaps, commands, history, input rules, Markdown and HTML serializers, typed extensions and a ProseMirror-compatible facade.",
+  "keywords": [
+    "contenteditable",
+    "editor",
+    "effect",
+    "markdown",
+    "prosemirror",
+    "rich-text",
+    "typescript",
+    "wysiwyg"
+  ],
+  "homepage": "https://github.com/thomasfosterau/effect-richtext#readme",
+  "bugs": {
+    "url": "https://github.com/thomasfosterau/effect-richtext/issues"
   },
   "license": "MIT",
   "author": "Thomas Foster <me@thomasfoster.au>",
-  "sideEffects": [
-    "./src/test-builder.ts",
-    "./dist/test-builder.js",
-    "./src/gapcursor.ts",
-    "./dist/gapcursor.js",
-    "./src/compat/*.ts",
-    "./dist/compat/*.js"
-  ],
-  "type": "module",
-  "exports": {
-    "./package.json": "./package.json",
-    ".": "./src/index.ts",
-    "./*": "./src/*.ts",
-    "./internal/*": null
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thomasfosterau/effect-richtext.git"
   },
   "files": [
-    "src",
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
-  "scripts": {
-    "build": "tsc -b tsconfig.build.json",
-    "check": "tsc -b tsconfig.json",
-    "test": "vitest",
-    "test-types": "tstyche",
-    "coverage": "vitest --coverage",
-    "lint": "oxlint -f unix && dprint check",
-    "lint-fix": "oxlint --fix && dprint fmt",
-    "docgen": "docgen",
-    "changeset-version": "changeset version",
-    "changeset-publish": "pnpm build && changeset publish"
-  },
-  "dependencies": {
-    "markdown-it": "^15.0.2",
-    "rope-sequence": "^1.3.4",
-    "w3c-keyname": "^2.2.8"
-  },
-  "devDependencies": {
-    "@changesets/changelog-github": "^0.7.0",
-    "@changesets/cli": "^2.31.0",
-    "@dprint/json": "^0.25.2",
-    "@dprint/markdown": "^0.26.0",
-    "@dprint/typescript": "^0.96.1",
-    "@effect/docgen": "^4.0.2",
-    "@effect/language-service": "^0.87.4",
-    "@effect/vitest": "^4.0.2",
-    "@types/node": "^24.0.0",
-    "@vitest/browser": "^5.0.3",
-    "@vitest/browser-playwright": "^5.0.3",
-    "@vitest/coverage-v8": "^5.0.3",
-    "dprint": "^0.55.1",
-    "effect": "^4.0.2",
-    "happy-dom": "^20.10.6",
-    "oxlint": "^1.61.1",
-    "playwright": "^1.61.1",
-    "tstyche": "^7.2.5",
-    "tsx": "^4.20.0",
-    "typescript": "~6.0.3",
-    "vitest": "^5.0.3"
-  },
-  "peerDependencies": {
-    "effect": "^4.0.2"
-  },
-  "packageManager": "pnpm@10.28.0",
-  "publishConfig": {
-    "access": "public",
-    "exports": {
-      "./package.json": "./package.json",
-      ".": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      },
-      "./*": {
-        "types": "./dist/*.d.ts",
-        "default": "./dist/*.js"
-      },
-      "./internal/*": null
+  "type": "module",
+  "sideEffects": [
+    "./dist/test-builder.js",
+    "./dist/gapcursor.js",
+    "./dist/compat/*.js"
+  ],
+  "exports": {
+    "./package.json": "./package.json",
+    "./model": {
+      "types": "./dist/model.d.ts",
+      "default": "./dist/model.js"
+    },
+    "./transform": {
+      "types": "./dist/transform.d.ts",
+      "default": "./dist/transform.js"
+    },
+    "./state": {
+      "types": "./dist/state.d.ts",
+      "default": "./dist/state.js"
+    },
+    "./view": {
+      "types": "./dist/view.d.ts",
+      "default": "./dist/view.js"
+    },
+    "./view-css": {
+      "types": "./dist/view-css.d.ts",
+      "default": "./dist/view-css.js"
+    },
+    "./keymap": {
+      "types": "./dist/keymap.d.ts",
+      "default": "./dist/keymap.js"
+    },
+    "./commands": {
+      "types": "./dist/commands.d.ts",
+      "default": "./dist/commands.js"
+    },
+    "./history": {
+      "types": "./dist/history.d.ts",
+      "default": "./dist/history.js"
+    },
+    "./inputrules": {
+      "types": "./dist/inputrules.d.ts",
+      "default": "./dist/inputrules.js"
+    },
+    "./gapcursor": {
+      "types": "./dist/gapcursor.d.ts",
+      "default": "./dist/gapcursor.js"
+    },
+    "./dropcursor": {
+      "types": "./dist/dropcursor.d.ts",
+      "default": "./dist/dropcursor.js"
+    },
+    "./schema-basic": {
+      "types": "./dist/schema-basic.d.ts",
+      "default": "./dist/schema-basic.js"
+    },
+    "./schema-list": {
+      "types": "./dist/schema-list.d.ts",
+      "default": "./dist/schema-list.js"
+    },
+    "./markdown": {
+      "types": "./dist/markdown.d.ts",
+      "default": "./dist/markdown.js"
+    },
+    "./test-builder": {
+      "types": "./dist/test-builder.d.ts",
+      "default": "./dist/test-builder.js"
+    },
+    "./html": {
+      "types": "./dist/html.d.ts",
+      "default": "./dist/html.js"
+    },
+    "./placeholder": {
+      "types": "./dist/placeholder.d.ts",
+      "default": "./dist/placeholder.js"
+    },
+    "./reactive": {
+      "types": "./dist/reactive.d.ts",
+      "default": "./dist/reactive.js"
+    },
+    "./extensions": {
+      "types": "./dist/extensions.d.ts",
+      "default": "./dist/extensions.js"
+    },
+    "./compat/model": {
+      "types": "./dist/compat/model.d.ts",
+      "default": "./dist/compat/model.js"
+    },
+    "./compat/transform": {
+      "types": "./dist/compat/transform.d.ts",
+      "default": "./dist/compat/transform.js"
+    },
+    "./compat/state": {
+      "types": "./dist/compat/state.d.ts",
+      "default": "./dist/compat/state.js"
+    },
+    "./compat/view": {
+      "types": "./dist/compat/view.d.ts",
+      "default": "./dist/compat/view.js"
+    },
+    "./compat/keymap": {
+      "types": "./dist/compat/keymap.d.ts",
+      "default": "./dist/compat/keymap.js"
+    },
+    "./compat/commands": {
+      "types": "./dist/compat/commands.d.ts",
+      "default": "./dist/compat/commands.js"
+    },
+    "./compat/schema-basic": {
+      "types": "./dist/compat/schema-basic.d.ts",
+      "default": "./dist/compat/schema-basic.js"
+    },
+    "./compat/schema-list": {
+      "types": "./dist/compat/schema-list.d.ts",
+      "default": "./dist/compat/schema-list.js"
+    },
+    "./compat/test-builder": {
+      "types": "./dist/compat/test-builder.d.ts",
+      "default": "./dist/compat/test-builder.js"
+    },
+    "./compat/orderedmap": {
+      "types": "./dist/compat/orderedmap.d.ts",
+      "default": "./dist/compat/orderedmap.js"
     }
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "dprint",
-      "esbuild"
-    ]
-  }
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "changeset": "changeset",
+    "version": "changeset version && vp fmt && pnpm install --lockfile-only",
+    "release": "vp run build && pnpm publish --access public --no-git-checks --ignore-scripts && changeset tag",
+    "fallow": "fallow --summary",
+    "fallow:audit": "fallow audit",
+    "prepare": "vp config && effect-tsgo patch --typescript --oxlint"
+  },
+  "dependencies": {
+    "markdown-it": "catalog:",
+    "rope-sequence": "catalog:",
+    "w3c-keyname": "catalog:"
+  },
+  "devDependencies": {
+    "@changesets/changelog-github": "catalog:",
+    "@changesets/cli": "catalog:",
+    "@effect/docgen": "catalog:",
+    "@effect/language-service": "catalog:",
+    "@effect/tsgo": "catalog:",
+    "@effect/vitest": "catalog:",
+    "@mpsuesser/oxlint-plugin-effect": "catalog:",
+    "@types/node": "catalog:",
+    "@typescript/native": "catalog:",
+    "@vitest/browser-playwright": "catalog:",
+    "@vitest/coverage-istanbul": "catalog:",
+    "effect": "catalog:",
+    "effect-solutions": "catalog:",
+    "fallow": "catalog:",
+    "happy-dom": "catalog:",
+    "playwright": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "effect": "catalog:peers"
+  },
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=11"
+  },
+  "packageManager": "pnpm@11.18.0"
 }

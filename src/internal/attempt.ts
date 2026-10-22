@@ -7,10 +7,7 @@ import * as Effect from "effect/Effect"
  *
  * @internal
  */
-export const attempt = <A, E>(
-  f: () => A,
-  isExpected: (u: unknown) => u is E
-): Effect.Effect<A, E> =>
+export const attempt = <A, E>(f: () => A, isExpected: (u: unknown) => u is E): Effect.Effect<A, E> =>
   Effect.suspend(() => {
     try {
       return Effect.succeed(f())

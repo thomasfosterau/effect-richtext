@@ -165,12 +165,15 @@ export const liftEmptyBlock: Command = fromCoreCommand(C.liftEmptyBlock)
 export function splitBlockAs(
   splitNode?: (node: Node, atEnd: boolean, $from: ResolvedPos) => { type: NodeType; attrs?: Attrs } | null
 ): Command {
-  return fromCoreCommand(C.splitBlockAs(
-    splitNode && ((node, atEnd, $from) => {
-      const result = splitNode(wrap(node), atEnd, wrap($from))
-      return result && { type: result.type[CORE], attrs: result.attrs ?? null }
-    })
-  ))
+  return fromCoreCommand(
+    C.splitBlockAs(
+      splitNode &&
+        ((node, atEnd, $from) => {
+          const result = splitNode(wrap(node), atEnd, wrap($from))
+          return result && { type: result.type[CORE], attrs: result.attrs ?? null }
+        })
+    )
+  )
 }
 
 /**
@@ -252,11 +255,15 @@ export function setBlockType(nodeType: NodeType, attrs: Attrs | null = null): Co
  * @since 0.1.0
  * @category commands
  */
-export function toggleMark(markType: MarkType, attrs: Attrs | null = null, options?: {
-  removeWhenPresent?: boolean
-  enterInlineAtoms?: boolean
-  includeWhitespace?: boolean
-}): Command {
+export function toggleMark(
+  markType: MarkType,
+  attrs: Attrs | null = null,
+  options?: {
+    removeWhenPresent?: boolean
+    enterInlineAtoms?: boolean
+    includeWhitespace?: boolean
+  }
+): Command {
   return fromCoreCommand(C.toggleMark(markType[CORE], attrs, options))
 }
 
@@ -271,10 +278,12 @@ export function autoJoin(
   command: Command,
   isJoinable: ((before: Node, after: Node) => boolean) | ReadonlyArray<string>
 ): Command {
-  return fromCoreCommand(C.autoJoin(
-    toCoreCommand(command),
-    typeof isJoinable === "function" ? (a, b) => isJoinable(wrap(a), wrap(b)) : isJoinable
-  ))
+  return fromCoreCommand(
+    C.autoJoin(
+      toCoreCommand(command),
+      typeof isJoinable === "function" ? (a, b) => isJoinable(wrap(a), wrap(b)) : isJoinable
+    )
+  )
 }
 
 /**
@@ -285,7 +294,7 @@ export function autoJoin(
  * @category commands
  */
 export function chainCommands(...commands: ReadonlyArray<Command>): Command {
-  return function(state, dispatch, view) {
+  return function (state, dispatch, view) {
     for (let i = 0; i < commands.length; i++) if (commands[i]!(state, dispatch, view)) return true
     return false
   }

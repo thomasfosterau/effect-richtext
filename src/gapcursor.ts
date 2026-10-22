@@ -108,9 +108,10 @@ export class GapCursor<Sc extends AnySchema = AnySchema> extends Selection<Sc> {
   ): ResolvedPos<Sc> | null {
     search: for (;;) {
       if (!mustMove && GapCursor.valid($pos)) return $pos
-      let pos = $pos.pos, next: Node<any> | null = null
+      let pos = $pos.pos,
+        next: Node<any> | null = null
       // Scan up from this position
-      for (let d = $pos.depth;; d--) {
+      for (let d = $pos.depth; ; d--) {
         const parent = $pos.node(d)
         if (dir > 0 ? $pos.indexAfter(d) < parent.childCount : $pos.index(d) > 0) {
           next = child(parent, dir > 0 ? $pos.indexAfter(d) : $pos.index(d) - 1)
@@ -125,9 +126,8 @@ export class GapCursor<Sc extends AnySchema = AnySchema> extends Selection<Sc> {
 
       // And then down into the next node
       for (;;) {
-        const inside: Node<any> | undefined = dir > 0
-          ? next.content.content[0]
-          : next.content.content[next.childCount - 1]
+        const inside: Node<any> | undefined =
+          dir > 0 ? next.content.content[0] : next.content.content[next.childCount - 1]
         if (!inside) {
           if (next.isAtom && !next.isText && !NodeSelection.isSelectable(next)) {
             $pos = $pos.doc.resolveUnsafe(pos + next.nodeSize * dir)
@@ -168,14 +168,15 @@ function needsGap(type: NodeType<any, any>): boolean {
 
 function closedBefore($pos: ResolvedPos<any>): boolean {
   for (let d = $pos.depth; d >= 0; d--) {
-    const index = $pos.index(d), parent = $pos.node(d)
+    const index = $pos.index(d),
+      parent = $pos.node(d)
     // At the start of this parent, look at next one
     if (index === 0) {
       if (parent.type.spec.isolating) return true
       continue
     }
     // See if the node before (or its first ancestor) is closed
-    for (let before = child(parent, index - 1);; before = child(before, before.childCount - 1)) {
+    for (let before = child(parent, index - 1); ; before = child(before, before.childCount - 1)) {
       if ((before.childCount === 0 && !before.inlineContent) || needsGap(before.type)) return true
       if (before.inlineContent) return false
     }
@@ -186,12 +187,13 @@ function closedBefore($pos: ResolvedPos<any>): boolean {
 
 function closedAfter($pos: ResolvedPos<any>): boolean {
   for (let d = $pos.depth; d >= 0; d--) {
-    const index = $pos.indexAfter(d), parent = $pos.node(d)
+    const index = $pos.indexAfter(d),
+      parent = $pos.node(d)
     if (index === parent.childCount) {
       if (parent.type.spec.isolating) return true
       continue
     }
-    for (let after = child(parent, index);; after = child(after, 0)) {
+    for (let after = child(parent, index); ; after = child(after, 0)) {
       if ((after.childCount === 0 && !after.inlineContent) || needsGap(after.type)) return true
       if (after.inlineContent) return false
     }
@@ -226,11 +228,12 @@ export const gapCursor = (): Plugin<undefined> =>
   })
 
 function arrow(axis: "vert" | "horiz", dir: number): Command {
-  const dirStr = axis === "vert" ? (dir > 0 ? "down" : "up") : (dir > 0 ? "right" : "left")
+  const dirStr = axis === "vert" ? (dir > 0 ? "down" : "up") : dir > 0 ? "right" : "left"
   return (state, dispatch, view) =>
     Effect.suspend(() => {
       const sel = state.selection
-      let $start = dir > 0 ? sel.$to : sel.$from, mustMove = sel.empty
+      let $start = dir > 0 ? sel.$to : sel.$from,
+        mustMove = sel.empty
       if (sel instanceof TextSelection) {
         if (!view || !view.endOfTextblock(dirStr) || $start.depth === 0) return Effect.succeed(false)
         mustMove = false
@@ -244,10 +247,10 @@ function arrow(axis: "vert" | "horiz", dir: number): Command {
 }
 
 const handleKeyDown = keydownHandler({
-  "ArrowLeft": arrow("horiz", -1),
-  "ArrowRight": arrow("horiz", 1),
-  "ArrowUp": arrow("vert", -1),
-  "ArrowDown": arrow("vert", 1)
+  ArrowLeft: arrow("horiz", -1),
+  ArrowRight: arrow("horiz", 1),
+  ArrowUp: arrow("vert", -1),
+  ArrowDown: arrow("vert", 1)
 })
 
 function handleClick(
@@ -287,11 +290,15 @@ function beforeinput(view: EditorView<any, any, any>, event: InputEvent): boolea
 
 function drawGapCursor(state: EditorState<any>): DecorationSet | null {
   if (!(state.selection instanceof GapCursor)) return null
-  const widget = Decoration.widget(state.selection.head, (view) => {
-    const node = view.dom.ownerDocument.createElement("div")
-    node.className = "ProseMirror-gapcursor"
-    return node
-  }, { key: "gapcursor" })
+  const widget = Decoration.widget(
+    state.selection.head,
+    (view) => {
+      const node = view.dom.ownerDocument.createElement("div")
+      node.className = "ProseMirror-gapcursor"
+      return node
+    },
+    { key: "gapcursor" }
+  )
   return DecorationSet.create(state.doc, [widget])
 }
 

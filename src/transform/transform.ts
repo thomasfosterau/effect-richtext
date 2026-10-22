@@ -141,7 +141,8 @@ export class Transform<Sc extends AnySchema = AnySchema> {
    * add/remove marks without replacing the underlying content.
    */
   changedRange(): Option.Option<{ readonly from: number; readonly to: number }> {
-    let from = 1e9, to = -1e9
+    let from = 1e9,
+      to = -1e9
     for (let i = 0; i < this.mapping.maps.length; i++) {
       const map = this.mapping.maps[i]!
       if (i) {
@@ -166,10 +167,13 @@ export class Transform<Sc extends AnySchema = AnySchema> {
 
   /** @internal */
   protected effect<E>(f: () => unknown): Effect.Effect<this, E> {
-    return attempt(() => {
-      f()
-      return this
-    }, isTransformOrModelError as (u: unknown) => u is E)
+    return attempt(
+      () => {
+        f()
+        return this
+      },
+      isTransformOrModelError as (u: unknown) => u is E
+    )
   }
 
   // ---------------------------------------------------------------------------
@@ -427,7 +431,8 @@ export class Transform<Sc extends AnySchema = AnySchema> {
     if (mark instanceof Mark) {
       if (mark.isInSet(node.marks)) this.stepUnsafe(new RemoveNodeMarkStep(pos, mark))
     } else {
-      let set = node.marks, found: Mark<Sc> | undefined
+      let set = node.marks,
+        found: Mark<Sc> | undefined
       const steps: Array<Step<Sc>> = []
       while ((found = mark.findInSet(set))) {
         steps.push(new RemoveNodeMarkStep(pos, found))

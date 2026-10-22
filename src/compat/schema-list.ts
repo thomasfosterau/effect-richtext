@@ -14,7 +14,9 @@ import type { Attrs, DOMOutputSpec, NodeRange, NodeSpec, NodeType } from "./mode
 import type { OrderedMap } from "./orderedmap.ts"
 import type { Command, Transaction } from "./state.ts"
 
-const olDOM: DOMOutputSpec = ["ol", 0], ulDOM: DOMOutputSpec = ["ul", 0], liDOM: DOMOutputSpec = ["li", 0]
+const olDOM: DOMOutputSpec = ["ol", 0],
+  ulDOM: DOMOutputSpec = ["ul", 0],
+  liDOM: DOMOutputSpec = ["li", 0]
 
 /**
  * An ordered list node spec.
@@ -24,12 +26,14 @@ const olDOM: DOMOutputSpec = ["ol", 0], ulDOM: DOMOutputSpec = ["ul", 0], liDOM:
  */
 export const orderedList = {
   attrs: { order: { default: 1, validate: "number" } },
-  parseDOM: [{
-    tag: "ol",
-    getAttrs(dom: HTMLElement) {
-      return { order: dom.hasAttribute("start") ? +dom.getAttribute("start")! : 1 }
+  parseDOM: [
+    {
+      tag: "ol",
+      getAttrs(dom: HTMLElement) {
+        return { order: dom.hasAttribute("start") ? +dom.getAttribute("start")! : 1 }
+      }
     }
-  }],
+  ],
   toDOM(node) {
     return node.attrs.order == 1 ? olDOM : ["ol", { start: node.attrs.order }, 0]
   }
@@ -113,7 +117,7 @@ export function wrapRangeInList(
   listType: NodeType,
   attrs: Attrs | null = null
 ): boolean {
-  return SL.wrapRangeInList(tr ? tr[CORE] as any : null, range[CORE], listType[CORE], attrs)
+  return SL.wrapRangeInList(tr ? (tr[CORE] as any) : null, range[CORE], listType[CORE], attrs)
 }
 
 /**

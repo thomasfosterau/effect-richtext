@@ -10,7 +10,9 @@ import { Content, type ContentExpr, type ContentInput, type DOMOutputSpec, type 
 /** @since 0.1.0 */
 export * from "./schema-list/commands.ts"
 
-const olDOM: DOMOutputSpec = ["ol", 0], ulDOM: DOMOutputSpec = ["ul", 0], liDOM: DOMOutputSpec = ["li", 0]
+const olDOM: DOMOutputSpec = ["ol", 0],
+  ulDOM: DOMOutputSpec = ["ul", 0],
+  liDOM: DOMOutputSpec = ["li", 0]
 
 /**
  * An ordered list node spec. Has a single attribute, `order`, which
@@ -22,12 +24,14 @@ const olDOM: DOMOutputSpec = ["ol", 0], ulDOM: DOMOutputSpec = ["ul", 0], liDOM:
  */
 export const orderedList = nodeSpec({
   attrs: { order: { schema: S.Number, default: 1 } },
-  parseDOM: [{
-    tag: "ol",
-    getAttrs(dom: HTMLElement) {
-      return { order: dom.hasAttribute("start") ? +dom.getAttribute("start")! : 1 }
+  parseDOM: [
+    {
+      tag: "ol",
+      getAttrs(dom: HTMLElement) {
+        return { order: dom.hasAttribute("start") ? +dom.getAttribute("start")! : 1 }
+      }
     }
-  }],
+  ],
   toDOM(node) {
     return node.attrs.order === 1 ? olDOM : ["ol", { start: node.attrs.order }, 0]
   }

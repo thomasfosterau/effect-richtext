@@ -12,13 +12,15 @@ import type { Transform } from "./transform.ts"
 
 /** @internal */
 export function addMark(tr: Transform<any>, from: number, to: number, mark: Mark<any>): void {
-  const removed: Array<Step<any>> = [], added: Array<Step<any>> = []
+  const removed: Array<Step<any>> = [],
+    added: Array<Step<any>> = []
   let removing: RemoveMarkStep<any> | undefined, adding: AddMarkStep<any> | undefined
   tr.doc.nodesBetween(from, to, (node, pos, parent) => {
     if (!node.isInline) return
     const marks = node.marks
     if (!mark.isInSet(marks) && Option.isSome(parent) && parent.value.type.allowsMarkType(mark.type)) {
-      const start = Math.max(pos, from), end = Math.min(pos + node.nodeSize, to)
+      const start = Math.max(pos, from),
+        end = Math.min(pos + node.nodeSize, to)
       const newSet = mark.addToSet(marks)
 
       for (let i = 0; i < marks.length; i++) {
@@ -26,7 +28,7 @@ export function addMark(tr: Transform<any>, from: number, to: number, mark: Mark
           if (removing && removing.to === start && removing.mark.eq(marks[i]!)) {
             ;(removing as { to: number }).to = end
           } else {
-            removed.push(removing = new RemoveMarkStep(start, end, marks[i]!))
+            removed.push((removing = new RemoveMarkStep(start, end, marks[i]!)))
           }
         }
       }
@@ -34,7 +36,7 @@ export function addMark(tr: Transform<any>, from: number, to: number, mark: Mark
       if (adding && adding.to === start) {
         ;(adding as { to: number }).to = end
       } else {
-        added.push(adding = new AddMarkStep(start, end, mark))
+        added.push((adding = new AddMarkStep(start, end, mark)))
       }
     }
   })
@@ -57,7 +59,8 @@ export function removeMark(
     step++
     let toRemove: ReadonlyArray<Mark<any>> | null = null
     if (mark instanceof MarkType) {
-      let set = node.marks, found: Mark<any> | undefined
+      let set = node.marks,
+        found: Mark<any> | undefined
       const list: Array<Mark<any>> = []
       while ((found = mark.findInSet(set))) {
         list.push(found)
@@ -102,7 +105,8 @@ export function clearIncompatible(
   const replSteps: Array<Step<any>> = []
   let cur = pos + 1
   for (let i = 0; i < node.childCount; i++) {
-    const child = node.content.content[i]!, end = cur + child.nodeSize
+    const child = node.content.content[i]!,
+      end = cur + child.nodeSize
     const allowed = match.matchTypeOrNull(child.type)
     if (!allowed) {
       replSteps.push(new ReplaceStep(cur, end, Slice.empty))

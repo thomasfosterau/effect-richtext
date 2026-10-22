@@ -19,10 +19,10 @@ export const ie = !!(ie_upto10 || ie_11up || ie_edge)
 export const ie_version: number = ie_upto10
   ? (document as any).documentMode
   : ie_11up
-  ? +ie_11up[1]!
-  : ie_edge
-  ? +ie_edge[1]!
-  : 0
+    ? +ie_11up[1]!
+    : ie_edge
+      ? +ie_edge[1]!
+      : 0
 /** @internal */
 export const gecko = !ie && /gecko\/(\d+)/i.test(agent)
 /** @internal */
@@ -37,7 +37,7 @@ export const chrome_version = _chrome ? +_chrome[1]! : 0
 export const safari = !ie && !!nav && /Apple Computer/.test(nav.vendor)
 // Is true for both iOS and iPadOS for convenience
 /** @internal */
-export const ios = safari && (/Mobile\/\w+/.test(agent) || !!nav && nav.maxTouchPoints > 2)
+export const ios = safari && (/Mobile\/\w+/.test(agent) || (!!nav && nav.maxTouchPoints > 2))
 /** @internal */
 export const mac = ios || (nav ? /Mac/.test(nav.platform) : false)
 /** @internal */

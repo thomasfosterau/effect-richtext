@@ -29,11 +29,11 @@ export function keymap(bindings: { [key: string]: Command }): Plugin {
  * @since 0.1.0
  * @category constructors
  */
-export function keydownHandler(
-  bindings: { [key: string]: Command }
-): (view: EditorView, event: KeyboardEvent) => boolean {
+export function keydownHandler(bindings: {
+  [key: string]: Command
+}): (view: EditorView, event: KeyboardEvent) => boolean {
   const map = guard(() => normalizeBindings(bindings))
-  return function(view, event) {
+  return function (view, event) {
     const candidates = matchBindings(map, event)
     for (let i = 0; i < candidates.length; i++) {
       if (candidates[i]!(view.state, view.dispatch, view)) return true

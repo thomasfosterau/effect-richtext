@@ -38,9 +38,11 @@ export type EditorObserverTypeId = typeof EditorObserverTypeId
  * @since 0.1.0
  * @category models
  */
-export interface EditorObserver<Sc extends AnySchema = AnySchema, R = never, E = never>
-  extends EditorStreams<Sc, R, E>
-{
+export interface EditorObserver<Sc extends AnySchema = AnySchema, R = never, E = never> extends EditorStreams<
+  Sc,
+  R,
+  E
+> {
   readonly [EditorObserverTypeId]: EditorObserverTypeId
   /** The observed view. */
   readonly view: EditorView<Sc, R, E>
@@ -68,7 +70,7 @@ export interface EditorObserver<Sc extends AnySchema = AnySchema, R = never, E =
 export const make = <Sc extends AnySchema, R, E>(
   view: EditorView<Sc, R, E>
 ): Effect.Effect<EditorObserver<Sc, R, E>, never, Scope.Scope> =>
-  Effect.gen(function*() {
+  Effect.gen(function* () {
     const source = yield* makeSource(view.state)
     const focused = yield* makeRef(view.hasFocus())
 

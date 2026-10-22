@@ -264,9 +264,8 @@ export type MarkNames<Sc> = keyof MarkSpecsOf<Sc> & string
  * @since 0.1.0
  * @category type-level
  */
-export type NodeSpecOf<Sc, N extends string> = NodeSpecsOf<Sc> extends infer Specs ?
-  N extends keyof Specs ? Specs[N] : NodeSpec
-  : NodeSpec
+export type NodeSpecOf<Sc, N extends string> =
+  NodeSpecsOf<Sc> extends infer Specs ? (N extends keyof Specs ? Specs[N] : NodeSpec) : NodeSpec
 
 /**
  * The spec of mark type `M` in schema `Sc`.
@@ -274,14 +273,16 @@ export type NodeSpecOf<Sc, N extends string> = NodeSpecsOf<Sc> extends infer Spe
  * @since 0.1.0
  * @category type-level
  */
-export type MarkSpecOf<Sc, M extends string> = MarkSpecsOf<Sc> extends infer Specs ?
-  M extends keyof Specs ? Specs[M] : MarkSpec
-  : MarkSpec
+export type MarkSpecOf<Sc, M extends string> =
+  MarkSpecsOf<Sc> extends infer Specs ? (M extends keyof Specs ? Specs[M] : MarkSpec) : MarkSpec
 
-type Split<Str extends string> = string extends Str ? string
-  : Str extends `${infer H} ${infer T}` ? (H extends "" ? never : H) | Split<T>
-  : Str extends "" ? never
-  : Str
+type Split<Str extends string> = string extends Str
+  ? string
+  : Str extends `${infer H} ${infer T}`
+    ? (H extends "" ? never : H) | Split<T>
+    : Str extends ""
+      ? never
+      : Str
 
 /**
  * The groups a spec belongs to.
@@ -307,9 +308,12 @@ export type ContentRefsOf<Spec> = Spec extends { readonly content: infer C } ? S
  * @since 0.1.0
  * @category type-level
  */
-export type ChildNames<Sc, N extends string> = string extends NodeNames<Sc> ? string
-  : string extends N ? NodeNames<Sc>
-  : ResolveRefs<Sc, ContentRefsOf<NodeSpecOf<Sc, N>>>
+export type ChildNames<Sc, N extends string> =
+  string extends NodeNames<Sc>
+    ? string
+    : string extends N
+      ? NodeNames<Sc>
+      : ResolveRefs<Sc, ContentRefsOf<NodeSpecOf<Sc, N>>>
 
 /**
  * Resolve a set of node/group names to the node names they denote.
@@ -317,11 +321,11 @@ export type ChildNames<Sc, N extends string> = string extends NodeNames<Sc> ? st
  * @since 0.1.0
  * @category type-level
  */
-export type ResolveRefs<Sc, R extends string> = string extends R ? NodeNames<Sc> : {
-  [C in NodeNames<Sc>]: C extends R ? C
-    : [GroupsOf<NodeSpecOf<Sc, C>> & R] extends [never] ? never
-    : C
-}[NodeNames<Sc>]
+export type ResolveRefs<Sc, R extends string> = string extends R
+  ? NodeNames<Sc>
+  : {
+      [C in NodeNames<Sc>]: C extends R ? C : [GroupsOf<NodeSpecOf<Sc, C>> & R] extends [never] ? never : C
+    }[NodeNames<Sc>]
 
 /**
  * The names of node types in schema `Sc` that belong to group `G`.
@@ -337,17 +341,22 @@ export type NodesInGroup<Sc, G extends string> = ResolveRefs<Sc, G>
  * @since 0.1.0
  * @category type-level
  */
-export type MarksInGroup<Sc, G extends string> = string extends MarkNames<Sc> ? string : {
-  [C in MarkNames<Sc>]: C extends G ? C
-    : [GroupsOf<MarkSpecOf<Sc, C>> & G] extends [never] ? never
-    : C
-}[MarkNames<Sc>]
+export type MarksInGroup<Sc, G extends string> =
+  string extends MarkNames<Sc>
+    ? string
+    : {
+        [C in MarkNames<Sc>]: C extends G ? C : [GroupsOf<MarkSpecOf<Sc, C>> & G] extends [never] ? never : C
+      }[MarkNames<Sc>]
 
-type Widen<A> = A extends string ? string
-  : A extends number ? number
-  : A extends boolean ? boolean
-  : A extends null | undefined ? any
-  : A
+type Widen<A> = A extends string
+  ? string
+  : A extends number
+    ? number
+    : A extends boolean
+      ? boolean
+      : A extends null | undefined
+        ? any
+        : A
 
 /**
  * The value type of an attribute definition.
@@ -355,10 +364,13 @@ type Widen<A> = A extends string ? string
  * @since 0.1.0
  * @category type-level
  */
-export type AttributeType<D> = D extends S.Top ? D["Type"]
-  : D extends { readonly schema: infer Sc extends S.Top } ? Sc["Type"]
-  : D extends { readonly default: infer A } ? Widen<A>
-  : any
+export type AttributeType<D> = D extends S.Top
+  ? D["Type"]
+  : D extends { readonly schema: infer Sc extends S.Top }
+    ? Sc["Type"]
+    : D extends { readonly default: infer A }
+      ? Widen<A>
+      : any
 
 type AttrDefsOf<Spec> = Spec extends { readonly attrs: infer A extends AttributeDefinitions } ? A : {}
 
@@ -368,9 +380,11 @@ type AttrDefsOf<Spec> = Spec extends { readonly attrs: infer A extends Attribute
  * @since 0.1.0
  * @category type-level
  */
-export type AttrsOfSpec<Spec> = [Spec] extends [never] ? Attrs
-  : string extends keyof AttrDefsOf<Spec> ? Attrs
-  : { readonly [K in keyof AttrDefsOf<Spec>]: AttributeType<AttrDefsOf<Spec>[K]> }
+export type AttrsOfSpec<Spec> = [Spec] extends [never]
+  ? Attrs
+  : string extends keyof AttrDefsOf<Spec>
+    ? Attrs
+    : { readonly [K in keyof AttrDefsOf<Spec>]: AttributeType<AttrDefsOf<Spec>[K]> }
 
 type OptionalAttrKeys<D> = { [K in keyof D]: D[K] extends { readonly default?: any } ? K : never }[keyof D]
 
@@ -381,16 +395,17 @@ type OptionalAttrKeys<D> = { [K in keyof D]: D[K] extends { readonly default?: a
  * @since 0.1.0
  * @category type-level
  */
-export type AttrsInputOfSpec<Spec> = [Spec] extends [never] ? Attrs
-  : string extends keyof AttrDefsOf<Spec> ? Attrs
-  : Simplify<
-    & {
-      readonly [K in Exclude<keyof AttrDefsOf<Spec>, OptionalAttrKeys<AttrDefsOf<Spec>>>]: AttributeType<
-        AttrDefsOf<Spec>[K]
+export type AttrsInputOfSpec<Spec> = [Spec] extends [never]
+  ? Attrs
+  : string extends keyof AttrDefsOf<Spec>
+    ? Attrs
+    : Simplify<
+        {
+          readonly [K in Exclude<keyof AttrDefsOf<Spec>, OptionalAttrKeys<AttrDefsOf<Spec>>>]: AttributeType<
+            AttrDefsOf<Spec>[K]
+          >
+        } & { readonly [K in OptionalAttrKeys<AttrDefsOf<Spec>>]?: AttributeType<AttrDefsOf<Spec>[K]> }
       >
-    }
-    & { readonly [K in OptionalAttrKeys<AttrDefsOf<Spec>>]?: AttributeType<AttrDefsOf<Spec>[K]> }
-  >
 
 type Simplify<A> = { [K in keyof A]: A[K] } & {}
 
@@ -400,9 +415,8 @@ type Simplify<A> = { [K in keyof A]: A[K] } & {}
  * @since 0.1.0
  * @category type-level
  */
-export type NodeAttrs<Sc, N extends string> = string extends NodeNames<Sc> ? Attrs
-  : N extends any ? AttrsOfSpec<NodeSpecOf<Sc, N>>
-  : never
+export type NodeAttrs<Sc, N extends string> =
+  string extends NodeNames<Sc> ? Attrs : N extends any ? AttrsOfSpec<NodeSpecOf<Sc, N>> : never
 
 /**
  * The attributes accepted when creating a node of type `N`.
@@ -410,8 +424,8 @@ export type NodeAttrs<Sc, N extends string> = string extends NodeNames<Sc> ? Att
  * @since 0.1.0
  * @category type-level
  */
-export type NodeAttrsInput<Sc, N extends string> = string extends NodeNames<Sc> ? Attrs
-  : AttrsInputOfSpec<NodeSpecOf<Sc, N>>
+export type NodeAttrsInput<Sc, N extends string> =
+  string extends NodeNames<Sc> ? Attrs : AttrsInputOfSpec<NodeSpecOf<Sc, N>>
 
 /**
  * The attributes of mark type `M` in schema `Sc`.
@@ -419,9 +433,8 @@ export type NodeAttrsInput<Sc, N extends string> = string extends NodeNames<Sc> 
  * @since 0.1.0
  * @category type-level
  */
-export type MarkAttrs<Sc, M extends string> = string extends MarkNames<Sc> ? Attrs
-  : M extends any ? AttrsOfSpec<MarkSpecOf<Sc, M>>
-  : never
+export type MarkAttrs<Sc, M extends string> =
+  string extends MarkNames<Sc> ? Attrs : M extends any ? AttrsOfSpec<MarkSpecOf<Sc, M>> : never
 
 /**
  * The attributes accepted when creating a mark of type `M`.
@@ -429,8 +442,8 @@ export type MarkAttrs<Sc, M extends string> = string extends MarkNames<Sc> ? Att
  * @since 0.1.0
  * @category type-level
  */
-export type MarkAttrsInput<Sc, M extends string> = string extends MarkNames<Sc> ? Attrs
-  : AttrsInputOfSpec<MarkSpecOf<Sc, M>>
+export type MarkAttrsInput<Sc, M extends string> =
+  string extends MarkNames<Sc> ? Attrs : AttrsInputOfSpec<MarkSpecOf<Sc, M>>
 
 /**
  * True when all attributes of the spec have defaults (or there are
@@ -479,10 +492,9 @@ export class Attribute {
     this.hasDefault = Object.prototype.hasOwnProperty.call(options, "default")
     this.default = options.default
     this.schema = options.schema
-    this.is = options.schema ? S.is(options.schema as any) as (value: unknown) => boolean : undefined
-    this.validate = typeof options.validate === "string"
-      ? validateType(typeName, attrName, options.validate)
-      : options.validate
+    this.is = options.schema ? (S.is(options.schema as any) as (value: unknown) => boolean) : undefined
+    this.validate =
+      typeof options.validate === "string" ? validateType(typeName, attrName, options.validate) : options.validate
   }
 
   get isRequired(): boolean {
@@ -504,7 +516,9 @@ function validateType(typeName: string, attrName: string, type: string) {
 
 function initAttrs(typeName: string, attrs?: AttributeDefinitions) {
   const result: Record<string, Attribute> = Object.create(null)
-  if (attrs) { for (const name in attrs) result[name] = new Attribute(typeName, name, attrs[name]!) }
+  if (attrs) {
+    for (const name in attrs) result[name] = new Attribute(typeName, name, attrs[name]!)
+  }
   return result
 }
 
@@ -789,7 +803,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
         copy.push(marks[i]!)
       }
     }
-    return !copy ? marks : copy.length ? copy : Mark.none as ReadonlyArray<M>
+    return !copy ? marks : copy.length ? copy : (Mark.none as ReadonlyArray<M>)
   }
 
   /** @internal */
@@ -960,13 +974,14 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
         }
         linebreak = type
       }
-      type.markSet = markExpr === "_" ?
-        null
-        : markExpr ?
-        gatherMarks(this, markExpr.split(" "))
-        : markExpr === "" || !type.inlineContent ?
-        []
-        : null
+      type.markSet =
+        markExpr === "_"
+          ? null
+          : markExpr
+            ? gatherMarks(this, markExpr.split(" "))
+            : markExpr === "" || !type.inlineContent
+              ? []
+              : null
     }
     for (const prop in marks) {
       const type = marks[prop]!
@@ -983,7 +998,10 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
   static make<const N extends NodeSpecs, const M extends MarkSpecs = {}>(
     spec: SchemaSpec<N, M>
   ): Effect.Effect<DocSchema<N, M>, SchemaDefinitionError> {
-    return attempt(() => new DocSchema(spec), (u): u is SchemaDefinitionError => u instanceof SchemaDefinitionError)
+    return attempt(
+      () => new DocSchema(spec),
+      (u): u is SchemaDefinitionError => u instanceof SchemaDefinitionError
+    )
   }
 
   /** Like `make`, but throws a `SchemaDefinitionError` for invalid specs. */
@@ -1031,7 +1049,10 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
     text: string,
     marks?: ReadonlyArray<Mark<DocSchema<N, M>>> | null
   ): Effect.Effect<TextNode<DocSchema<N, M>>, ContentError> {
-    return attempt(() => this.textUnsafe(text, marks), (u): u is ContentError => u instanceof ContentError)
+    return attempt(
+      () => this.textUnsafe(text, marks),
+      (u): u is ContentError => u instanceof ContentError
+    )
   }
 
   /** Like `text`, but throws a `ContentError` for empty strings. */
@@ -1098,7 +1119,7 @@ function gatherMarks(schema: DocSchema<any, any>, marks: ReadonlyArray<string>) 
       for (const prop in schema.marks) {
         const mark = schema.marks[prop]!
         if (name === "_" || (mark.spec.group && mark.spec.group.split(" ").indexOf(name) > -1)) {
-          found.push(ok = mark)
+          found.push((ok = mark))
         }
       }
     }

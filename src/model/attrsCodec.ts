@@ -7,7 +7,7 @@ interface AttrDef {
 const encoderCache = new WeakMap<object, (u: unknown) => unknown>()
 const decoderCache = new WeakMap<object, (u: unknown) => unknown>()
 
-const encoder = (schema: S.Codec<any, any>): (u: unknown) => unknown => {
+const encoder = (schema: S.Codec<any, any>): ((u: unknown) => unknown) => {
   let enc = encoderCache.get(schema)
   if (!enc) {
     enc = S.encodeUnknownSync(schema as any) as (u: unknown) => unknown
@@ -16,7 +16,7 @@ const encoder = (schema: S.Codec<any, any>): (u: unknown) => unknown => {
   return enc
 }
 
-const decoder = (schema: S.Codec<any, any>): (u: unknown) => unknown => {
+const decoder = (schema: S.Codec<any, any>): ((u: unknown) => unknown) => {
   let dec = decoderCache.get(schema)
   if (!dec) {
     dec = S.decodeUnknownSync(schema as any) as (u: unknown) => unknown

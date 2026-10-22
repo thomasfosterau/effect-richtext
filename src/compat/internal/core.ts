@@ -35,7 +35,7 @@ export const adopt = <F extends object>(proto: object, core: object): F => link(
  * Register the facade factory for instances of a core class (and its
  * subclasses, unless they have their own factory). @internal
  */
-export const registerWrapper = (coreClass: abstract new(...args: any) => any, f: (core: any) => object): void => {
+export const registerWrapper = (coreClass: abstract new (...args: any) => any, f: (core: any) => object): void => {
   factories.set(coreClass.prototype, f)
 }
 
@@ -57,7 +57,7 @@ export const wrap = (x: any): any => {
 }
 
 /** The core object behind a facade (or the value itself). @internal */
-export const unwrap = (x: any): any => (x !== null && typeof x === "object" && CORE in x) ? x[CORE] : x
+export const unwrap = (x: any): any => (x !== null && typeof x === "object" && CORE in x ? x[CORE] : x)
 
 /**
  * Core objects created for user subclasses of facade classes are

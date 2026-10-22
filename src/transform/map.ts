@@ -49,7 +49,10 @@ const makeRecover = (index: number, offset: number) => index + offset * factor16
 const recoverIndex = (value: number) => value & lower16
 const recoverOffset = (value: number) => (value - (value & lower16)) / factor16
 
-const DEL_BEFORE = 1, DEL_AFTER = 2, DEL_ACROSS = 4, DEL_SIDE = 8
+const DEL_BEFORE = 1,
+  DEL_AFTER = 2,
+  DEL_ACROSS = 4,
+  DEL_SIDE = 8
 
 /**
  * An object representing a mapped position with extra information.
@@ -141,11 +144,14 @@ export class StepMap implements Mappable {
   /** @internal */
   _map(pos: number, assoc: number, simple: boolean): number | MapResult {
     let diff = 0
-    const oldIndex = this.inverted ? 2 : 1, newIndex = this.inverted ? 1 : 2
+    const oldIndex = this.inverted ? 2 : 1,
+      newIndex = this.inverted ? 1 : 2
     for (let i = 0; i < this.ranges.length; i += 3) {
       const start = this.ranges[i]! - (this.inverted ? diff : 0)
       if (start > pos) break
-      const oldSize = this.ranges[i + oldIndex]!, newSize = this.ranges[i + newIndex]!, end = start + oldSize
+      const oldSize = this.ranges[i + oldIndex]!,
+        newSize = this.ranges[i + newIndex]!,
+        end = start + oldSize
       if (pos <= end) {
         const side = !oldSize ? assoc : pos === start ? -1 : pos === end ? 1 : assoc
         const result = start + diff + (side < 0 ? 0 : newSize)
@@ -164,11 +170,13 @@ export class StepMap implements Mappable {
   touches(pos: number, recover: number): boolean {
     let diff = 0
     const index = recoverIndex(recover)
-    const oldIndex = this.inverted ? 2 : 1, newIndex = this.inverted ? 1 : 2
+    const oldIndex = this.inverted ? 2 : 1,
+      newIndex = this.inverted ? 1 : 2
     for (let i = 0; i < this.ranges.length; i += 3) {
       const start = this.ranges[i]! - (this.inverted ? diff : 0)
       if (start > pos) break
-      const oldSize = this.ranges[i + oldIndex]!, end = start + oldSize
+      const oldSize = this.ranges[i + oldIndex]!,
+        end = start + oldSize
       if (pos <= end && i === index * 3) return true
       diff += this.ranges[i + newIndex]! - oldSize
     }
@@ -177,12 +185,14 @@ export class StepMap implements Mappable {
 
   /** Calls the given function on each of the changed ranges included in this map. */
   forEach(f: (oldStart: number, oldEnd: number, newStart: number, newEnd: number) => void): void {
-    const oldIndex = this.inverted ? 2 : 1, newIndex = this.inverted ? 1 : 2
+    const oldIndex = this.inverted ? 2 : 1,
+      newIndex = this.inverted ? 1 : 2
     for (let i = 0, diff = 0; i < this.ranges.length; i += 3) {
       const start = this.ranges[i]!,
         oldStart = start - (this.inverted ? diff : 0),
         newStart = start + (this.inverted ? 0 : diff)
-      const oldSize = this.ranges[i + oldIndex]!, newSize = this.ranges[i + newIndex]!
+      const oldSize = this.ranges[i + oldIndex]!,
+        newSize = this.ranges[i + newIndex]!
       f(oldStart, oldStart + oldSize, newStart, newStart + newSize)
       diff += newSize - oldSize
     }
@@ -338,7 +348,8 @@ export class Mapping implements Mappable {
   _map(pos: number, assoc: number, simple: boolean): number | MapResult {
     let delInfo = 0
     for (let i = this.from; i < this.to; i++) {
-      const map = this._maps[i]!, result = map.mapResult(pos, assoc)
+      const map = this._maps[i]!,
+        result = map.mapResult(pos, assoc)
       if (result.recover != null) {
         const corr = this.getMirrorOrUndefined(i)
         if (corr != null && corr > i && corr < this.to) {
