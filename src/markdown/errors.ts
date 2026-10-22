@@ -3,7 +3,7 @@
  *
  * @since 0.1.0
  */
-import * as Data from "effect/Data"
+import * as Schema from "effect/Schema"
 
 /**
  * A Markdown error: the tokenizer produced a token type the parser has
@@ -17,9 +17,9 @@ import * as Data from "effect/Data"
  * @since 0.1.0
  * @category errors
  */
-export class MarkdownError extends Data.TaggedError("MarkdownError")<{
-  readonly message: string
-}> {}
+export class MarkdownError extends Schema.TaggedError<MarkdownError>()("MarkdownError", {
+  message: Schema.String
+}) {}
 
 /**
  * @since 0.1.0

@@ -16,10 +16,10 @@
  * @since 0.1.0
  */
 import * as Context from "effect/Context"
-import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
+import * as Schema from "effect/Schema"
 import { attempt } from "./internal/attempt.ts"
 import {
   type AnySchema,
@@ -40,9 +40,9 @@ import {
  * @since 0.1.0
  * @category errors
  */
-export class MissingDocumentError extends Data.TaggedError("MissingDocumentError")<{
-  readonly message: string
-}> {}
+export class MissingDocumentError extends Schema.TaggedError<MissingDocumentError>()("MissingDocumentError", {
+  message: Schema.String
+}) {}
 
 /**
  * Something that can parse an HTML string into a document, like the

@@ -3,7 +3,7 @@
  *
  * @since 0.1.0
  */
-import * as Data from "effect/Data"
+import * as Schema from "effect/Schema"
 import { isModelError, type ModelError } from "../model/errors.ts"
 
 /**
@@ -16,9 +16,9 @@ import { isModelError, type ModelError } from "../model/errors.ts"
  * @since 0.1.0
  * @category errors
  */
-export class TransformError extends Data.TaggedError("TransformError")<{
-  readonly message: string
-}> {}
+export class TransformError extends Schema.TaggedError<TransformError>()("TransformError", {
+  message: Schema.String
+}) {}
 
 /**
  * A step could not be applied to a document. The `message` is the
@@ -27,9 +27,9 @@ export class TransformError extends Data.TaggedError("TransformError")<{
  * @since 0.1.0
  * @category errors
  */
-export class StepError extends Data.TaggedError("StepError")<{
-  readonly message: string
-}> {}
+export class StepError extends Schema.TaggedError<StepError>()("StepError", {
+  message: Schema.String
+}) {}
 
 /**
  * Union of the errors defined by the transform layer.

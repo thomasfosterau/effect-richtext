@@ -6,8 +6,8 @@
  *
  * @since 0.1.0
  */
-import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
+import * as Schema from "effect/Schema"
 import { base, keyName } from "w3c-keyname"
 import type { AnySchema } from "../model.ts"
 import { type Command, Plugin } from "../state.ts"
@@ -23,9 +23,9 @@ const windows = typeof navigator !== "undefined" && /Win/.test(navigator.platfor
  * @since 0.1.0
  * @category errors
  */
-export class KeymapError extends Data.TaggedError("KeymapError")<{
-  readonly message: string
-}> {}
+export class KeymapError extends Schema.TaggedError<KeymapError>()("KeymapError", {
+  message: Schema.String
+}) {}
 
 /**
  * A set of key bindings, mapping key names to commands.
