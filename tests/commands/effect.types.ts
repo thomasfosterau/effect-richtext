@@ -3,6 +3,7 @@
 // executed. Every `@ts-expect-error` directive is an assertion that the
 // statement below it must NOT compile.
 import * as Context from "effect/Context"
+import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 import { chainCommands, deleteSelection } from "effect-richtext/commands"
 import type { AnySchema } from "effect-richtext/model"
@@ -13,8 +14,8 @@ class Denied extends Schema.TaggedError<Denied>()("Denied", { reason: Schema.Str
 class Other extends Schema.TaggedError<Other>()("Other", {}) {}
 
 declare const logged: Command<AnySchema, never, Log>
-declare const denied: Command<AnySchema, Denied>
-declare const other: Command<AnySchema, Other>
+const denied: Command<AnySchema, Denied> = () => Effect.fail(new Denied({ reason: "read-only" }))
+const other: Command<AnySchema, Other> = () => Effect.fail(new Other())
 
 const chained = chainCommands(logged, denied, deleteSelection, other)
 export const _check: Command<AnySchema, Denied | Other, Log> = chained

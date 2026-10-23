@@ -147,6 +147,11 @@ export default defineConfig({
       "effect/no-unknown-returns": "warn", // 22
       "effect/avoid-direct-json": "warn", // 21
       "effect/yield-in-for-loop": "warn", // 18
+      // The four left are EditorState's Effect twins of its synchronous
+      // transaction methods; with `this` in place of `self` their bodies
+      // become clones of the sync versions, so they wait on deduplicating
+      // the twins.
+      "typescript/no-this-alias": "warn", // 4
       "typescript/no-explicit-any": "off",
       "typescript/no-empty-object-type": "off",
       "typescript/ban-ts-comment": "off",
