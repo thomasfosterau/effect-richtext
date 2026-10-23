@@ -48,7 +48,7 @@ function tag$(node: Node_, tag: string): number | null {
 
 function tag(node: Node_, tag: string): number {
   const value = tag$(node, tag)
-  if (value == null) throw new Error(`Missing tag ${tag} on ${node}`)
+  if (value == null) return assert.fail(`Missing tag ${tag} on ${node}`)
   return value
 }
 
@@ -1171,13 +1171,8 @@ describe("Transform", () => {
     )
 
     it("types node attributes by node type", () => {
+      // The rejected attributes are asserted in trans.types.ts.
       const tr = new Transform(doc(p("x")))
-      // @ts-expect-error -- `level` must be a number
-      const _bad = () => tr.setBlockTypeUnsafe(1, 1, schema.nodes.heading, { level: "x" })
-      // @ts-expect-error -- unknown attribute
-      const _bad2 = () => tr.setNodeMarkupUnsafe(0, schema.nodes.heading, { lvl: 1 })
-      void _bad
-      void _bad2
       tr.setBlockTypeUnsafe(1, 1, schema.nodes.heading, (node) => ({ level: node.childCount + 1 }))
       ist(tr.doc, doc(h2("x")), eq)
     })

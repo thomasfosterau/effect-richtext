@@ -1,4 +1,5 @@
 // Ported from prosemirror-view/test/view.ts (MIT, Marijn Haverbeke and others)
+import { assert } from "@effect/vitest"
 import type { Node as PMNode } from "effect-richtext/model"
 import { EditorState, NodeSelection, type Plugin, Selection, TextSelection } from "effect-richtext/state"
 import { schema } from "effect-richtext/test-builder"
@@ -74,7 +75,7 @@ export function requireFocus<V extends EditorView<any, any, any>>(pm: V): V {
   // The tests run in an iframe, which has to be focused explicitly.
   if (!document.hasFocus()) window.focus()
   if (!document.hasFocus()) {
-    throw new Error("The document doesn't have focus, which is needed for this test")
+    assert.fail("The document doesn't have focus, which is needed for this test")
   }
   pm.focus()
   return pm

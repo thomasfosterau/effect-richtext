@@ -193,7 +193,7 @@ export class DOMObserver {
 
   ignoreSelectionChange(sel: DOMSelectionRange) {
     if (!sel.focusNode) return true
-    const ancestors: Set<DOMNode> = new Set()
+    const ancestors: WeakSet<DOMNode> = new WeakSet()
     let container: DOMNode | undefined
     for (let scan: DOMNode | null = sel.focusNode; scan; scan = parentNode(scan)) ancestors.add(scan)
     for (let scan = sel.anchorNode; scan; scan = parentNode(scan)) {

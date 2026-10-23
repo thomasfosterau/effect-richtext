@@ -4,6 +4,8 @@
  * @since 0.1.0
  */
 // Ported from prosemirror-markdown (MIT, Marijn Haverbeke and others)
+import * as Arr from "effect/Array"
+import * as Order from "effect/Order"
 import type { AnySchema, Attrs, Mark, Node, TextNode } from "../model.ts"
 import { MarkdownError } from "./errors.ts"
 
@@ -191,7 +193,7 @@ export const defaultMarkdownSerializer: MarkdownSerializer = new MarkdownSeriali
     code_block(state, node) {
       // Make sure the front matter fences are longer than any dash sequence within it
       const backticks = node.textContent.match(/`{3,}/gm)
-      const fence = backticks ? backticks.sort().slice(-1)[0] + "`" : "```"
+      const fence = backticks ? Arr.sort(backticks, Order.String).slice(-1)[0] + "`" : "```"
 
       state.write(fence + (node.attrs.params || "") + "\n")
       state.text(node.textContent, false)

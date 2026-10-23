@@ -1,11 +1,11 @@
 import { assert, describe, it } from "@effect/vitest"
 import * as Context from "effect/Context"
-import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
 import * as Fiber from "effect/Fiber"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
+import * as Schema from "effect/Schema"
 import * as Scope from "effect/Scope"
 import * as Stream from "effect/Stream"
 import { lift, toggleMark, wrapIn } from "effect-richtext/commands"
@@ -22,7 +22,7 @@ const stateFor = (d: Node<any>, plugins?: ReadonlyArray<Plugin<any, any, any, ne
   EditorState.createUnsafe({ doc: d, selection: selFor(d), plugins })
 
 class Step extends Context.Service<Step, { readonly step: number }>()("test/Step") {}
-class Boom extends Data.TaggedError("Boom")<{}> {}
+class Boom extends Schema.TaggedError<Boom>()("Boom", {}) {}
 
 const countPlugin = new Plugin({
   state: {

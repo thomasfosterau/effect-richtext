@@ -3,11 +3,16 @@
  *
  * @since 0.1.0
  */
+import * as Arr from "effect/Array"
 import * as Equal from "effect/Equal"
 import * as Hash from "effect/Hash"
+import * as Order from "effect/Order"
 import { encodeAttrs } from "./attrsCodec.ts"
 import { compareDeep } from "./comparedeep.ts"
 import type { AnySchema, MarkAttrs, MarkNames, MarkType } from "./schema.ts"
+
+// Mark sets are kept sorted by their type's rank in the schema.
+const byRank: Order.Order<Mark<any, any>> = (a, b) => Order.Number(a.type.rank, b.type.rank)
 
 /**
  * A mark is a piece of information that can be attached to a node,
@@ -126,11 +131,9 @@ export class Mark<Sc extends AnySchema = AnySchema, out M extends MarkNames<Sc> 
 
   /** Create a properly sorted mark set from nothing, a single mark, or an unsorted array of marks. */
   static setFrom<Mk extends Mark<any, any>>(marks?: Mk | ReadonlyArray<Mk> | null): ReadonlyArray<Mk> {
-    if (!marks || (Array.isArray(marks) && marks.length === 0)) return Mark.none as ReadonlyArray<Mk>
+    if (!marks || (Array.isArray(marks) && Arr.isReadonlyArrayEmpty(marks))) return Mark.none as ReadonlyArray<Mk>
     if (marks instanceof Mark) return [marks]
-    const copy = (marks as ReadonlyArray<Mk>).slice()
-    copy.sort((a, b) => a.type.rank - b.type.rank)
-    return copy
+    return Arr.sort(marks as ReadonlyArray<Mk>, byRank)
   }
 
   /** The empty set of marks. */

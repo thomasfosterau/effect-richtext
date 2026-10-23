@@ -4,7 +4,9 @@
  *
  * @since 0.1.0
  */
+import * as Arr from "effect/Array"
 import type * as Effect from "effect/Effect"
+import * as Order from "effect/Order"
 import { type Bindings, type BindingsError, type BindingsRequirements, keymap } from "../keymap.ts"
 import type { AnySchema, MarkSpec, MarkSpecs, NodeSpec, NodeSpecs } from "../model.ts"
 import type { AnyPlugin, Command, Plugin } from "../state.ts"
@@ -510,6 +512,14 @@ const mergeSpec = <S extends NodeSpec | MarkSpec>(base: S | undefined, over: S):
   return attrs ? { ...merged, attrs } : merged
 }
 
+interface Facet {
+  readonly spec: ExtensionSpec
+  readonly priority: number
+}
+
+// Highest priority first.
+const byPriorityDesc: Order.Order<Facet> = (a, b) => Order.Number(b.priority, a.priority)
+
 /**
  * Flatten an extension tree. Facets are sorted by priority (highest
  * first), keeping declaration order for equal priorities. Node and mark
@@ -521,18 +531,18 @@ const mergeSpec = <S extends NodeSpec | MarkSpec>(base: S | undefined, over: S):
  * @internal
  */
 export const flatten = (extension: AnyExtension): Flattened => {
-  const facets: Array<{ spec: ExtensionSpec; priority: number }> = []
-  const seen = new Set<AnyExtension>()
+  const collected: Array<Facet> = []
+  const seen = new WeakSet<AnyExtension>()
   const visit = (ext: AnyExtension, inherited: number) => {
     if (seen.has(ext)) return
     seen.add(ext)
     const priority = ext.priority ?? inherited
-    if (ext.spec) facets.push({ spec: ext.spec, priority })
+    if (ext.spec) collected.push({ spec: ext.spec, priority })
     for (const child of ext.children) visit(child, priority)
   }
   visit(extension, Priority.default)
-  // Array.prototype.sort is stable.
-  facets.sort((a, b) => b.priority - a.priority)
+  // `Arr.sort` is stable, so equal priorities keep declaration order.
+  const facets = Arr.sort(collected, byPriorityDesc)
 
   const nodes: Record<string, NodeSpec> = {}
   const marks: Record<string, MarkSpec> = {}

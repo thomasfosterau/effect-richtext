@@ -3,6 +3,7 @@
 import { assert, describe, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
+import * as R from "effect/Record"
 import {
   Content,
   DocSchema,
@@ -1069,7 +1070,7 @@ describe("DOMSerializer", () => {
 
     it("caches the serializer on the schema", () => {
       assert.strictEqual(DOMSerializer.fromSchema(schema), serializer)
-      assert.deepStrictEqual(Object.keys(DOMSerializer.marksFromSchema(schema)), ["link", "em", "strong", "code"])
+      assert.deepStrictEqual(R.keys(DOMSerializer.marksFromSchema(schema)), ["link", "em", "strong", "code"])
       assert.isFunction(DOMSerializer.nodesFromSchema(schema).text)
     })
   })

@@ -1,9 +1,10 @@
 import { assert, describe, it } from "@effect/vitest"
 import * as Context from "effect/Context"
-import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
 import * as Layer from "effect/Layer"
+import * as R from "effect/Record"
+import * as Schema from "effect/Schema"
 import {
   createEditor,
   createEditorUnsafe,
@@ -52,8 +53,8 @@ describe("union and priorities", () => {
         withPriority(defineMarkSpec("b", {}), Priority.high)
       )
     )
-    assert.deepStrictEqual(Object.keys(editor.schema.nodes), ["paragraph", "aside", "doc", "text", "quote"])
-    assert.deepStrictEqual(Object.keys(editor.schema.marks), ["b", "a"])
+    assert.deepStrictEqual(R.keys(editor.schema.nodes), ["paragraph", "aside", "doc", "text", "quote"])
+    assert.deepStrictEqual(R.keys(editor.schema.marks), ["b", "a"])
     // The paragraph is the default block.
     ist(editor.state.doc.firstChild.pipe(getSome).type.name, "paragraph")
   })
@@ -302,7 +303,7 @@ describe("Editor", () => {
 })
 
 class Step extends Context.Service<Step, { readonly size: number }>()("test/Step") {}
-class Rejected extends Data.TaggedError("Rejected")<{}> {}
+class Rejected extends Schema.TaggedError<Rejected>()("Rejected", {}) {}
 
 describe("Effect requirements and errors", () => {
   const counter = new Plugin({

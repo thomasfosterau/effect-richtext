@@ -119,14 +119,15 @@ describe("EditorView", () => {
 
   it("binds this to itself in dispatchTransaction prop", () => {
     const dom = document.createElement("div")
-    let thisBinding
+    const thisBindings: Array<unknown> = []
     const view = EditorView.makeUnsafe(dom, {
       state: EditorState.createUnsafe({ doc: doc(p("hi")) }),
       dispatchTransaction: function () {
-        thisBinding = this
+        thisBindings.push(this)
       }
     })
     view.dispatchUnsafe(view.state.tr.insertTextUnsafe("x"))
-    ist(view, thisBinding)
+    ist(thisBindings.length, 1)
+    ist(view, thisBindings[0])
   })
 })

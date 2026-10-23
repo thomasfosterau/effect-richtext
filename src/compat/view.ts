@@ -457,7 +457,9 @@ export interface DirectEditorProps extends EditorProps {
 // EditorView
 // -----------------------------------------------------------------------------
 
-let constructing: EditorView | null = null
+// The facades whose constructor is running, innermost last: the core
+// view each one creates is wrapped in that facade, not a fresh one.
+const constructing: Array<EditorView> = []
 
 /**
  * An editor view manages the DOM structure that represents an editable
@@ -482,13 +484,12 @@ export class EditorView {
     this._props = props
     this.propsCache = new WeakMap()
     this.dispatch = this.dispatch.bind(this)
-    const prev = constructing
-    constructing = this
+    constructing.push(this)
     try {
       const core = guard(() => V.EditorView.makeUnsafe(place, this.propsToCore(props)))
       link(this, core)
     } finally {
-      constructing = prev
+      constructing.pop()
     }
   }
 
@@ -734,7 +735,8 @@ export class EditorView {
 }
 
 registerWrapper(V.EditorView, (core: V.EditorView<any, any, any>) => {
-  if (constructing && !(CORE in constructing)) return constructing
+  const facade = constructing.at(-1)
+  if (facade && !(CORE in facade)) return facade
   // A view created through the core API: give it a facade whose props
   // are the core props.
   const view = adopt<EditorView>(EditorView.prototype, core)

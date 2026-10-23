@@ -3,6 +3,7 @@
 // ../../utils/ist.ts, mocha describe/it -> @effect/vitest; type-only imports
 // marked as such) and dprint formatting.
 import { describe, it } from "@effect/vitest"
+import * as Str from "effect/String"
 import { EditorState, Plugin, PluginKey, TextSelection } from "effect-richtext/compat/state"
 import { doc, eq, p, schema } from "effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
@@ -143,7 +144,7 @@ describe("State", () => {
 
   it("supports JSON.stringify toJSON arguments", () => {
     const someObject = { someKey: EditorState.create({ schema }) }
-    ist(JSON.stringify(someObject).length > 0)
+    ist(Str.isNonEmpty(JSON.stringify(someObject)))
   })
 })
 

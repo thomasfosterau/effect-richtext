@@ -1,8 +1,9 @@
 // Ported from prosemirror-model/test/test-node.ts (MIT, Marijn Haverbeke and others).
 // Changes: imports only (ProseMirror packages -> effect-richtext/compat/*, ist ->
 // ../../utils/ist.ts, mocha describe/it -> @effect/vitest; type-only imports
-// marked as such) and dprint formatting.
-import { describe, it } from "@effect/vitest"
+// marked as such), `throw new Error(...)` in test helpers -> `assert.fail(...)`,
+// and dprint formatting.
+import { assert, describe, it } from "@effect/vitest"
 import type { Node } from "effect-richtext/compat/model"
 import { Fragment, Schema } from "effect-richtext/compat/model"
 import {
@@ -99,14 +100,14 @@ describe("Node", () => {
       let i = 0
       doc.nodesBetween((doc as any).tag.a, (doc as any).tag.b, (node, pos) => {
         if (i == nodes.length) {
-          throw new Error("More nodes iterated than listed (" + node.type.name + ")")
+          assert.fail("More nodes iterated than listed (" + node.type.name + ")")
         }
         const compare = node.isText ? node.text! : node.type.name
         if (compare != nodes[i++]) {
-          throw new Error("Expected " + JSON.stringify(nodes[i - 1]) + ", got " + JSON.stringify(compare))
+          assert.fail("Expected " + JSON.stringify(nodes[i - 1]) + ", got " + JSON.stringify(compare))
         }
         if (!node.isText && doc.nodeAt(pos) != node) {
-          throw new Error("Pos " + pos + " does not point at node " + node + " " + doc.nodeAt(pos))
+          assert.fail("Pos " + pos + " does not point at node " + node + " " + doc.nodeAt(pos))
         }
       })
     }

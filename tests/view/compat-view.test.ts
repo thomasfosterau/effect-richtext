@@ -120,14 +120,15 @@ describe("EditorView", () => {
 
   it("binds this to itself in dispatchTransaction prop", () => {
     const dom = document.createElement("div")
-    let thisBinding
+    const thisBindings: Array<unknown> = []
     const view = new EditorView(dom, {
       state: EditorState.create({ doc: doc(p("hi")) }),
       dispatchTransaction: function () {
-        thisBinding = this
+        thisBindings.push(this)
       }
     })
     view.dispatch(view.state.tr.insertText("x"))
-    ist(view, thisBinding)
+    ist(thisBindings.length, 1)
+    ist(view, thisBindings[0])
   })
 })

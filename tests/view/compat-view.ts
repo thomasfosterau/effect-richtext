@@ -2,6 +2,8 @@
 // Changes: imports only (ProseMirror packages -> effect-richtext/compat/*), plus:
 // - creates the `#workspace` element (and test CSS) that the ProseMirror test
 //   page provides, using `workspace()` from ./helpers.ts.
+// - `requireFocus` fails the test with `assert.fail` instead of throwing.
+import { assert } from "@effect/vitest"
 import type { Node as PMNode } from "effect-richtext/compat/model"
 import type { Plugin } from "effect-richtext/compat/state"
 import { EditorState, NodeSelection, Selection, TextSelection } from "effect-richtext/compat/state"
@@ -55,7 +57,7 @@ export function findTextNode(node: Node, text: string): Text | undefined {
 
 export function requireFocus(pm: EditorView) {
   if (!document.hasFocus()) {
-    throw new Error("The document doesn't have focus, which is needed for this test")
+    assert.fail("The document doesn't have focus, which is needed for this test")
   }
   pm.focus()
   return pm
