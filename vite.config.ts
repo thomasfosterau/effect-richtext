@@ -15,6 +15,7 @@
 
 import { recommended } from "@effect/tsgo/oxlint-presets"
 import effect from "@mpsuesser/oxlint-plugin-effect"
+import * as R from "effect/Record"
 import { defineConfig } from "vite-plus"
 import { playwright } from "vite-plus/test/browser-playwright"
 
@@ -130,14 +131,14 @@ export default defineConfig({
       // reaches zero.
       "effect/avoid-non-null-assertion": "warn", // 1315
       "effect/require-safety-comment-for-type-assertion": "warn", // 1051
-      "effect/prefer-option-over-null": "warn", // 1011
-      "effect/imperative-loops": "warn", // 609
+      "effect/prefer-option-over-null": "warn", // 1010
+      "effect/imperative-loops": "warn", // 608
       "effect/avoid-any": "warn", // 444
       "effect/no-runtime-typeof": "warn", // 77
       "effect/no-unsafe-dictionary-type": "warn", // 77
       "effect/no-unknown-parameters": "warn", // 60
       "effect/prefer-effect-is": "warn", // 50
-      "effect/avoid-object-type": "warn", // 37
+      "effect/avoid-object-type": "warn", // 33
       "effect/no-known-value-widening": "warn", // 36
       "effect/effect-run-in-body": "warn", // 34
       "effect/avoid-try-catch": "warn", // 32
@@ -146,15 +147,6 @@ export default defineConfig({
       "effect/no-unknown-returns": "warn", // 22
       "effect/avoid-direct-json": "warn", // 21
       "effect/yield-in-for-loop": "warn", // 18
-      "effect/avoid-untagged-errors": "warn", // 13
-      "effect/avoid-native-object-helpers": "warn", // 11
-      "effect/no-length-comparison": "warn", // 10
-      "effect/prefer-arr-match": "warn", // 10
-      "effect/no-object-parameters": "warn", // 9
-      "typescript/no-this-alias": "warn", // 9
-      "effect/avoid-ts-ignore": "warn", // 8
-      "effect/avoid-data-tagged-error": "warn", // 8
-      "effect/prefer-arr-sort": "warn", // 4
       "typescript/no-explicit-any": "off",
       "typescript/no-empty-object-type": "off",
       "typescript/ban-ts-comment": "off",
@@ -189,6 +181,16 @@ export default defineConfig({
         rules: {
           "eslint/no-unused-vars": "off",
           "effect/avoid-ts-ignore": "off"
+        }
+      },
+      // The compat facade links facades to core objects and walks
+      // prototype chains by reflection (`link`, `adopt`, `getterOf`): any
+      // object or prototype is a valid argument, so there is no owner type
+      // to name in place of `object`.
+      {
+        files: ["src/compat/internal/core.ts", "src/compat/state.ts"],
+        rules: {
+          "effect/no-object-parameters": "off"
         }
       },
       // Test fixtures are the seams under test, not domain code.
@@ -264,7 +266,7 @@ export default defineConfig({
   // compat wrappers, the test-builder's `tag` getter), and that list only
   // stays true if those statements stay in those files.
   pack: {
-    entry: Object.fromEntries(entries.map((entry) => [entry, `src/${entry}.ts`])),
+    entry: R.fromEntries(entries.map((entry) => [entry, `src/${entry}.ts`])),
     unbundle: true,
     format: "esm",
     platform: "neutral",

@@ -107,10 +107,11 @@ export class OrderedMap<T = any> {
 
   /** Create a map containing all the keys in this map that don't appear in `map`. */
   subtract(map: MapLike<T>): OrderedMap<T> {
-    let result: OrderedMap<T> = this
-    const other = OrderedMap.from(map)
-    for (let i = 0; i < other.content.length; i += 2) result = result.remove(other.content[i] as string)
-    return result
+    // `content` alternates keys and values; remove each key.
+    return OrderedMap.from(map).content.reduce<OrderedMap<T>>(
+      (result, key, i) => (i % 2 === 0 ? result.remove(key as string) : result),
+      this
+    )
   }
 
   /** Turn the ordered map into a plain object. */

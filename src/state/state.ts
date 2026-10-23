@@ -268,14 +268,13 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
   /** @internal */
   filterTransaction(tr: Transaction<Sc>, ignore = -1): Effect.Effect<boolean, E, R> {
     const plugins = this.config.plugins
-    const self = this
-    return Effect.gen(function* () {
+    return Effect.gen({ self: this }, function* () {
       for (let i = 0; i < plugins.length; i++) {
         if (i === ignore) continue
         const plugin = plugins[i]!,
           filter = plugin.spec.filterTransaction
         if (filter) {
-          const result = filter.call(plugin, tr, self)
+          const result = filter.call(plugin, tr, this)
           const ok = Effect.isEffect(result) ? yield* result as Effect.Effect<boolean, E, R> : result
           if (!ok) return false
         }
@@ -386,14 +385,13 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
 
   /** @internal */
   applyTransactionEffect(rootTr: Transaction<Sc>): Effect.Effect<ApplyResult<Sc, R, E>, E | StateError, R> {
-    const self = this
-    return Effect.gen(function* () {
-      if (!(yield* self.filterTransaction(rootTr))) return { state: self, transactions: [] }
+    return Effect.gen({ self: this }, function* () {
+      if (!(yield* this.filterTransaction(rootTr))) return { state: this, transactions: [] }
 
       const trs: Array<Transaction<Sc>> = [rootTr]
-      let newState = yield* self.applyInner(rootTr)
+      let newState = yield* this.applyInner(rootTr)
       let seen: Array<{ state: EditorState<Sc, R, E>; n: number }> | null = null
-      const plugins = self.config.plugins
+      const plugins = this.config.plugins
       // This loop repeatedly gives plugins a chance to respond to
       // transactions as new transactions are added, making sure to only
       // pass the transactions the plugin did not see before.
@@ -404,7 +402,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
             append = plugin.spec.appendTransaction
           if (append) {
             const n = seen ? seen[i]!.n : 0,
-              oldState = seen ? seen[i]!.state : self
+              oldState = seen ? seen[i]!.state : this
             let tr: Transaction<Sc> | null | undefined | void = undefined
             if (n < trs.length) {
               const result = append.call(plugin, n ? trs.slice(n) : trs, oldState, newState)
@@ -417,7 +415,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
               if (!seen) {
                 seen = []
                 for (let j = 0; j < plugins.length; j++) {
-                  seen.push(j < i ? { state: newState, n: trs.length } : { state: self, n: 0 })
+                  seen.push(j < i ? { state: newState, n: trs.length } : { state: this, n: 0 })
                 }
               }
               trs.push(tr)
@@ -440,16 +438,15 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
 
   /** @internal */
   applyInner(tr: Transaction<Sc>): Effect.Effect<EditorState<Sc, R, E>, E | StateError, R> {
-    const self = this
-    return Effect.gen(function* () {
-      if (!tr.before.eq(self.doc)) {
+    return Effect.gen({ self: this }, function* () {
+      if (!tr.before.eq(this.doc)) {
         return yield* Effect.fail(new StateError({ message: "Applying a mismatched transaction" }))
       }
-      const newInstance = new EditorState<Sc, R, E>(self.config),
-        fields = self.config.fields
+      const newInstance = new EditorState<Sc, R, E>(this.config),
+        fields = this.config.fields
       for (let i = 0; i < fields.length; i++) {
         const field = fields[i]!
-        const result = field.apply.call(field.self, tr, self.slots[field.name], self, newInstance)
+        const result = field.apply.call(field.self, tr, this.slots[field.name], this, newInstance)
         newInstance.slots[field.name] = Effect.isEffect(result) ? yield* result as Effect.Effect<unknown, E, R> : result
       }
       return newInstance
@@ -470,16 +467,15 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
     PluginErrors<P> | StateError,
     PluginRequirements<P>
   > {
-    const self = this
-    return Effect.gen(function* () {
-      const $config = yield* trySync(() => new Configuration(self.schema, config.plugins))
+    return Effect.gen({ self: this }, function* () {
+      const $config = yield* trySync(() => new Configuration(this.schema, config.plugins))
       const fields = $config.fields,
         instance = new EditorState<Sc, PluginRequirements<P>, PluginErrors<P>>($config)
       for (let i = 0; i < fields.length; i++) {
         const field = fields[i]!,
           name = field.name
-        if (Object.prototype.hasOwnProperty.call(self.slots, name)) {
-          instance.slots[name] = self.slots[name]
+        if (Object.prototype.hasOwnProperty.call(this.slots, name)) {
+          instance.slots[name] = this.slots[name]
         } else {
           const result = field.init.call(field.self, config, instance)
           instance.slots[name] = Effect.isEffect(result) ? yield* result as Effect.Effect<unknown, any, any> : result

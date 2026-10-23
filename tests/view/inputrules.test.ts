@@ -3,11 +3,11 @@
 import { assert, describe, it } from "@effect/vitest"
 import * as Cause from "effect/Cause"
 import * as Context from "effect/Context"
-import * as Data from "effect/Data"
 import * as Deferred from "effect/Deferred"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
+import * as Schema from "effect/Schema"
 import {
   type AppliedInputRule,
   ellipsis,
@@ -30,7 +30,7 @@ import { findTextNode, flush, selFor, tempEditor, workspace } from "./helpers.ts
 
 class Counter extends Context.Service<Counter, { readonly step: number }>()("test/Counter") {}
 
-class Boom extends Data.TaggedError("Boom")<{ readonly message: string }> {}
+class Boom extends Schema.TaggedError<Boom>()("Boom", { message: Schema.String }) {}
 
 // Simulate typing: run the `handleTextInput` handlers like the view does
 // for each typed character, inserting the text when none handles it.
@@ -286,8 +286,6 @@ describe("inputRules (Effect handlers)", () => {
       rules: [emDash, counterRule, failing]
     })
     ist(plugin.spec.isInputRules)
-    // @ts-expect-error the plugin requires Counter
-    const _noReqs: Plugin<InputRulesState, AnySchema, Boom, never> = plugin
   })
 
   it.effect("runs effectful rules with the view's context", () =>

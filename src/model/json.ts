@@ -5,6 +5,7 @@
  * @since 0.1.0
  */
 import * as Effect from "effect/Effect"
+import * as Predicate from "effect/Predicate"
 import * as S from "effect/Schema"
 import * as SchemaGetter from "effect/SchemaGetter"
 import * as SchemaIssue from "effect/SchemaIssue"
@@ -27,7 +28,9 @@ const decodeAttrsOrFail = (defs: Parameters<typeof decodeAttrs>[0], attrs: unkno
     return decodeAttrs(defs, attrs as Attrs)
   } catch (e) {
     if (isModelError(e)) throw e
-    return fail(`Invalid attributes for ${what}: ${e instanceof Error ? e.message : String(e)}`)
+    return fail(
+      `Invalid attributes for ${what}: ${Predicate.hasProperty(e, "message") ? String(e.message) : String(e)}`
+    )
   }
 }
 
@@ -100,7 +103,9 @@ const wrap = <A>(f: () => A): Effect.Effect<A, SchemaIssue.Issue> =>
     try {
       return Effect.succeed(f())
     } catch (e) {
-      return Effect.fail(new SchemaIssue.InvalidValue({ message: e instanceof Error ? e.message : String(e) }))
+      return Effect.fail(
+        new SchemaIssue.InvalidValue({ message: Predicate.hasProperty(e, "message") ? String(e.message) : String(e) })
+      )
     }
   })
 

@@ -4,6 +4,8 @@
  *
  * @since 0.1.0
  */
+import * as Arr from "effect/Array"
+import * as Order from "effect/Order"
 import {
   type AnySchema,
   DOMSerializer,
@@ -471,7 +473,7 @@ export class ViewDesc {
     to: number,
     base = 0
   ): { node: DOMNode; from: number; to: number; fromOffset: number; toOffset: number } {
-    if (this.children.length == 0) {
+    if (Arr.isReadonlyArrayEmpty(this.children)) {
       return { node: this.contentDOM!, from, to, fromOffset: 0, toOffset: this.contentDOM!.childNodes.length }
     }
 
@@ -695,6 +697,11 @@ export class ViewDesc {
   }
 }
 
+// Holds a widget desc once its constructor has run (see WidgetViewDesc).
+interface WidgetCell {
+  desc: WidgetViewDesc | undefined
+}
+
 // A widget desc represents a widget decoration, which is a DOM node
 // drawn between the document nodes.
 class WidgetViewDesc extends ViewDesc {
@@ -704,12 +711,15 @@ class WidgetViewDesc extends ViewDesc {
     view: AnyView,
     pos: number
   ) {
-    let self: WidgetViewDesc | undefined,
-      dom = (widget.type as WidgetType).toDOM as WidgetConstructor
+    // The widget's `getPos` can be called before `super` returns, so it
+    // reads the desc through a cell that is filled in once it exists.
+    const cell: WidgetCell = { desc: undefined }
+    let dom = (widget.type as WidgetType).toDOM as WidgetConstructor
     if (typeof dom == "function") {
       dom = dom(view, () => {
-        if (!self) return pos
-        if (self.parent) return self.parent.posBeforeChild(self)
+        const desc = cell.desc
+        if (!desc) return pos
+        if (desc.parent) return desc.parent.posBeforeChild(desc)
         return undefined
       })
     }
@@ -723,7 +733,7 @@ class WidgetViewDesc extends ViewDesc {
       ;(dom as HTMLElement).classList.add("ProseMirror-widget")
     }
     super(parent, [], dom, null)
-    self = this
+    cell.desc = this
   }
 
   override matchesWidget(widget: Decoration) {
@@ -1389,7 +1399,7 @@ OuterDecoLevel.prototype = Object.create(null)
 const noDeco = [new OuterDecoLevel()]
 
 function computeOuterDeco(outerDeco: ReadonlyArray<Decoration>, node: Node<any, any>, needsWrap: boolean) {
-  if (outerDeco.length == 0) return noDeco
+  if (Arr.isReadonlyArrayEmpty(outerDeco)) return noDeco
 
   let top = needsWrap ? noDeco[0]! : new OuterDecoLevel()
   const result = [top]
@@ -1476,7 +1486,7 @@ function patchAttributes(dom: HTMLElement, prev: { [name: string]: string }, cur
         dom.classList.add(curList[i]!)
       }
     }
-    if (dom.classList.length == 0) {
+    if (dom.classList.item(0) === null) {
       dom.removeAttribute("class")
     }
   }
@@ -1522,7 +1532,7 @@ class ViewTreeUpdater {
   stack: Array<ViewDesc | number> = []
   // Tracks whether anything was changed
   changed = false
-  preMatch: { index: number; matched: Map<ViewDesc, number>; matches: ReadonlyArray<ViewDesc> }
+  preMatch: { index: number; matched: WeakMap<ViewDesc, number>; matches: ReadonlyArray<ViewDesc> }
   top: ViewDesc
 
   constructor(
@@ -1838,14 +1848,14 @@ function preMatch(
   // of matched nodes at the end of the fragment.
   index: number
   // A map from matched descs to fragment indices.
-  matched: Map<ViewDesc, number>
+  matched: WeakMap<ViewDesc, number>
   // The matched descs.
   matches: ReadonlyArray<ViewDesc>
 } {
   let curDesc = parentDesc,
     descI = curDesc.children.length
   let fI = frag.childCount
-  const matched = new Map<ViewDesc, number>(),
+  const matched = new WeakMap<ViewDesc, number>(),
     matches: Array<ViewDesc> = []
   outer: while (fI > 0) {
     let desc: ViewDesc
@@ -1877,9 +1887,7 @@ function preMatch(
   return { index: fI, matched, matches: matches.reverse() }
 }
 
-function compareSide(a: Decoration, b: Decoration) {
-  return (a.type as WidgetType).side - (b.type as WidgetType).side
-}
+const bySide: Order.Order<Decoration> = (a, b) => Order.Number((a.type as WidgetType).side, (b.type as WidgetType).side)
 
 // This function abstracts iterating over the nodes and decorations in
 // a fragment. Calls `onNode` for each node, with its local and child
@@ -1899,7 +1907,7 @@ function iterDeco(
   const locals = deco.locals(parent)
   let offset = 0
   // Simple, cheap variant for when there are no local decorations
-  if (locals.length == 0) {
+  if (Arr.isReadonlyArrayEmpty(locals)) {
     for (let i = 0; i < parent.childCount; i++) {
       const child = parent.content.content[i]!
       onNode(child, locals, deco.forChild(offset, child), i)
@@ -1922,8 +1930,8 @@ function iterDeco(
     }
     if (widget) {
       if (widgets) {
-        widgets.sort(compareSide)
-        for (let i = 0; i < widgets.length; i++) onWidget(widgets[i]!, parentIndex, !!restNode)
+        const sorted = Arr.sort(widgets, bySide)
+        for (let i = 0; i < sorted.length; i++) onWidget(sorted[i]!, parentIndex, !!restNode)
       } else {
         onWidget(widget, parentIndex, !!restNode)
       }

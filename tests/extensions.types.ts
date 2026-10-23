@@ -3,7 +3,6 @@
 // `@ts-expect-error` directive is an assertion that the statement below it
 // must NOT compile.
 import * as Context from "effect/Context"
-import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 import {
@@ -35,7 +34,7 @@ type Equals<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B 
 type Expect<T extends true> = T
 
 class Svc extends Context.Service<Svc, { readonly n: number }>()("typetest/Svc") {}
-class Boom extends Data.TaggedError("Boom")<{}> {}
+class Boom extends Schema.TaggedError<Boom>()("Boom", {}) {}
 
 const basic = defineBasicExtension()
 const editor = createEditorUnsafe(basic)

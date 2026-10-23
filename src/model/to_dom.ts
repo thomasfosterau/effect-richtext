@@ -10,7 +10,7 @@ import { DOMSpecError } from "./errors.ts"
 import type { Fragment } from "./fragment.ts"
 import type { Mark } from "./mark.ts"
 import type { Node, TextNode } from "./node.ts"
-import type { AnySchema, MarkType, NodeType } from "./schema.ts"
+import type { AnySchema, Attrs, MarkType, NodeType } from "./schema.ts"
 
 /**
  * A description of a DOM structure. Can be either a DOM node, a
@@ -230,7 +230,7 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
     doc: Document,
     structure: DOMOutputSpec,
     xmlNS: string | null = null,
-    blockArraysIn?: object
+    blockArraysIn?: Attrs
   ): RenderedSpec {
     // Kludge for backwards-compatibility with accidental original behaviour
     if (typeof structure == "string") return { dom: doc.createTextNode(structure) }
@@ -283,15 +283,15 @@ function doc(options: SerializeOptions): Document {
   return options.document || globalThis.document
 }
 
-const suspiciousAttributeCache = new WeakMap<object, ReadonlyArray<unknown> | null>()
+const suspiciousAttributeCache = new WeakMap<Attrs, ReadonlyArray<unknown> | null>()
 
-function suspiciousAttributes(attrs: object): ReadonlyArray<unknown> | null {
+function suspiciousAttributes(attrs: Attrs): ReadonlyArray<unknown> | null {
   let value = suspiciousAttributeCache.get(attrs)
   if (value === undefined) suspiciousAttributeCache.set(attrs, (value = suspiciousAttributesInner(attrs)))
   return value
 }
 
-function suspiciousAttributesInner(attrs: object): ReadonlyArray<unknown> | null {
+function suspiciousAttributesInner(attrs: Attrs): ReadonlyArray<unknown> | null {
   let result: Array<unknown> | null = null
   function scan(value: any) {
     if (value && typeof value == "object") {
@@ -315,7 +315,7 @@ function renderSpecInner(
   doc: Document,
   structure: DOMOutputSpec,
   xmlNS: string | null,
-  blockArraysIn?: object
+  blockArraysIn?: Attrs
 ): RenderedSpec {
   if ((structure as globalThis.Node).nodeType != null) return { dom: structure as globalThis.Node }
   if ((structure as any).dom && (structure as any).dom.nodeType != null) return structure as RenderedSpec

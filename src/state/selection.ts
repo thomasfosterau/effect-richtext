@@ -5,6 +5,7 @@
  */
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import * as S from "effect/Schema"
 import * as SchemaGetter from "effect/SchemaGetter"
 import * as SchemaIssue from "effect/SchemaIssue"
@@ -718,7 +719,10 @@ export const SelectionFromJSON = <Sc extends AnySchema>(doc: Node<Sc>): S.Codec<
             return Effect.succeed(Selection.fromJSONUnsafe(doc, json))
           } catch (e) {
             return Effect.fail(
-              new SchemaIssue.InvalidValue({ message: e instanceof Error ? e.message : String(e) }, json)
+              new SchemaIssue.InvalidValue(
+                { message: Predicate.hasProperty(e, "message") ? String(e.message) : String(e) },
+                json
+              )
             )
           }
         })

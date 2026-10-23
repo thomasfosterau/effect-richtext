@@ -1,10 +1,11 @@
 // Ported from prosemirror-state/test/test-state.ts (MIT, Marijn Haverbeke and others)
 import { assert, describe, it } from "@effect/vitest"
 import * as Context from "effect/Context"
-import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
+import * as Schema from "effect/Schema"
+import * as Str from "effect/String"
 import type { AnySchema } from "effect-richtext/model"
 import {
   type Command,
@@ -161,7 +162,7 @@ describe("State", () => {
 
   it("supports JSON.stringify toJSON arguments", () => {
     const someObject = { someKey: EditorState.createUnsafe({ schema }) }
-    ist(JSON.stringify(someObject).length > 0)
+    ist(Str.isNonEmpty(JSON.stringify(someObject)))
   })
 })
 
@@ -192,7 +193,7 @@ describe("Plugin", () => {
 
 class Counter extends Context.Service<Counter, { readonly step: number }>()("test/Counter") {}
 
-class Rejected extends Data.TaggedError("Rejected")<{ readonly reason: string }> {}
+class Rejected extends Schema.TaggedError<Rejected>()("Rejected", { reason: Schema.String }) {}
 
 // A plugin whose state hooks require a service.
 const stepCountPlugin = new Plugin({
@@ -228,9 +229,6 @@ describe("EditorState (Effect API)", () => {
   it.effect("runs plugins that require services", () =>
     Effect.gen(function* () {
       const state = yield* EditorState.create({ schema, plugins: [stepCountPlugin, messageCountPlugin] })
-      // @ts-expect-error -- applyUnsafe is not available when plugins require services
-      const _unavailable = () => state.applyUnsafe(state.tr)
-      void _unavailable
       const next = yield* state.apply(state.tr.insertTextUnsafe("a"))
       const last = yield* next.apply(next.tr.insertTextUnsafe("b"))
       ist(last.doc, doc(p("ab")), eq)

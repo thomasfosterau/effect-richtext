@@ -4,6 +4,7 @@
  *
  * @since 0.1.0
  */
+import * as Arr from "effect/Array"
 import type * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import { attempt } from "../internal/attempt.ts"
@@ -131,7 +132,7 @@ export class Transform<Sc extends AnySchema = AnySchema> {
 
   /** True when the document has been changed (when there are any steps). */
   get docChanged(): boolean {
-    return this.steps.length > 0
+    return Arr.isReadonlyArrayNonEmpty(this.steps)
   }
 
   /**

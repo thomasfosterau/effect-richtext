@@ -3,6 +3,7 @@
  *
  * @since 0.1.0
  */
+import * as Arr from "effect/Array"
 import type * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import { attempt } from "../internal/attempt.ts"
@@ -463,7 +464,10 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
   }
 }
 
-const blockTags: { readonly [tagName: string]: boolean } = {
+// A set of lower-case HTML tag names.
+type TagTable = { readonly [tagName: string]: boolean }
+
+const blockTags: TagTable = {
   address: true,
   article: true,
   aside: true,
@@ -498,7 +502,7 @@ const blockTags: { readonly [tagName: string]: boolean } = {
   ul: true
 }
 
-const ignoreTags: { readonly [tagName: string]: boolean } = {
+const ignoreTags: TagTable = {
   head: true,
   noscript: true,
   object: true,
@@ -507,9 +511,9 @@ const ignoreTags: { readonly [tagName: string]: boolean } = {
   title: true
 }
 
-const listTags: { readonly [tagName: string]: boolean } = { ol: true, ul: true }
+const listTags: TagTable = { ol: true, ul: true }
 
-const hasOwn = (obj: object, key: string): boolean => Object.prototype.hasOwnProperty.call(obj, key)
+const hasOwn = (table: TagTable, key: string): boolean => Object.prototype.hasOwnProperty.call(table, key)
 
 // Using a bitfield for node context options
 const OPT_PRESERVE_WS = 1,
@@ -900,7 +904,7 @@ class ParseContext implements RuleContext {
     const top = this.top
     top.match = top.match && top.match.matchTypeOrNull(type)
     let options = wsOptionsFor(type, preserveWS, top.options)
-    if (top.options & OPT_OPEN_LEFT && top.content.length == 0) options |= OPT_OPEN_LEFT
+    if (top.options & OPT_OPEN_LEFT && Arr.isReadonlyArrayEmpty(top.content)) options |= OPT_OPEN_LEFT
     let applyMarks: ReadonlyArray<Mark> = Mark.none
     marks = marks.filter((m) => {
       if (top.type ? top.type.allowsMarkType(m.type) : markMayApply(m.type, type)) {

@@ -1,8 +1,9 @@
 // Ported from prosemirror-transform/test/test-trans.ts (MIT, Marijn Haverbeke and others).
 // Changes: imports only (ProseMirror packages -> effect-richtext/compat/*, ist ->
 // ../../utils/ist.ts, mocha describe/it -> @effect/vitest; type-only imports
-// marked as such) and dprint formatting.
-import { describe, it } from "@effect/vitest"
+// marked as such), `throw new Error(...)` in test helpers -> `assert.fail(...)`,
+// and dprint formatting.
+import { assert, describe, it } from "@effect/vitest"
 import type { Mark, MarkType, Node, NodeType } from "effect-richtext/compat/model"
 import { type Attrs, Fragment, type NodeSpec, Schema, Slice } from "effect-richtext/compat/model"
 import {
@@ -36,7 +37,7 @@ function tag$(node: Node, tag: string): number | null {
 
 function tag(node: Node, tag: string): number {
   const value = tag$(node, tag)
-  if (value == null) throw new Error(`Missing tag ${tag} on ${node}`)
+  if (value == null) return assert.fail(`Missing tag ${tag} on ${node}`)
   return value
 }
 

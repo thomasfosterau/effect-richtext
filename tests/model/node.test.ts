@@ -102,14 +102,14 @@ describe("Node", () => {
       let i = 0
       doc.nodesBetween(tagsOf(doc).a!, tagsOf(doc).b!, (node, pos) => {
         if (i === nodes.length) {
-          throw new Error("More nodes iterated than listed (" + node.type.name + ")")
+          assert.fail("More nodes iterated than listed (" + node.type.name + ")")
         }
         const compare = node.isTextNode() ? node.text : node.type.name
         if (compare !== nodes[i++]) {
-          throw new Error("Expected " + JSON.stringify(nodes[i - 1]) + ", got " + JSON.stringify(compare))
+          assert.fail("Expected " + JSON.stringify(nodes[i - 1]) + ", got " + JSON.stringify(compare))
         }
         if (!node.isText && Option.getOrNull(doc.nodeAt(pos)) !== node) {
-          throw new Error("Pos " + pos + " does not point at node " + node + " " + doc.nodeAt(pos))
+          assert.fail("Pos " + pos + " does not point at node " + node + " " + doc.nodeAt(pos))
         }
       })
     }

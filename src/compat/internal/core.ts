@@ -11,15 +11,18 @@
  *
  * @internal
  */
+import * as Arr from "effect/Array"
 import * as Cause from "effect/Cause"
 import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
+import * as Match from "effect/Match"
+import * as Option from "effect/Option"
 
 /** @internal */
 export const CORE: unique symbol = Symbol.for("effect-richtext/compat/core") as never
 
 const facades = new WeakMap<object, object>()
-const factories = new Map<object, (core: any) => object>()
+const factories = new WeakMap<object, (core: any) => object>()
 
 /** Associate a facade with its core object. @internal */
 export const link = <F extends object>(facade: F, core: object): F => {
@@ -95,7 +98,7 @@ const arrayCores = new WeakMap<ReadonlyArray<any>, ReadonlyArray<any>>()
 export const wrapArray = (arr: ReadonlyArray<any>): ReadonlyArray<any> => {
   let found = arrayFacades.get(arr)
   if (!found) {
-    found = arr.length === 0 ? emptyFacadeArray : arr.map(wrap)
+    found = Arr.isReadonlyArrayEmpty(arr) ? emptyFacadeArray : arr.map(wrap)
     if (found !== emptyFacadeArray) arrayCores.set(found, arr)
     arrayFacades.set(arr, found)
   }
@@ -152,35 +155,34 @@ export class TransformError extends Error {
   }
 }
 
-const rangeError = (message: string): Error => new RangeError(message)
-
-/** The exception ProseMirror throws for each core error tag. */
-const proseMirrorErrors: ReadonlyMap<string, (message: string) => Error> = new Map([
-  ["ReplaceError", (message: string): Error => new ReplaceError(message)],
-  ["TransformError", (message: string): Error => new TransformError(message)],
-  ["StepError", (message: string): Error => new TransformError(message)],
-  [
-    "SchemaDefinitionError",
-    (message: string): Error =>
+// The exception ProseMirror throws for each core error tag.
+const proseMirrorError = (tag: string, message: string): Option.Option<Error> =>
+  Match.value(tag).pipe(
+    Match.when("ReplaceError", () => new ReplaceError(message)),
+    Match.whenOr("TransformError", "StepError", () => new TransformError(message)),
+    Match.when("SchemaDefinitionError", () =>
       message.indexOf("(in content expression") > -1 ? new SyntaxError(message) : new RangeError(message)
-  ],
-  ["PositionError", rangeError],
-  ["ContentError", rangeError],
-  ["AttributeError", rangeError],
-  ["JSONError", rangeError],
-  ["DOMSpecError", rangeError],
-  ["SelectionError", rangeError],
-  ["StateError", rangeError],
-  ["KeymapError", rangeError],
-  ["ViewError", rangeError]
-])
+    ),
+    Match.whenOr(
+      "PositionError",
+      "ContentError",
+      "AttributeError",
+      "JSONError",
+      "DOMSpecError",
+      "SelectionError",
+      "StateError",
+      "KeymapError",
+      "ViewError",
+      () => new RangeError(message)
+    ),
+    Match.option
+  )
 
 /** Convert a core (tagged) error into the exception ProseMirror would throw. @internal */
 export const convertError = (e: unknown): unknown => {
   if (e === null || typeof e !== "object" || !("_tag" in e)) return e
   const message = (e as { message?: string }).message ?? String(e)
-  const convert = proseMirrorErrors.get((e as { _tag: string })._tag)
-  return convert ? convert(message) : e
+  return Option.getOrElse(proseMirrorError((e as { _tag: string })._tag, message), () => e)
 }
 
 /** Run `f`, converting core errors into ProseMirror's exceptions. @internal */

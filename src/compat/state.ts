@@ -279,7 +279,7 @@ const getterOf = (proto: object | null, prop: string) => {
   return undefined
 }
 
-const adaptedSelectionClasses = new Map<object, any>()
+const adaptedSelectionClasses = new WeakMap<object, any>()
 
 /**
  * The core class used for instances of user subclasses of a facade

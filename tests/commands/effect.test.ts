@@ -1,9 +1,9 @@
 // Tests for the Effect-specific behaviour of commands (not ported from ProseMirror).
 import { assert, describe, it } from "@effect/vitest"
 import * as Context from "effect/Context"
-import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
+import * as Schema from "effect/Schema"
 import {
   autoJoin,
   baseKeymap,
@@ -25,9 +25,9 @@ import { apply, mkState } from "./apply.ts"
 
 class Log extends Context.Service<Log, { readonly entries: Array<string> }>()("test/Log") {}
 
-class Denied extends Data.TaggedError("Denied")<{ readonly reason: string }> {}
+class Denied extends Schema.TaggedError<Denied>()("Denied", { reason: Schema.String }) {}
 
-class Other extends Data.TaggedError("Other")<{}> {}
+class Other extends Schema.TaggedError<Other>()("Other", {}) {}
 
 /** A command that needs the `Log` service and declines. */
 const logged: Command<AnySchema, never, Log> = () =>
@@ -66,17 +66,7 @@ describe("chainCommands", () => {
     const chained = chainCommands(logged, denied, deleteSelection, other)
     const _check: Command<AnySchema, Denied | Other, Log> = chained
     void _check
-    // The two expect-error directives below ARE the assertions; the Effect
-    // language service reports the same mismatch under its own codes, which
-    // `@ts-expect-error` does not cover.
-    // @effect-diagnostics missingEffectContext:off missingEffectError:off
-    // @ts-expect-error -- the chain requires `Log`
-    const _noLog: Command<AnySchema, Denied | Other, never> = chained
-    void _noLog
-    // @ts-expect-error -- the chain may fail with `Other`
-    const _noOther: Command<AnySchema, Denied, Log> = chained
-    void _noOther
-    // @effect-diagnostics missingEffectContext:error missingEffectError:error
+    // The negative assertions are in effect.types.ts.
     const plain = chainCommands(deleteSelection, joinBackward)
     const _plain: Command<AnySchema, never, never> = plain
     void _plain

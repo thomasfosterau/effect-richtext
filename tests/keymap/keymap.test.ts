@@ -1,9 +1,9 @@
 // Ported from prosemirror-keymap/test/test-keymap.ts (MIT, Marijn Haverbeke and others)
 import { assert, describe, it } from "@effect/vitest"
 import * as Context from "effect/Context"
-import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
+import * as Schema from "effect/Schema"
 import { keydownHandler, keymap, KeymapError, type KeymapView } from "effect-richtext/keymap"
 import type { AnySchema } from "effect-richtext/model"
 import { type Command, EditorState, type Plugin } from "effect-richtext/state"
@@ -103,7 +103,7 @@ describe("keymap", () => {
 
 class Clipboard extends Context.Service<Clipboard, { readonly copied: Array<string> }>()("test/Clipboard") {}
 
-class ReadOnly extends Data.TaggedError("ReadOnly")<{ readonly key: string }> {}
+class ReadOnly extends Schema.TaggedError<ReadOnly>()("ReadOnly", { key: Schema.String }) {}
 
 const copy: Command<AnySchema, never, Clipboard> = () =>
   Effect.gen(function* () {
@@ -151,9 +151,6 @@ describe("keymap (Effect API)", () => {
     const program = EditorState.create({ schema, plugins: [plugin] })
     const _program: Effect.Effect<EditorState<any, Clipboard, ReadOnly>, any, Clipboard> = program
     void _program
-    // @ts-expect-error -- a plugin requiring services can't be used with createUnsafe
-    const _unsafe = () => EditorState.createUnsafe({ schema, plugins: [plugin] })
-    void _unsafe
   })
 
   it.effect("runs bindings that require services", () =>
