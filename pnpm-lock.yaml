@@ -13,8 +13,8 @@ catalogs:
       specifier: ^3.0.3
       version: 3.0.3
     '@effect/docgen':
-      specifier: ^4.0.2
-      version: 4.0.2
+      specifier: ^4.0.6
+      version: 4.0.6
     '@effect/language-service':
       specifier: ^0.87.5
       version: 0.87.5
@@ -95,7 +95,7 @@ importers:
         version: 3.0.3
       '@effect/docgen':
         specifier: 'catalog:'
-        version: 4.0.2(@typescript/typescript6@6.0.2)(redis@6.3.0)(tsx@4.23.15)
+        version: 4.0.6(@typescript/typescript6@6.0.2)(redis@6.3.0)(tsx@4.23.15)
       '@effect/language-service':
         specifier: 'catalog:'
         version: 0.87.5
@@ -312,8 +312,8 @@ packages:
     resolution: {integrity: sha512-dlT1m5e/0yUL0kRNcQn7yGLVThkgbB0Ga/1AmfDDC/8ik6AIiSf2QLQO2zPYvefsHP0aFgxO93cVLCCfDp7kzQ==}
     engines: {node: '>= 20.12.0'}
 
-  '@effect/docgen@4.0.2':
-    resolution: {integrity: sha512-ODkjvrhyvwcHcHLTrty8K1CSZVBApAZ5GR+WeRPKqXoTuLqF23V607cBXNUbgGWZuWwSVAGRcoqHwn/pRlDOQQ==}
+  '@effect/docgen@4.0.6':
+    resolution: {integrity: sha512-LdFlzNDDr1lPr7/2TyAM+geIWE8By9pybCG9cO4SsNPMULpQWiKGCdEmB7unRldy5g48rq3iop8yZgfRUcafQQ==}
     engines: {node: '>=18.0.0'}
     hasBin: true
     peerDependencies:
@@ -329,14 +329,14 @@ packages:
     engines: {node: '>=0.10.0'}
     hasBin: true
 
-  '@effect/platform-node-shared@4.0.2':
-    resolution: {integrity: sha512-xn8aDw9p/QUPt1Yi0C3HUMcycT+MjHfAe19FDUDrUuzcwq0xxskkamVSqbdykF/Dsuus4aZTsCBZA/vkhHIfbQ==}
+  '@effect/platform-node-shared@4.0.6':
+    resolution: {integrity: sha512-0PhyC4uG30xGtsajnxjkcBWfTjNRzUh4ZKl1Kvo/MNyCTb+W2O+fBzf7wCRCoqt+nLudiq4V7vX40Q8XIBuMaQ==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       effect: 4.0.6
 
-  '@effect/platform-node@4.0.2':
-    resolution: {integrity: sha512-RWesXBQStnFHdD465gR5thFKgXO7FSyCKRZ56nWXB7PedNVzr8vV0nb/3MULLdri493sMz/b/pmGBTb6K8cBjQ==}
+  '@effect/platform-node@4.0.6':
+    resolution: {integrity: sha512-gXvGHAy0/8PZbWvMMguloDUyeSP+rzYEo3FSEqUuGduxo9ORcGioDxPI+GOLCIFfam7VuNkmSUxBOiRMIrMrBw==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       effect: 4.0.6
@@ -1920,8 +1920,8 @@ packages:
     resolution: {integrity: sha512-49cGhUbXj8Qenv0iTMxA1cFBzxXoctpC9Ujd77t1WcbJIr6nF/eI7g/8MgxrYldFRuAXvja7xQRwavoW7kgrxQ==}
     engines: {node: ^10 || ^12 || >=14}
 
-  prettier@3.9.9:
-    resolution: {integrity: sha512-Z/CJHIkdujO/OtN7nXUii0Rf3VT5SRuhjBA82Xvu2XhBUgX3nhP67T0LHceBdQLex7OOFGTox+Q5Yg8Jk2Qivg==}
+  prettier@3.9.10:
+    resolution: {integrity: sha512-skGHTH1Yb9QvaTC4hWnRTzEYtCpApF0UMBPz+t/0ZPzP8ihefo/btKd+QA7pUE0fEwA1SbS/NmhyEcstdXOIdA==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -2429,16 +2429,16 @@ snapshots:
       fast-wrap-ansi: 0.2.2
       sisteransi: 1.0.5
 
-  '@effect/docgen@4.0.2(@typescript/typescript6@6.0.2)(redis@6.3.0)(tsx@4.23.15)':
+  '@effect/docgen@4.0.6(@typescript/typescript6@6.0.2)(redis@6.3.0)(tsx@4.23.15)':
     dependencies:
       '@babel/code-frame': 8.0.6
       '@effect/markdown-toc': 0.1.0
-      '@effect/platform-node': 4.0.2(effect@4.0.6)(redis@6.3.0)
+      '@effect/platform-node': 4.0.6(effect@4.0.6)(redis@6.3.0)
       chalk: 6.0.1
       doctrine: 3.0.0
       effect: 4.0.6
       glob: 13.0.6
-      prettier: 3.9.9
+      prettier: 3.9.10
       ts-morph: 28.0.0
       tsconfck: 3.1.6(@typescript/typescript6@6.0.2)
       tsx: 4.23.15
@@ -2465,7 +2465,7 @@ snapshots:
       repeat-string: 1.6.1
       strip-color: 0.1.0
 
-  '@effect/platform-node-shared@4.0.2(effect@4.0.6)':
+  '@effect/platform-node-shared@4.0.6(effect@4.0.6)':
     dependencies:
       '@types/ws': 8.18.2
       effect: 4.0.6
@@ -2474,9 +2474,9 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@effect/platform-node@4.0.2(effect@4.0.6)(redis@6.3.0)':
+  '@effect/platform-node@4.0.6(effect@4.0.6)(redis@6.3.0)':
     dependencies:
-      '@effect/platform-node-shared': 4.0.2(effect@4.0.6)
+      '@effect/platform-node-shared': 4.0.6(effect@4.0.6)
       effect: 4.0.6
       redis: 6.3.0
       undici: 8.12.3
@@ -3648,7 +3648,7 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.2
 
-  prettier@3.9.9: {}
+  prettier@3.9.10: {}
 
   pretty-format@27.5.1:
     dependencies:
