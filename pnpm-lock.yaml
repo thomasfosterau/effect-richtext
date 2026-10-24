@@ -22,8 +22,8 @@ catalogs:
       specifier: 0.53.5
       version: 0.53.5
     '@effect/vitest':
-      specifier: 4.0.2
-      version: 4.0.2
+      specifier: 4.0.6
+      version: 4.0.6
     '@mpsuesser/oxlint-plugin-effect':
       specifier: ^0.6.0
       version: 0.6.0
@@ -71,7 +71,7 @@ overrides:
   undici: ^8.12.2
   vite: npm:@voidzero-dev/vite-plus-core@1.3.0
   vitest: 5.0.5
-  effect: 4.0.2
+  effect: 4.0.6
 
 importers:
 
@@ -104,7 +104,7 @@ importers:
         version: 0.53.5
       '@effect/vitest':
         specifier: 'catalog:'
-        version: 4.0.2(effect@4.0.2)(vitest@5.0.5)
+        version: 4.0.6(effect@4.0.6)(vitest@5.0.5)
       '@mpsuesser/oxlint-plugin-effect':
         specifier: 'catalog:'
         version: 0.6.0
@@ -121,8 +121,8 @@ importers:
         specifier: 'catalog:'
         version: 5.0.5(vitest@5.0.5)
       effect:
-        specifier: 4.0.2
-        version: 4.0.2
+        specifier: 4.0.6
+        version: 4.0.6
       fallow:
         specifier: 'catalog:'
         version: 3.34.1
@@ -333,13 +333,13 @@ packages:
     resolution: {integrity: sha512-xn8aDw9p/QUPt1Yi0C3HUMcycT+MjHfAe19FDUDrUuzcwq0xxskkamVSqbdykF/Dsuus4aZTsCBZA/vkhHIfbQ==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
-      effect: 4.0.2
+      effect: 4.0.6
 
   '@effect/platform-node@4.0.2':
     resolution: {integrity: sha512-RWesXBQStnFHdD465gR5thFKgXO7FSyCKRZ56nWXB7PedNVzr8vV0nb/3MULLdri493sMz/b/pmGBTb6K8cBjQ==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
-      effect: 4.0.2
+      effect: 4.0.6
       redis: '>=5.0.0 <7.0.0'
 
   '@effect/tsgo-darwin-arm64@0.53.5':
@@ -381,10 +381,10 @@ packages:
     resolution: {integrity: sha512-+6xctg9Afq/C2wlmMvd9eIFaNVvNd3WkXzO3XwcA57rvL3jwydOwvN/ULbUo4fsL4Z7Oh6pZzkg1RJu98eOG5g==}
     hasBin: true
 
-  '@effect/vitest@4.0.2':
-    resolution: {integrity: sha512-Zb72nu7iUy3rNdBp9J1Xu5oUQGwJ8cOYsUwmYgujj88aqyvASRDjOS01SjlcPViqf77csduetKdCJTVndMNfzw==}
+  '@effect/vitest@4.0.6':
+    resolution: {integrity: sha512-oKNbtyUHK5+0o730CXwojULEu7f3+c235pYFD4U5T//o+hHrJbYbZU4bRkcv936tPr5IOnmujeyQiC/LuJJjHw==}
     peerDependencies:
-      effect: 4.0.2
+      effect: 4.0.6
       vitest: 5.0.5
 
   '@esbuild/aix-ppc64@0.28.2':
@@ -1474,10 +1474,10 @@ packages:
   effect-oxlint@0.4.0:
     resolution: {integrity: sha512-IA3ihFKGK0JoZVSPPgPP58988jj4PZ5/asFOhaSYHwDyRRRbkBJn7FX8RiPi++MFpXQvb+3fQpKdPzOvUK9xPQ==}
     peerDependencies:
-      effect: 4.0.2
+      effect: 4.0.6
 
-  effect@4.0.2:
-    resolution: {integrity: sha512-YeYnLqSFrL4+tCOXRrfNP03w8FILoF/wDl+ukraJAGzXrjcS383W7LAAvGBbLatEyktmLxRq+9xJinx7QzXW5A==}
+  effect@4.0.6:
+    resolution: {integrity: sha512-Tc3mkzuLR6t6P9dhLt0D2GrxYtmU5td4XEJEiXCmILz53IRIfJyHsKZWjTA3xEjiwpNTtXBgI4iqYPxMztBDrw==}
 
   electron-to-chromium@1.5.462:
     resolution: {integrity: sha512-9qpCBlXPy5v7n1Q7WTO5rW2StI4WNQhl96HpgXRZLPlNoXAD0LbsQUflovQYAO44Yia073ISusqohncvGSMbGA==}
@@ -2433,10 +2433,10 @@ snapshots:
     dependencies:
       '@babel/code-frame': 8.0.6
       '@effect/markdown-toc': 0.1.0
-      '@effect/platform-node': 4.0.2(effect@4.0.2)(redis@6.3.0)
+      '@effect/platform-node': 4.0.2(effect@4.0.6)(redis@6.3.0)
       chalk: 6.0.1
       doctrine: 3.0.0
-      effect: 4.0.2
+      effect: 4.0.6
       glob: 13.0.6
       prettier: 3.9.9
       ts-morph: 28.0.0
@@ -2465,19 +2465,19 @@ snapshots:
       repeat-string: 1.6.1
       strip-color: 0.1.0
 
-  '@effect/platform-node-shared@4.0.2(effect@4.0.2)':
+  '@effect/platform-node-shared@4.0.2(effect@4.0.6)':
     dependencies:
       '@types/ws': 8.18.2
-      effect: 4.0.2
+      effect: 4.0.6
       ws: 8.22.0
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
 
-  '@effect/platform-node@4.0.2(effect@4.0.2)(redis@6.3.0)':
+  '@effect/platform-node@4.0.2(effect@4.0.6)(redis@6.3.0)':
     dependencies:
-      '@effect/platform-node-shared': 4.0.2(effect@4.0.2)
-      effect: 4.0.2
+      '@effect/platform-node-shared': 4.0.2(effect@4.0.6)
+      effect: 4.0.6
       redis: 6.3.0
       undici: 8.12.3
     transitivePeerDependencies:
@@ -2515,9 +2515,9 @@ snapshots:
       '@effect/tsgo-win32-arm64': 0.53.5
       '@effect/tsgo-win32-x64': 0.53.5
 
-  '@effect/vitest@4.0.2(effect@4.0.2)(vitest@5.0.5)':
+  '@effect/vitest@4.0.6(effect@4.0.6)(vitest@5.0.5)':
     dependencies:
-      effect: 4.0.2
+      effect: 4.0.6
       vitest: 5.0.5(@types/node@26.6.5)(@vitest/browser-playwright@5.0.5)(@vitest/browser-preview@5.0.5)(@vitest/coverage-istanbul@5.0.5)(@vitest/ui@5.0.5(vitest@5.0.5))(@voidzero-dev/vite-plus-core@1.3.0(@types/node@26.6.5)(@typescript/typescript6@6.0.2)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))(happy-dom@21.0.4)
 
   '@esbuild/aix-ppc64@0.28.2':
@@ -2661,8 +2661,8 @@ snapshots:
   '@mpsuesser/oxlint-plugin-effect@0.6.0':
     dependencies:
       '@oxlint/plugins': 1.89.0
-      effect: 4.0.2
-      effect-oxlint: 0.4.0(effect@4.0.2)
+      effect: 4.0.6
+      effect-oxlint: 0.4.0(effect@4.0.6)
 
   '@oxc-project/runtime@0.154.0': {}
 
@@ -3216,12 +3216,12 @@ snapshots:
 
   dom-accessibility-api@0.5.16: {}
 
-  effect-oxlint@0.4.0(effect@4.0.2):
+  effect-oxlint@0.4.0(effect@4.0.6):
     dependencies:
       '@oxlint/plugins': 1.89.0
-      effect: 4.0.2
+      effect: 4.0.6
 
-  effect@4.0.2: {}
+  effect@4.0.6: {}
 
   electron-to-chromium@1.5.462: {}
 
