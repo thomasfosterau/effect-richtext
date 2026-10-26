@@ -32,7 +32,7 @@ catalog:
   # on any other component version, failing `pnpm install` itself. Read the
   # `components` table in node_modules/@effect/tsgo/dist/effect-tsgo.cjs
   # before bumping any of the three.
-  "@effect/tsgo": 0.53.5
+  "@effect/tsgo": 0.57.0
   # `it.effect` / `layer` helpers on top of the vitest singleton below.
   "@effect/vitest": 4.0.6
   # 0.6.0 depends on `effect` 4.0.0 (exact) and runs on the singleton (the
@@ -72,7 +72,7 @@ catalog:
   # vitest 5.0.5. `vite` is the same release under its aliased core package,
   # and `vitest` must match vite-plus's exact pin because the
   # `vitest: "catalog:"` override forces every resolution to the singleton.
-  vite-plus: 1.3.0
+  vite-plus: 1.4.0
   vite: npm:@voidzero-dev/vite-plus-core@1.3.0
   vitest: 5.0.5
   w3c-keyname: ^2.2.8
