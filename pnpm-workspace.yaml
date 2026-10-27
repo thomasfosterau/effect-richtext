@@ -47,7 +47,7 @@ catalog:
   # Must equal `vitest` below (its peer is the exact vitest version).
   "@vitest/coverage-istanbul": 5.0.5
   effect: 4.0.6
-  fallow: 3.34.1
+  fallow: 3.36.0
   # The `node` test project's DOM.
   # 21.x for GHSA-834v-8h66-3h79 (high: >=17.0.0 <=21.0.3, an unsanitized
   # import alias leads to host code execution).
