@@ -8,6 +8,7 @@ import { a, blockquote, br, doc, em, eq, hr, img, li, p, pre, schema, ul } from 
 import ist from "../utils/ist.ts"
 import { TestState } from "./state.ts"
 import { getSome } from "../utils/option.ts"
+import { jsonRoundTrip } from "../utils/json.ts"
 
 describe("Selection", () => {
   it("should follow changes", () => {
@@ -255,7 +256,7 @@ describe("Selection (Effect API)", () => {
       for (const sel of [TextSelection.createUnsafe(d, 1, 3), NodeSelection.createUnsafe(d, 5), new AllSelection(d)]) {
         const json = yield* Schema.encodeEffect(codec)(sel)
         assert.deepStrictEqual(json, sel.toJSON())
-        const back = yield* Schema.decodeUnknownEffect(codec)(JSON.parse(JSON.stringify(json)))
+        const back = yield* Schema.decodeUnknownEffect(codec)(jsonRoundTrip(json))
         ist(back.eq(sel))
         const viaFromJSON = yield* Selection.fromJSON(d, json)
         ist(viaFromJSON.eq(sel))

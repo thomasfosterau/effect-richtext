@@ -23,6 +23,7 @@ import {
   ul
 } from "effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
+import { showJson } from "../../utils/json.ts"
 
 const customSchema = new Schema({
   nodes: {
@@ -104,7 +105,7 @@ describe("Node", () => {
         }
         const compare = node.isText ? node.text! : node.type.name
         if (compare != nodes[i++]) {
-          assert.fail("Expected " + JSON.stringify(nodes[i - 1]) + ", got " + JSON.stringify(compare))
+          assert.fail("Expected " + showJson(nodes[i - 1]) + ", got " + showJson(compare))
         }
         if (!node.isText && doc.nodeAt(pos) != node) {
           assert.fail("Pos " + pos + " does not point at node " + node + " " + doc.nodeAt(pos))

@@ -8,6 +8,7 @@ import * as Equal from "effect/Equal"
 import * as Hash from "effect/Hash"
 import * as Option from "effect/Option"
 import { attempt } from "../internal/attempt.ts"
+import { showJson } from "../internal/json.ts"
 import { encodeAttrs } from "./attrsCodec.ts"
 import { compareDeep } from "./comparedeep.ts"
 import type { ContentMatch } from "./content.ts"
@@ -519,7 +520,7 @@ export class TextNode<Sc extends AnySchema = AnySchema> extends Node<Sc, "text" 
 
   override toString(): string {
     if (this.type.spec.toDebugString) return this.type.spec.toDebugString(this)
-    return wrapMarks(this.marks, JSON.stringify(this.text))
+    return wrapMarks(this.marks, showJson(this.text))
   }
 
   override get textContent(): string {

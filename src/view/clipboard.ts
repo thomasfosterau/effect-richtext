@@ -4,7 +4,9 @@
  *
  * @internal
  */
+import * as Option from "effect/Option"
 import { DOMParser, DOMSerializer, Fragment, type Node, type NodeType, type ResolvedPos, Slice } from "../model.ts"
+import { parseJson, stringifyJson } from "../internal/json.ts"
 import * as browser from "./browser.ts"
 import type { EditorView } from "./view.ts"
 
@@ -50,7 +52,7 @@ export function serializeForClipboard(
   if (firstChild && firstChild.nodeType == 1) {
     ;(firstChild as HTMLElement).setAttribute(
       "data-pm-slice",
-      `${openStart} ${openEnd}${wrappers ? ` -${wrappers}` : ""} ${JSON.stringify(context)}`
+      `${openStart} ${openEnd}${wrappers ? ` -${wrappers}` : ""} ${Option.getOrElse(stringifyJson(context), () => "[]")}`
     )
   }
 
@@ -354,12 +356,8 @@ function restoreReplacedSpaces(dom: HTMLElement) {
 function addContext(slice: Slice<any>, context: string) {
   if (!slice.size) return slice
   const schema = slice.content.content[0]!.type.schema
-  let array
-  try {
-    array = JSON.parse(context)
-  } catch {
-    return slice
-  }
+  const array = Option.getOrUndefined(parseJson(context))
+  if (!Array.isArray(array)) return slice
   let { content, openEnd, openStart } = slice
   for (let i = array.length - 2; i >= 0; i -= 2) {
     const type = schema.nodes[array[i]]
