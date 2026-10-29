@@ -32,6 +32,7 @@ import type * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import * as S from "effect/Schema"
 import { attempt } from "../internal/attempt.ts"
+import { showJson } from "../internal/json.ts"
 import { type ContentInput, ContentMatch, type SpecRefs } from "./content.ts"
 import type { DOMOutputSpec, ParseRule, TagParseRule } from "./dom.ts"
 import {
@@ -563,17 +564,9 @@ export function checkAttrs(attrs: Record<string, Attribute>, values: Attrs, type
     if (attr.validate) attr.validate(values[name])
     if (attr.is && !attr.is(values[name])) {
       throw new AttributeError({
-        message: `Invalid value for attribute ${name} on ${type} of type ${typeName}: ${safeString(values[name])}`
+        message: `Invalid value for attribute ${name} on ${type} of type ${typeName}: ${showJson(values[name])}`
       })
     }
-  }
-}
-
-const safeString = (u: unknown): string => {
-  try {
-    return JSON.stringify(u) ?? String(u)
-  } catch {
-    return String(u)
   }
 }
 

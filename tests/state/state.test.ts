@@ -20,6 +20,7 @@ import { doc, eq, p, schema } from "effect-richtext/test-builder"
 import ist from "../utils/ist.ts"
 import { TestState } from "./state.ts"
 import { getSome } from "../utils/option.ts"
+import { toJsonString } from "../utils/json.ts"
 
 const messageCountKey = new PluginKey<number>("messageCount")
 const messageCountPlugin = new Plugin({
@@ -97,7 +98,7 @@ describe("State", () => {
       count: 1
     }
     const json = state.toJSON(pluginProps)
-    ist(JSON.stringify(json), JSON.stringify(expected))
+    ist(toJsonString(json), toJsonString(expected))
     const copy = EditorState.fromJSONUnsafe({ plugins: [messageCountPlugin], schema }, json, pluginProps)
     ist(copy.doc, state.doc, eq)
     ist(copy.selection.from, 3)

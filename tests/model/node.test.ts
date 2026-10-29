@@ -25,6 +25,7 @@ import {
 } from "effect-richtext/test-builder"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
+import { jsonRoundTrip, showJson } from "../utils/json.ts"
 
 const customSchema = DocSchema.makeUnsafe({
   nodes: {
@@ -106,7 +107,7 @@ describe("Node", () => {
         }
         const compare = node.isTextNode() ? node.text : node.type.name
         if (compare !== nodes[i++]) {
-          assert.fail("Expected " + JSON.stringify(nodes[i - 1]) + ", got " + JSON.stringify(compare))
+          assert.fail("Expected " + showJson(nodes[i - 1]) + ", got " + showJson(compare))
         }
         if (!node.isText && Option.getOrNull(doc.nodeAt(pos)) !== node) {
           assert.fail("Pos " + pos + " does not point at node " + node + " " + doc.nodeAt(pos))
@@ -454,7 +455,7 @@ describe("Node", () => {
         const d = doc(p("foo", em("bar"), img({ alt: "x" })), blockquote(p("q")))
         const json = yield* Schema.encodeEffect(codec)(d)
         assert.deepStrictEqual(json, d.toJSON())
-        const back = yield* Schema.decodeUnknownEffect(codec)(JSON.parse(JSON.stringify(json)))
+        const back = yield* Schema.decodeUnknownEffect(codec)(jsonRoundTrip(json))
         ist(back, d, eq)
         const para = yield* Schema.decodeUnknownEffect(codec)({
           type: "paragraph",

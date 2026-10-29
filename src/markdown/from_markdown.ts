@@ -7,6 +7,7 @@
 import type * as Effect from "effect/Effect"
 import MarkdownIt, { type Env, type MarkdownIt as Tokenizer, type Token } from "markdown-it"
 import { attempt } from "../internal/attempt.ts"
+import { showJson } from "../internal/json.ts"
 import {
   type AnySchema,
   type Attrs,
@@ -257,7 +258,7 @@ function tokenHandlers<Sc extends AnySchema>(
         handlers[type + "_close"] = noOp
       }
     } else {
-      throw new MarkdownError({ message: "Unrecognized parsing spec " + JSON.stringify(spec) })
+      throw new MarkdownError({ message: "Unrecognized parsing spec " + showJson(spec) })
     }
   }
 

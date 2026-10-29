@@ -4,6 +4,7 @@ import type { Node } from "effect-richtext/model"
 import { eq } from "effect-richtext/test-builder"
 import { Mapping, Step, StepFromJSON, Transform } from "effect-richtext/transform"
 import ist from "../utils/ist.ts"
+import { jsonRoundTrip } from "../utils/json.ts"
 
 function invert(transform: Transform<any>): Transform<any> {
   const out = new Transform(transform.doc)
@@ -35,7 +36,7 @@ function testStepJSON(tr: Transform<any>) {
   const viaCodec = new Transform(tr.before)
   tr.steps.forEach((step) => {
     const json = Schema.encodeSync(codec)(step)
-    viaCodec.stepUnsafe(Schema.decodeUnknownSync(codec)(JSON.parse(JSON.stringify(json))))
+    viaCodec.stepUnsafe(Schema.decodeUnknownSync(codec)(jsonRoundTrip(json)))
   })
   ist(tr.doc, viaCodec.doc, eq)
 }

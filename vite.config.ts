@@ -136,16 +136,15 @@ export default defineConfig({
       "effect/avoid-any": "warn", // 444
       "effect/no-runtime-typeof": "warn", // 77
       "effect/no-unsafe-dictionary-type": "warn", // 77
-      "effect/no-unknown-parameters": "warn", // 60
+      "effect/no-unknown-parameters": "warn", // 59
       "effect/prefer-effect-is": "warn", // 50
       "effect/avoid-object-type": "warn", // 33
       "effect/no-known-value-widening": "warn", // 36
       "effect/effect-run-in-body": "warn", // 34
-      "effect/avoid-try-catch": "warn", // 32
+      "effect/avoid-try-catch": "warn", // 30
       "effect/no-chained-type-assertions": "warn", // 25
       "effect/use-clock-service": "warn", // 24
       "effect/no-unknown-returns": "warn", // 22
-      "effect/avoid-direct-json": "warn", // 21
       "effect/yield-in-for-loop": "warn", // 18
       // The four left are EditorState's Effect twins of its synchronous
       // transaction methods; with `this` in place of `self` their bodies
@@ -196,6 +195,16 @@ export default defineConfig({
         files: ["src/compat/internal/core.ts", "src/compat/state.ts"],
         rules: {
           "effect/no-object-parameters": "off"
+        }
+      },
+      // These ported prosemirror-state suites assert that `JSON.stringify`
+      // calls an `EditorState`'s `toJSON` correctly ("supports
+      // JSON.stringify toJSON arguments"): the platform call is the thing
+      // under test, so there is no Schema codec to use in its place.
+      {
+        files: ["tests/state/state.test.ts", "tests/compat/state/state.test.ts"],
+        rules: {
+          "effect/avoid-direct-json": "off"
         }
       },
       // Test fixtures are the seams under test, not domain code.

@@ -7,6 +7,7 @@ import * as Str from "effect/String"
 import { EditorState, Plugin, PluginKey, TextSelection } from "effect-richtext/compat/state"
 import { doc, eq, p, schema } from "effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
+import { toJsonString } from "../../utils/json.ts"
 
 const messageCountKey = new PluginKey("messageCount")
 const messageCountPlugin = new Plugin({
@@ -79,7 +80,7 @@ describe("State", () => {
       count: 1
     }
     const json = state.toJSON(pluginProps)
-    ist(JSON.stringify(json), JSON.stringify(expected))
+    ist(toJsonString(json), toJsonString(expected))
     const copy = EditorState.fromJSON({ plugins: [messageCountPlugin], schema }, json, pluginProps)
     ist(copy.doc, state.doc, eq)
     ist(copy.selection.from, 3)
