@@ -15,7 +15,7 @@ type State = EditorState<typeof schema, never, any>
 const plugin = history()
 
 function mkState(doc?: Node<any>, config?: any): State {
-  const plugins: Array<Plugin<any, any, any>> = [config ? history(config) : plugin]
+  const plugins: Array<Plugin<any, any, any, never>> = [config ? history(config) : plugin]
   if (config && config.preserveItems) plugins.push(new Plugin({ historyPreserveItems: true }))
   return EditorState.createUnsafe({ schema, plugins: plugins.concat((config && config.plugins) || []), doc })
 }
@@ -334,7 +334,7 @@ describe("history", () => {
   const addPlugin = () =>
     new Plugin({
       appendTransaction: (trs, _old, state) => {
-        const add = Option.getOrUndefined(trs[0].getMeta<string>("add"))
+        const add = Option.getOrUndefined(trs[0]!.getMeta<string>("add"))
         if (add) return state.tr.insertUnsafe(1, schema.textUnsafe(add))
         return undefined
       }

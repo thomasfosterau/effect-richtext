@@ -498,7 +498,7 @@ export class Fragment {
     pos: number = this.size,
     otherPos: number = other.size
   ): { a: number; b: number } | null {
-    return Option.getOrNull(this[CORE].findDiffEnd(other[CORE], pos, otherPos))
+    return Option.getOrNull(this[CORE].findDiffEnd(other[CORE], pos, otherPos)) as { a: number; b: number } | null
   }
 
   /** @internal */
@@ -967,7 +967,7 @@ export class ContentMatch {
   /** @internal */
   static parse(string: string, nodeTypes: { readonly [name: string]: NodeType }): ContentMatch {
     const types: Record<string, M.NodeType> = {}
-    for (const name in nodeTypes) types[name] = nodeTypes[name][CORE]
+    for (const name in nodeTypes) types[name] = nodeTypes[name]![CORE]
     return wrap(guard(() => M.ContentMatch.compile(string, types, "")))
   }
 
@@ -1559,8 +1559,8 @@ function initSchema(schema: Schema, core: M.DocSchema, spec: any) {
   const marks: Record<string, MarkType> = Object.create(null)
   for (const name in core.marks) marks[name] = wrap(core.marks[name])
   schema.spec = spec
-  schema.nodes = nodes
-  schema.marks = marks
+  schema.nodes = nodes as any
+  schema.marks = marks as any
   schema.linebreakReplacement = nullable(core.linebreakReplacement)
   schema.topNodeType = wrap(core.topNodeType)
   schema.cached = Object.create(null)
@@ -1801,7 +1801,7 @@ export class DOMSerializer {
 function gatherToDOM(obj: { readonly [node: string]: NodeType | MarkType }) {
   const result: { [node: string]: any } = {}
   for (const name in obj) {
-    const toDOM = obj[name].spec.toDOM
+    const toDOM = obj[name]!.spec.toDOM
     if (toDOM) result[name] = toDOM
   }
   return result
@@ -1810,7 +1810,7 @@ function gatherToDOM(obj: { readonly [node: string]: NodeType | MarkType }) {
 registerWrapper(M.DOMSerializer, (core: M.DOMSerializer) => {
   const serializer = adopt<DOMSerializer>(DOMSerializer.prototype, core)
   const nodes: Record<string, (node: Node) => DOMOutputSpec> = {}
-  for (const name in core.nodes) nodes[name] = (node) => core.nodes[name](node[CORE])
+  for (const name in core.nodes) nodes[name] = (node) => core.nodes[name]!(node[CORE])
   const marks: Record<string, (mark: Mark, inline: boolean) => DOMOutputSpec> = {}
   for (const name in core.marks) {
     const f = core.marks[name]

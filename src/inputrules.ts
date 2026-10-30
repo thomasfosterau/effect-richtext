@@ -334,7 +334,7 @@ function run(
 function tryRules(cx: RunContext, start: number): HandlerResult<any, any> {
   const { $from, rules, state, text, textBefore } = cx
   for (let i = start; i < rules.length; i++) {
-    const rule = rules[i]
+    const rule = rules[i]!
     if (!rule.inCodeMark && hasCodeMark($from.marks())) continue
     if ($from.parent.type.spec.code) {
       if (!rule.inCode) continue
@@ -423,14 +423,14 @@ export const undoInputRule: InputRuleCommand = (state, dispatch) =>
   Effect.suspend(() => {
     const plugins = state.plugins
     for (let i = 0; i < plugins.length; i++) {
-      const plugin = plugins[i]
+      const plugin = plugins[i]!
       if (!plugin.spec.isInputRules) continue
       const undoable = Option.getOrNull(Option.flatten(plugin.getState(state) as Option.Option<InputRulesState>))
       if (!undoable) continue
       if (!dispatch) return Effect.succeed(true)
       const tr = state.tr,
         toUndo = undoable.transform
-      for (let j = toUndo.steps.length - 1; j >= 0; j--) tr.stepUnsafe(toUndo.steps[j].invert(toUndo.docs[j]))
+      for (let j = toUndo.steps.length - 1; j >= 0; j--) tr.stepUnsafe(toUndo.steps[j]!.invert(toUndo.docs[j]!))
       if (undoable.text) {
         const marks = tr.doc.resolveUnsafe(undoable.from).marks()
         tr.replaceWithUnsafe(undoable.from, undoable.to, state.schema.textUnsafe(undoable.text, marks) as Node<any>)
@@ -493,7 +493,7 @@ export const wrappingInputRule = <Sc extends AnySchema, N extends NodeNames<Sc>>
       range = $start.blockRangeOrNull()
     const wrapping = range && findWrappingOrNull(range, nodeType, attrs)
     if (!wrapping) return null
-    tr.wrapUnsafe(range, wrapping)
+    tr.wrapUnsafe(range!, wrapping)
     const before = tr.doc.resolveUnsafe(start - 1).nodeBeforeOrNull
     if (
       before &&

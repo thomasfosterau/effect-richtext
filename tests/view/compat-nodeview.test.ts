@@ -179,7 +179,8 @@ describe("nodeViews prop", () => {
         decorations(this: Plugin, state) {
           const deco = this.getState(state)
           return (
-            deco && DecorationSet.create(state.doc, [Decoration.inline(0, state.doc.content.size, {}, { name: deco })])
+            deco &&
+            DecorationSet.create(state.doc, [Decoration.inline(0, state.doc.content.size, {}, { name: deco } as any)])
           )
         }
       }

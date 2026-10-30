@@ -46,7 +46,7 @@ export type PluginProps<Sc extends AnySchema = AnySchema, E = never, R = never> 
   Sc,
   R,
   E,
-  Plugin<any, Sc, never>
+  Plugin<any, Sc, never, never>
 >
 
 /**
@@ -197,7 +197,7 @@ function bindProps(
 const keys: Record<string, number> = Object.create(null)
 
 function createKey(name: string): string {
-  if (name in keys) return name + "$" + ++keys[name]
+  if (name in keys) return name + "$" + ++keys[name]!
   keys[name] = 0
   return name + "$"
 }

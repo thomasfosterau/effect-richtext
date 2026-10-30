@@ -12,9 +12,9 @@ import ist from "../utils/ist.ts"
 
 const fakeView = { state: {}, dispatch: () => Effect.void } as unknown as KeymapView
 
-type Handler = (view: KeymapView, event: KeyboardEvent) => Effect.Effect<boolean, any>
+type Handler = (view: KeymapView, event: KeyboardEvent) => Effect.Effect<boolean, any, never>
 
-function dispatch(map: Plugin<any, any, any>, key: string, props?: { [name: string]: any }): boolean {
+function dispatch(map: Plugin<any, any, any, never>, key: string, props?: { [name: string]: any }): boolean {
   const event: any = {}
   if (props) {
     for (const prop in props) event[prop] = props[prop]

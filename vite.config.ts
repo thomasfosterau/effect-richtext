@@ -72,9 +72,14 @@ const maxWorkers = process.env.VITEST_MAX_WORKERS
 const chromium = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
 
 export default defineConfig({
-  // Staged-file checks run by `vp staged` (pre-commit).
+  // Staged-file checks run by `vp staged` (pre-commit): format with fixes,
+  // then lint WITHOUT `--fix`. A lint autofix would also apply the fixes of
+  // the type-aware rules sitting at `warn` below, and tsgolint's
+  // `no-unnecessary-type-assertion` / `-type-arguments` fixes break the
+  // `check` task's tsc on some sites (#19), so a commit could land code that
+  // no longer type-checks. Lint errors still fail the commit.
   staged: {
-    "*.{js,ts,css,json,md}": "vp check --fix"
+    "*.{js,ts,css,json,md}": ["vp check --fix --no-lint", "vp check --no-fmt"]
   },
   // The repo's own style, carried over from its dprint config: no
   // semicolons, no trailing commas, 120 columns.
