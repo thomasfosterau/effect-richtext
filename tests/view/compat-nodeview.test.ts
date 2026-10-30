@@ -179,8 +179,7 @@ describe("nodeViews prop", () => {
         decorations(this: Plugin, state) {
           const deco = this.getState(state)
           return (
-            deco &&
-            DecorationSet.create(state.doc, [Decoration.inline(0, state.doc.content.size, {}, { name: deco } as any)])
+            deco && DecorationSet.create(state.doc, [Decoration.inline(0, state.doc.content.size, {}, { name: deco })])
           )
         }
       }
@@ -213,6 +212,7 @@ describe("nodeViews prop", () => {
   })
 
   it("provides access to inner decorations in the constructor", () => {
+    let constructed = false
     tempEditor({
       doc: doc(p("foo")),
       nodeViews: {
@@ -225,6 +225,7 @@ describe("nodeViews prop", () => {
               .join(),
             "1-2"
           )
+          constructed = true
           return { dom, contentDOM: dom }
         }
       },
@@ -235,6 +236,7 @@ describe("nodeViews prop", () => {
         ])
       }
     })
+    ist(constructed)
   })
 
   it("provides access to inner decorations in the update method", () => {

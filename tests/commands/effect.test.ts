@@ -68,8 +68,10 @@ describe("chainCommands", () => {
     void _check
     // The negative assertions are in effect.types.ts.
     const plain = chainCommands(deleteSelection, joinBackward)
-    const _plain: Command<AnySchema, never, never> = plain
+    const _plain: Command<AnySchema, never> = plain
     void _plain
+    assert.isFunction(chained)
+    assert.isFunction(plain)
   })
 
   it.effect("propagates service requirements to the inner commands", () =>
@@ -191,9 +193,9 @@ describe("base keymaps", () => {
     ist(baseKeymap === pcBaseKeymap || baseKeymap === macBaseKeymap)
   })
 
-  it("Enter splits a block", () => apply(doc(p("foo<a>bar")), pcBaseKeymap["Enter"]!, doc(p("foo"), p("bar"))))
+  it("Enter splits a block", () => apply(doc(p("foo<a>bar")), pcBaseKeymap["Enter"], doc(p("foo"), p("bar"))))
 
-  it("Backspace joins blocks", () => apply(doc(p("foo"), p("<a>bar")), pcBaseKeymap["Backspace"]!, doc(p("foobar"))))
+  it("Backspace joins blocks", () => apply(doc(p("foo"), p("<a>bar")), pcBaseKeymap["Backspace"], doc(p("foobar"))))
 
-  it("Delete joins blocks", () => apply(doc(p("foo<a>"), p("bar")), pcBaseKeymap["Delete"]!, doc(p("foobar"))))
+  it("Delete joins blocks", () => apply(doc(p("foo<a>"), p("bar")), pcBaseKeymap["Delete"], doc(p("foobar"))))
 })

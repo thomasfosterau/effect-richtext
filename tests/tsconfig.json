@@ -1,0 +1,8 @@
+{
+  // So editors and oxlint's type-aware rules (tsgolint), which resolve each
+  // file through its nearest tsconfig.json, type the tests exactly as the
+  // `check` task's `tsc -p tsconfig.test.json` does: with the `paths` mapping
+  // that resolves the package name to `src/`. Everything (`include` too)
+  // comes from the root config.
+  "extends": "../tsconfig.test.json"
+}

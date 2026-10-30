@@ -12,15 +12,35 @@
 #   (`@typescript/native`) and `oxlint` by gitHead, hard-erroring
 #   (UnsupportedTargetPackageVersionError) on any pairing it has no artifact
 #   for. The TS6 alias (`typescript` → `@typescript/typescript6`) and the
-#   Effect lint plugin ride along. Read the catalog comments before merging.
+#   Effect lint rules (`@enfect/oxlint`, checked against vite-plus's oxlint)
+#   ride along. Read the catalog comments before merging. When the new
+#   vite-plus carries an oxlint that the pinned `@effect/tsgo` has no artifact
+#   for, the PR fails at `pnpm install`: pick the `@effect/tsgo` whose
+#   `components` table covers it, by hand, on that PR's branch.
 # - `docgen`: `@effect/docgen` runs its examples under `tsx`.
 # - `effect`: the Effect 4 line is a lockstep-versioned singleton set
 #   (`@effect/tsgo` and `@effect/docgen` are claimed by the groups above).
 # - `changesets`, `fallow`: their own release cadences.
 # - `minor-and-patch`: everything else; majors outside a group arrive alone.
 #
-# `cooldown` mirrors pnpm-workspace.yaml's `minimumReleaseAge` (1440 minutes),
-# with first-party `@thomasfosterau/*` exempt as it is there.
+# Hand moves Dependabot cannot make (do them on the matching group's PR, then
+# `pnpm install` and commit the lockfile):
+# - the npm-alias catalog entries: `vite`
+#   (`npm:@voidzero-dev/vite-plus-core@<v>`, equal to `vite-plus`; or rerun
+#   `pnpm dlx --package=vite-plus@<v> vp migrate --no-interactive` and drop
+#   the `minimumReleaseAgeExclude` entries it adds), `typescript`
+#   (`npm:@typescript/typescript6@<v>`) and `@typescript/native`
+#   (`npm:typescript@<v>`, matching `@effect/tsgo`'s `components` table);
+# - `vitest` / `@vitest/*` when vite-plus moves its exact vitest pin;
+# - the `overrides` literals in pnpm-workspace.yaml (the `undici` security
+#   floor: drop it once its parents resolve the fixed version);
+# - `catalogs.peers` (the published `effect` range; raising it is breaking).
+#
+# `cooldown` is 1 day, Dependabot's smallest unit. pnpm-workspace.yaml's
+# `minimumReleaseAge` holds a new version for 8 hours (480 minutes), so the
+# cooldown is the longer wait and a Dependabot PR never proposes a version
+# pnpm would still refuse. First-party `@thomasfosterau/*` is exempt from
+# both.
 version: 2
 updates:
   - package-ecosystem: "npm"
@@ -53,7 +73,7 @@ updates:
           - "@typescript/native"
           - "typescript"
           - "@typescript/typescript6"
-          - "@mpsuesser/oxlint-plugin-effect"
+          - "@enfect/oxlint"
         update-types: ["major", "minor", "patch"]
       docgen:
         applies-to: version-updates

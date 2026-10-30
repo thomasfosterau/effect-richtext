@@ -151,7 +151,7 @@ function isDeletingStep(step: unknown): step is ReplaceStep<any> {
 
 function defaultBlockAt(match: ContentMatch): NodeType<any, any> | null {
   for (let i = 0; i < match.edgeCount; i++) {
-    const { type } = match.next[i]!
+    const { type } = match.next[i]
     if (type.isTextblock && !type.hasRequiredAttrs()) return type
   }
   return null
@@ -225,7 +225,7 @@ function deleteBarrier(
     return done(dispatching, () => {
       const end = $cut.pos + after.nodeSize
       let wrap: Fragment<any> = Fragment.empty
-      for (let i = wrappers.length - 1; i >= 0; i--) wrap = Fragment.from(wrappers[i]!.createUnsafe(null, wrap))
+      for (let i = wrappers.length - 1; i >= 0; i--) wrap = Fragment.from(wrappers[i].createUnsafe(null, wrap))
       wrap = Fragment.from(before.copy(wrap))
       const tr = state.tr.stepUnsafe(
         new ReplaceAroundStep($cut.pos - 1, end, $cut.pos, end, new Slice(wrap, 1, 0), wrappers.length, true)
@@ -258,7 +258,7 @@ function deleteBarrier(
     if (at.canReplace(at.childCount, at.childCount, afterText.content)) {
       return done(dispatching, () => {
         let end: Fragment<any> = Fragment.empty
-        for (let i = wrap.length - 1; i >= 0; i--) end = Fragment.from(wrap[i]!.copy(end))
+        for (let i = wrap.length - 1; i >= 0; i--) end = Fragment.from(wrap[i].copy(end))
         const tr = state.tr.stepUnsafe(
           new ReplaceAroundStep(
             $cut.pos - wrap.length,
@@ -803,7 +803,7 @@ export const wrapIn = <Sc extends AnySchema, N extends NodeNames<Sc>>(
     const range = $from.blockRangeOrNull($to),
       wrapping = range && findWrappingOrNull(range, nodeType, attrs)
     if (!wrapping) return false
-    return done(dispatching, () => state.tr.wrapUnsafe(range!, wrapping).scrollIntoView())
+    return done(dispatching, () => state.tr.wrapUnsafe(range, wrapping).scrollIntoView())
   })
 
 /**
@@ -820,11 +820,12 @@ export const setBlockType = <Sc extends AnySchema, N extends NodeNames<Sc>>(
   syncCommand<Sc>((state, dispatching) => {
     let applicable = false
     const ranges = state.selection.ranges
-    for (let i = 0; i < ranges.length && !applicable; i++) {
+    for (let i = 0; i < ranges.length; i++) {
+      if (applicable) break
       const {
         $from: { pos: from },
         $to: { pos: to }
-      } = ranges[i]!
+      } = ranges[i]
       state.doc.nodesBetween(from, to, (node, pos) => {
         if (applicable) return false
         if (!node.isTextblock || node.hasMarkup(nodeType, attrs)) return
@@ -844,7 +845,7 @@ export const setBlockType = <Sc extends AnySchema, N extends NodeNames<Sc>>(
         const {
           $from: { pos: from },
           $to: { pos: to }
-        } = ranges[i]!
+        } = ranges[i]
         tr.setBlockTypeUnsafe(from, to, nodeType, attrs)
       }
       return tr.scrollIntoView()
@@ -858,7 +859,7 @@ function markApplies(
   enterAtoms: boolean
 ): boolean {
   for (let i = 0; i < ranges.length; i++) {
-    const { $from, $to } = ranges[i]!
+    const { $from, $to } = ranges[i]
     let can = $from.depth === 0 ? doc.inlineContent && doc.type.allowsMarkType(type) : false
     doc.nodesBetween($from.pos, $to.pos, (node, pos) => {
       if (can || (!enterAtoms && node.isAtom && node.isInline && pos >= $from.pos && pos + node.nodeSize <= $to.pos))
@@ -873,8 +874,8 @@ function markApplies(
 function removeInlineAtoms(ranges: ReadonlyArray<SelectionRange<any>>): ReadonlyArray<SelectionRange<any>> {
   const result: Array<SelectionRange<any>> = []
   for (let i = 0; i < ranges.length; i++) {
-    let { $from } = ranges[i]!
-    const { $to } = ranges[i]!
+    let { $from } = ranges[i]
+    const { $to } = ranges[i]
     $from.doc.nodesBetween($from.pos, $to.pos, (node, pos) => {
       if (node.isAtom && node.content.size && node.isInline && pos >= $from.pos && pos + node.nodeSize <= $to.pos) {
         if (pos + 1 > $from.pos) result.push(new SelectionRange($from, $from.doc.resolveUnsafe(pos + 1)))
@@ -968,7 +969,7 @@ export const toggleMark = <Sc extends AnySchema, M extends MarkNames<Sc>>(
       })
     }
     for (let i = 0; i < ranges.length; i++) {
-      const { $from, $to } = ranges[i]!
+      const { $from, $to } = ranges[i]
       if (!add) {
         tr.removeMark($from.pos, $to.pos, markType)
       } else {
@@ -999,8 +1000,8 @@ function wrapDispatchForJoin<Sc extends AnySchema>(
 
       const ranges: Array<number> = []
       for (let i = 0; i < tr.mapping.maps.length; i++) {
-        const map = tr.mapping.maps[i]!
-        for (let j = 0; j < ranges.length; j++) ranges[j] = map.map(ranges[j]!)
+        const map = tr.mapping.maps[i]
+        for (let j = 0; j < ranges.length; j++) ranges[j] = map.map(ranges[j])
         map.forEach((_s, _e, from, to) => ranges.push(from, to))
       }
 
@@ -1008,8 +1009,8 @@ function wrapDispatchForJoin<Sc extends AnySchema>(
       // by checking all node boundaries in their parent nodes.
       const joinable: Array<number> = []
       for (let i = 0; i < ranges.length; i += 2) {
-        const from = ranges[i]!,
-          to = ranges[i + 1]!
+        const from = ranges[i],
+          to = ranges[i + 1]
         const $from = tr.doc.resolveUnsafe(from),
           depth = $from.sharedDepth(to),
           parent = $from.node(depth)
@@ -1017,7 +1018,7 @@ function wrapDispatchForJoin<Sc extends AnySchema>(
           const after = parent.content.content[index]
           if (!after) break
           if (index && joinable.indexOf(pos) === -1) {
-            const before = parent.content.content[index - 1]!
+            const before = parent.content.content[index - 1]
             if (before.type === after.type && isJoinable(before, after)) joinable.push(pos)
           }
           pos += after.nodeSize
@@ -1026,7 +1027,7 @@ function wrapDispatchForJoin<Sc extends AnySchema>(
       // Join the joinable points
       const sorted = Arr.sort(joinable, Num.Order)
       for (let i = sorted.length - 1; i >= 0; i--) {
-        if (canJoin(tr.doc, sorted[i]!)) tr.joinUnsafe(sorted[i]!)
+        if (canJoin(tr.doc, sorted[i])) tr.joinUnsafe(sorted[i])
       }
       return dispatch(tr)
     })
@@ -1086,7 +1087,7 @@ export const chainCommands =
       i === commands.length
         ? succeedFalse
         : Effect.flatMap(
-            Effect.suspend(() => commands[i]!(state, dispatch, view)),
+            Effect.suspend(() => commands[i](state, dispatch, view)),
             (handled) => (handled ? succeedTrue : loop(i + 1))
           )
     return loop(0)

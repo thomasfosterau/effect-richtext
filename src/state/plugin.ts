@@ -5,6 +5,7 @@
  */
 import type * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import type { AnySchema } from "../model.ts"
 import type { EditorProps, EditorView } from "../view/view.ts"
 import type { EditorState, EditorStateConfig } from "./state.ts"
@@ -45,7 +46,7 @@ export type PluginProps<Sc extends AnySchema = AnySchema, E = never, R = never> 
   Sc,
   R,
   E,
-  Plugin<any, Sc, never, never>
+  Plugin<any, Sc, never>
 >
 
 /**
@@ -186,7 +187,7 @@ function bindProps(
 ): Record<string, unknown> {
   for (const prop in obj) {
     let val = obj[prop]
-    if (val instanceof Function) val = val.bind(self)
+    if (Predicate.isFunction(val)) val = val.bind(self)
     else if (prop === "handleDOMEvents") val = bindProps(val as { readonly [prop: string]: unknown }, self, {})
     target[prop] = val
   }
@@ -196,7 +197,7 @@ function bindProps(
 const keys: Record<string, number> = Object.create(null)
 
 function createKey(name: string): string {
-  if (name in keys) return name + "$" + ++keys[name]!
+  if (name in keys) return name + "$" + ++keys[name]
   keys[name] = 0
   return name + "$"
 }

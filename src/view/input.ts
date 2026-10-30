@@ -57,7 +57,7 @@ export class InputState {
 /** @internal */
 export function initInput(view: AnyView): void {
   for (const event in handlers) {
-    const handler = handlers[event]!
+    const handler = handlers[event]
     view.dom.addEventListener(
       event,
       (view.input.eventHandlers[event] = (event: Event) => {
@@ -89,7 +89,7 @@ function setSelectionOrigin(view: AnyView, origin: string) {
 export function destroyInput(view: AnyView): void {
   view.domObserver.stop()
   for (const type in view.input.eventHandlers) {
-    view.dom.removeEventListener(type, view.input.eventHandlers[type]!)
+    view.dom.removeEventListener(type, view.input.eventHandlers[type])
   }
   clearTimeout(view.input.composingTimeout)
   clearTimeout(view.input.lastIOSEnterFallbackTimeout)
@@ -127,7 +127,7 @@ function eventBelongsToView(view: AnyView, event: Event) {
 /** @internal */
 export function dispatchEvent(view: AnyView, event: Event): void {
   if (!runCustomHandler(view, event) && handlers[event.type] && (view.editable || !(event.type in editHandlers))) {
-    handlers[event.type]!(view, event)
+    handlers[event.type](view, event)
   }
 }
 
@@ -423,8 +423,8 @@ class MouseDown {
       this.view.domObserver.start()
     }
 
-    view.root.addEventListener("mouseup", (this.up = this.up.bind(this) as any))
-    view.root.addEventListener("mousemove", (this.move = this.move.bind(this) as any))
+    view.root.addEventListener("mouseup", (this.up = this.up.bind(this)))
+    view.root.addEventListener("mousemove", (this.move = this.move.bind(this)))
     setSelectionOrigin(view, "pointer")
   }
 
@@ -586,7 +586,7 @@ editHandlers.compositionstart = editHandlers.compositionupdate = (view) => {
 function selectionBeforeUneditable(view: AnyView) {
   const { focusNode, focusOffset } = view.domSelectionRange()
   if (!focusNode || focusNode.nodeType != 1 || focusOffset >= focusNode.childNodes.length) return false
-  const next = focusNode.childNodes[focusOffset]!
+  const next = focusNode.childNodes[focusOffset]
   return next.nodeType == 1 && (next as HTMLElement).contentEditable == "false"
 }
 
@@ -597,7 +597,7 @@ editHandlers.compositionend = (view, event) => {
     view.input.compositionPendingChanges = view.domObserver.pendingRecords().length ? view.input.compositionID : 0
     view.input.compositionNode = null
     if (view.input.badSafariComposition) view.domObserver.forceFlush()
-    else if (view.input.compositionPendingChanges) Promise.resolve().then(() => view.domObserver.flush())
+    else if (view.input.compositionPendingChanges) void Promise.resolve().then(() => view.domObserver.flush())
     view.input.compositionID++
     scheduleComposeEnd(view, 20)
   }
@@ -711,7 +711,7 @@ handlers.copy = editHandlers.cut = (view, _event) => {
 }
 
 function sliceSingleNode(slice: Slice<any>) {
-  return slice.openStart == 0 && slice.openEnd == 0 && slice.content.childCount == 1 ? slice.content.content[0]! : null
+  return slice.openStart == 0 && slice.openEnd == 0 && slice.content.childCount == 1 ? slice.content.content[0] : null
 }
 
 function capturePaste(view: AnyView, event: ClipboardEvent) {
@@ -726,7 +726,7 @@ function capturePaste(view: AnyView, event: ClipboardEvent) {
     view.focus()
     if (target.parentNode) target.parentNode.removeChild(target)
     if (plainText) doPaste(view, (target as HTMLTextAreaElement).value, null, plain, event)
-    else doPaste(view, target.textContent!, target.innerHTML, plain, event)
+    else doPaste(view, target.textContent, target.innerHTML, plain, event)
   }, 50)
 }
 
@@ -832,7 +832,7 @@ editHandlers.dragover = editHandlers.dragenter = (_, e) => e.preventDefault()
 
 editHandlers.drop = (view, event) => {
   // try/finally: clear `dragging` even when handleDrop throws, then rethrow
-  const result = Result.try(() => handleDrop(view, event as DragEvent, view.dragging as Dragging | null))
+  const result = Result.try(() => handleDrop(view, event as DragEvent, view.dragging))
   view.dragging = null
   if (Result.isFailure(result)) throw result.failure
 }
@@ -870,7 +870,7 @@ function handleDrop(view: AnyView, event: DragEvent, dragging: Dragging | null) 
 
   const tr = view.state.tr
   if (move) {
-    const { node } = dragging as Dragging
+    const { node } = dragging
     if (node) node.replace(tr)
     else tr.deleteSelection()
   }
@@ -879,7 +879,7 @@ function handleDrop(view: AnyView, event: DragEvent, dragging: Dragging | null) 
   const isNode = slice.openStart == 0 && slice.openEnd == 0 && slice.content.childCount == 1
   const beforeInsert = tr.doc
   if (isNode) {
-    tr.replaceRangeWithUnsafe(pos, pos, slice.content.content[0]!)
+    tr.replaceRangeWithUnsafe(pos, pos, slice.content.content[0])
   } else {
     tr.replaceRangeUnsafe(pos, pos, slice)
   }
@@ -888,14 +888,14 @@ function handleDrop(view: AnyView, event: DragEvent, dragging: Dragging | null) 
   const $pos = tr.doc.resolveUnsafe(pos)
   if (
     isNode &&
-    NodeSelection.isSelectable(slice.content.content[0]!) &&
+    NodeSelection.isSelectable(slice.content.content[0]) &&
     $pos.nodeAfterOrNull &&
-    $pos.nodeAfterOrNull.sameMarkup(slice.content.content[0]!)
+    $pos.nodeAfterOrNull.sameMarkup(slice.content.content[0])
   ) {
     tr.setSelectionUnsafe(new NodeSelection($pos))
   } else {
     let end = tr.mapping.map(insertPos)
-    tr.mapping.maps[tr.mapping.maps.length - 1]!.forEach((_from, _to, _newFrom, newTo) => (end = newTo))
+    tr.mapping.maps[tr.mapping.maps.length - 1].forEach((_from, _to, _newFrom, newTo) => (end = newTo))
     tr.setSelectionUnsafe(selectionBetween(view, $pos, tr.doc.resolveUnsafe(end)))
   }
   view.focus()

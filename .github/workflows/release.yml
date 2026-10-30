@@ -19,8 +19,10 @@ jobs:
   release:
     name: Version or publish
     # Never run on forks (they have neither the environment nor the trusted
-    # publisher binding, so a fork cannot publish on your behalf).
-    if: github.repository == 'thomasfosterau/effect-richtext'
+    # publisher binding, so a fork cannot publish on your behalf), and never
+    # for Dependabot: this job holds `id-token: write`. It only runs on a push
+    # to `trunk` anyway; the actor guard keeps that true if a trigger is added.
+    if: github.repository == 'thomasfosterau/effect-richtext' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Requires manual approval via a protected GitHub Environment named
@@ -52,6 +54,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: true
 
       # Installs the pnpm version pinned by the package.json "packageManager"
       # field. Must run before setup-node so its pnpm cache can find the store.
@@ -61,6 +64,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
+          # A pinned major (the `engines` floor), never `latest`: setup-node
+          # resolves `latest` to a Node pre-release, and a publish must not run
+          # on one.
           node-version: 22.x
           cache: pnpm
           registry-url: https://registry.npmjs.org

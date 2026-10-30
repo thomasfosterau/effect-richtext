@@ -14,7 +14,7 @@
  */
 
 import { recommended } from "@effect/tsgo/oxlint-presets"
-import effect from "@mpsuesser/oxlint-plugin-effect"
+import effect from "@enfect/oxlint"
 import * as R from "effect/Record"
 import { defineConfig } from "vite-plus"
 import { playwright } from "vite-plus/test/browser-playwright"
@@ -96,8 +96,14 @@ export default defineConfig({
   lint: {
     ignorePatterns: ["**/dist/**", "**/docs/**", "**/coverage/**", "**/node_modules/**"],
     extends: [recommended, effect.configs.recommended],
+    // Oxlint's default plugins (`typescript`, `unicorn`, `oxc`) plus the ones
+    // that cover this repo's other surfaces: imports, promises, the vitest
+    // suites and the JSDoc that docgen renders.
+    plugins: ["typescript", "unicorn", "oxc", "import", "promise", "vitest", "jsdoc"],
     categories: {
-      correctness: "error"
+      correctness: "error",
+      suspicious: "error",
+      perf: "error"
     },
     rules: {
       "eslint/no-unused-vars": [
@@ -146,6 +152,36 @@ export default defineConfig({
       "effect/use-clock-service": "warn", // 24
       "effect/no-unknown-returns": "warn", // 22
       "effect/yield-in-for-loop": "warn", // 18
+      // The `suspicious` and `unicorn` rules joined with the move to
+      // @enfect/oxlint: the ported suites shadow the test-builder's `doc` /
+      // `schema` and keep ProseMirror's per-test helper closures, and src/
+      // keeps ProseMirror's local names. Tracked in
+      // thomasfosterau/effect-richtext#19.
+      "eslint/no-shadow": "warn", // 317
+      "unicorn/consistent-function-scoping": "warn", // 117
+      // ---- Type-aware allowances (tsgolint, see `options` below) ------------
+      // Turned on with Vite+ 1.4; the same rules as above (a new site is a
+      // defect, lower the count as sites go, delete the line at zero), tracked
+      // in thomasfosterau/effect-richtext#19. The two assertion rules overlap
+      // `require-safety-comment-for-type-assertion` and `casting-awareness`:
+      // tsgolint's verdict on "unnecessary" differs from the `check` task's
+      // tsc on enough of them that the autofix breaks the type gate, so each
+      // site is removed by hand, against `vp run check`.
+      "typescript/no-unsafe-type-assertion": "warn", // 891
+      "typescript/no-unnecessary-type-assertion": "warn", // 720
+      "typescript/no-unnecessary-type-arguments": "warn", // 54
+      "effecttsgo/any-unknown-in-error-context": "warn", // 54
+      "typescript/unbound-method": "warn", // 43
+      "typescript/consistent-return": "warn", // 22
+      "typescript/no-unnecessary-type-parameters": "warn", // 14
+      "effecttsgo/strict-effect-provide": "warn", // 13
+      "typescript/restrict-template-expressions": "warn", // 6
+      "typescript/no-unnecessary-type-conversion": "warn", // 6
+      "effecttsgo/unsafe-effect-type-assertion": "warn", // 6
+      "typescript/no-base-to-string": "warn", // 5
+      // `editable` compares with `=== false` as ProseMirror does: a JS
+      // caller's prop may return `undefined`, which must stay "editable".
+      "typescript/no-unnecessary-boolean-literal-compare": "warn", // 1
       // The four left are EditorState's Effect twins of its synchronous
       // transaction methods; with `this` in place of `self` their bodies
       // become clones of the sync versions, so they wait on deduplicating
@@ -155,23 +191,93 @@ export default defineConfig({
       "typescript/no-empty-object-type": "off",
       "typescript/ban-ts-comment": "off",
       "unicorn/no-empty-file": "off",
-      "vite-plus/prefer-vite-plus-imports": "error"
+      // Contradicts two conventions this repo cannot drop: the `_`-prefixed
+      // intentionally-unused bindings `eslint/no-unused-vars` allows (the
+      // type-level tests are built from them), and the `_`-prefixed internals
+      // and `__`-prefixed exports (`__parseFromClipboard`, `_props`, …) the
+      // compat facade must mirror exactly from ProseMirror.
+      "eslint/no-underscore-dangle": "off",
+      // Every `.reverse()` here reverses an array the function has just built
+      // (ProseMirror's history, content-match and view algorithms, run per
+      // keystroke): `toReversed()` would copy it again, and needs the ES2023
+      // lib that the es2022 target does not include.
+      "unicorn/no-array-reverse": "off",
+      "vite-plus/prefer-vite-plus-imports": "error",
+      // The ported ProseMirror suites assert through `ist` (tests/utils/ist.ts),
+      // `@effect/vitest`'s `assert`, and per-suite helpers that wrap them
+      // (`testTransform`, `same`, …).
+      "vitest/expect-expect": [
+        "error",
+        {
+          assertFunctionNames: [
+            "expect",
+            "assert",
+            "assert.*",
+            "ist",
+            "getSome",
+            "add",
+            "apply",
+            "bad",
+            "badEffect",
+            "between",
+            "cmd",
+            "del",
+            "expectTags",
+            "fill",
+            "fill3",
+            "ins",
+            "invalid",
+            "isAt",
+            "lift",
+            "no",
+            "parse",
+            "parseWith",
+            "recover",
+            "rem",
+            "repl",
+            "rm",
+            "roundTrip",
+            "rpl",
+            "same",
+            "serialize",
+            "set",
+            "setStr",
+            "testDel",
+            "testMapping",
+            "testStepJSON",
+            "testTransform",
+            "valid",
+            "wrap",
+            "yes",
+            "compress",
+            "compose",
+            "cut",
+            "join",
+            "split",
+            "from",
+            "start",
+            "end",
+            "type",
+            "markup",
+            "t",
+            "test",
+            "unsyncedComplex",
+            "open",
+            "find"
+          ]
+        }
+      ],
+      // `@category` is Effect's doc tag (with `@since`), required on every export.
+      "jsdoc/check-tag-names": ["error", { definedTags: ["category"] }]
     },
     overrides: [
       // Build/test configs are evaluated by Vite and Vitest in bare Node,
       // before any Effect runtime exists — there is no `Config` provider to
-      // read from and no `FileSystem` service to call, so `process.env` and
-      // `node:*` are the only things that work there. The Effect preset's
-      // service rules have no satisfiable fix in these files.
+      // read from, so `process.env` is the only thing that works there.
       {
         files: ["vite.config.ts"],
         rules: {
-          "effect/avoid-node-imports": "off",
-          "effect/avoid-sync-fs": "off",
           "effect/avoid-process-env": "off",
-          "effect/use-console-service": "off",
-          "effect/use-filesystem-service": "off",
-          "effect/use-path-service": "off",
           // `...(process.env.X ? { x } : {})` is how a vitest option is left
           // unset under `exactOptionalPropertyTypes`.
           "effect/no-conditional-empty-object-spread": "off"
@@ -184,7 +290,10 @@ export default defineConfig({
         files: ["tests/**/*.types.ts"],
         rules: {
           "eslint/no-unused-vars": "off",
-          "effect/avoid-ts-ignore": "off"
+          "effect/avoid-ts-ignore": "off",
+          // `Expect<Equals<keyof X, never>>` asserts an empty key set; the
+          // empty object type is the assertion, not a mistake.
+          "typescript/no-generated-empty-object-type": "off"
         }
       },
       // The compat facade links facades to core objects and walks
@@ -215,11 +324,18 @@ export default defineConfig({
         }
       }
     ],
-    // Type-aware linting is intentionally disabled: type checking stays the
-    // `check` task's job (native tsc, Effect-patched).
+    // Type-aware linting through oxlint-tsgolint (Vite+ 1.4 bundles it; the
+    // `effect-tsgo patch --oxlint` in `prepare` patches it too, so the
+    // `effecttsgo/*` rules see Effect types). tsgolint resolves each file
+    // through its nearest tsconfig.json: tests/tsconfig.json extends
+    // tsconfig.test.json so the suites get its `paths` mapping (without it
+    // every test sees the package as error types). `typeCheck` also reports
+    // tsc's diagnostics from `vp check`; it found none the `check` task does
+    // not, and costs about 10 s, so the `check` task (native, Effect-patched
+    // tsc over both tsconfigs) stays the type gate of record.
     options: {
-      typeAware: false,
-      typeCheck: false
+      typeAware: true,
+      typeCheck: true
     },
     jsPlugins: [
       {

@@ -12,9 +12,9 @@ import ist from "../utils/ist.ts"
 
 const fakeView = { state: {}, dispatch: () => Effect.void } as unknown as KeymapView
 
-type Handler = (view: KeymapView, event: KeyboardEvent) => Effect.Effect<boolean, any, never>
+type Handler = (view: KeymapView, event: KeyboardEvent) => Effect.Effect<boolean, any>
 
-function dispatch(map: Plugin<any, any, any, never>, key: string, props?: { [name: string]: any }): boolean {
+function dispatch(map: Plugin<any, any, any>, key: string, props?: { [name: string]: any }): boolean {
   const event: any = {}
   if (props) {
     for (const prop in props) event[prop] = props[prop]
@@ -151,6 +151,7 @@ describe("keymap (Effect API)", () => {
     const program = EditorState.create({ schema, plugins: [plugin] })
     const _program: Effect.Effect<EditorState<any, Clipboard, ReadOnly>, any, Clipboard> = program
     void _program
+    assert.isTrue(Effect.isEffect(program))
   })
 
   it.effect("runs bindings that require services", () =>

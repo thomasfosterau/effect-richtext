@@ -125,18 +125,18 @@ export class Slice<Sc extends AnySchema = AnySchema> implements Equal.Equal {
   static maxOpen<Sc extends AnySchema>(fragment: Fragment<Sc>, openIsolating = true): Slice<Sc> {
     let openStart = 0,
       openEnd = 0
-    for (
-      let n = fragment.content[0];
-      n && !n.isLeaf && (openIsolating || !n.type.spec.isolating);
-      n = n.content.content[0]
-    )
+    for (let n = fragment.content[0]; n && !n.isLeaf; n = n.content.content[0]) {
+      if (!openIsolating && n.type.spec.isolating) break
       openStart++
+    }
     for (
       let n = fragment.content[fragment.content.length - 1];
-      n && !n.isLeaf && (openIsolating || !n.type.spec.isolating);
+      n && !n.isLeaf;
       n = n.content.content[n.content.content.length - 1]
-    )
+    ) {
+      if (!openIsolating && n.type.spec.isolating) break
       openEnd++
+    }
     return new Slice(fragment, openStart, openEnd)
   }
 
@@ -148,14 +148,14 @@ function removeRange<Sc extends AnySchema>(content: Fragment<Sc>, from: number, 
   const { index, offset } = content.findIndex(from)
   const child = content.content[index]
   const { index: indexTo, offset: offsetTo } = content.findIndex(to)
-  if (offset === from || child!.isText) {
-    if (offsetTo !== to && !content.content[indexTo]!.isText) {
+  if (offset === from || child.isText) {
+    if (offsetTo !== to && !content.content[indexTo].isText) {
       throw new PositionError({ message: "Removing non-flat range" })
     }
     return content.cut(0, from).append(content.cut(to))
   }
   if (index !== indexTo) throw new PositionError({ message: "Removing non-flat range" })
-  return content.replaceChild(index, child!.copy(removeRange(child!.content, from - offset - 1, to - offset - 1)))
+  return content.replaceChild(index, child.copy(removeRange(child.content, from - offset - 1, to - offset - 1)))
 }
 
 function insertInto<Sc extends AnySchema>(
@@ -166,12 +166,12 @@ function insertInto<Sc extends AnySchema>(
 ): Fragment<Sc> | null {
   const { index, offset } = content.findIndex(dist)
   const child = content.content[index]
-  if (offset === dist || child!.isText) {
+  if (offset === dist || child.isText) {
     if (parent && !parent.canReplace(index, index, insert)) return null
     return content.cut(0, dist).append(insert).append(content.cut(dist))
   }
-  const inner = insertInto(child!.content, dist - offset - 1, insert, child)
-  return inner && content.replaceChild(index, child!.copy(inner))
+  const inner = insertInto(child.content, dist - offset - 1, insert, child)
+  return inner && content.replaceChild(index, child.copy(inner))
 }
 
 /** @internal */
@@ -227,7 +227,7 @@ function joinable<Sc extends AnySchema>($before: ResolvedPos<Sc>, $after: Resolv
 
 function addNode<Sc extends AnySchema>(child: Node<Sc>, target: Array<Node<Sc>>) {
   const last = target.length - 1
-  if (last >= 0 && child.isText && child.sameMarkup(target[last]!)) {
+  if (last >= 0 && child.isText && child.sameMarkup(target[last])) {
     target[last] = (child as TextNode<Sc>).withText((target[last] as TextNode<Sc>).text + (child as TextNode<Sc>).text)
   } else {
     target.push(child)
@@ -252,7 +252,7 @@ function addRange<Sc extends AnySchema>(
       startIndex++
     }
   }
-  for (let i = startIndex; i < endIndex; i++) addNode(node.content.content[i]!, target)
+  for (let i = startIndex; i < endIndex; i++) addNode(node.content.content[i], target)
   if ($end && $end.depth === depth && $end.textOffset) addNode($end.nodeBeforeOrNull!, target)
 }
 
