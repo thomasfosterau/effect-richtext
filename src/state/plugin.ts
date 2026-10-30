@@ -5,6 +5,7 @@
  */
 import type * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import type { AnySchema } from "../model.ts"
 import type { EditorProps, EditorView } from "../view/view.ts"
 import type { EditorState, EditorStateConfig } from "./state.ts"
@@ -186,7 +187,7 @@ function bindProps(
 ): Record<string, unknown> {
   for (const prop in obj) {
     let val = obj[prop]
-    if (val instanceof Function) val = val.bind(self)
+    if (Predicate.isFunction(val)) val = val.bind(self)
     else if (prop === "handleDOMEvents") val = bindProps(val as { readonly [prop: string]: unknown }, self, {})
     target[prop] = val
   }

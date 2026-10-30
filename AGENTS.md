@@ -22,7 +22,7 @@ A new entry is added to `entries` in `vite.config.ts`, to `exports` in `package.
 
 ## Common pitfalls
 
-- **Never edit a version in `package.json`.** Versions live in the `pnpm-workspace.yaml` catalog (`catalogMode: strict` rejects anything else). After editing it, run `pnpm install` and commit `pnpm-lock.yaml`, or CI fails with `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`. `@effect/tsgo`, `@typescript/native` and `vite-plus` move together (the tsgo patch hard-errors at install on an unsupported `tsc` or `oxlint`); read their catalog comments first.
+- **Never edit a version in `package.json`.** Versions live in the `pnpm-workspace.yaml` catalog (`catalogMode: strict` rejects anything else). After editing it, run `pnpm install` and commit `pnpm-lock.yaml`, or CI fails with `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`. `@effect/tsgo`, `@typescript/native` and `vite-plus` move together (the tsgo patch hard-errors at install on an unsupported `tsc` or `oxlint`); read their catalog comments first. Dependabot (`.github/dependabot.yml`) groups every lockstep set (`toolchain`, with `@enfect/oxlint`; `effect`; `docgen`; `changesets`; `fallow`; `github-actions`); the npm aliases (`vite`, `typescript`, `@typescript/native`), the `overrides` literals and `catalogs.peers` are hand moves listed in its header. `minimumReleaseAge` holds new versions for 8 hours (480 minutes); Dependabot's cooldown is 1 day, its smallest unit.
 - **`dist/` is the product.** `vp pack` (tsdown) emits one file per source module (`unbundle`) and `exports` points only at `dist/`. Tests import the package by name; `vite.config.ts`'s `resolve.alias` and `tsconfig.test.json`'s `paths` map that name to `src/`, so tests never need a build, and docgen examples (which do) go through `dist/`.
 - **`sideEffects` is a list, and it is load-bearing.** `gapcursor` (registers its selection's JSON id), `test-builder` (the `tag` getter) and every `compat/*` module (wrapper registration) run top-level statements; everything else must stay pure declarations so a consumer's bundler can drop it. A new top-level statement means a new entry in `package.json`'s `sideEffects`.
 - **Hot paths are synchronous on purpose.** Model, transform and view algorithms run per keystroke: library internals call the `Unsafe` twins or `@internal …OrNull` helpers, and only the public surface is wrapped in `Effect` (DESIGN.md, "Fallible operations"). Do not route an inner loop through `Effect` or a Schema decode.
@@ -38,7 +38,7 @@ A new entry is added to `entries` in `vite.config.ts`, to `exports` in `package.
 - **Formatting is Oxfmt with this repo's style**: no semicolons, no trailing commas, 120 columns (`fmt` in `vite.config.ts`). The pre-commit hook and the PostToolUse hook apply it.
 - **Tests import from `@effect/vitest`** (`it.effect`, `assert`) or `vite-plus/test`, never `vitest`. `tests/<module>/*.test.ts` mirrors the module it covers; ported ProseMirror suites stay as close to the originals as possible (`tests/utils/ist.ts`; `getSome` in `tests/utils/option.ts` unwraps an `Option` or fails the test). `tests/**/*.types.ts` hold compile-time assertions (`Expect<Equals<…>>` and expect-error directives), type-checked by `vp run check`, never executed; a negative type assertion never lives in a runtime test file.
 - **Every export has a doc comment** whose first sentence stands alone in a hover, plus `@since` and `@category`; it documents defaults, units, the error channel and the reason for any non-obvious choice.
-- **Lint**: the Effect preset (`@mpsuesser/oxlint-plugin-effect` + `@effect/tsgo/oxlint-presets`) is on. The "ported-code allowances" in `vite.config.ts` sit at `warn` with a site count; a new site is a defect, and a rule goes back to `error` when its count reaches zero. Fix findings by changing the code, never with disable comments.
+- **Lint**: the Effect preset (`@enfect/oxlint`'s `recommended` + `@effect/tsgo/oxlint-presets`) is on, with Oxlint's `correctness`, `suspicious` and `perf` categories over the `typescript`, `unicorn`, `oxc`, `import`, `promise`, `vitest` and `jsdoc` plugins and `vite-plus/prefer-vite-plus-imports`, type-aware through oxlint-tsgolint (`tests/tsconfig.json` gives the suites tsconfig.test.json's `paths`). The "ported-code allowances" in `vite.config.ts` sit at `warn` with a site count; a new site is a defect, and a rule goes back to `error` when its count reaches zero. Fix findings by changing the code, never with disable comments.
 
 ### Module boundaries
 
@@ -47,7 +47,7 @@ A new entry is added to `entries` in `vite.config.ts`, to `exports` in `package.
 ## Commands
 
 - `pnpm install` — dependencies plus the Vite+ git hooks (pre-commit runs `vp staged`: format + lint on staged files) and the `prepare` step that patches the native `tsc` / `oxlint` with `@effect/tsgo`. No pre-push hook: run the gates yourself.
-- `vp check` — format + lint (Oxfmt + Oxlint). `vp run check` — the type gate: `src` under `tsconfig.json`, then the tests (including `tests/**/*.types.ts`) under `tsconfig.test.json`. They are different commands.
+- `vp check` — format + lint (Oxfmt + Oxlint, type-aware through oxlint-tsgolint with `typeCheck` on). `vp run check` — the type gate: `src` under `tsconfig.json`, then the tests (including `tests/**/*.types.ts`) under `tsconfig.test.json`. They are different commands.
 - `vp run test:unit` — the `node` test project (happy-dom).
 - `vp run test:browser` — the `browser` project: prosemirror-view's suites in headless Chromium via Playwright. Needs a Chromium: `vp exec playwright install chromium`, or point `PLAYWRIGHT_CHROMIUM_EXECUTABLE` at an installed one (agent containers: `/opt/pw-browsers/chromium`).
 - `vp run build` — `vp pack` → `dist/`.
@@ -101,6 +101,7 @@ Read the installed package before writing Effect code: `node_modules/effect/dist
 
 - The SessionStart hook (`.claude/hooks/session-start.sh`) installs dependencies against the lockfile and puts `vp` (a re-exec shim that prefers the nearest worktree's `node_modules`), `fallow` and `tsx` on PATH for non-interactive shells. It hydrates no secrets; none are needed, and nothing here can publish.
 - A PreToolUse hook (`.claude/hooks/fallow-gate.sh`) blocks `git commit` / `git push` when `fallow audit --base origin/trunk` fails; it reads the coverage map on disk, so run `vp run test:coverage` first. A PostToolUse hook runs `vp fmt` on every source, JSON, CSS or Markdown file you write or edit.
+- `.claude/settings.json` should enable the `@enfect/claude` plugin (Effect guidance, skills and post-write pattern checks; marketplace `mpsuesser/enfect`, pinned to a reviewed commit).
 - Every gate in [Verification](#verification) runs in an agent session; the browser tests need `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/opt/pw-browsers/chromium` there, and `pnpm audit` needs the network.
 
 ## Documentation surfaces

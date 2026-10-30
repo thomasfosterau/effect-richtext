@@ -15,6 +15,7 @@
  */
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import type * as M from "../model.ts"
 import * as S from "../state.ts"
 import {
@@ -683,7 +684,7 @@ export interface PluginSpec<PluginState> {
 function bindProps(obj: { [prop: string]: any }, self: any, target: { [prop: string]: any }) {
   for (const prop in obj) {
     let val = obj[prop]
-    if (val instanceof Function) val = val.bind(self)
+    if (Predicate.isFunction(val)) val = val.bind(self)
     else if (prop === "handleDOMEvents") val = bindProps(val, self, {})
     target[prop] = val
   }

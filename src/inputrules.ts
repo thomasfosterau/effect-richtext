@@ -458,7 +458,7 @@ export type InputRuleAttrs<Sc extends AnySchema, N extends NodeNames<Sc>> =
   | ((match: RegExpMatchArray) => NodeAttrsInput<Sc, N> | null)
 
 const resolveAttrs = <A>(getAttrs: A | null | ((match: RegExpMatchArray) => A | null), match: RegExpMatchArray) =>
-  getAttrs instanceof Function ? getAttrs(match) : getAttrs
+  Predicate.isFunction(getAttrs) ? getAttrs(match) : getAttrs
 
 /**
  * Build an input rule for automatically wrapping a textblock when a

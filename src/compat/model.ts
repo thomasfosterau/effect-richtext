@@ -1044,7 +1044,7 @@ ContentMatch.empty = wrap(M.ContentMatch.empty)
  * @category models
  */
 export interface AttributeSpec {
-  default?: any | undefined
+  default?: any
   validate?: (string | ((value: any) => void)) | undefined
 }
 
@@ -1688,7 +1688,7 @@ export class DOMParser {
     return M.DOMParser.schemaRules(schema[CORE]).map((rule: any) => {
       const original = rule[ORIGINAL]
       if (!original) return rule
-      const result = { ...original }
+      const result = Object.assign({}, original)
       if (rule.node !== undefined) result.node = rule.node
       if (rule.mark !== undefined) result.mark = rule.mark
       return result

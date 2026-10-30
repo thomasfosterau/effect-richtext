@@ -424,5 +424,7 @@ describe("history", () => {
     rebase.mapping.setMirror(0, 2)
     state = state.applyUnsafe(rebase)
     state = command(state, undo)
+    // The mapped selection must still fall inside the document.
+    ist(state.selection.to <= state.doc.content.size)
   })
 })

@@ -151,6 +151,7 @@ describe("keymap (Effect API)", () => {
     const program = EditorState.create({ schema, plugins: [plugin] })
     const _program: Effect.Effect<EditorState<any, Clipboard, ReadOnly>, any, Clipboard> = program
     void _program
+    assert.isTrue(Effect.isEffect(program))
   })
 
   it.effect("runs bindings that require services", () =>

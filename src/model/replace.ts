@@ -125,18 +125,18 @@ export class Slice<Sc extends AnySchema = AnySchema> implements Equal.Equal {
   static maxOpen<Sc extends AnySchema>(fragment: Fragment<Sc>, openIsolating = true): Slice<Sc> {
     let openStart = 0,
       openEnd = 0
-    for (
-      let n = fragment.content[0];
-      n && !n.isLeaf && (openIsolating || !n.type.spec.isolating);
-      n = n.content.content[0]
-    )
+    for (let n = fragment.content[0]; n && !n.isLeaf; n = n.content.content[0]) {
+      if (!openIsolating && n.type.spec.isolating) break
       openStart++
+    }
     for (
       let n = fragment.content[fragment.content.length - 1];
-      n && !n.isLeaf && (openIsolating || !n.type.spec.isolating);
+      n && !n.isLeaf;
       n = n.content.content[n.content.content.length - 1]
-    )
+    ) {
+      if (!openIsolating && n.type.spec.isolating) break
       openEnd++
+    }
     return new Slice(fragment, openStart, openEnd)
   }
 

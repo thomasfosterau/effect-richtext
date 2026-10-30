@@ -597,7 +597,7 @@ editHandlers.compositionend = (view, event) => {
     view.input.compositionPendingChanges = view.domObserver.pendingRecords().length ? view.input.compositionID : 0
     view.input.compositionNode = null
     if (view.input.badSafariComposition) view.domObserver.forceFlush()
-    else if (view.input.compositionPendingChanges) Promise.resolve().then(() => view.domObserver.flush())
+    else if (view.input.compositionPendingChanges) void Promise.resolve().then(() => view.domObserver.flush())
     view.input.compositionID++
     scheduleComposeEnd(view, 20)
   }

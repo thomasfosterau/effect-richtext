@@ -187,11 +187,11 @@ describe("gapCursor plugin", () => {
   it("creates gap cursors from DOM selections", () => {
     const view = tempEditor({ doc: doc(hr(), hr()), plugins: [gapCursor()] })
     const $pos = view.state.doc.resolveUnsafe(1)
-    const sel = view.someProp("createSelectionBetween", (f) => f.call(null, view, $pos, $pos))
+    const sel = view.someProp("createSelectionBetween", (f) => f(view, $pos, $pos))
     ist(sel instanceof GapCursor)
     const $text = doc(p("foo")).resolveUnsafe(1)
     ist(
-      view.someProp("createSelectionBetween", (f) => f.call(null, view, $text, $text)),
+      view.someProp("createSelectionBetween", (f) => f(view, $text, $text)),
       undefined
     )
   })

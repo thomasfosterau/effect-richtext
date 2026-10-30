@@ -213,6 +213,7 @@ describe("nodeViews prop", () => {
   })
 
   it("provides access to inner decorations in the constructor", () => {
+    let constructed = false
     tempEditor({
       doc: doc(p("foo")),
       nodeViews: {
@@ -225,6 +226,7 @@ describe("nodeViews prop", () => {
               .join(),
             "1-2"
           )
+          constructed = true
           return { dom, contentDOM: dom }
         }
       },
@@ -235,6 +237,7 @@ describe("nodeViews prop", () => {
         ])
       }
     })
+    ist(constructed)
   })
 
   it("provides access to inner decorations in the update method", () => {

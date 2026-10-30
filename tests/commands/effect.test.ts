@@ -70,6 +70,8 @@ describe("chainCommands", () => {
     const plain = chainCommands(deleteSelection, joinBackward)
     const _plain: Command<AnySchema, never, never> = plain
     void _plain
+    assert.isFunction(chained)
+    assert.isFunction(plain)
   })
 
   it.effect("propagates service requirements to the inner commands", () =>

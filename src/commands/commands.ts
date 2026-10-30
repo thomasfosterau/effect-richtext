@@ -820,7 +820,8 @@ export const setBlockType = <Sc extends AnySchema, N extends NodeNames<Sc>>(
   syncCommand<Sc>((state, dispatching) => {
     let applicable = false
     const ranges = state.selection.ranges
-    for (let i = 0; i < ranges.length && !applicable; i++) {
+    for (let i = 0; i < ranges.length; i++) {
+      if (applicable) break
       const {
         $from: { pos: from },
         $to: { pos: to }

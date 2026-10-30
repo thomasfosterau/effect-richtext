@@ -5,6 +5,7 @@
  */
 // Ported from prosemirror-markdown (MIT, Marijn Haverbeke and others)
 import type * as Effect from "effect/Effect"
+import * as Predicate from "effect/Predicate"
 import MarkdownIt, { type Env, type MarkdownIt as Tokenizer, type Token } from "markdown-it"
 import { attempt } from "../internal/attempt.ts"
 import { showJson } from "../internal/json.ts"
@@ -198,7 +199,7 @@ export interface ParseSpec<Sc extends AnySchema = AnySchema> {
 function attrs(spec: ParseSpec<any>, token: Token, tokens: Array<Token>, i: number): Attrs | null {
   if (spec.getAttrs) return spec.getAttrs(token, tokens, i)
   // For backwards compatibility when `attrs` is a Function
-  else if ((spec.attrs as unknown) instanceof Function) return (spec.attrs as unknown as (t: Token) => Attrs)(token)
+  else if (Predicate.isFunction(spec.attrs as unknown)) return (spec.attrs as unknown as (t: Token) => Attrs)(token)
   else return spec.attrs ?? null
 }
 
