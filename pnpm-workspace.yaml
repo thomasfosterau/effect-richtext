@@ -41,7 +41,7 @@ catalog:
   # calls Effect APIs, so an `effect` bump re-runs `vp check` against it too.
   # Moves with the toolchain group (it is checked against vite-plus's oxlint).
   "@enfect/oxlint": 0.9.0
-  "@types/node": ^26.6.5
+  "@types/node": ^26.6.6
   # The Playwright provider behind `vite-plus/test/browser-playwright` (the
   # `browser` test project, real Chromium); vite-plus re-exports it but does
   # not install it. Must equal `vitest` below: its peer is the exact version.
