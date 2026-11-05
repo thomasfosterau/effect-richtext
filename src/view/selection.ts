@@ -4,14 +4,55 @@
  *
  * @internal
  */
+import * as Option from "effect/Option"
 import type { ResolvedPos } from "../model.ts"
-import { NodeSelection, type Selection, TextSelection } from "../state.ts"
+import { NodeSelection, Selection, TextSelection } from "../state.ts"
 import * as browser from "./browser.ts"
-import { domIndex, isEquivalentPosition, isOnEdge, selectionCollapsed } from "./dom.ts"
+import { domIndex, type DOMSelectionRange, isElt, isEquivalentPosition, isOnEdge, selectionCollapsed } from "./dom.ts"
 import type { EditorView } from "./view.ts"
 import type { NodeViewDesc, ViewDesc } from "./viewdesc.ts"
 
 type AnyView = EditorView<any, any, any>
+
+// The selection to use instead of the DOM's after Firefox keyboard
+// motion, if any.
+const geckoKeySelection = (
+  view: AnyView,
+  domSel: DOMSelectionRange,
+  head: number,
+  nearestDesc: Option.Option<ViewDesc>,
+  byKey: boolean
+) =>
+  browser.gecko && byKey
+    ? Option.getOrUndefined(Option.map(nearestDesc, (desc) => skippedScrollWrapper(view, domSel, head, desc)))
+    : undefined
+
+// Firefox will jump across scrollable wrapper nodes on keyboard cursor
+// motion (#1594). Detect a cursor that landed past such a wrapper and put
+// it at the start of the node it skipped (prosemirror-view 1.42.6).
+function skippedScrollWrapper(view: AnyView, domSel: DOMSelectionRange, head: number, nearestDesc: ViewDesc) {
+  const to = view.state.selection.to
+  if (head <= to || nearestDesc.posAtStart <= to) return undefined
+  if (!focusAtElementEnd(domSel) || !inScrollableWrapper(domSel.focusNode!, nearestDesc.dom)) return undefined
+  return Option.getOrUndefined(Selection.findFrom(view.state.doc.resolveUnsafe(nearestDesc.posAtStart), 1))
+}
+
+const focusAtElementEnd = ({ focusNode, focusOffset }: DOMSelectionRange): boolean =>
+  !!focusNode && isElt(focusNode) && focusOffset == focusNode.childNodes.length
+
+const isScrollable = (node: globalThis.Node): boolean => isElt(node) && getComputedStyle(node).overflow != "visible"
+
+// The parent to keep scanning from: only through last children, up to `stop`.
+const climb = (scan: globalThis.Node, stop: globalThis.Node): Option.Option<globalThis.Node> => {
+  const parent = scan.parentNode
+  return scan == stop || scan.nextSibling || !parent || !isElt(parent) ? Option.none() : Option.some(parent)
+}
+
+// Whether `scan`, or an ancestor reached through last children up to
+// `stop`, scrolls its overflow.
+const inScrollableWrapper = (scan: globalThis.Node, stop: globalThis.Node): boolean =>
+  isScrollable(scan) ||
+  Option.match(climb(scan, stop), { onNone: () => false, onSome: (up) => inScrollableWrapper(up, stop) })
 
 /** @internal */
 export function selectionFromDOM(view: AnyView, origin: string | null = null): Selection<any> | null {
@@ -38,6 +79,8 @@ export function selectionFromDOM(view: AnyView, origin: string | null = null): S
     ) {
       const pos = nearestDesc.posBefore
       selection = new NodeSelection(head == pos ? $head : doc.resolveUnsafe(pos))
+    } else {
+      selection = geckoKeySelection(view, domSel, head, Option.fromNullishOr(nearestDesc), origin == "key")
     }
   } else {
     if (domSel instanceof view.dom.ownerDocument.defaultView!.Selection && domSel.rangeCount > 1) {
@@ -78,18 +121,18 @@ export function selectionToDOM(view: AnyView, force = false): void {
 
   if (!editorOwnsSelection(view)) return
 
-  // The delayed drag selection causes issues with Cell Selections
-  // in Safari. And the drag selection delay is to workarond issues
-  // which only present in Chrome.
-  if (!force && view.input.mouseDown && view.input.mouseDown.allowDefault && browser.chrome) {
+  // Need to delay selection normalization during a native selection
+  // drag on Chrome, or it will cause further dragging to glitch.
+  const mouseDown = view.input.mouseDown
+  if (!force && browser.chrome && mouseDown) {
     const domSel = view.domSelectionRange(),
       curSel = view.domObserver.currentSelection
     if (
       domSel.anchorNode &&
       curSel.anchorNode &&
-      isEquivalentPosition(domSel.anchorNode, domSel.anchorOffset, curSel.anchorNode, curSel.anchorOffset)
+      isEquivalentPosition(domSel.anchorNode, domSel.anchorOffset, curSel.anchorNode, curSel.anchorOffset) &&
+      mouseDown.delaySelUpdate()
     ) {
-      view.input.mouseDown.delayedSelectionSync = true
       view.domObserver.setCurSelection()
       return
     }

@@ -226,15 +226,16 @@ export class DOMObserver {
   flush() {
     const { view } = this
     if (!view.docView || this.flushingSoon > -1) return
+    const now = Date.now()
     const mutations = this.pendingRecords()
     if (mutations.length) this.queue = []
 
-    const sel = view.domSelectionRange()
-    const newSel =
-      !this.suppressingSelectionUpdates &&
-      !this.currentSelection.eq(sel) &&
-      hasFocusAndSelection(view) &&
-      !this.ignoreSelectionChange(sel)
+    // Only read the DOM selection when the editor has focus: this is
+    // costly for editors that aren't connected (prosemirror-view 1.42.6 /
+    // 1.42.7).
+    const selRange =
+      !this.suppressingSelectionUpdates && hasFocusAndSelection(view) ? view.domSelectionRange() : undefined
+    const newSel = !!selRange && !this.currentSelection.eq(selRange) && !this.ignoreSelectionChange(selRange)
 
     let from = -1,
       to = -1,
@@ -251,7 +252,14 @@ export class DOMObserver {
       }
     }
 
-    if (added.some((n) => n.nodeName == "BR") && (view.input.lastKeyCode == 8 || view.input.lastKeyCode == 46)) {
+    if (
+      added.some((n) => n.nodeName == "BR") &&
+      (view.input.lastKeyCode == 8 ||
+        view.input.lastKeyCode == 46 ||
+        (browser.chrome &&
+          (view.composing || view.input.compositionEndedAt > now - 50) &&
+          mutations.some((m) => m.type == "childList" && m.removedNodes.length)))
+    ) {
       // Browsers sometimes insert a bogus break node if you
       // backspace out the last bit of text before an inline-flex node (#1552)
       for (const node of added) {
@@ -290,15 +298,15 @@ export class DOMObserver {
     if (
       from < 0 &&
       newSel &&
-      view.input.lastFocus > Date.now() - 200 &&
-      Math.max(view.input.lastTouch, view.input.lastClick.time) < Date.now() - 300 &&
-      selectionCollapsed(sel) &&
+      view.input.lastFocus > now - 200 &&
+      Math.max(view.input.lastTouch, view.input.lastClick.time) < now - 300 &&
+      selectionCollapsed(selRange!) &&
       (readSel = selectionFromDOM(view)) &&
       readSel.eq(Selection.near(view.state.doc.resolveUnsafe(0), 1))
     ) {
       view.input.lastFocus = 0
       selectionToDOM(view)
-      this.currentSelection.set(sel)
+      this.currentSelection.set(selRange!)
       view.scrollToSelection()
     } else if (from > -1 || newSel) {
       if (from > -1) {
@@ -311,8 +319,8 @@ export class DOMObserver {
       }
       this.handleDOMChange(from, to, typeOver, added)
       if (view.docView && view.docView.dirty) view.updateState(view.state)
-      else if (!this.currentSelection.eq(sel)) selectionToDOM(view)
-      this.currentSelection.set(sel)
+      else if (selRange && !this.currentSelection.eq(selRange)) selectionToDOM(view)
+      if (selRange) this.currentSelection.set(selRange)
     }
   }
 

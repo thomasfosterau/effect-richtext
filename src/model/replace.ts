@@ -5,7 +5,7 @@
  */
 import * as Equal from "effect/Equal"
 import * as Hash from "effect/Hash"
-import { ContentError, JSONError, PositionError, ReplaceError } from "./errors.ts"
+import { JSONError, PositionError, ReplaceError } from "./errors.ts"
 import { Fragment } from "./fragment.ts"
 import type { Node, NodeJSON, TextNode } from "./node.ts"
 import type { ResolvedPos } from "./resolvedpos.ts"
@@ -59,7 +59,7 @@ export class Slice<Sc extends AnySchema = AnySchema> implements Equal.Equal {
 
   /** @internal */
   insertAt(pos: number, fragment: Fragment<Sc>): Slice<Sc> | null {
-    const content = insertInto(this.content, pos + this.openStart, fragment)
+    const content = insertInto(this.content, pos + this.openStart, fragment, this.openStart + 1, this.openEnd + 1)
     return content && new Slice(content, this.openStart, this.openEnd)
   }
 
@@ -162,15 +162,26 @@ function insertInto<Sc extends AnySchema>(
   content: Fragment<Sc>,
   dist: number,
   insert: Fragment<Sc>,
+  openStart: number,
+  openEnd: number,
   parent?: Node<Sc> | null
 ): Fragment<Sc> | null {
   const { index, offset } = content.findIndex(dist)
   const child = content.content[index]
   if (offset === dist || child!.isText) {
-    if (parent && !parent.canReplace(index, index, insert)) return null
+    // Open nodes are closed later, so only check content constraints in
+    // closed ones (prosemirror-model 1.25.5).
+    if (parent && openStart <= 0 && openEnd <= 0 && !parent.canReplace(index, index, insert)) return null
     return content.cut(0, dist).append(insert).append(content.cut(dist))
   }
-  const inner = insertInto(child!.content, dist - offset - 1, insert, child)
+  const inner = insertInto(
+    child!.content,
+    dist - offset - 1,
+    insert,
+    index === 0 ? openStart - 1 : 0,
+    index === content.childCount - 1 ? openEnd - 1 : 0,
+    child
+  )
   return inner && content.replaceChild(index, child!.copy(inner))
 }
 
@@ -257,12 +268,8 @@ function addRange<Sc extends AnySchema>(
 }
 
 function close<Sc extends AnySchema>(node: Node<Sc>, content: Fragment<Sc>): Node<Sc> {
-  try {
-    node.type.checkContent(content)
-  } catch (e) {
-    if (e instanceof ContentError) throw new ReplaceError({ message: e.message })
-    throw e
-  }
+  if (!node.type.validContent(content))
+    throw new ReplaceError({ message: "Invalid content for node " + node.type.name })
   return node.copy(content)
 }
 

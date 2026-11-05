@@ -184,7 +184,9 @@ export class ReplaceAroundStep<Sc extends AnySchema = AnySchema> extends Step<Sc
       to = mapping.mapResult(this.to, -1)
     const gapFrom = this.from === this.gapFrom ? from.pos : mapping.map(this.gapFrom, -1)
     const gapTo = this.to === this.gapTo ? to.pos : mapping.map(this.gapTo, 1)
-    if ((from.deletedAcross && to.deletedAcross) || gapFrom < from.pos || gapTo > to.pos) return Option.none()
+    if ((from.deletedAcross && to.deletedAcross) || gapFrom < from.pos || gapTo > to.pos || gapFrom > gapTo) {
+      return Option.none()
+    }
     return Option.some(new ReplaceAroundStep(from.pos, to.pos, gapFrom, gapTo, this.slice, this.insert, this.structure))
   }
 

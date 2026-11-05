@@ -17,6 +17,7 @@ import type * as M from "../model.ts"
 import { isModelError } from "../model.ts"
 import * as T from "../transform.ts"
 import { type Mappable, MapResult, StepMap } from "../transform.ts"
+import { MarkSetStep as CoreMarkSetStep } from "../transform/mark_set_step.ts"
 import {
   adopt,
   BASE,
@@ -635,6 +636,18 @@ export class RemoveNodeMarkStep extends CoreStep {
   }
 }
 
+// The step group that inverting a mark step can produce. Not exported,
+// matching prosemirror-transform, which keeps `MarkSetStep` private.
+class MarkSetStep extends CoreStep {
+  /** @internal */
+  declare readonly [CORE]: CoreMarkSetStep
+
+  /** The grouped steps. */
+  get steps(): ReadonlyArray<Step> {
+    return this[CORE].steps.map((s) => wrap(s))
+  }
+}
+
 /**
  * Update an attribute in a specific node.
  *
@@ -712,6 +725,7 @@ registerWrapper(T.AddNodeMarkStep, (core) => adopt(AddNodeMarkStep.prototype, co
 registerWrapper(T.RemoveNodeMarkStep, (core) => adopt(RemoveNodeMarkStep.prototype, core))
 registerWrapper(T.AttrStep, (core) => adopt(AttrStep.prototype, core))
 registerWrapper(T.DocAttrStep, (core) => adopt(DocAttrStep.prototype, core))
+registerWrapper(CoreMarkSetStep, (core) => adopt(MarkSetStep.prototype, core))
 registerWrapper(T.StepResult, fromCoreResult)
 
 // -----------------------------------------------------------------------------

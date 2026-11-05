@@ -2,7 +2,7 @@
 import { describe, it } from "@effect/vitest"
 import { DocSchema } from "effect-richtext/model"
 import { Plugin } from "effect-richtext/state"
-import { doc, h1, hr, p, pre, schema, strong } from "effect-richtext/test-builder"
+import { doc, h1, hr, img, p, pre, schema, strong } from "effect-richtext/test-builder"
 import ist from "../utils/ist.ts"
 import { tempEditor } from "./helpers.ts"
 
@@ -199,5 +199,16 @@ describe("EditorView draw", () => {
       sameAtEnd++
     }
     ist(sameAtEnd, 9)
+  })
+
+  // prosemirror-view 1.42.6: browsers need a cursor position in front of an
+  // inline atom at the start of a block or right after another atom.
+  it("puts a buffer node in front of leading and consecutive inline atoms", () => {
+    const view = tempEditor({ doc: doc(p(img(), img(), "x", img())) })
+    const names = Array.from(view.dom.firstChild?.childNodes ?? [], (n) =>
+      n instanceof HTMLImageElement ? (n.className == "ProseMirror-separator" ? "sep" : "img") : n.nodeName
+    )
+    // (the trailing separator and BR are the older trailing-atom hack)
+    ist(names.join(" "), "sep img sep img #text img sep BR")
   })
 })

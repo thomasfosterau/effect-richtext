@@ -39,9 +39,7 @@ export function markFromJSON<Sc extends AnySchema>(schema: Sc, json: any): Mark<
   if (!json || typeof json !== "object") fail("Invalid input for Mark.fromJSON")
   const type = schema.marks[json.type]
   if (!type) fail(`There is no mark type ${json.type} in this schema`)
-  const mark = type!.createUnsafe(decodeAttrsOrFail(type!.attrs, json.attrs, `mark ${json.type}`) as any)
-  type!.checkAttrs(mark.attrs)
-  return mark as Mark<Sc>
+  return type!.createUnsafe(decodeAttrsOrFail(type!.attrs, json.attrs, `mark ${json.type}`) as any) as Mark<Sc>
 }
 
 /** @internal */
@@ -60,13 +58,11 @@ export function nodeFromJSON<Sc extends AnySchema>(schema: Sc, json: any): Node<
   const content = fragmentFromJSON(schema, json.content)
   const type = schema.nodes[json.type]
   if (!type) fail("Unknown node type: " + json.type)
-  const node = type!.createUnsafe(
+  return type!.createUnsafe(
     decodeAttrsOrFail(type!.attrs, json.attrs, `node ${json.type}`) as any,
     content as any,
     marks
-  )
-  type!.checkAttrs(node.attrs)
-  return node as Node<Sc>
+  ) as Node<Sc>
 }
 
 /** @internal */

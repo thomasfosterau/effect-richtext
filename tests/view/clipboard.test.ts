@@ -1,12 +1,15 @@
 // Ported from prosemirror-view/test/webtest-clipboard.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
-import { DocSchema, Fragment, Slice } from "effect-richtext/model"
+import { Content, DocSchema, Fragment, Slice } from "effect-richtext/model"
 import { NodeSelection, TextSelection } from "effect-richtext/state"
 import { blockquote, br, doc, eq, hr, li, ol, p, strong, ul } from "effect-richtext/test-builder"
 import ist from "../utils/ist.ts"
+import { getSome } from "../utils/option.ts"
 import { tempEditor } from "./helpers.ts"
 
 import { __parseFromClipboard } from "effect-richtext/view"
+
+const embedContext = (url: string) => `<p data-pm-slice='1 1 ["embed",{"url":"${url}"}]'>hi</p>`
 
 const parseFromClipboard = (...args: Parameters<typeof __parseFromClipboard>) => __parseFromClipboard(...args)!
 
@@ -194,6 +197,51 @@ describe("Clipboard interface", () => {
     ist(
       parseFromClipboard(tempEditor({ doc }), "", html, false, doc.resolveUnsafe(1)) + "",
       '<tr(td("123")), tr(td("123"))>(1,1)'
+    )
+  })
+
+  // prosemirror-view 1.42.3 (XSS): context attributes in a pasted
+  // data-pm-slice go through the schema's validators.
+  it("drops slice context whose attributes the schema rejects", () => {
+    const s = DocSchema.makeUnsafe({
+      nodes: {
+        doc: { content: Content.parse("block+") },
+        paragraph: { group: "block", content: Content.parse("text*"), parseDOM: [{ tag: "p" }], toDOM: () => ["p", 0] },
+        embed: {
+          group: "block",
+          content: Content.parse("block+"),
+          attrs: {
+            url: {
+              default: "https://ok.example",
+              validate: (u) => {
+                if (!String(u).startsWith("https:")) throw new RangeError("bad url")
+              }
+            }
+          },
+          toDOM: (n) => ["div", { "data-url": n.attrs.url }, 0]
+        },
+        text: {}
+      }
+    })
+    const d = s.nodeUnsafe("doc", null, [s.nodeUnsafe("paragraph")])
+    const view = tempEditor({ doc: d })
+    const evil = parseFromClipboard(view, "", embedContext("javascript:alert(1)"), false, d.resolveUnsafe(1))
+    ist(getSome(evil.content.firstChild).type.name, "paragraph")
+    const fine = getSome(
+      parseFromClipboard(view, "", embedContext("https://fine.example"), false, d.resolveUnsafe(1)).content.firstChild
+    )
+    ist(fine.type.name, "embed")
+    ist(fine.attrs.url, "https://fine.example")
+  })
+
+  // prosemirror-view 1.42.0
+  it("applies style sheets in pasted HTML before parsing", () => {
+    const view = tempEditor({ doc: doc(p("<a>")) })
+    const html = '<style>.b { font-weight: bold }</style><p><span class="b">bold</span> plain</p>'
+    ist(
+      parseFromClipboard(view, "", html, false, view.state.doc.resolveUnsafe(1)),
+      doc(p(strong("bold"), " plain")).sliceUnsafe(1, 11, true),
+      eq
     )
   })
 })

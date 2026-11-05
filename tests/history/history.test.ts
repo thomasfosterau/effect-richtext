@@ -1,5 +1,6 @@
 // Ported from prosemirror-history/test/test-history.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
+import * as Arr from "effect/Array"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import { closeHistory, history, type HistoryCommand, redo, redoDepth, undo, undoDepth } from "effect-richtext/history"
@@ -426,5 +427,32 @@ describe("history", () => {
     state = command(state, undo)
     // The mapped selection must still fall inside the document.
     ist(state.selection.to <= state.doc.content.size)
+  })
+
+  // prosemirror-history 1.5.1: a rebase that covers more steps than the
+  // history holds (here one local step was kept out of it) must not
+  // misalign the remaining items.
+  it("rebases correctly when more steps were rebased than the history holds", () => {
+    let state = mkState(doc(p("abc")))
+    const t1 = state.tr.insertTextUnsafe("1", 2).setMeta("addToHistory", false)
+    state = state.applyUnsafe(t1)
+    const t2 = state.tr.insertTextUnsafe("2", 4)
+    state = state.applyUnsafe(t2)
+    const local = [...t1.steps, ...t2.steps],
+      docs = [...t1.docs, ...t2.docs]
+    // Collab-style rebase over a remote insertion at 1.
+    const tr = state.tr
+    Arr.reverse(Arr.zip(local, docs)).forEach(([step, before]) => tr.stepUnsafe(step.invert(before)))
+    tr.insertTextUnsafe("R", 1)
+    local.forEach((step, i) => {
+      const mapped = step.map(tr.mapping.slice(local.length - i))
+      if (Option.isSome(mapped) && tr.maybeStep(mapped.value).failedOrNull === null) {
+        tr.mapping.setMirror(local.length - 1 - i, tr.steps.length - 1)
+      }
+    })
+    state = state.applyUnsafe(tr.setMeta("rebased", local.length).setMeta("addToHistory", false))
+    ist(state.doc, doc(p("Ra1b2c")), eq)
+    state = command(state, undo)
+    ist(state.doc, doc(p("Ra1bc")), eq)
   })
 })

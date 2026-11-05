@@ -20,7 +20,7 @@ import {
 import { TextSelection } from "../state.ts"
 import * as browser from "./browser.ts"
 import type { Decoration, DecorationSource, NodeType, WidgetConstructor, WidgetType } from "./decoration.ts"
-import { domIndex, type DOMNode, isEquivalentPosition } from "./dom.ts"
+import { domIndex, type DOMNode, isElt, isEquivalentPosition } from "./dom.ts"
 import type { EditorView } from "./view.ts"
 
 type AnyView = EditorView<any, any, any>
@@ -151,6 +151,13 @@ export interface MarkView {
   contentDOM?: HTMLElement | null | undefined
 
   /**
+   * Called when the mark at this position changes to another mark of the
+   * same type. Return true to keep this view (it now represents `mark`),
+   * false to have it redrawn.
+   */
+  update?: ((mark: Mark<any, any>) => boolean) | undefined
+
+  /**
    * Called when a mutation happens within the view. Return false if the
    * editor should re-read the selection or re-parse the range around
    * the mutation, true if it can safely be ignored.
@@ -248,7 +255,7 @@ export class ViewDesc {
   // When parsing in-editor content (in domchange.js), we allow
   // descriptions to determine the parse rules that should be used to
   // parse them.
-  parseRule(): ParseRuleLike | null {
+  parseRule(_addedNodes?: ReadonlyArray<DOMNode>): ParseRuleLike | null {
     return null
   }
 
@@ -338,7 +345,14 @@ export class ViewDesc {
     if (dom == this.dom && this.contentDOM) {
       atEnd = offset > domIndex(this.contentDOM)
     } else if (this.contentDOM && this.contentDOM != this.dom && this.dom.contains(this.contentDOM)) {
-      atEnd = dom.compareDocumentPosition(this.contentDOM) & 2
+      const rel = dom.compareDocumentPosition(this.contentDOM)
+      if (rel & 16) {
+        // this.contentDOM is inside dom
+        atEnd = offset > Array.from(dom.childNodes).findIndex((n) => n.contains(this.contentDOM))
+      } else {
+        // Check if after or before
+        atEnd = !(rel & 4)
+      }
     } else if (this.dom.firstChild) {
       if (offset == 0) {
         for (let search = dom; ; search = search.parentNode!) {
@@ -432,7 +446,7 @@ export class ViewDesc {
     for (let curPos = 0; i < this.children.length; i++) {
       const child = this.children[i]!,
         end = curPos + child.size
-      if (end > pos || child instanceof TrailingHackViewDesc) {
+      if (end > pos) {
         offset = pos - curPos
         break
       }
@@ -441,9 +455,8 @@ export class ViewDesc {
     // If this points into the middle of a child, call through
     if (offset) return this.children[i]!.domFromPos(offset - this.children[i]!.border, side)
     // Go back if there were any zero-length widgets with side >= 0 before this point
-    for (let prev; i && !(prev = this.children[i - 1]!).size && prev instanceof WidgetViewDesc && prev.side >= 0; i--) {
-      // empty
-    }
+    // (or buffer hack nodes)
+    while (i > 0 && skippableBefore(this.children, i)) i--
     // Scan towards the first useable node
     if (side <= 0) {
       let prev,
@@ -724,13 +737,14 @@ class WidgetViewDesc extends ViewDesc {
       })
     }
     if (!widget.type.spec.raw) {
-      if (dom.nodeType != 1) {
-        const wrap = document.createElement("span")
-        wrap.appendChild(dom)
-        dom = wrap
+      const elt = isElt(dom) ? dom : document.createElement("span")
+      if (elt != dom) {
+        elt.appendChild(dom)
+        dom = elt
       }
-      ;(dom as HTMLElement).contentEditable = "false"
-      ;(dom as HTMLElement).classList.add("ProseMirror-widget")
+      // Keep a contenteditable attribute the widget set itself (prosemirror-view 1.42.3).
+      if (!elt.hasAttribute("contenteditable")) elt.contentEditable = "false"
+      elt.classList.add("ProseMirror-widget")
     }
     super(parent, [], dom, null)
     cell.desc = this
@@ -808,7 +822,7 @@ export class CompositionViewDesc extends ViewDesc {
 class MarkViewDesc extends ViewDesc {
   constructor(
     parent: ViewDesc,
-    readonly mark: Mark<any, any>,
+    public mark: Mark<any, any>,
     dom: DOMNode,
     contentDOM: HTMLElement,
     readonly spec: Partial<MarkView>
@@ -959,7 +973,7 @@ export class NodeViewDesc extends ViewDesc {
     }
   }
 
-  override parseRule(): ParseRuleLike | null {
+  override parseRule(addedNodes?: ReadonlyArray<DOMNode>): ParseRuleLike | null {
     // Experimental kludge to allow opt-in re-parsing of nodes
     if (this.node.type.spec.reparseInView) return null
     // FIXME the assumption that this can always return the current
@@ -983,7 +997,16 @@ export class NodeViewDesc extends ViewDesc {
           break
         }
       }
-      if (!rule.contentElement) rule.getContent = () => Fragment.empty
+      if (!rule.contentElement) {
+        // Chrome/WebKit may also swap the content DOM for a completely
+        // new element (prosemirror-view 1.42.2).
+        const found = addedNodes?.find(
+          (n): n is HTMLElement =>
+            isElt(n) && (!n.parentNode || addedNodes.indexOf(n.parentNode) < 0) && this.dom.contains(n)
+        )
+        if (found) rule.contentElement = found
+        else rule.getContent = () => Fragment.empty
+      }
     }
     return rule
   }
@@ -1016,6 +1039,11 @@ export class NodeViewDesc extends ViewDesc {
     const localComposition = composition && composition.pos > -1 ? composition : null
     const compositionInChild = composition && composition.pos < 0
     const updater = new ViewTreeUpdater(this, localComposition && localComposition.node, view)
+    // Put a buffer node in front of inline atoms at the start of a block
+    // or right after another atom, so browsers have a cursor position
+    // there (prosemirror-view 1.42.6).
+    const addBuffers = this.node.inlineContent
+    let atBufferPos = addBuffers && this.node.isBlock
     iterDeco(
       this.node,
       this.innerDeco,
@@ -1037,6 +1065,7 @@ export class NodeViewDesc extends ViewDesc {
       (child, outerDeco, innerDeco, i) => {
         // Make sure the wrapping mark descs match the node's marks.
         updater.syncToMarks(child.marks, inline, view, i)
+        if (atBufferPos && child.isAtom && !child.isText) updater.addHackNode("IMG", updater.top)
         // Try several strategies for drawing this node
         let compIndex
         if (updater.findNodeMatch(child, outerDeco, innerDeco, i)) {
@@ -1056,6 +1085,7 @@ export class NodeViewDesc extends ViewDesc {
           updater.addNode(child, outerDeco, innerDeco, view, off)
         }
         off += child.nodeSize
+        if (addBuffers) atBufferPos = child.isAtom && !child.isText
       }
     )
     // Drop all remaining descs after the current position.
@@ -1271,9 +1301,9 @@ class TextViewDesc extends NodeViewDesc {
   }
 }
 
-// A dummy desc used to tag trailing BR or IMG nodes created to work
+// A dummy desc used to tag extra BR or IMG nodes created to work
 // around contentEditable terribleness.
-class TrailingHackViewDesc extends ViewDesc {
+class BufferHackViewDesc extends ViewDesc {
   override parseRule() {
     return { ignore: true }
   }
@@ -1286,6 +1316,14 @@ class TrailingHackViewDesc extends ViewDesc {
   override get ignoreForCoords() {
     return this.dom.nodeName == "IMG"
   }
+}
+
+// Zero-size descs that domFromPos steps back over: widgets with side >= 0
+// and buffer hack nodes (prosemirror-view 1.42.6).
+function skippableBefore(children: ReadonlyArray<ViewDesc>, index: number): boolean {
+  const desc = children[index - 1]
+  if (!desc || desc.size) return false
+  return desc instanceof BufferHackViewDesc || (desc instanceof WidgetViewDesc && desc.side >= 0)
 }
 
 // A separate subclass is used for customized node views, so that the
@@ -1591,6 +1629,25 @@ class ViewTreeUpdater {
           break
         }
       }
+      // When nothing matches, try to update the mark view at this position
+      // in place, so a custom mark view can adapt to a changed mark without
+      // re-creating its DOM (prosemirror-view 1.42.0).
+      const cur = this.top.children.at(this.index),
+        want = marks.at(depth)
+      if (found < 0 && want) {
+        if (
+          cur instanceof MarkViewDesc &&
+          cur.dirty != NODE_DIRTY &&
+          cur.mark.type == want.type &&
+          cur.spec.update &&
+          !this.isLocked(cur.dom) &&
+          cur.spec.update(want)
+        ) {
+          cur.mark = want
+          found = this.index
+          this.changed = true
+        }
+      }
       if (found > -1) {
         if (found > this.index) {
           this.changed = true
@@ -1825,7 +1882,7 @@ class ViewTreeUpdater {
         ;(dom as HTMLImageElement).alt = ""
       }
       if (nodeName == "BR") dom.className = "ProseMirror-trailingBreak"
-      const hack = new TrailingHackViewDesc(this.top, [], dom, null)
+      const hack = new BufferHackViewDesc(this.top, [], dom, null)
       if (parent != this.top) parent.children.push(hack)
       else parent.children.splice(this.index++, 0, hack)
       this.changed = true

@@ -88,6 +88,12 @@ describe("Mapping", () => {
     testDel(mk([3, 1, 0], [0, 2, 0]), 2, -1, "db")
   })
 
+  it("sets no deletion flags for pure insertions (transform 1.12.2)", () => {
+    testDel(mk([2, 0, 3]), 2, -1, "")
+    testDel(mk([2, 0, 3]), 2, 1, "")
+    testDel(mk([2, 0, 3], [0, 0, 1]), 5, -1, "")
+  })
+
   it("exposes mirrors as options", () => {
     const m = mk([2, 4, 0], [2, 0, 4], { 0: 1 })
     ist(getSome(m.getMirror(0)), 1)

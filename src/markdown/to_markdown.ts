@@ -6,7 +6,7 @@
 // Ported from prosemirror-markdown (MIT, Marijn Haverbeke and others)
 import * as Arr from "effect/Array"
 import * as Order from "effect/Order"
-import type { AnySchema, Attrs, Mark, Node, TextNode } from "../model.ts"
+import { type AnySchema, type Attrs, Mark, type Node, type TextNode } from "../model.ts"
 import { MarkdownError } from "./errors.ts"
 
 /**
@@ -215,7 +215,7 @@ export const defaultMarkdownSerializer: MarkdownSerializer = new MarkdownSeriali
       state.renderList(node, "  ", () => (node.attrs.bullet || "*") + " ")
     },
     ordered_list(state, node) {
-      const start = node.attrs.order || 1
+      const start = node.attrs.order ?? 1
       const maxW = String(start + node.childCount - 1).length
       const space = state.repeat(" ", maxW + 2)
       state.renderList(node, space, (i) => {
@@ -368,7 +368,7 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
 
   /** @internal */
   atBlank(): boolean {
-    return /(^|\n)$/.test(this.out)
+    return !this.out || this.out[this.out.length - 1] == "\n"
   }
 
   /** Ensure the current content ends with a newline. */
@@ -398,7 +398,7 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
     for (let i = 0; i < lines.length; i++) {
       this.write()
       // Escape exclamation marks in front of links
-      if (!escape && lines[i]![0] == "[" && /(^|[^\\])!$/.test(this.out)) {
+      if (!escape && lines[i]![0] == "[" && /(^|[^\\])!$/.test(this.out.slice(-2))) {
         this.out = this.out.slice(0, this.out.length - 1) + "\\!"
       }
       this.out += escape ? this.esc(lines[i]!, this.atBlockStart) : lines[i]
@@ -449,40 +449,6 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
         })
       }
 
-      let leading = trailing
-      trailing = ""
-      // If whitespace has to be expelled from the node, adjust
-      // leading and trailing accordingly.
-      if (
-        node &&
-        node.isText &&
-        marks.some((mark) => {
-          const info = this.getMark(mark.type.name)
-          return info && info.expelEnclosingWhitespace && !mark.isInSet(active)
-        })
-      ) {
-        const [_, lead, rest] = /^(\s*)(.*)$/m.exec((node as TextNode<Sc>).text)!
-        if (lead) {
-          leading += lead
-          node = rest ? (node as TextNode<Sc>).withText(rest) : null
-          if (!node) marks = active
-        }
-      }
-      if (
-        node &&
-        node.isText &&
-        marks.some((mark) => {
-          const info = this.getMark(mark.type.name)
-          return info && info.expelEnclosingWhitespace && !this.isMarkAhead(parent, index + 1, mark)
-        })
-      ) {
-        const [_, rest, trail] = /^(.*?)(\s*)$/m.exec((node as TextNode<Sc>).text)!
-        if (trail) {
-          trailing = trail
-          node = rest ? (node as TextNode<Sc>).withText(rest) : null
-          if (!node) marks = active
-        }
-      }
       const inner = marks.length ? marks[marks.length - 1]! : null
       const noEsc = inner && this.getMark(inner.type.name).escape === false
       const len = marks.length - (noEsc ? 1 : 0)
@@ -520,8 +486,48 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
       let keep = 0
       while (keep < Math.min(active.length, len) && marks[keep]!.eq(active[keep]!)) ++keep
 
+      let leading = trailing
+      trailing = ""
+      // If whitespace has to be expelled from the node, adjust
+      // leading and trailing accordingly. This runs once the kept
+      // prefix of marks is known, so whitespace is only expelled from
+      // marks that actually open or close here (prosemirror-markdown
+      // 1.13.6 / 1.13.7).
+      if (
+        node &&
+        node.isText &&
+        marks.some((mark) => {
+          const info = this.getMark(mark.type.name)
+          return info && info.expelEnclosingWhitespace && !active.some((m, i) => i < keep && m.eq(mark))
+        })
+      ) {
+        const [_, lead, rest] = /^(\s*)(.*)$/m.exec((node as TextNode<Sc>).text)!
+        if (lead) {
+          leading += lead
+          node = rest ? (node as TextNode<Sc>).withText(rest) : null
+          if (!node) marks = active
+        }
+      }
+      if (
+        node &&
+        node.isText &&
+        marks.some((mark, i) => {
+          const info = this.getMark(mark.type.name)
+          return info && info.expelEnclosingWhitespace && !this.isMarkAhead(parent, index + 1, marks.slice(0, i + 1))
+        })
+      ) {
+        const [_, rest, trail] = /^(.*?)(\s*)$/m.exec((node as TextNode<Sc>).text)!
+        if (trail) {
+          trailing = trail
+          node = rest ? (node as TextNode<Sc>).withText(rest) : null
+          if (!node) marks = active
+        }
+      }
+
       // Close the marks that need to be closed
-      while (keep < active.length) this.text(this.markString(active.pop()!, false, parent, index), false)
+      if (node || index == parent.childCount) {
+        while (keep < active.length) this.text(this.markString(active.pop()!, false, parent, index), false)
+      }
 
       // Output any previously expelled trailing whitespace outside the marks
       if (leading) this.text(leading)
@@ -548,16 +554,14 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
           this.render(node, parent, index)
         }
         this.atBlockStart = false
-      }
 
-      // After the first non-empty text node is rendered, the end of output
-      // is no longer at block start.
-      //
-      // FIXME: If a non-text node writes something to the output for this
-      // block, the end of output is also no longer at block start. But how
-      // can we detect that?
-      if (node?.isText && node.nodeSize > 0) {
-        this.atBlockStart = false
+        // After the first non-empty text node is rendered, the end of output
+        // is no longer at block start.
+        //
+        // FIXME: If a non-text node writes something to the output for this
+        // block, the end of output is also no longer at block start. But how
+        // can we detect that?
+        if (node.isText && node.nodeSize > 0) this.atBlockStart = false
       }
     }
     parent.forEach(progress)
@@ -638,11 +642,13 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
   }
 
   /** @internal */
-  isMarkAhead(parent: Node<Sc, any>, index: number, mark: Mark<Sc, any>): boolean {
+  isMarkAhead(parent: Node<Sc, any>, index: number, marks: ReadonlyArray<Mark<Sc, any>>): boolean {
     for (; ; index++) {
       if (index >= parent.childCount) return false
       const next = parent.childUnsafe(index)
-      if (next.type.name != this.options.hardBreakNodeName) return mark.isInSet(next.marks)
+      if (next.type.name != this.options.hardBreakNodeName) {
+        return next.marks.length >= marks.length && Mark.sameSet(next.marks.slice(0, marks.length), marks)
+      }
       index++
     }
   }

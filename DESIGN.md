@@ -91,7 +91,7 @@ attrs: {
 }
 ```
 
-Attribute schemas are checked by `Node.check`, and used to decode/encode JSON (`DocSchema.nodeFromJSON`, `Node.toJSON`, `NodeFromJSON(schema)` codec).
+Supplied attribute values are validated against their schema (and any `validate`) whenever a node or mark is created, as prosemirror-model does since 1.25.12, and again by `Node.check`; defaults are trusted. Schemas also decode/encode JSON (`DocSchema.nodeFromJSON`, `Node.toJSON`, `NodeFromJSON(schema)` codec).
 
 ### Commands and plugins (state/view layers)
 

@@ -55,14 +55,20 @@ import { Node, TextNode } from "./node.ts"
 /**
  * Describes a single attribute of a node or mark type.
  *
- * - `schema` is an Effect `Schema` used to validate the value (in
- *   `Node.check`) and to decode/encode it from/to JSON. It also gives
- *   the attribute its static type.
+ * - `schema` is an Effect `Schema` used to validate the value and to
+ *   decode/encode it from/to JSON. It also gives the attribute its
+ *   static type.
  * - `default` is used when no value is provided. Attributes without a
  *   default are required.
  * - `validate` is accepted for ProseMirror compatibility: either a
  *   `|`-separated list of primitive type names or a function that
  *   throws on invalid values.
+ *
+ * Supplied values are validated whenever a node or mark is created (as
+ * prosemirror-model does since 1.25.12), and again by `Node.check`;
+ * defaults are trusted. A `schema` or a type-name `validate` rejects a
+ * value with an `AttributeError`; a `validate` function's own exception
+ * propagates as thrown (a defect in the Effect API).
  *
  * @since 0.1.0
  * @category models
@@ -538,14 +544,29 @@ function defaultAttrs(attrs: Record<string, Attribute>): Attrs | null {
 }
 
 /** @internal */
-export function computeAttrs(attrs: Record<string, Attribute>, value: Attrs | null | undefined): Attrs {
+export function computeAttrs(
+  attrs: Record<string, Attribute>,
+  value: Attrs | null | undefined,
+  type: string,
+  typeName: string
+): Attrs {
   const built = Object.create(null)
   for (const name in attrs) {
+    const attr = attrs[name]!
     let given = value && value[name]
     if (given === undefined) {
-      const attr = attrs[name]!
       if (attr.hasDefault) given = attr.default
       else throw new AttributeError({ message: "No value supplied for attribute " + name })
+    } else {
+      // Validate every supplied value at creation, so no way of creating
+      // a node or mark can skip it (prosemirror-model 1.25.12). Defaults
+      // are trusted.
+      if (attr.validate) attr.validate(given)
+      if (attr.is && !attr.is(given)) {
+        throw new AttributeError({
+          message: `Invalid value for attribute ${name} on ${type} of type ${typeName}: ${showJson(given)}`
+        })
+      }
     }
     built[name] = given
   }
@@ -660,11 +681,12 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   /** @internal */
   computeAttrs(attrs: Attrs | null | undefined): Attrs {
     if (!attrs && this.defaultAttrs) return this.defaultAttrs
-    return computeAttrs(this.attrs, attrs)
+    return computeAttrs(this.attrs, attrs, "node", this.name)
   }
 
   /**
-   * Create a node of this type. Attributes are extended with defaults;
+   * Create a node of this type. Attributes are extended with defaults,
+   * and supplied attribute values are validated (see `AttributeSpec`);
    * content is not checked against the content expression (see
    * `createChecked`).
    */
@@ -844,7 +866,8 @@ export class MarkType<Sc extends AnySchema = AnySchema, out M extends MarkNames<
 
   /**
    * Create a mark of this type. Attributes that are not given are
-   * filled in from their defaults.
+   * filled in from their defaults; supplied values are validated (see
+   * `AttributeSpec`).
    */
   create(attrs?: MarkAttrsInput<Sc, M> | null): Effect.Effect<Mark<Sc, M>, AttributeError> {
     return attempt(() => this.createUnsafe(attrs), isAttributeError)
@@ -853,7 +876,7 @@ export class MarkType<Sc extends AnySchema = AnySchema, out M extends MarkNames<
   /** Like `create`, but throws an `AttributeError` on failure. */
   createUnsafe(attrs?: MarkAttrsInput<Sc, M> | null): Mark<Sc, M> {
     if (!attrs && this.instance) return this.instance
-    return new Mark(this, computeAttrs(this.attrs, attrs) as any)
+    return new Mark(this, computeAttrs(this.attrs, attrs, "mark", this.name) as any)
   }
 
   /**

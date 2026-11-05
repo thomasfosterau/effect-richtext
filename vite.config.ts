@@ -144,9 +144,9 @@ export default defineConfig({
       // thomasfosterau/effect-richtext#3. Lower the count as sites are
       // fixed, and delete the line (back to the preset's `error`) when it
       // reaches zero.
-      "effect/avoid-non-null-assertion": "warn", // 1315
-      "effect/require-safety-comment-for-type-assertion": "warn", // 1049
-      "effect/prefer-option-over-null": "warn", // 1010
+      "effect/avoid-non-null-assertion": "warn", // 1308
+      "effect/require-safety-comment-for-type-assertion": "warn", // 1045
+      "effect/prefer-option-over-null": "warn", // 1007
       "effect/imperative-loops": "warn", // 608
       "effect/avoid-any": "warn", // 444
       "effect/no-runtime-typeof": "warn", // 77
@@ -158,7 +158,7 @@ export default defineConfig({
       "effect/effect-run-in-body": "warn", // 34
       "effect/avoid-try-catch": "warn", // 30
       "effect/no-chained-type-assertions": "warn", // 25
-      "effect/use-clock-service": "warn", // 24
+      "effect/use-clock-service": "warn", // 20
       "effect/no-unknown-returns": "warn", // 22
       "effect/yield-in-for-loop": "warn", // 18
       // The `suspicious` and `unicorn` rules joined with the move to
@@ -166,7 +166,7 @@ export default defineConfig({
       // `schema` and keep ProseMirror's per-test helper closures, and src/
       // keeps ProseMirror's local names. Tracked in
       // thomasfosterau/effect-richtext#19.
-      "eslint/no-shadow": "warn", // 317
+      "eslint/no-shadow": "warn", // 316
       "unicorn/consistent-function-scoping": "warn", // 117
       // ---- Type-aware allowances (tsgolint, see `options` below) ------------
       // Turned on with Vite+ 1.4; the same rules as above (a new site is a
@@ -176,8 +176,8 @@ export default defineConfig({
       // tsgolint's verdict on "unnecessary" differs from the `check` task's
       // tsc on enough of them that the autofix breaks the type gate, so each
       // site is removed by hand, against `vp run check`.
-      "typescript/no-unsafe-type-assertion": "warn", // 889
-      "typescript/no-unnecessary-type-assertion": "warn", // 720
+      "typescript/no-unsafe-type-assertion": "warn", // 887
+      "typescript/no-unnecessary-type-assertion": "warn", // 713
       "typescript/no-unnecessary-type-arguments": "warn", // 54
       "effecttsgo/any-unknown-in-error-context": "warn", // 54
       "typescript/unbound-method": "warn", // 43

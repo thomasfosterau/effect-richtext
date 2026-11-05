@@ -137,11 +137,9 @@ export const unwrapArrayOrNull = (arr: ReadonlyArray<any> | null | undefined): a
  * @since 0.1.0
  * @category errors
  */
-export class ReplaceError extends Error {
-  override get name(): string {
-    return "ReplaceError"
-  }
-}
+// Like prosemirror-model's `class ReplaceError extends Error {}`, `name`
+// stays "Error"; tell it apart with `instanceof`.
+export class ReplaceError extends Error {}
 
 /**
  * An error thrown when a transform step fails or a structural

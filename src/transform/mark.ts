@@ -5,6 +5,7 @@
  */
 import * as Option from "effect/Option"
 import { type ContentMatch, Fragment, type Mark, MarkType, type NodeType, Slice, type TextNode } from "../model.ts"
+import { pushMarkStep } from "./mark_set_step.ts"
 import { AddMarkStep, RemoveMarkStep } from "./mark_step.ts"
 import { ReplaceStep } from "./replace_step.ts"
 import type { Step } from "./step.ts"
@@ -12,36 +13,17 @@ import type { Transform } from "./transform.ts"
 
 /** @internal */
 export function addMark(tr: Transform<any>, from: number, to: number, mark: Mark<any>): void {
-  const removed: Array<Step<any>> = [],
-    added: Array<Step<any>> = []
-  let removing: RemoveMarkStep<any> | undefined, adding: AddMarkStep<any> | undefined
+  // Excluded marks are dropped by the step itself; its inverse restores them (transform 1.12.3).
+  const added: Array<AddMarkStep<any> | RemoveMarkStep<any>> = []
   tr.doc.nodesBetween(from, to, (node, pos, parent) => {
     if (!node.isInline) return
     const marks = node.marks
     if (!mark.isInSet(marks) && Option.isSome(parent) && parent.value.type.allowsMarkType(mark.type)) {
       const start = Math.max(pos, from),
         end = Math.min(pos + node.nodeSize, to)
-      const newSet = mark.addToSet(marks)
-
-      for (let i = 0; i < marks.length; i++) {
-        if (!marks[i]!.isInSet(newSet)) {
-          if (removing && removing.to === start && removing.mark.eq(marks[i]!)) {
-            ;(removing as { to: number }).to = end
-          } else {
-            removed.push((removing = new RemoveMarkStep(start, end, marks[i]!)))
-          }
-        }
-      }
-
-      if (adding && adding.to === start) {
-        ;(adding as { to: number }).to = end
-      } else {
-        added.push((adding = new AddMarkStep(start, end, mark)))
-      }
+      pushMarkStep(AddMarkStep, start, end, mark, added)
     }
   })
-
-  removed.forEach((s) => tr.stepUnsafe(s))
   added.forEach((s) => tr.stepUnsafe(s))
 }
 
@@ -55,7 +37,7 @@ export function removeMark(
   const matched: Array<{ style: Mark<any>; from: number; to: number; step: number }> = []
   let step = 0
   tr.doc.nodesBetween(from, to, (node, pos) => {
-    if (!node.isInline) return
+    if (!node.isInline || !node.isAtom) return
     step++
     let toRemove: ReadonlyArray<Mark<any>> | null = null
     if (mark instanceof MarkType) {

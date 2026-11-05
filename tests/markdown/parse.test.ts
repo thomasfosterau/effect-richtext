@@ -254,4 +254,13 @@ describe("markdown", () => {
     )
     same(mdText, doc(schema.nodeUnsafe("code_block", { params: "" }, [schema.textUnsafe(originalText)])))
   })
+
+  // prosemirror-markdown 1.13.6 / 1.13.7: whitespace is only expelled from
+  // marks that open or close at that node, so no stray delimiters appear.
+  it("expels whitespace correctly when a mark run is broken up", () =>
+    serialize(doc(p(em(strong("a")), strong(" b"), "c")), "***a*** **b**c"))
+
+  // prosemirror-markdown 1.13.5
+  it("keeps an ordered list starting at 0", () =>
+    serialize(doc(schema.nodeUnsafe("ordered_list", { order: 0 }, [li(p("x"))])), "0. x"))
 })

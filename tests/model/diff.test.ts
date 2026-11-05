@@ -40,6 +40,9 @@ describe("Fragment", () => {
     it("works when the difference is at the start", () => start(doc("<a>", p("b")), doc(h1("b"))))
 
     it("notices a different attribute", () => start(doc(p("a"), "<a>", h1("foo")), doc(p("a"), h2("foo"))))
+
+    // prosemirror-model 1.25.8: U+1F600 / U+1F601 share their high surrogate.
+    it("doesn't point into a surrogate pair", () => start(doc(p("x<a>\u{1F600}")), doc(p("x\u{1F601}"))))
   })
 
   describe("findDiffEnd", () => {
@@ -77,5 +80,8 @@ describe("Fragment", () => {
     it("notices a difference at the end", () => end(doc(p("b"), "<a>"), doc(h1("b"))))
 
     it("handles a similar start", () => end(doc("<a>", p("hello")), doc(p("hey"), p("hello"))))
+
+    // U+1F600 / U+1D600 share their low surrogate.
+    it("doesn't point into a surrogate pair", () => end(doc(p("x\u{1F600}<a>")), doc(p("x\u{1D600}"))))
   })
 })

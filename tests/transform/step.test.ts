@@ -7,10 +7,14 @@ import { Fragment, Slice } from "effect-richtext/model"
 import { doc, eq, p, schema } from "effect-richtext/test-builder"
 import {
   AddMarkStep,
+  AttrStep,
+  Mapping,
   RemoveMarkStep,
+  ReplaceAroundStep,
   ReplaceStep,
   Step,
   StepFromJSON,
+  StepMap,
   StepResult,
   Transform
 } from "effect-richtext/transform"
@@ -137,5 +141,23 @@ describe("Step", () => {
     it("refuses duplicate step JSON ids", () => {
       ist.throws(() => Step.jsonID("replace", ReplaceStep), /Duplicate use of step JSON ID/)
     })
+  })
+})
+
+describe("Step mapping", () => {
+  // transform 1.12.2: insertions no longer count as deleting the mapped position.
+  it("keeps node-targeted steps mapped over an insertion at their position", () => {
+    const mapped = getSome(new AttrStep(5, "level", 2).map(new Mapping([new StepMap([5, 0, 2])])))
+    ist(mapped instanceof AttrStep && mapped.pos, 7)
+  })
+
+  it("drops node-targeted steps whose node is deleted", () => {
+    ist(Option.isNone(new AttrStep(5, "level", 2).map(new Mapping([new StepMap([4, 3, 0])]))))
+  })
+
+  // transform 1.12.5: a mapped ReplaceAroundStep must keep from <= gapFrom <= gapTo <= to.
+  it("drops a ReplaceAroundStep whose range would invert", () => {
+    const step = new ReplaceAroundStep(4, 4, 4, 4, Slice.empty, 0, true)
+    ist(Option.isNone(step.map(new Mapping([new StepMap([4, 0, 2])]))))
   })
 })

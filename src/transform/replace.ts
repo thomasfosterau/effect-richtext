@@ -212,14 +212,11 @@ class Fitter {
   }
 
   openMore(): boolean {
-    const { content, openEnd, openStart } = this.unplaced
-    const inner = contentAt(content, openStart)
-    if (!inner.childCount || inner.content[0]!.isLeaf) return false
-    this.unplaced = new Slice(
-      content,
-      openStart + 1,
-      Math.max(openEnd, inner.size + openStart >= content.size - openEnd ? openStart + 1 : 0)
-    )
+    const { content, openStart } = this.unplaced
+    let { openEnd } = this.unplaced
+    if (maxOpen(content, -1) <= openStart) return false
+    if (this.unplaced.size > 1 && maxOpen(content, 1) > openEnd) openEnd++
+    this.unplaced = new Slice(content, openStart + 1, openEnd)
     return true
   }
 
@@ -299,17 +296,16 @@ class Fitter {
       this.closeFrontierNode()
 
     // Add new frontier nodes for any open nodes at the end.
-    for (let i = 0, cur = fragment; i < openEndCount; i++) {
-      const node = cur.content[cur.content.length - 1]!
-      this.frontier.push({ type: node.type, match: node.contentMatchAtUnsafe(node.childCount) })
-      cur = node.content
+    for (let i = 0, cur = add.at(-1); cur && i < openEndCount; i++) {
+      this.frontier.push({ type: cur.type, match: cur.contentMatchAtUnsafe(cur.childCount) })
+      cur = cur.content.content.at(-1)
     }
 
     // Update `this.unplaced`. Drop the entire node from which we
     // placed it we got to its end, otherwise just drop the placed
     // nodes.
     this.unplaced = !toEnd
-      ? new Slice(dropFromFragment(slice.content, sliceDepth, taken), slice.openStart, slice.openEnd)
+      ? new Slice(dropFromFragment(slice.content, sliceDepth, taken), sliceDepth, slice.openEnd)
       : sliceDepth === 0
         ? Slice.empty
         : new Slice(
@@ -439,6 +435,13 @@ function invalidMarks(type: NodeType<any, any>, fragment: Fragment<any>, start: 
 
 function definesContent(type: NodeType<any, any>): boolean | undefined {
   return type.spec.defining || type.spec.definingForContent
+}
+
+// The depth to which `frag` can be opened on the given side: the number
+// of non-atom nodes along its first (`-1`) or last (`1`) edge.
+function maxOpen(frag: Fragment<any>, side: -1 | 1): number {
+  const ch = side < 0 ? frag.content[0] : frag.content.at(-1)
+  return !ch || ch.isAtom ? 0 : 1 + maxOpen(ch.content, side)
 }
 
 /** @internal */
