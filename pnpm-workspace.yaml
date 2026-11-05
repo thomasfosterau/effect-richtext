@@ -35,7 +35,7 @@ catalog:
   # on any other component version, failing `pnpm install` itself. Read the
   # `components` table in node_modules/@effect/tsgo/dist/effect-tsgo.cjs
   # before bumping any of the three.
-  "@effect/tsgo": 0.63.0
+  "@effect/tsgo": 0.67.0
   # `it.effect` / `layer` helpers on top of the vitest singleton below.
   "@effect/vitest": 4.0.6
   # The Effect lint rules (`effect/*`, the anti-slop set included) that
@@ -43,14 +43,14 @@ catalog:
   # singleton (the `effect` override below); its load in `vite.config.ts`
   # calls Effect APIs, so an `effect` bump re-runs `vp check` against it too.
   # Moves with the toolchain group (it is checked against vite-plus's oxlint).
-  "@enfect/oxlint": 0.9.0
+  "@enfect/oxlint": 0.10.0
   "@types/node": ^26.6.6
   # The Playwright provider behind `vite-plus/test/browser-playwright` (the
   # `browser` test project, real Chromium); vite-plus re-exports it but does
   # not install it. Must equal `vitest` below: its peer is the exact version.
-  "@vitest/browser-playwright": 5.0.5
+  "@vitest/browser-playwright": 5.1.0
   # Must equal `vitest` below (its peer is the exact vitest version).
-  "@vitest/coverage-istanbul": 5.0.5
+  "@vitest/coverage-istanbul": 5.1.0
   effect: 4.0.6
   fallow: 3.37.0
   # The `node` test project's DOM.
@@ -94,9 +94,9 @@ catalog:
   # bump: move `vite` by hand with `vite-plus` (or rerun
   # `pnpm dlx --package=vite-plus@<v> vp migrate --no-interactive`, then drop
   # the `minimumReleaseAgeExclude` entries it adds).
-  vite-plus: 1.4.0
+  vite-plus: 1.5.0
   vite: npm:@voidzero-dev/vite-plus-core@1.4.0
-  vitest: 5.0.5
+  vitest: 5.1.0
   w3c-keyname: ^2.2.8
 
 # Peer ranges the PUBLISHED package declares. Kept as a named catalog so the
