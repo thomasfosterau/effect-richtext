@@ -331,6 +331,10 @@ describe("splitBlock", () => {
 
   it("splits a paragraph from a heading", () => apply(doc(h1("foo<a>")), splitBlock, doc(h1("foo"), p())))
 
+  // prosemirror-commands 1.7.2: the split is computed after deleting the selection.
+  it("keeps the selection's first block when splitting a selection across blocks", () =>
+    apply(doc(h1("<a>ab"), p("c<b>")), splitBlock, doc(h1(), p())))
+
   it("splits a heading in two when in the middle", () =>
     apply(doc(h1("foo<a>bar")), splitBlock, doc(h1("foo"), h1("bar"))))
 

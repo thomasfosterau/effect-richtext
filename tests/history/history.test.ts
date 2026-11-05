@@ -427,4 +427,31 @@ describe("history", () => {
     // The mapped selection must still fall inside the document.
     ist(state.selection.to <= state.doc.content.size)
   })
+
+  // prosemirror-history 1.5.1: a rebase that covers more steps than the
+  // history holds (here one local step was kept out of it) must not
+  // misalign the remaining items.
+  it("rebases correctly when more steps were rebased than the history holds", () => {
+    let state = mkState(doc(p("abc")))
+    const t1 = state.tr.insertTextUnsafe("1", 2).setMeta("addToHistory", false)
+    state = state.applyUnsafe(t1)
+    const t2 = state.tr.insertTextUnsafe("2", 4)
+    state = state.applyUnsafe(t2)
+    const local = [...t1.steps, ...t2.steps],
+      docs = [...t1.docs, ...t2.docs]
+    // Collab-style rebase over a remote insertion at 1.
+    const tr = state.tr
+    for (let i = local.length - 1; i >= 0; i--) tr.stepUnsafe(local[i]!.invert(docs[i]!))
+    tr.insertTextUnsafe("R", 1)
+    for (let i = 0; i < local.length; i++) {
+      const mapped = local[i]!.map(tr.mapping.slice(local.length - i))
+      if (Option.isSome(mapped) && tr.maybeStep(mapped.value).failedOrNull === null) {
+        tr.mapping.setMirror(local.length - 1 - i, tr.steps.length - 1)
+      }
+    }
+    state = state.applyUnsafe(tr.setMeta("rebased", local.length).setMeta("addToHistory", false))
+    ist(state.doc, doc(p("Ra1b2c")), eq)
+    state = command(state, undo)
+    ist(state.doc, doc(p("Ra1bc")), eq)
+  })
 })

@@ -659,14 +659,21 @@ export type SplitNodeType<Sc extends AnySchema = AnySchema> = (
  */
 export const splitBlockAs = <Sc extends AnySchema = AnySchema>(splitNode?: SplitNodeType<Sc>): Command<Sc> =>
   syncCommand<Sc>((state, dispatching) => {
-    const sel = state.selection,
-      { $from, $to } = sel
+    const sel = state.selection
     if (sel instanceof NodeSelection && sel.node.isBlock) {
+      const { $from } = sel
       if (!$from.parentOffset || !canSplit(state.doc, $from.pos)) return false
       return done(dispatching, () => state.tr.splitUnsafe($from.pos).scrollIntoView())
     }
 
-    if (!$from.depth) return false
+    if (!sel.$from.depth) return false
+    // Delete a non-empty selection first and work out the split from the
+    // resulting cursor, so the split types describe the block actually
+    // being split (prosemirror-commands 1.7.2).
+    const tr = state.tr
+    if (!sel.empty && (sel instanceof TextSelection || sel instanceof AllSelection)) tr.deleteSelection()
+    const { $from } = tr.selection,
+      mapFrom = tr.steps.length
     const types: Array<NodeTypeWithAttrs<any> | null> = []
     let splitDepth = 0,
       deflt: NodeType<any, any> | null = null,
@@ -678,7 +685,7 @@ export const splitBlockAs = <Sc extends AnySchema = AnySchema>(splitNode?: Split
         atEnd = $from.end(d) === $from.pos + ($from.depth - d)
         atStart = $from.start(d) === $from.pos - ($from.depth - d)
         deflt = defaultBlockAt($from.node(d - 1).contentMatchAtUnsafe($from.indexAfter(d - 1)))
-        const splitType = splitNode && splitNode($to.parent, atEnd, $from)
+        const splitType = splitNode && splitNode($from.parent, atEnd, $from)
         types.unshift(splitType || (atEnd && deflt ? { type: deflt } : null))
         splitDepth = d
         break
@@ -688,9 +695,7 @@ export const splitBlockAs = <Sc extends AnySchema = AnySchema>(splitNode?: Split
       }
     }
 
-    const tr = state.tr
-    if (sel instanceof TextSelection || sel instanceof AllSelection) tr.deleteSelection()
-    const splitPos = tr.mapping.map($from.pos)
+    const splitPos = $from.pos
     let can = canSplit(tr.doc, splitPos, types.length, types)
     if (!can) {
       types[0] = deflt ? { type: deflt } : null
@@ -699,10 +704,11 @@ export const splitBlockAs = <Sc extends AnySchema = AnySchema>(splitNode?: Split
     if (!can) return false
     tr.splitUnsafe(splitPos, types.length, types)
     if (!atEnd && atStart && $from.node(splitDepth).type !== deflt) {
-      const first = tr.mapping.map($from.beforeUnsafe(splitDepth)),
+      const mapping = tr.mapping.slice(mapFrom)
+      const first = mapping.map($from.beforeUnsafe(splitDepth)),
         $first = tr.doc.resolveUnsafe(first)
       if (deflt && $from.node(splitDepth - 1).canReplaceWith($first.index(), $first.index() + 1, deflt)) {
-        tr.setNodeMarkupUnsafe(tr.mapping.map($from.beforeUnsafe(splitDepth)), deflt)
+        tr.setNodeMarkupUnsafe(mapping.map($from.beforeUnsafe(splitDepth)), deflt)
       }
     }
     return tr.scrollIntoView()

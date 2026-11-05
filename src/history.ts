@@ -191,8 +191,11 @@ export class Branch {
   rebased(rebasedTransform: Transform<any>, rebasedCount: number): Branch {
     if (!this.eventCount) return this
 
+    // Never rebase more items than the branch holds; a larger count used
+    // to corrupt the history (prosemirror-history 1.5.1).
+    const count = Math.min(this.items.length, rebasedCount)
     const rebasedItems: Array<Item> = [],
-      start = Math.max(0, this.items.length - rebasedCount)
+      start = this.items.length - count
 
     const mapping = rebasedTransform.mapping
     let newUntil = rebasedTransform.steps.length
@@ -201,7 +204,7 @@ export class Branch {
       if (item.selection) eventCount--
     }, start)
 
-    let iRebased = rebasedCount
+    let iRebased = count
     this.items.forEach((item) => {
       const pos = mapping.getMirrorOrUndefined(--iRebased)
       if (pos == null) return
@@ -218,7 +221,7 @@ export class Branch {
     }, start)
 
     const newMaps: Array<Item> = []
-    for (let i = rebasedCount; i < newUntil; i++) newMaps.push(new Item(mapping.maps[i]!))
+    for (let i = count; i < newUntil; i++) newMaps.push(new Item(mapping.maps[i]!))
     const items = this.items.slice(0, start).append(newMaps).append(rebasedItems)
     let branch = new Branch(items, eventCount)
 

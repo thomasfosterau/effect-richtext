@@ -120,6 +120,10 @@ export function wrapRangeInList(
   return SL.wrapRangeInList(tr ? (tr[CORE] as any) : null, range[CORE], listType[CORE], attrs)
 }
 
+// One item type or several (prosemirror-schema-list 1.6.0), as core types.
+const coreItemTypes = (itemType: NodeType | ReadonlyArray<NodeType>): any =>
+  Array.isArray(itemType) ? itemType.map((t) => t[CORE]) : (itemType as NodeType)[CORE]
+
 /**
  * Build a command that splits a non-empty textblock at the top level
  * of a list item by also splitting that list item.
@@ -127,8 +131,8 @@ export function wrapRangeInList(
  * @since 0.1.0
  * @category commands
  */
-export function splitListItem(itemType: NodeType, itemAttrs?: Attrs): Command {
-  return fromCoreCommand(SL.splitListItem(itemType[CORE], itemAttrs))
+export function splitListItem(itemType: NodeType | ReadonlyArray<NodeType>, itemAttrs?: Attrs): Command {
+  return fromCoreCommand(SL.splitListItem(coreItemTypes(itemType), itemAttrs))
 }
 
 /**
@@ -138,8 +142,8 @@ export function splitListItem(itemType: NodeType, itemAttrs?: Attrs): Command {
  * @since 0.1.0
  * @category commands
  */
-export function splitListItemKeepMarks(itemType: NodeType, itemAttrs?: Attrs): Command {
-  return fromCoreCommand(SL.splitListItemKeepMarks(itemType[CORE], itemAttrs))
+export function splitListItemKeepMarks(itemType: NodeType | ReadonlyArray<NodeType>, itemAttrs?: Attrs): Command {
+  return fromCoreCommand(SL.splitListItemKeepMarks(coreItemTypes(itemType), itemAttrs))
 }
 
 /**
@@ -149,8 +153,8 @@ export function splitListItemKeepMarks(itemType: NodeType, itemAttrs?: Attrs): C
  * @since 0.1.0
  * @category commands
  */
-export function liftListItem(itemType: NodeType): Command {
-  return fromCoreCommand(SL.liftListItem(itemType[CORE]))
+export function liftListItem(itemType: NodeType | ReadonlyArray<NodeType>): Command {
+  return fromCoreCommand(SL.liftListItem(coreItemTypes(itemType)))
 }
 
 /**
@@ -160,6 +164,6 @@ export function liftListItem(itemType: NodeType): Command {
  * @since 0.1.0
  * @category commands
  */
-export function sinkListItem(itemType: NodeType): Command {
-  return fromCoreCommand(SL.sinkListItem(itemType[CORE]))
+export function sinkListItem(itemType: NodeType | ReadonlyArray<NodeType>): Command {
+  return fromCoreCommand(SL.sinkListItem(coreItemTypes(itemType)))
 }

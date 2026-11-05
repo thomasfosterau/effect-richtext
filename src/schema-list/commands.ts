@@ -113,7 +113,7 @@ function doWrapInList(
   let splitPos = range.start + wrappers.length - (joinBefore ? 2 : 0)
   const parent = range.parent
   for (let i = range.startIndex, e = range.endIndex, first = true; i < e; i++, first = false) {
-    if (!first && canSplit(tr.doc, splitPos, splitDepth)) {
+    if (!first && splitDepth && canSplit(tr.doc, splitPos, splitDepth)) {
       tr.splitUnsafe(splitPos, splitDepth)
       splitPos += 2 * splitDepth
     }
@@ -123,6 +123,19 @@ function doWrapInList(
 }
 
 /**
+ * The list item type(s) a list command acts on: one node type, or
+ * several for lists that mix kinds of items (prosemirror-schema-list
+ * 1.6.0).
+ *
+ * @since 0.1.0
+ * @category models
+ */
+export type ItemTypes<Sc extends AnySchema, N extends NodeNames<Sc>> = NodeType<Sc, N> | ReadonlyArray<NodeType<Sc, N>>
+
+const isItem = (itemType: ItemTypes<any, any>, type: NodeType<any, any>): boolean =>
+  Array.isArray(itemType) ? itemType.indexOf(type) > -1 : type === itemType
+
+/**
  * Build a command that splits a non-empty textblock at the top level of
  * a list item by also splitting that list item.
  *
@@ -130,7 +143,7 @@ function doWrapInList(
  * @category commands
  */
 export const splitListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(
-  itemType: NodeType<Sc, N>,
+  itemType: ItemTypes<Sc, N>,
   itemAttrs?: NodeAttrsInput<Sc, N>
 ): Command<Sc> =>
   syncCommand<Sc>((state, dispatching) => {
@@ -139,12 +152,16 @@ export const splitListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(
     const node = (sel as { node?: Node<any> }).node
     if ((node && node.isBlock) || $from.depth < 2 || !$from.sameParent($to)) return false
     const grandParent = $from.node(-1)
-    if (grandParent.type !== itemType) return false
+    if (!isItem(itemType, grandParent.type)) return false
     if ($from.parent.content.size === 0 && $from.node(-1).childCount === $from.indexAfter(-1)) {
       // In an empty block. If this is a nested list, the wrapping
       // list item should be split. Otherwise, bail out and let next
       // command handle lifting.
-      if ($from.depth === 3 || $from.node(-3).type !== itemType || $from.index(-2) !== $from.node(-2).childCount - 1)
+      if (
+        $from.depth === 3 ||
+        !isItem(itemType, $from.node(-3).type) ||
+        $from.index(-2) !== $from.node(-2).childCount - 1
+      )
         return false
       return done(dispatching, () => {
         let wrap: Fragment<any> = Fragment.empty
@@ -161,7 +178,7 @@ export const splitListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(
               ? 2
               : 3
         // Add a second list item with an empty default start node
-        wrap = wrap.append(Fragment.from(itemType.createAndFillOrNull()))
+        wrap = wrap.append(Fragment.from($from.node(-3).type.createAndFillOrNull()))
         const start = $from.beforeUnsafe($from.depth - (depthBefore - 1))
         const tr = state.tr.replaceUnsafe(start, $from.afterUnsafe(-depthAfter), new Slice(wrap, 4 - depthBefore, 0))
         let sel = -1
@@ -176,7 +193,10 @@ export const splitListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(
     const nextType = $to.pos === $from.end() ? grandParent.contentMatchAtUnsafe(0).defaultTypeOrNull : null
     const tr = state.tr.deleteUnsafe($from.pos, $to.pos)
     const types: Array<NodeTypeWithAttrs<any> | null> | undefined = nextType
-      ? [itemAttrs ? ({ type: itemType, attrs: itemAttrs } as NodeTypeWithAttrs<any>) : null, { type: nextType }]
+      ? [
+          itemAttrs ? ({ type: grandParent.type, attrs: itemAttrs } as NodeTypeWithAttrs<any>) : null,
+          { type: nextType }
+        ]
       : undefined
     if (!canSplit(tr.doc, $from.pos, 2, types)) return false
     return done(dispatching, () => tr.splitUnsafe($from.pos, 2, types).scrollIntoView())
@@ -190,7 +210,7 @@ export const splitListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(
  * @category commands
  */
 export const splitListItemKeepMarks = <Sc extends AnySchema, N extends NodeNames<Sc>>(
-  itemType: NodeType<Sc, N>,
+  itemType: ItemTypes<Sc, N>,
   itemAttrs?: NodeAttrsInput<Sc, N>
 ): Command<Sc> => {
   const split = splitListItem(itemType, itemAttrs)
@@ -204,32 +224,29 @@ export const splitListItemKeepMarks = <Sc extends AnySchema, N extends NodeNames
  * @since 0.1.0
  * @category commands
  */
-export const liftListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(itemType: NodeType<Sc, N>): Command<Sc> =>
+export const liftListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(itemType: ItemTypes<Sc, N>): Command<Sc> =>
   syncCommand<Sc>((state, dispatching): SyncResult<Sc> => {
     const { $from, $to } = state.selection
     const range = $from.blockRangeOrNull(
       $to,
-      (node) => node.childCount > 0 && node.content.content[0]!.type === itemType
+      (node) => node.childCount > 0 && isItem(itemType, node.content.content[0]!.type)
     )
     if (!range) return false
     if (!dispatching) return true
-    if ($from.node(range.depth - 1).type === itemType) {
+    if (isItem(itemType, $from.node(range.depth - 1).type)) {
       // Inside a parent list
-      return liftToOuterList(state, itemType, range) as SyncResult<Sc>
+      return liftToOuterList(state, range) as SyncResult<Sc>
     } else {
       // Outer list node
       return liftOutOfList(state, range) as SyncResult<Sc>
     }
   })
 
-function liftToOuterList(
-  state: EditorState<any, any, any>,
-  itemType: NodeType<any, any>,
-  range: NodeRange<any>
-): SyncResult {
+function liftToOuterList(state: EditorState<any, any, any>, range: NodeRange<any>): SyncResult {
   const tr = state.tr,
     end = range.end,
     endOfList = range.$to.end(range.depth)
+  const itemType = range.parent.childUnsafe(range.endIndex - 1).type
   if (end < endOfList) {
     // There are siblings after the lifted items, which must become
     // children of the last item
@@ -310,27 +327,31 @@ function liftOutOfList(state: EditorState<any, any, any>, range: NodeRange<any>)
  * @since 0.1.0
  * @category commands
  */
-export const sinkListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(itemType: NodeType<Sc, N>): Command<Sc> =>
+export const sinkListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(itemType: ItemTypes<Sc, N>): Command<Sc> =>
   syncCommand<Sc>((state, dispatching) => {
     const { $from, $to } = state.selection
     const range = $from.blockRangeOrNull(
       $to,
-      (node) => node.childCount > 0 && node.content.content[0]!.type === itemType
+      (node) => node.childCount > 0 && isItem(itemType, node.content.content[0]!.type)
     )
     if (!range) return false
     const startIndex = range.startIndex
     if (startIndex === 0) return false
     const parent = range.parent,
       nodeBefore = parent.childUnsafe(startIndex - 1)
-    if (nodeBefore.type !== itemType) return false
+    if (!isItem(itemType, nodeBefore.type)) return false
 
     return done(dispatching, () => {
       const lastBefore = nodeBefore.content.content[nodeBefore.childCount - 1]
       const nestedBefore = !!lastBefore && lastBefore.type === parent.type
-      const inner = Fragment.from(nestedBefore ? (itemType as NodeType<any, any>).createUnsafe() : null)
+      const nestedItem = nestedBefore ? lastBefore.content.content[lastBefore.childCount - 1] : undefined
+      const inner = Fragment.from(nestedItem ? (nestedItem.type as NodeType<any, any>).createUnsafe() : null)
       const slice = new Slice(
         Fragment.from(
-          (itemType as NodeType<any, any>).createUnsafe(null, Fragment.from(parent.type.createUnsafe(null, inner)))
+          (nodeBefore.type as NodeType<any, any>).createUnsafe(
+            null,
+            Fragment.from(parent.type.createUnsafe(null, inner))
+          )
         ),
         nestedBefore ? 3 : 1,
         0

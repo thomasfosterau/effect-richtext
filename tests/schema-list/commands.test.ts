@@ -1,5 +1,6 @@
 // Ported from prosemirror-schema-list/test/test-commands.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
+import { Content, DocSchema } from "effect-richtext/model"
 import {
   liftListItem,
   sinkListItem,
@@ -7,7 +8,7 @@ import {
   splitListItemKeepMarks,
   wrapInList
 } from "effect-richtext/schema-list"
-import { blockquote, doc, em, li, ol, p, schema, strong, ul } from "effect-richtext/test-builder"
+import { blockquote, builders, doc, em, li, ol, p, schema, strong, ul } from "effect-richtext/test-builder"
 import { apply, mkState, run } from "../commands/apply.ts"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
@@ -169,4 +170,48 @@ describe("sinkListItem", () => {
       sink,
       doc(ul(li(p("one")), li(p("..."), ul(li(p("two")), li(p("three"))))))
     ))
+})
+
+// prosemirror-schema-list 1.6.0: lists that may start with lists, and lists
+// mixing several kinds of item.
+describe("mixed lists", () => {
+  const mixed = DocSchema.makeUnsafe({
+    nodes: {
+      doc: { content: Content.parse("block+") },
+      paragraph: { group: "block", content: Content.parse("text*") },
+      text: {},
+      list: { group: "block", content: Content.parse("(list | item | task)+") },
+      item: { content: Content.parse("paragraph block*") },
+      task: { content: Content.parse("paragraph block*") }
+    }
+  })
+  const m = builders(mixed, { p: { nodeType: "paragraph" } })
+  const items = [mixed.nodes.item, mixed.nodes.task]
+
+  it("wraps the first paragraph of an item when lists may start with lists", () =>
+    apply(
+      m.doc(m.list(m.item(m.p("a")), m.item(m.p("<a>b")), m.item(m.p("c<b>")))),
+      wrapInList(mixed.nodes.list),
+      m.doc(m.list(m.item(m.p("a")), m.list(m.item(m.p("b")), m.item(m.p("c")))))
+    ))
+
+  it("sinks an item of another kind", () =>
+    apply(
+      m.doc(m.list(m.item(m.p("a")), m.task(m.p("<a>b")))),
+      sinkListItem(items),
+      m.doc(m.list(m.item(m.p("a"), m.list(m.task(m.p("b"))))))
+    ))
+
+  it("lifts an item of another kind", () =>
+    apply(
+      m.doc(m.list(m.item(m.p("a"), m.list(m.task(m.p("<a>b")))))),
+      liftListItem(items),
+      m.doc(m.list(m.item(m.p("a")), m.task(m.p("b"))))
+    ))
+
+  it("splits an item into two of its own kind", () =>
+    apply(m.doc(m.list(m.task(m.p("a<a>b")))), splitListItem(items), m.doc(m.list(m.task(m.p("a")), m.task(m.p("b"))))))
+
+  it("ignores item types that weren't given", () =>
+    apply(m.doc(m.list(m.task(m.p("a<a>b")))), splitListItem(mixed.nodes.item), null))
 })
