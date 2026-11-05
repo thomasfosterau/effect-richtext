@@ -1,8 +1,8 @@
 // Ported from prosemirror-transform/test/test-replace_step.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
-import type { Node } from "effect-richtext/model"
-import { blockquote, doc, eq, p, schema } from "effect-richtext/test-builder"
-import { Transform } from "effect-richtext/transform"
+import { Fragment, type Node, Slice } from "effect-richtext/model"
+import { blockquote, doc, eq, li, p, schema, ul } from "effect-richtext/test-builder"
+import { ReplaceAroundStep, Transform } from "effect-richtext/transform"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 
@@ -36,4 +36,15 @@ describe("ReplaceAroundStep.map", () => {
       (tr) => tr.insertUnsafe(2, schema.textUnsafe("x")),
       doc(p("xa"))
     ))
+})
+
+describe("ReplaceAroundStep.apply", () => {
+  // prosemirror-model 1.25.5: content constraints are not checked inside open
+  // nodes when the gap is inserted, since those nodes are joined later.
+  it("inserts the gap into an open node whose content is completed by the join", () => {
+    const before = doc(ul(li(p("r"))), ul(li(p("x"))))
+    const slice = new Slice(Fragment.from(ul(li())), 2, 0)
+    const result = new ReplaceAroundStep(5, 14, 7, 14, slice, 0, true).apply(before).getUnsafe()
+    ist(result, doc(ul(li(p("r"), ul(li(p("x")))))), eq)
+  })
 })

@@ -538,14 +538,29 @@ function defaultAttrs(attrs: Record<string, Attribute>): Attrs | null {
 }
 
 /** @internal */
-export function computeAttrs(attrs: Record<string, Attribute>, value: Attrs | null | undefined): Attrs {
+export function computeAttrs(
+  attrs: Record<string, Attribute>,
+  value: Attrs | null | undefined,
+  type: string,
+  typeName: string
+): Attrs {
   const built = Object.create(null)
   for (const name in attrs) {
+    const attr = attrs[name]!
     let given = value && value[name]
     if (given === undefined) {
-      const attr = attrs[name]!
       if (attr.hasDefault) given = attr.default
       else throw new AttributeError({ message: "No value supplied for attribute " + name })
+    } else {
+      // Validate every supplied value at creation, so no way of creating
+      // a node or mark can skip it (prosemirror-model 1.25.12). Defaults
+      // are trusted.
+      if (attr.validate) attr.validate(given)
+      if (attr.is && !attr.is(given)) {
+        throw new AttributeError({
+          message: `Invalid value for attribute ${name} on ${type} of type ${typeName}: ${showJson(given)}`
+        })
+      }
     }
     built[name] = given
   }
@@ -660,7 +675,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   /** @internal */
   computeAttrs(attrs: Attrs | null | undefined): Attrs {
     if (!attrs && this.defaultAttrs) return this.defaultAttrs
-    return computeAttrs(this.attrs, attrs)
+    return computeAttrs(this.attrs, attrs, "node", this.name)
   }
 
   /**
@@ -853,7 +868,7 @@ export class MarkType<Sc extends AnySchema = AnySchema, out M extends MarkNames<
   /** Like `create`, but throws an `AttributeError` on failure. */
   createUnsafe(attrs?: MarkAttrsInput<Sc, M> | null): Mark<Sc, M> {
     if (!attrs && this.instance) return this.instance
-    return new Mark(this, computeAttrs(this.attrs, attrs) as any)
+    return new Mark(this, computeAttrs(this.attrs, attrs, "mark", this.name) as any)
   }
 
   /**

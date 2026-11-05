@@ -1020,16 +1020,33 @@ describe("DOMSerializer", () => {
   })
 
   it("refuses to use values from attributes as DOM specs", () => {
+    // The test schema validates `alt`, so creating such an image already
+    // fails (prosemirror-model 1.25.12); use a schema that doesn't.
+    const loose = DocSchema.makeUnsafe({
+      nodes: {
+        doc: { content: Content.parse("image*") },
+        image: { attrs: { src: {}, alt: { default: null } } },
+        text: {}
+      }
+    })
     const weird = new DOMSerializer(
-      Object.assign({}, serializer.nodes, {
-        image: (node: PMNode<any>) => ["span", ["img", { src: node.attrs.src }], node.attrs.alt] as const
-      }),
-      serializer.marks
+      { image: (node: PMNode<any>) => ["span", ["img", { src: node.attrs.src }], node.attrs.alt] as const },
+      {}
     )
+    const evil = loose.nodes.image.createUnsafe({ src: "x.png", alt: ["script", { src: "http://evil.com/inject.js" }] })
+    ist.throws(() => weird.serializeNode(evil, { document }), /Using an array from an attribute object as a DOM spec/)
+  })
+
+  it("refuses to render a node as a bare text node", () => {
+    // Node and mark specs must render elements (prosemirror-model 1.25.5 / 1.25.7).
+    const s = new DOMSerializer({ paragraph: () => document.createTextNode("x") as any, text: () => "a" as any }, {})
+    ist.throws(() => s.serializeNode(p("a"), { document }), /Invalid array passed to renderSpec/)
+  })
+
+  it("refuses to create nodes with attributes their schema rejects", () => {
     ist.throws(
-      () =>
-        weird.serializeNode(img({ src: "x.png", alt: ["script", { src: "http://evil.com/inject.js" }] }), { document }),
-      /Using an array from an attribute object as a DOM spec/
+      () => img({ src: "x.png", alt: ["script", { src: "http://evil.com/inject.js" }] as any }),
+      /Invalid value for attribute alt on node of type image/
     )
   })
 

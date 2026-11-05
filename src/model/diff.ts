@@ -18,7 +18,18 @@ export function findDiffStart(a: Fragment<any, any>, b: Fragment<any, any>, pos:
     if (childA.isText && (childA as TextNode).text !== (childB as TextNode).text) {
       const ta = (childA as TextNode).text,
         tb = (childB as TextNode).text
-      for (let j = 0; ta[j] === tb[j]; j++) pos++
+      let j = 0
+      for (; ta[j] === tb[j]; j++) pos++
+      // Never point between the halves of a surrogate pair (prosemirror-model 1.25.8).
+      if (
+        j &&
+        j < ta.length &&
+        j < tb.length &&
+        surrogateHigh(ta.charCodeAt(j - 1)) &&
+        surrogateLow(ta.charCodeAt(j))
+      ) {
+        pos--
+      }
       return pos
     }
     if (childA.content.size || childB.content.size) {
@@ -53,12 +64,17 @@ export function findDiffEnd(
     if (childA.isText && (childA as TextNode).text !== (childB as TextNode).text) {
       const ta = (childA as TextNode).text,
         tb = (childB as TextNode).text
-      let same = 0
-      const minSize = Math.min(ta.length, tb.length)
-      while (same < minSize && ta[ta.length - same - 1] === tb[tb.length - same - 1]) {
-        same++
+      let iA = ta.length,
+        iB = tb.length
+      while (iA > 0 && iB > 0 && ta[iA - 1] === tb[iB - 1]) {
+        iA--
+        iB--
         posA--
         posB--
+      }
+      if (iA && iB && iA < ta.length && surrogateHigh(ta.charCodeAt(iA - 1)) && surrogateLow(ta.charCodeAt(iA))) {
+        posA++
+        posB++
       }
       return { a: posA, b: posB }
     }
@@ -70,3 +86,6 @@ export function findDiffEnd(
     posB -= size
   }
 }
+
+const surrogateLow = (ch: number): boolean => ch >= 0xdc00 && ch < 0xe000
+const surrogateHigh = (ch: number): boolean => ch >= 0xd800 && ch < 0xdc00

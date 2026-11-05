@@ -472,6 +472,7 @@ const blockTags: TagTable = {
   article: true,
   aside: true,
   blockquote: true,
+  body: true,
   canvas: true,
   dd: true,
   div: true,

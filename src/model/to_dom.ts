@@ -34,8 +34,8 @@ import type { AnySchema, Attrs, MarkType, NodeType } from "./schema.ts"
  * @category models
  */
 export type DOMOutputSpec =
-  | globalThis.Node
-  | { readonly dom: globalThis.Node; readonly contentDOM?: HTMLElement | undefined }
+  | Element
+  | { readonly dom: Element; readonly contentDOM?: HTMLElement | undefined }
   | readonly [string, ...Array<any>]
   | ReadonlyArray<any>
 
@@ -317,8 +317,10 @@ function renderSpecInner(
   xmlNS: string | null,
   blockArraysIn?: Attrs
 ): RenderedSpec {
-  if ((structure as globalThis.Node).nodeType != null) return { dom: structure as globalThis.Node }
-  if ((structure as any).dom && (structure as any).dom.nodeType != null) return structure as RenderedSpec
+  // Only elements may be returned directly; anything else is read as an
+  // array spec (prosemirror-model 1.25.5 / 1.25.7).
+  if ((structure as globalThis.Node).nodeType === 1) return { dom: structure as Element }
+  if ((structure as any).dom && (structure as any).dom.nodeType === 1) return structure as RenderedSpec
   let tagName = (structure as ReadonlyArray<unknown>)[0],
     suspicious
   if (typeof tagName != "string") throw new DOMSpecError({ message: "Invalid array passed to renderSpec" })

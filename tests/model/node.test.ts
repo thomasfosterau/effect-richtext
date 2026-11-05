@@ -257,8 +257,8 @@ describe("Node", () => {
         assert.strictEqual(markErr._tag, "ContentError")
         assert.match(markErr.message, /Invalid collection of marks/)
 
-        const image = yield* schema.nodes.image.create({ src: true as any })
-        const attrErr = yield* Effect.flip(image.check())
+        // Attributes are validated on creation (prosemirror-model 1.25.12).
+        const attrErr = yield* Effect.flip(schema.nodes.image.create({ src: true as any }))
         assert.strictEqual(attrErr._tag, "AttributeError")
 
         yield* doc(p("ok", img())).check()
