@@ -77,9 +77,13 @@ export default defineConfig({
   // the type-aware rules sitting at `warn` below, and tsgolint's
   // `no-unnecessary-type-assertion` / `-type-arguments` fixes break the
   // `check` task's tsc on some sites (#19), so a commit could land code that
-  // no longer type-checks. Lint errors still fail the commit.
+  // no longer type-checks. Lint errors still fail the commit. CSS, JSON and
+  // Markdown are only formatted: Oxlint has nothing to lint in them, and a
+  // lint pass handed no lintable file fails ("No files found to lint"), which
+  // blocked every commit touching only those files (a changeset, say).
   staged: {
-    "*.{js,ts,css,json,md}": ["vp check --fix --no-lint", "vp check --no-fmt"]
+    "*.{js,ts}": ["vp check --fix --no-lint", "vp check --no-fmt"],
+    "*.{css,json,md}": "vp check --fix --no-lint"
   },
   // The repo's own style, carried over from its dprint config: no
   // semicolons, no trailing commas, 120 columns.
