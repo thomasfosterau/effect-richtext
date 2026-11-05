@@ -14,6 +14,17 @@ import type { NodeViewDesc, ViewDesc } from "./viewdesc.ts"
 
 type AnyView = EditorView<any, any, any>
 
+// The selection to use instead of the DOM's after Firefox keyboard
+// motion, if any.
+const geckoKeySelection = (
+  view: AnyView,
+  domSel: DOMSelectionRange,
+  head: number,
+  nearestDesc: ViewDesc | undefined,
+  origin: string | null
+) =>
+  browser.gecko && origin == "key" && nearestDesc ? skippedScrollWrapper(view, domSel, head, nearestDesc) : undefined
+
 // Firefox will jump across scrollable wrapper nodes on keyboard cursor
 // motion (#1594). Detect a cursor that landed past such a wrapper and put
 // it at the start of the node it skipped (prosemirror-view 1.42.6).
@@ -66,8 +77,8 @@ export function selectionFromDOM(view: AnyView, origin: string | null = null): S
     ) {
       const pos = nearestDesc.posBefore
       selection = new NodeSelection(head == pos ? $head : doc.resolveUnsafe(pos))
-    } else if (browser.gecko && origin == "key" && nearestDesc) {
-      selection = skippedScrollWrapper(view, domSel, head, nearestDesc)
+    } else {
+      selection = geckoKeySelection(view, domSel, head, nearestDesc, origin)
     }
   } else {
     if (domSel instanceof view.dom.ownerDocument.defaultView!.Selection && domSel.rangeCount > 1) {
