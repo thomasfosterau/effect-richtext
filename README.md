@@ -2,7 +2,7 @@
 
 A reimplementation of the core [ProseMirror](https://prosemirror.net) toolkit (`prosemirror-model`, `-transform`, `-state`, `-view`, `-keymap`, `-commands`) on top of [Effect](https://effect.website) 4, in a single package.
 
-- **Strongly typed documents.** Node and mark names are literal types, attributes are described with Effect `Schema`s, and content expressions are typed combinators, so the schema knows which children each node accepts: `doc` built from a `text` node is a compile error, and `node.is("heading")` narrows `node.attrs` to `{ level: number }`.
+- **Strongly typed documents.** Node and mark names are literal types, attributes are described with Effect `Schema`s, and content expressions are typed combinators, so the schema knows which children each node accepts: `doc` built from a `text` node is a compile error, as are a node built without one of its required attributes and a spec that refers to a node or mark it does not define, and `node.is("heading")` narrows `node.attrs` to `{ level: number }`.
 - **Effect everywhere.** Every fallible operation returns an `Effect` with tagged errors (`PositionError`, `ReplaceError`, `StepError`, …). Each also has a synchronous `…Unsafe` twin for hot paths. Absent values are `Option`s.
 - **Typed plugin requirements.** Plugins, commands and view props may return Effects that need services; those requirements (`R`) and errors (`E`) are tracked through `EditorState` and `EditorView`, and provided with ordinary Effect layers. The view is created in a `Scope` and destroyed with it.
 - **Faithful port.** ProseMirror's own test suites are ported and pass (model, transform, state, commands, keymap, history, markdown, and all of prosemirror-view's browser tests in real Chromium).

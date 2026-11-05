@@ -2,7 +2,7 @@
 import { assert, describe, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
-import { Content, type ContentExpr, ContentMatch, DocSchema, type Node } from "effect-richtext/model"
+import { Content, type ContentExpr, ContentMatch, DocSchema, type Node, type NodeSpecs } from "effect-richtext/model"
 import { br, doc, eq, h1, hr, img, p, pre, schema } from "effect-richtext/test-builder"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
@@ -301,11 +301,10 @@ describe("Content combinators", () => {
 
     it.effect("fails schema creation for unknown names", () =>
       Effect.gen(function* () {
-        const err = yield* Effect.flip(
-          DocSchema.make({
-            nodes: { doc: { content: Content.oneOrMore("nope") }, text: {} }
-          })
-        )
+        // An untyped spec: a typed one is rejected at compile time
+        // (tests/model/schema.types.ts), before the runtime check runs.
+        const nodes: NodeSpecs = { doc: { content: Content.oneOrMore("nope") }, text: {} }
+        const err = yield* Effect.flip(DocSchema.make({ nodes }))
         assert.strictEqual(err._tag, "SchemaDefinitionError")
         assert.match(err.message, /No node type or group 'nope' found/)
       })

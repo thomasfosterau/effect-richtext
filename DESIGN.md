@@ -73,6 +73,16 @@ Public accessors return `Option`. Hot internal paths may use `@internal` `…OrN
 - Every model class is generic over the schema: `Node<Sc, N>`, `Fragment<Sc, N>`, `Mark<Sc, M>`, `NodeType<Sc, N>`, `MarkType<Sc, M>`, `Slice<Sc>`, `ResolvedPos<Sc>`. The defaults (`AnySchema`, all names) make untyped usage work everywhere.
 - Name parameters are covariant (`out N`) so `Node<Sc, "image">` is a `Node<Sc>`, and `node.is("image")` narrows.
 - `ChildNames<Sc, N>` gives the node names allowed as children of `N`; `NodeAttrs<Sc, N>` / `NodeAttrsInput<Sc, N>` give attributes (input makes defaulted attributes optional).
+- Constructors (`NodeType.create*`, `MarkType.create*`, `DocSchema.node` / `mark`) take the attributes object as an optional argument only for types whose attributes all have defaults (`NodesWithOptionalAttrs<Sc>`); otherwise it is required, so `image.createUnsafe()` does not compile when `src` has no default. These are `this`-typed overloads rather than a conditional parameter list, so code generic over the schema, where the condition cannot be resolved, still calls them with explicit attributes.
+- `schema.nodes[name]` / `schema.marks[name]` for a name the schema does not declare is `| undefined`, as it is at run time.
+- `DocSchema.make` / `makeUnsafe` check the spec statically (`SchemaSpecCheck`), reporting each runtime `SchemaDefinitionError` they can see where the spec is written, as a missing property named by the problem ("Unknown node type or group in content: paragrph"). They check:
+  - content, `marks` and `excludes` references;
+  - that the top node and a `text` node exist;
+  - that no name is both a node and a mark;
+  - that each attribute `default` is a value of its `schema`;
+  - that `validate` uses only known type names.
+
+  Specs whose names are not literal (a `NodeSpecs`-typed object, as the compat facade builds) and ProseMirror content strings with operators are left to the runtime check.
 
 ### Content expressions
 
@@ -87,9 +97,12 @@ Content.parse("heading block*") // ContentExpr<string> (untyped, PM syntax)
 attrs: {
   src: Schema.String,                                     // required, typed
   alt: { schema: Schema.NullOr(Schema.String), default: null },
-  legacy: { default: null, validate: "string|null" }       // PM-style, untyped
+  legacy: { default: null, validate: "string|null" },      // PM-style: string | null
+  untyped: { default: null }                                // unknown
 }
 ```
+
+An attribute's type comes from its `schema`; else from its `validate` type names; else from its widened `default`. Failing all three, as with a bare `{ default: null }`, it is `unknown` rather than `any`: nothing says what it holds, so reading it requires a check.
 
 Supplied attribute values are validated against their schema (and any `validate`) whenever a node or mark is created, as prosemirror-model does since 1.25.12, and again by `Node.check`; defaults are trusted. Schemas also decode/encode JSON (`DocSchema.nodeFromJSON`, `Node.toJSON`, `NodeFromJSON(schema)` codec).
 

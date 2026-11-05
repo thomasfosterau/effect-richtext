@@ -3,6 +3,7 @@ import * as Effect from "effect/Effect"
 import {
   Fragment,
   fromCore as modelFromCore,
+  Mark,
   type Node,
   ReplaceError,
   Schema,
@@ -141,6 +142,14 @@ describe("compat bridge", () => {
     ist(wrapped instanceof Schema)
     ist(wrapped.spec.nodes.size, 2)
     ist(wrapped.node("doc", null, [wrapped.text("a")]).textContent, "a")
+  })
+
+  it("exposes a mark type's shared default instance, or null", () => {
+    // The core keeps it as an Option; the facade must hand back ProseMirror's
+    // `Mark | null`.
+    ist(schema.marks.em.instance instanceof Mark)
+    ist(schema.marks.em.create() === schema.marks.em.instance)
+    ist(schema.marks.link.instance, null)
   })
 
   it("throws ProseMirror's errors", () => {

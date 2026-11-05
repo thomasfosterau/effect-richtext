@@ -356,7 +356,7 @@ export class ContentMatch {
   /** @internal */
   static compile(
     content: ContentInput<string> | undefined,
-    nodeTypes: { readonly [name: string]: NodeType },
+    nodeTypes: Readonly<Partial<Record<string, NodeType>>>,
     typeName: string
   ): ContentMatch {
     if (content === undefined) return ContentMatch.empty
@@ -544,7 +544,7 @@ export class ContentMatch {
 
 interface ResolveContext {
   inline: boolean | null
-  readonly nodeTypes: { readonly [name: string]: NodeType }
+  readonly nodeTypes: Readonly<Partial<Record<string, NodeType>>>
   readonly source: string
   readonly typeName: string
 }

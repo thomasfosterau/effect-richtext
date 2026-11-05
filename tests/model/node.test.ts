@@ -5,7 +5,15 @@ import * as Equal from "effect/Equal"
 import * as Hash from "effect/Hash"
 import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
-import { Content, DocFromJSON, DocSchema, Fragment, type Node, NodeFromJSON } from "effect-richtext/model"
+import {
+  Content,
+  DocFromJSON,
+  DocSchema,
+  Fragment,
+  type Node,
+  NodeFromJSON,
+  type NodeSpecs
+} from "effect-richtext/model"
 import {
   a,
   blockquote,
@@ -232,13 +240,14 @@ describe("Node", () => {
     })
 
     it("notices wrong attribute types with validate strings", () => {
-      const s = DocSchema.makeUnsafe({
-        nodes: {
-          doc: { content: Content.parse("image*") },
-          image: { attrs: { src: { validate: "string" } } },
-          text: {}
-        }
-      })
+      // Untyped, as in ProseMirror: a typed spec rejects `src: true` at
+      // compile time, since "string" types the attribute.
+      const nodes: NodeSpecs = {
+        doc: { content: Content.parse("image*") },
+        image: { attrs: { src: { validate: "string" } } },
+        text: {}
+      }
+      const s = DocSchema.makeUnsafe({ nodes })
       ist.throws(
         () => s.nodes.image.createUnsafe({ src: true }).checkUnsafe(),
         /Expected value of type string for attribute src on type image, got boolean/

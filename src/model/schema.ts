@@ -217,11 +217,15 @@ export interface MarkSpecs {
  * @since 0.1.0
  * @category models
  */
-export interface SchemaSpec<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = MarkSpecs> {
+export interface SchemaSpec<
+  N extends NodeSpecs = NodeSpecs,
+  M extends MarkSpecs = MarkSpecs,
+  Top extends string = string
+> {
   readonly nodes: N
   readonly marks?: M | undefined
   /** The name of the default top-level node. Defaults to `"doc"`. */
-  readonly topNode?: string | undefined
+  readonly topNode?: Top | undefined
 }
 
 // -----------------------------------------------------------------------------
@@ -365,11 +369,41 @@ type Widen<A> = A extends string
     : A extends boolean
       ? boolean
       : A extends null | undefined
-        ? any
+        ? unknown
         : A
 
+// The value types a `validate` type name admits: the names
+// `typeof` returns, plus "null" (see `validateType`).
+interface ValidateTypeNames {
+  readonly string: string
+  readonly number: number
+  readonly boolean: boolean
+  readonly bigint: bigint
+  readonly symbol: symbol
+  readonly undefined: undefined
+  readonly object: object
+  readonly function: (...args: ReadonlyArray<never>) => void
+  readonly null: null
+}
+
+type SplitBar<V extends string> = V extends `${infer H}|${infer T}` ? H | SplitBar<T> : V
+
+// An unknown type name admits nothing (`never`), as `validateType` rejects
+// every value for it.
+type ValidateType<V extends string> = string extends V
+  ? unknown
+  : SplitBar<V> extends infer K
+    ? K extends keyof ValidateTypeNames
+      ? ValidateTypeNames[K]
+      : never
+    : never
+
 /**
- * The value type of an attribute definition.
+ * The value type of an attribute definition: its `schema`'s type; else
+ * the types its `validate` type names admit (`"string|null"` is
+ * `string | null`); else the widened type of its `default`. An attribute
+ * with none of these (a ProseMirror-style `{ default: null }`, or a
+ * `validate` function) is `unknown`: nothing says what it holds.
  *
  * @since 0.1.0
  * @category type-level
@@ -378,9 +412,11 @@ export type AttributeType<D> = D extends S.Top
   ? D["Type"]
   : D extends { readonly schema: infer Sc extends S.Top }
     ? Sc["Type"]
-    : D extends { readonly default: infer A }
-      ? Widen<A>
-      : any
+    : D extends { readonly validate: infer V extends string }
+      ? ValidateType<V>
+      : D extends { readonly default: infer A }
+        ? Widen<A>
+        : unknown
 
 type AttrDefsOf<Spec> = Spec extends { readonly attrs: infer A extends AttributeDefinitions } ? A : {}
 
@@ -464,6 +500,128 @@ export type MarkAttrsInput<Sc, M extends string> =
  */
 export type AttrsOptional<Spec> = {} extends AttrsInputOfSpec<Spec> ? true : false
 
+// -----------------------------------------------------------------------------
+// Spec checks
+// -----------------------------------------------------------------------------
+
+// The groups the specs in `Specs` declare.
+type GroupNames<Specs> = { [K in keyof Specs]: GroupsOf<Specs[K]> }[keyof Specs]
+
+// The references in `Refs` that `Known` does not cover; none when the
+// references are not known statically (a ProseMirror content string, an
+// untyped spec).
+type UnknownRefs<Refs, Known> = string extends Refs ? never : Exclude<Refs, Known>
+
+// The names a space-separated mark expression under `Key` refers to.
+type MarkExprRefs<Spec, Key extends string> = Spec extends { readonly [P in Key]: infer E extends string }
+  ? Split<E>
+  : never
+
+// A required property named by `Message` when `Bad` is not empty, so the
+// compiler reports "Property '<Message>' is missing" on the offending spec;
+// nothing otherwise.
+type Fail<Bad, Message extends string> = [Bad] extends [never] ? unknown : { readonly [P in Message]: true }
+
+// The attributes whose `default` is not a value of their `schema`.
+type BadDefaults<Defs> = {
+  [K in keyof Defs]: Defs[K] extends { readonly schema: infer Sch extends S.Top; readonly default: infer D }
+    ? [D] extends [Sch["Type"]]
+      ? never
+      : K
+    : never
+}[keyof Defs] &
+  string
+
+type BadDefaultsOf<Spec> = BadDefaults<AttrDefsOf<Spec>>
+
+// The type names in `validate` strings that `validateType` does not know.
+type BadValidateNames<Defs> = {
+  [K in keyof Defs]: Defs[K] extends { readonly validate: infer V extends string }
+    ? string extends V
+      ? never
+      : Exclude<SplitBar<V>, keyof ValidateTypeNames>
+    : never
+}[keyof Defs] &
+  string
+
+type BadValidateNamesOf<Spec> = BadValidateNames<AttrDefsOf<Spec>>
+
+type MarkRefNames<M> = (keyof M & string) | GroupNames<M> | "_"
+
+type UnknownContent<N, K extends keyof N> = UnknownRefs<ContentRefsOf<N[K]>, (keyof N & string) | GroupNames<N>> &
+  string
+
+type UnknownMarks<M, Spec, Key extends string> = UnknownRefs<MarkExprRefs<Spec, Key>, MarkRefNames<M>> & string
+
+type NodeSpecCheck<N, M, K extends keyof N> = Fail<
+  UnknownContent<N, K>,
+  `Unknown node type or group in content: ${UnknownContent<N, K>}`
+> &
+  Fail<UnknownMarks<M, N[K], "marks">, `Unknown mark type or group in marks: ${UnknownMarks<M, N[K], "marks">}`> &
+  Fail<BadDefaultsOf<N[K]>, `Attribute default is not a value of its schema: ${BadDefaultsOf<N[K]>}`> &
+  Fail<BadValidateNamesOf<N[K]>, `Unknown type name in validate: ${BadValidateNamesOf<N[K]>}`>
+
+type MarkSpecCheck<M, K extends keyof M> = Fail<
+  UnknownMarks<M, M[K], "excludes">,
+  `Unknown mark type or group in excludes: ${UnknownMarks<M, M[K], "excludes">}`
+> &
+  Fail<BadDefaultsOf<M[K]>, `Attribute default is not a value of its schema: ${BadDefaultsOf<M[K]>}`> &
+  Fail<BadValidateNamesOf<M[K]>, `Unknown type name in validate: ${BadValidateNamesOf<M[K]>}`>
+
+/**
+ * The static checks `DocSchema.make` applies to a spec, on top of its
+ * type: every name a content expression, a `marks` expression or an
+ * `excludes` refers to exists; the top node and a `text` node exist; no
+ * name is both a node and a mark; every attribute `default` is a value
+ * of the attribute's `schema`; and every `validate` type name is one the
+ * runtime knows. These are the runtime
+ * `SchemaDefinitionError`s, reported where the spec is written. Each check
+ * applies only where the names are known statically: a ProseMirror
+ * content string with operators, or an untyped spec, is left to the
+ * runtime check.
+ *
+ * @since 0.1.0
+ * @category type-level
+ */
+export type SchemaSpecCheck<N, M, Top extends string> = string extends keyof N
+  ? unknown
+  : {
+      readonly nodes: { readonly [K in keyof N]: NodeSpecCheck<N, M, K> } & {
+        readonly [K in (string extends Top ? never : Top) | "text"]: NodeSpec
+      }
+    } & (string extends keyof M
+      ? unknown
+      : {
+          readonly marks?: { readonly [K in keyof M]: MarkSpecCheck<M, K> } & {
+            readonly [K in keyof M & keyof N]: Fail<K, `Name used by both a node and a mark: ${K & string}`>
+          }
+        })
+
+/**
+ * The node types of schema `Sc` whose attributes all have defaults (or
+ * that have none), so their constructors may be called without an
+ * attributes object. For other types, the attributes are a required
+ * argument, so a required attribute cannot be left out by omitting the
+ * whole object.
+ *
+ * @since 0.1.0
+ * @category type-level
+ */
+export type NodesWithOptionalAttrs<Sc> = {
+  [K in NodeNames<Sc>]: Partial<NodeAttrsInput<Sc, K>> extends NodeAttrsInput<Sc, K> ? K : never
+}[NodeNames<Sc>]
+
+/**
+ * The mark types of schema `Sc` whose attributes all have defaults (see
+ * `NodesWithOptionalAttrs`).
+ *
+ * @since 0.1.0
+ * @category type-level
+ */
+export type MarksWithOptionalAttrs<Sc> = {
+  [K in MarkNames<Sc>]: Partial<MarkAttrsInput<Sc, K>> extends MarkAttrsInput<Sc, K> ? K : never
+}[MarkNames<Sc>]
+
 /**
  * An untyped attributes object.
  *
@@ -471,6 +629,15 @@ export type AttrsOptional<Spec> = {} extends AttrsInputOfSpec<Spec> ? true : fal
  * @category models
  */
 export type Attrs = { readonly [attr: string]: any }
+
+/**
+ * The marks given to a node constructor: a mark set, or nothing (`null`
+ * or `undefined`) for none.
+ *
+ * @since 0.1.0
+ * @category models
+ */
+export type MarksInput<Sc extends AnySchema = AnySchema> = ReadonlyArray<Mark<Sc>> | null | undefined
 
 /**
  * Anything that can be converted to a fragment of `N` nodes.
@@ -542,14 +709,14 @@ function initAttrs(typeName: string, attrs?: AttributeDefinitions) {
 // have any attributes), build up a single reusable default attribute
 // object, and use it for all nodes that don't specify specific
 // attributes.
-function defaultAttrs(attrs: Record<string, Attribute>): Attrs | null {
+function defaultAttrs(attrs: Record<string, Attribute>): Option.Option<Attrs> {
   const defaults = Object.create(null)
   for (const attrName in attrs) {
     const attr = attrs[attrName]!
-    if (!attr.hasDefault) return null
+    if (!attr.hasDefault) return Option.none()
     defaults[attrName] = attr.default
   }
-  return defaults
+  return Option.some(defaults)
 }
 
 /** @internal */
@@ -646,7 +813,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   ) {
     this.groups = spec.group ? spec.group.split(" ") : []
     this.attrs = initAttrs(name, spec.attrs)
-    this.defaultAttrs = defaultAttrs(this.attrs)
+    this.defaultAttrs = Option.getOrNull(defaultAttrs(this.attrs))
     this.identityAttrs = identityAttrs(this.attrs)
     this.isBlock = !(spec.inline || name === "text")
     this.isText = name === "text"
@@ -706,18 +873,40 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
    * `createChecked`).
    */
   create(
+    this: NodeType<Sc, NodesWithOptionalAttrs<Sc>>,
     attrs?: NodeAttrsInput<Sc, N> | null,
     content?: FragmentInput<Sc, ChildNames<Sc, N>>,
-    marks?: ReadonlyArray<Mark<Sc>> | null
+    marks?: MarksInput<Sc>
+  ): Effect.Effect<Node<Sc, N>, AttributeError | ContentError>
+  create(
+    attrs: NodeAttrsInput<Sc, N>,
+    content?: FragmentInput<Sc, ChildNames<Sc, N>>,
+    marks?: MarksInput<Sc>
+  ): Effect.Effect<Node<Sc, N>, AttributeError | ContentError>
+  create(
+    attrs?: NodeAttrsInput<Sc, N> | null,
+    content?: FragmentInput<Sc, ChildNames<Sc, N>>,
+    marks?: MarksInput<Sc>
   ): Effect.Effect<Node<Sc, N>, AttributeError | ContentError> {
     return attempt(() => this.createUnsafe(attrs, content, marks), isModelError as any)
   }
 
   /** Like `create`, but throws an `AttributeError` on failure. */
   createUnsafe(
+    this: NodeType<Sc, NodesWithOptionalAttrs<Sc>>,
     attrs?: NodeAttrsInput<Sc, N> | null,
     content?: FragmentInput<Sc, ChildNames<Sc, N>>,
-    marks?: ReadonlyArray<Mark<Sc>> | null
+    marks?: MarksInput<Sc>
+  ): Node<Sc, N>
+  createUnsafe(
+    attrs: NodeAttrsInput<Sc, N>,
+    content?: FragmentInput<Sc, ChildNames<Sc, N>>,
+    marks?: MarksInput<Sc>
+  ): Node<Sc, N>
+  createUnsafe(
+    attrs?: NodeAttrsInput<Sc, N> | null,
+    content?: FragmentInput<Sc, ChildNames<Sc, N>>,
+    marks?: MarksInput<Sc>
   ): Node<Sc, N> {
     if (this.isText) throw new ContentError({ message: "NodeType.create can't construct text nodes" })
     return new Node(this, this.computeAttrs(attrs) as any, Fragment.from(content), Mark.setFrom(marks)) as any
@@ -745,18 +934,40 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
    * content restrictions.
    */
   createChecked(
+    this: NodeType<Sc, NodesWithOptionalAttrs<Sc>>,
     attrs?: NodeAttrsInput<Sc, N> | null,
     content?: FragmentInput<Sc, ChildNames<Sc, N>>,
-    marks?: ReadonlyArray<Mark<Sc>> | null
+    marks?: MarksInput<Sc>
+  ): Effect.Effect<Node<Sc, N>, AttributeError | ContentError>
+  createChecked(
+    attrs: NodeAttrsInput<Sc, N>,
+    content?: FragmentInput<Sc, ChildNames<Sc, N>>,
+    marks?: MarksInput<Sc>
+  ): Effect.Effect<Node<Sc, N>, AttributeError | ContentError>
+  createChecked(
+    attrs?: NodeAttrsInput<Sc, N> | null,
+    content?: FragmentInput<Sc, ChildNames<Sc, N>>,
+    marks?: MarksInput<Sc>
   ): Effect.Effect<Node<Sc, N>, AttributeError | ContentError> {
     return attempt(() => this.createCheckedUnsafe(attrs, content, marks), isModelError as any)
   }
 
   /** Like `createChecked`, but throws on failure. */
   createCheckedUnsafe(
+    this: NodeType<Sc, NodesWithOptionalAttrs<Sc>>,
     attrs?: NodeAttrsInput<Sc, N> | null,
     content?: FragmentInput<Sc, ChildNames<Sc, N>>,
-    marks?: ReadonlyArray<Mark<Sc>> | null
+    marks?: MarksInput<Sc>
+  ): Node<Sc, N>
+  createCheckedUnsafe(
+    attrs: NodeAttrsInput<Sc, N>,
+    content?: FragmentInput<Sc, ChildNames<Sc, N>>,
+    marks?: MarksInput<Sc>
+  ): Node<Sc, N>
+  createCheckedUnsafe(
+    attrs?: NodeAttrsInput<Sc, N> | null,
+    content?: FragmentInput<Sc, ChildNames<Sc, N>>,
+    marks?: MarksInput<Sc>
   ): Node<Sc, N> {
     const frag = Fragment.from(content)
     this.checkContent(frag)
@@ -771,9 +982,20 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
    * always succeed if you pass no content.
    */
   createAndFill(
+    this: NodeType<Sc, NodesWithOptionalAttrs<Sc>>,
     attrs?: NodeAttrsInput<Sc, N> | null,
     content?: FragmentInput<Sc, ChildNames<Sc, N>>,
-    marks?: ReadonlyArray<Mark<Sc>> | null
+    marks?: MarksInput<Sc>
+  ): Effect.Effect<Node<Sc, N>, AttributeError | ContentError>
+  createAndFill(
+    attrs: NodeAttrsInput<Sc, N>,
+    content?: FragmentInput<Sc, ChildNames<Sc, N>>,
+    marks?: MarksInput<Sc>
+  ): Effect.Effect<Node<Sc, N>, AttributeError | ContentError>
+  createAndFill(
+    attrs?: NodeAttrsInput<Sc, N> | null,
+    content?: FragmentInput<Sc, ChildNames<Sc, N>>,
+    marks?: MarksInput<Sc>
   ): Effect.Effect<Node<Sc, N>, AttributeError | ContentError> {
     return attempt(() => {
       const node = this.createAndFillOrNull(attrs, content, marks)
@@ -841,16 +1063,9 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
 
   /** Removes the marks that are not allowed in this node from the given set. */
   allowedMarks<M extends Mark<any>>(marks: ReadonlyArray<M>): ReadonlyArray<M> {
-    if (this.markSet === null) return marks
-    let copy: Array<M> | undefined
-    for (let i = 0; i < marks.length; i++) {
-      if (!this.allowsMarkType(marks[i]!.type)) {
-        if (!copy) copy = marks.slice(0, i)
-      } else if (copy) {
-        copy.push(marks[i]!)
-      }
-    }
-    return !copy ? marks : copy.length ? copy : (Mark.none as ReadonlyArray<M>)
+    if (this.allowsMarks(marks)) return marks
+    const kept = marks.filter((mark) => this.allowsMarkType(mark.type))
+    return kept.length ? kept : (Mark.none as ReadonlyArray<M>)
   }
 
   /** @internal */
@@ -880,7 +1095,7 @@ export class MarkType<Sc extends AnySchema = AnySchema, out M extends MarkNames<
   /** @internal */
   excluded!: ReadonlyArray<MarkType<Sc>>
   /** @internal */
-  readonly instance: Mark<Sc, M> | null
+  readonly instance: Option.Option<Mark<Sc, M>>
 
   /** @internal */
   constructor(
@@ -895,8 +1110,7 @@ export class MarkType<Sc extends AnySchema = AnySchema, out M extends MarkNames<
   ) {
     this.attrs = initAttrs(name, spec.attrs)
     this.identityAttrs = identityAttrs(this.attrs)
-    const defaults = defaultAttrs(this.attrs)
-    this.instance = defaults ? new Mark(this, defaults as any) : null
+    this.instance = Option.map(defaultAttrs(this.attrs), (defaults) => new Mark(this, defaults as any))
   }
 
   /**
@@ -904,13 +1118,20 @@ export class MarkType<Sc extends AnySchema = AnySchema, out M extends MarkNames<
    * filled in from their defaults; supplied values are validated (see
    * `AttributeSpec`).
    */
+  create(
+    this: MarkType<Sc, MarksWithOptionalAttrs<Sc>>,
+    attrs?: MarkAttrsInput<Sc, M> | null
+  ): Effect.Effect<Mark<Sc, M>, AttributeError>
+  create(attrs: MarkAttrsInput<Sc, M>): Effect.Effect<Mark<Sc, M>, AttributeError>
   create(attrs?: MarkAttrsInput<Sc, M> | null): Effect.Effect<Mark<Sc, M>, AttributeError> {
     return attempt(() => this.createUnsafe(attrs), isAttributeError)
   }
 
   /** Like `create`, but throws an `AttributeError` on failure. */
+  createUnsafe(this: MarkType<Sc, MarksWithOptionalAttrs<Sc>>, attrs?: MarkAttrsInput<Sc, M> | null): Mark<Sc, M>
+  createUnsafe(attrs: MarkAttrsInput<Sc, M>): Mark<Sc, M>
   createUnsafe(attrs?: MarkAttrsInput<Sc, M> | null): Mark<Sc, M> {
-    if (!attrs && this.instance) return this.instance
+    if (!attrs && Option.isSome(this.instance)) return this.instance.value
     return new Mark(this, computeAttrs(this.attrs, attrs, "mark", this.name) as any)
   }
 
@@ -990,9 +1211,9 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
   /** The spec on which the schema is based. */
   readonly spec: { readonly nodes: N; readonly marks: M; readonly topNode?: string | undefined }
   /** An object mapping the schema's node names to node type objects. */
-  readonly nodes: NodeTypes<DocSchema<N, M>, N> & { readonly [name: string]: NodeType<DocSchema<N, M>> }
+  readonly nodes: NodeTypes<DocSchema<N, M>, N> & Readonly<Partial<Record<string, NodeType<DocSchema<N, M>>>>>
   /** A map from mark names to mark type objects. */
-  readonly marks: MarkTypes<DocSchema<N, M>, M> & { readonly [name: string]: MarkType<DocSchema<N, M>> }
+  readonly marks: MarkTypes<DocSchema<N, M>, M> & Readonly<Partial<Record<string, MarkType<DocSchema<N, M>>>>>
   /** The linebreak replacement node defined in this schema, if any. */
   readonly linebreakReplacement: Option.Option<NodeType<DocSchema<N, M>>>
   /** The type of the default top node for this schema. */
@@ -1022,7 +1243,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
     this.nodes = nodes as any
     this.marks = marks as any
 
-    let linebreak: NodeType<any, any> | null = null
+    let linebreak = Option.none<NodeType<any, any>>()
     for (const prop in nodes) {
       if (prop in marks) throw new SchemaDefinitionError({ message: prop + " can not be both a node and a mark" })
       const type = nodes[prop]!
@@ -1030,11 +1251,11 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
       type.contentMatch = ContentMatch.compile(type.spec.content, nodes, prop)
       type.inlineContent = type.contentMatch.inlineContent
       if (type.spec.linebreakReplacement) {
-        if (linebreak) throw new SchemaDefinitionError({ message: "Multiple linebreak nodes defined" })
+        if (Option.isSome(linebreak)) throw new SchemaDefinitionError({ message: "Multiple linebreak nodes defined" })
         if (!type.isInline || !type.isLeaf) {
           throw new SchemaDefinitionError({ message: "Linebreak replacement nodes must be inline leaf nodes" })
         }
-        linebreak = type
+        linebreak = Option.some(type)
       }
       type.markSet =
         markExpr === "_"
@@ -1050,15 +1271,20 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
       const excl = type.spec.excludes
       type.excluded = excl == null ? [type] : excl === "" ? [] : gatherMarks(this, excl.split(" "))
     }
-    this.linebreakReplacement = Option.fromNullishOr(linebreak)
+    this.linebreakReplacement = linebreak
     this.topNodeType = nodes[topType]!
   }
 
   /**
-   * Construct a schema from a schema specification.
+   * Construct a schema from a schema specification. A spec with literal
+   * names is also checked statically (`SchemaSpecCheck`): an unknown
+   * content, `marks` or `excludes` reference, a missing top or `text`
+   * node, a name used by both a node and a mark, a `default` outside its
+   * `schema` or an unknown `validate` type name fails to compile, where the
+   * runtime would fail with a `SchemaDefinitionError`.
    */
-  static make<const N extends NodeSpecs, const M extends MarkSpecs = {}>(
-    spec: SchemaSpec<N, M>
+  static make<const N extends NodeSpecs, const M extends MarkSpecs = {}, const Top extends string = "doc">(
+    spec: SchemaSpec<N, M, Top> & NoInfer<SchemaSpecCheck<N, M, Top>>
   ): Effect.Effect<DocSchema<N, M>, SchemaDefinitionError> {
     return attempt(
       () => new DocSchema(spec),
@@ -1067,8 +1293,8 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
   }
 
   /** Like `make`, but throws a `SchemaDefinitionError` for invalid specs. */
-  static makeUnsafe<const N extends NodeSpecs, const M extends MarkSpecs = {}>(
-    spec: SchemaSpec<N, M>
+  static makeUnsafe<const N extends NodeSpecs, const M extends MarkSpecs = {}, const Top extends string = "doc">(
+    spec: SchemaSpec<N, M, Top> & NoInfer<SchemaSpecCheck<N, M, Top>>
   ): DocSchema<N, M> {
     return new DocSchema(spec)
   }
@@ -1078,21 +1304,45 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
    * defaults and the content is checked against the node type's
    * content expression.
    */
+  node<K extends NodesWithOptionalAttrs<DocSchema<N, M>>>(
+    type: K | NodeType<DocSchema<N, M>, K>,
+    attrs?: NodeAttrsInput<DocSchema<N, M>, K> | null,
+    content?: FragmentInput<DocSchema<N, M>, ChildNames<DocSchema<N, M>, K>>,
+    marks?: MarksInput<DocSchema<N, M>>
+  ): Effect.Effect<Node<DocSchema<N, M>, K>, AttributeError | ContentError>
+  node<K extends keyof N & string>(
+    type: K | NodeType<DocSchema<N, M>, K>,
+    attrs: NodeAttrsInput<DocSchema<N, M>, K>,
+    content?: FragmentInput<DocSchema<N, M>, ChildNames<DocSchema<N, M>, K>>,
+    marks?: MarksInput<DocSchema<N, M>>
+  ): Effect.Effect<Node<DocSchema<N, M>, K>, AttributeError | ContentError>
   node<K extends keyof N & string>(
     type: K | NodeType<DocSchema<N, M>, K>,
     attrs?: NodeAttrsInput<DocSchema<N, M>, K> | null,
     content?: FragmentInput<DocSchema<N, M>, ChildNames<DocSchema<N, M>, K>>,
-    marks?: ReadonlyArray<Mark<DocSchema<N, M>>> | null
+    marks?: MarksInput<DocSchema<N, M>>
   ): Effect.Effect<Node<DocSchema<N, M>, K>, AttributeError | ContentError> {
     return attempt(() => this.nodeUnsafe(type, attrs, content, marks), isModelError as any)
   }
 
   /** Like `node`, but throws on failure. */
+  nodeUnsafe<K extends NodesWithOptionalAttrs<DocSchema<N, M>>>(
+    type: K | NodeType<DocSchema<N, M>, K>,
+    attrs?: NodeAttrsInput<DocSchema<N, M>, K> | null,
+    content?: FragmentInput<DocSchema<N, M>, ChildNames<DocSchema<N, M>, K>>,
+    marks?: MarksInput<DocSchema<N, M>>
+  ): Node<DocSchema<N, M>, K>
+  nodeUnsafe<K extends keyof N & string>(
+    type: K | NodeType<DocSchema<N, M>, K>,
+    attrs: NodeAttrsInput<DocSchema<N, M>, K>,
+    content?: FragmentInput<DocSchema<N, M>, ChildNames<DocSchema<N, M>, K>>,
+    marks?: MarksInput<DocSchema<N, M>>
+  ): Node<DocSchema<N, M>, K>
   nodeUnsafe<K extends keyof N & string>(
     type: K | NodeType<DocSchema<N, M>, K>,
     attrs?: NodeAttrsInput<DocSchema<N, M>, K> | null,
     content?: FragmentInput<DocSchema<N, M>, ChildNames<DocSchema<N, M>, K>>,
-    marks?: ReadonlyArray<Mark<DocSchema<N, M>>> | null
+    marks?: MarksInput<DocSchema<N, M>>
   ): Node<DocSchema<N, M>, K> {
     let nodeType: NodeType<any, any>
     if (typeof type === "string") nodeType = this.nodeType(type)
@@ -1107,10 +1357,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
    * Create a text node in the schema. Fails for empty strings, since
    * empty text nodes are not allowed.
    */
-  text(
-    text: string,
-    marks?: ReadonlyArray<Mark<DocSchema<N, M>>> | null
-  ): Effect.Effect<TextNode<DocSchema<N, M>>, ContentError> {
+  text(text: string, marks?: MarksInput<DocSchema<N, M>>): Effect.Effect<TextNode<DocSchema<N, M>>, ContentError> {
     return attempt(
       () => this.textUnsafe(text, marks),
       (u): u is ContentError => u instanceof ContentError
@@ -1124,6 +1371,14 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
   }
 
   /** Create a mark with the given type and attributes. */
+  mark<K extends MarksWithOptionalAttrs<DocSchema<N, M>>>(
+    type: K | MarkType<DocSchema<N, M>, K>,
+    attrs?: MarkAttrsInput<DocSchema<N, M>, K> | null
+  ): Effect.Effect<Mark<DocSchema<N, M>, K>, AttributeError>
+  mark<K extends keyof M & string>(
+    type: K | MarkType<DocSchema<N, M>, K>,
+    attrs: MarkAttrsInput<DocSchema<N, M>, K>
+  ): Effect.Effect<Mark<DocSchema<N, M>, K>, AttributeError>
   mark<K extends keyof M & string>(
     type: K | MarkType<DocSchema<N, M>, K>,
     attrs?: MarkAttrsInput<DocSchema<N, M>, K> | null
@@ -1132,6 +1387,14 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
   }
 
   /** Like `mark`, but throws on failure. */
+  markUnsafe<K extends MarksWithOptionalAttrs<DocSchema<N, M>>>(
+    type: K | MarkType<DocSchema<N, M>, K>,
+    attrs?: MarkAttrsInput<DocSchema<N, M>, K> | null
+  ): Mark<DocSchema<N, M>, K>
+  markUnsafe<K extends keyof M & string>(
+    type: K | MarkType<DocSchema<N, M>, K>,
+    attrs: MarkAttrsInput<DocSchema<N, M>, K>
+  ): Mark<DocSchema<N, M>, K>
   markUnsafe<K extends keyof M & string>(
     type: K | MarkType<DocSchema<N, M>, K>,
     attrs?: MarkAttrsInput<DocSchema<N, M>, K> | null

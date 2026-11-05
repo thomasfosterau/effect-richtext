@@ -27,11 +27,7 @@ import {
 } from "effect-richtext/extensions"
 import type { Mark, Node as PMNode, NodeNames } from "effect-richtext/model"
 import { type Command, Plugin, type Transaction } from "effect-richtext/state"
-
-/** `true` exactly when `A` and `B` are the same type. */
-type Equals<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false
-/** Fails to compile unless `T` is `true`. */
-type Expect<T extends true> = T
+import type { Equals, Expect } from "./utils/types.ts"
 
 class Svc extends Context.Service<Svc, { readonly n: number }>()("typetest/Svc") {}
 class Boom extends Schema.TaggedError<Boom>()("Boom", {}) {}
