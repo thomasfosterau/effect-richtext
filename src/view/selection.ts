@@ -20,10 +20,12 @@ const geckoKeySelection = (
   view: AnyView,
   domSel: DOMSelectionRange,
   head: number,
-  nearestDesc: ViewDesc | undefined,
-  origin: string | null
+  nearestDesc: Option.Option<ViewDesc>,
+  byKey: boolean
 ) =>
-  browser.gecko && origin == "key" && nearestDesc ? skippedScrollWrapper(view, domSel, head, nearestDesc) : undefined
+  browser.gecko && byKey
+    ? Option.getOrUndefined(Option.map(nearestDesc, (desc) => skippedScrollWrapper(view, domSel, head, desc)))
+    : undefined
 
 // Firefox will jump across scrollable wrapper nodes on keyboard cursor
 // motion (#1594). Detect a cursor that landed past such a wrapper and put
@@ -78,7 +80,7 @@ export function selectionFromDOM(view: AnyView, origin: string | null = null): S
       const pos = nearestDesc.posBefore
       selection = new NodeSelection(head == pos ? $head : doc.resolveUnsafe(pos))
     } else {
-      selection = geckoKeySelection(view, domSel, head, nearestDesc, origin)
+      selection = geckoKeySelection(view, domSel, head, Option.fromNullishOr(nearestDesc), origin == "key")
     }
   } else {
     if (domSel instanceof view.dom.ownerDocument.defaultView!.Selection && domSel.rangeCount > 1) {
