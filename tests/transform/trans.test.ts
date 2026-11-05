@@ -48,7 +48,7 @@ function tag$(node: Node_, tag: string): number | null {
 
 function tag(node: Node_, tag: string): number {
   const value = tag$(node, tag)
-  if (value == null) return assert.fail(`Missing tag ${tag} on ${node}`)
+  if (value == null) return assert.fail(`Missing tag ${tag} on ${node.toString()}`)
   return value
 }
 

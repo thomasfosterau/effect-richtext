@@ -476,7 +476,7 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
     }
     if (!Mark.sameSet(copy, this.marks)) {
       throw new ContentError({
-        message: `Invalid collection of marks for node ${this.type.name}: ${this.marks.map((m) => m.type.name)}`
+        message: `Invalid collection of marks for node ${this.type.name}: ${this.marks.map((m) => m.type.name).join(",")}`
       })
     }
     this.content.forEach((node) => node.checkUnsafe())

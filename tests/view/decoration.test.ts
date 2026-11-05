@@ -3,6 +3,7 @@ import { describe, it } from "@effect/vitest"
 import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
 import * as Order from "effect/Order"
+import * as Predicate from "effect/Predicate"
 import * as Schema from "effect/Schema"
 import { DocSchema, Fragment, type Node, NodeRange, Slice } from "effect-richtext/model"
 import { blockquote, builders, doc, h1, li, p, schema, ul } from "effect-richtext/test-builder"
@@ -43,7 +44,12 @@ function str(set: DecorationSet) {
   if (!set) return "[]"
   let s = "[" + set.local.map((d) => d.from + "-" + d.to).join(", ")
   for (let i = 0; i < set.children.length; i += 3) {
-    s += (s.length > 1 ? ", " : "") + set.children[i] + ": " + str(set.children[i + 2] as DecorationSet)
+    const start = set.children[i]
+    s +=
+      (s.length > 1 ? ", " : "") +
+      (Predicate.isNumber(start) ? start : "?") +
+      ": " +
+      str(set.children[i + 2] as DecorationSet)
   }
   return s + "]"
 }
