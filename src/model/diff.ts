@@ -64,15 +64,21 @@ export function findDiffEnd(
     if (childA.isText && (childA as TextNode).text !== (childB as TextNode).text) {
       const ta = (childA as TextNode).text,
         tb = (childB as TextNode).text
-      let iA = ta.length,
-        iB = tb.length
-      while (iA > 0 && iB > 0 && ta[iA - 1] === tb[iB - 1]) {
-        iA--
-        iB--
+      let endA = ta.length,
+        endB = tb.length
+      while (endA > 0 && endB > 0 && ta[endA - 1] === tb[endB - 1]) {
+        endA--
+        endB--
         posA--
         posB--
       }
-      if (iA && iB && iA < ta.length && surrogateHigh(ta.charCodeAt(iA - 1)) && surrogateLow(ta.charCodeAt(iA))) {
+      if (
+        endA &&
+        endB &&
+        endA < ta.length &&
+        surrogateHigh(ta.charCodeAt(endA - 1)) &&
+        surrogateLow(ta.charCodeAt(endA))
+      ) {
         posA++
         posB++
       }

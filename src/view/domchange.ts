@@ -17,7 +17,8 @@ import {
 } from "../model.ts"
 import { type Selection, TextSelection, type Transaction } from "../state.ts"
 import * as browser from "./browser.ts"
-import { type DOMNode, keyEvent, selectionCollapsed } from "./dom.ts"
+import { type DOMNode, selectionCollapsed } from "./dom.ts"
+import { dispatchKey } from "./input.ts"
 import { selectionBetween, selectionFromDOM, selectionToDOM } from "./selection.ts"
 import type { EditorView } from "./view.ts"
 
@@ -29,7 +30,7 @@ type AnyView = EditorView<any, any, any>
 // the modification is mapped over those before it is applied, in
 // readDOMChange.
 
-function parseBetween(view: AnyView, from_: number, to_: number) {
+function parseBetween(view: AnyView, from_: number, to_: number, addedNodes: ReadonlyArray<DOMNode>) {
   const range = view.docView.parseRange(from_, to_)
   const { from, fromOffset, node: parent, to } = range
   let toOffset = range.toOffset
@@ -69,7 +70,7 @@ function parseBetween(view: AnyView, from_: number, to_: number) {
     to: toOffset,
     preserveWhitespace: $from.parent.type.whitespace == "pre" ? "full" : true,
     findPositions: find,
-    ruleFromNode,
+    ruleFromNode: ruleFromNode(addedNodes),
     context: $from
   })
   if (find && find[0]!.pos != null) {
@@ -81,26 +82,30 @@ function parseBetween(view: AnyView, from_: number, to_: number) {
   return { doc, sel, from, to }
 }
 
-function ruleFromNode(dom: DOMNode): Omit<TagParseRule, "tag"> | null {
-  const desc = dom.pmViewDesc
-  if (desc) {
-    return desc.parseRule()
-  } else if (dom.nodeName == "BR" && dom.parentNode) {
-    // Safari replaces the list item or table cell with a BR
-    // directly in the list node (?!) if you delete the last
-    // character in a list item or table cell (#708, #862)
-    if (browser.safari && /^(ul|ol)$/i.test(dom.parentNode.nodeName)) {
-      const skip = document.createElement("div")
-      skip.appendChild(document.createElement("li"))
-      return { skip } as any
-    } else if (dom.parentNode.lastChild == dom || (browser.safari && /^(tr|table)$/i.test(dom.parentNode.nodeName))) {
+// Node descs get the nodes added by the change, so they can find a
+// content DOM the browser replaced (prosemirror-view 1.42.2).
+const ruleFromNode =
+  (added: ReadonlyArray<DOMNode>) =>
+  (dom: DOMNode): Omit<TagParseRule, "tag"> | null => {
+    const desc = dom.pmViewDesc
+    if (desc) {
+      return desc.parseRule(added)
+    } else if (dom.nodeName == "BR" && dom.parentNode) {
+      // Safari replaces the list item or table cell with a BR
+      // directly in the list node (?!) if you delete the last
+      // character in a list item or table cell (#708, #862)
+      if (browser.safari && /^(ul|ol)$/i.test(dom.parentNode.nodeName)) {
+        const skip = document.createElement("div")
+        skip.appendChild(document.createElement("li"))
+        return { skip } as any
+      } else if (dom.parentNode.lastChild == dom || (browser.safari && /^(tr|table)$/i.test(dom.parentNode.nodeName))) {
+        return { ignore: true }
+      }
+    } else if (dom.nodeName == "IMG" && (dom as HTMLElement).getAttribute("mark-placeholder")) {
       return { ignore: true }
     }
-  } else if (dom.nodeName == "IMG" && (dom as HTMLElement).getAttribute("mark-placeholder")) {
-    return { ignore: true }
+    return null
   }
-  return null
-}
 
 const isInline =
   /^(a|abbr|acronym|b|bd[io]|big|br|button|cite|code|data(list)?|del|dfn|em|i|img|ins|kbd|label|map|mark|meter|output|q|ruby|s|samp|small|span|strong|su[bp]|time|u|tt|var)$/i
@@ -113,19 +118,20 @@ export function readDOMChange(
   typeOver: boolean,
   addedNodes: ReadonlyArray<DOMNode>
 ): void {
+  const now = Date.now()
   const compositionID = view.input.compositionPendingChanges || (view.composing ? view.input.compositionID : 0)
   view.input.compositionPendingChanges = 0
 
   if (from < 0) {
-    const origin = view.input.lastSelectionTime > Date.now() - 50 ? view.input.lastSelectionOrigin : null
+    const origin = view.input.lastSelectionTime > now - 50 ? view.input.lastSelectionOrigin : null
     const newSel = selectionFromDOM(view, origin)
     if (newSel && !view.state.selection.eq(newSel)) {
       if (
         browser.chrome &&
         browser.android &&
         view.input.lastKeyCode === 13 &&
-        Date.now() - 100 < view.input.lastKeyCodeTime &&
-        view.someHandler("handleKeyDown", (f) => f(view, keyEvent(13, "Enter")))
+        now - 100 < view.input.lastKeyCodeTime &&
+        dispatchKey(view, "Enter")
       ) {
         return
       }
@@ -144,13 +150,13 @@ export function readDOMChange(
   to = view.state.doc.resolveUnsafe(to).afterUnsafe(shared + 1)
 
   const sel = view.state.selection
-  const parse = parseBetween(view, from, to)
+  const parse = parseBetween(view, from, to, addedNodes)
 
   const doc = view.state.doc,
     compare = doc.sliceUnsafe(parse.from, parse.to)
   let preferredPos, preferredSide: "start" | "end"
   // Prefer anchoring to end when Backspace is pressed
-  if (view.input.lastKeyCode === 8 && Date.now() - 100 < view.input.lastKeyCodeTime) {
+  if (view.input.lastKeyCode === 8 && now - 100 < view.input.lastKeyCodeTime) {
     preferredPos = view.state.selection.to
     preferredSide = "end"
   } else {
@@ -162,10 +168,10 @@ export function readDOMChange(
   let change = findDiff(compare.content, parse.doc.content, parse.from, preferredPos, preferredSide)
   if (change) view.input.domChangeCount++
   if (
-    ((browser.ios && view.input.lastIOSEnter > Date.now() - 225) || browser.android) &&
+    ((browser.ios && view.input.lastIOSEnter > now - 225) || browser.android) &&
     addedNodes.some((n) => n.nodeType == 1 && !isInline.test(n.nodeName)) &&
     (!change || change.endA >= change.endB) &&
-    view.someHandler("handleKeyDown", (f) => f(view, keyEvent(13, "Enter")))
+    dispatchKey(view, "Enter")
   ) {
     view.input.lastIOSEnter = 0
     return
@@ -241,14 +247,10 @@ export function readDOMChange(
   // as being an iOS enter press), just dispatch an Enter key instead.
   if (
     ((browser.ios &&
-      view.input.lastIOSEnter > Date.now() - 225 &&
+      view.input.lastIOSEnter > now - 225 &&
       (!inlineChange || addedNodes.some((n) => n.nodeName == "DIV" || n.nodeName == "P"))) ||
-      (!inlineChange &&
-        $from.pos < parse.doc.content.size &&
-        (!$from.sameParent($to) || !$from.parent.inlineContent) &&
-        $from.pos < $to.pos &&
-        !/\S/.test(parse.doc.textBetween($from.pos, $to.pos, "", "")))) &&
-    view.someHandler("handleKeyDown", (f) => f(view, keyEvent(13, "Enter")))
+      (!inlineChange && looksLikeEnter(parse.doc, $from.pos, $to.pos))) &&
+    dispatchKey(view, "Enter")
   ) {
     view.input.lastIOSEnter = 0
     return
@@ -256,8 +258,10 @@ export function readDOMChange(
   // Same for backspace
   if (
     view.state.selection.anchor > change.start &&
-    looksLikeBackspace(doc, change.start, change.endA, $from, $to) &&
-    view.someHandler("handleKeyDown", (f) => f(view, keyEvent(8, "Backspace")))
+    (inlineChange
+      ? change.endA > change.start && change.endB == change.start
+      : looksLikeBlockJoin(doc, change.start, change.endA, $from, $to)) &&
+    dispatchKey(view, "Backspace")
   ) {
     if (browser.android && browser.chrome) view.domObserver.suppressSelectionUpdates() // #820
     return
@@ -267,7 +271,7 @@ export function readDOMChange(
   // entire composition and then immediately insert it again. This is
   // used to detect that situation.
   if (browser.chrome && change.endB == change.start) {
-    view.input.lastChromeDelete = Date.now()
+    view.input.lastChromeDelete = now
   }
 
   // This tries to detect Android virtual keyboard
@@ -290,9 +294,7 @@ export function readDOMChange(
   ) {
     change.endB -= 2
     $to = parse.doc.resolveNoCache(change.endB - parse.from)
-    setTimeout(() => {
-      view.someHandler("handleKeyDown", (f) => f(view, keyEvent(13, "Enter")))
-    }, 20)
+    setTimeout(() => dispatchKey(view, "Enter"), 20)
   }
 
   const chFrom = change.start,
@@ -319,7 +321,7 @@ export function readDOMChange(
           (browser.chrome &&
             view.composing &&
             sel.empty &&
-            (change!.start != change!.endB || view.input.lastChromeDelete < Date.now() - 100) &&
+            (change!.start != change!.endB || view.input.lastChromeDelete < now - 100) &&
             (sel.head == chFrom || sel.head == tr.mapping.map(chTo) - 1)) ||
           (browser.ie && sel.empty && sel.head == chFrom)
         )
@@ -417,7 +419,7 @@ function isMarkChange(
   return undefined
 }
 
-function looksLikeBackspace(
+function looksLikeBlockJoin(
   old: Node<any, any>,
   start: number,
   end: number,
@@ -436,7 +438,7 @@ function looksLikeBackspace(
   const $start = old.resolveUnsafe(start)
 
   // Handle the case where, rather than joining blocks, the change just removed an entire block
-  if (!$newStart.parent.isTextblock) {
+  if (!$newStart.parent.inlineContent) {
     const after = $start.nodeAfterOrNull
     return after != null && end == start + after.nodeSize
   }
@@ -453,6 +455,24 @@ function looksLikeBackspace(
 
   // The fragments after the join point must match
   return $newStart.parent.content.cut($newStart.parentOffset).eq($next.parent.content)
+}
+
+// A change that adds exactly one textblock and no other content (only
+// whitespace text) looks like the effect of pressing Enter
+// (prosemirror-view 1.42.5).
+function looksLikeEnter(content: Node<any, any>, from: number, to: number): boolean {
+  let newTextlines = 0,
+    newLeaves = 0
+  content.nodesBetween(from, to, (node, pos) => {
+    if (node.isTextblock && pos >= from && pos < to) newTextlines++
+    else if (
+      node.isText
+        ? /\S/.test(node.textContent.slice(Math.max(0, from - pos), Math.min(node.nodeSize, to - pos)))
+        : node.isLeaf
+    )
+      newLeaves++
+  })
+  return newLeaves == 0 && newTextlines == 1
 }
 
 function skipClosingAndOpening($pos: ResolvedPos<any>, fromEnd: boolean, mayOpen: boolean) {
@@ -481,38 +501,29 @@ function findDiff(
   preferredSide: "start" | "end"
 ) {
   let start = Option.getOrNull(a.findDiffStart(b, pos))
+  const lenA = pos + a.size,
+    lenB = pos + b.size
   if (start == null) return null
   // findDiffEnd is None exactly when findDiffStart is (identical fragments)
-  const diffEnd = Option.getOrNull(a.findDiffEnd(b, pos + a.size, pos + b.size))
+  const diffEnd = Option.getOrNull(a.findDiffEnd(b, lenA, lenB))
   if (diffEnd == null) return null
   let { a: endA, b: endB } = diffEnd
   if (preferredSide == "end") {
     const adjust = Math.max(0, start - Math.min(endA, endB))
     preferredPos -= endA + adjust - start
   }
-  if (endA < start && a.size < b.size) {
+  // Fragment.findDiffStart/End keep surrogate pairs intact, so no
+  // adjustment is needed here (prosemirror-model 1.25.8, -view 1.42.x).
+  if (endA < start && lenA < lenB) {
     const move = preferredPos <= start && preferredPos >= endA ? start - preferredPos : 0
     start -= move
-    if (start && start < b.size && isSurrogatePair(b.textBetween(start - 1, start + 1))) {
-      start += move ? 1 : -1
-    }
     endB = start + (endB - endA)
     endA = start
   } else if (endB < start) {
     const move = preferredPos <= start && preferredPos >= endB ? start - preferredPos : 0
     start -= move
-    if (start && start < a.size && isSurrogatePair(a.textBetween(start - 1, start + 1))) {
-      start += move ? 1 : -1
-    }
     endA = start + (endA - endB)
     endB = start
   }
   return { start, endA, endB }
-}
-
-function isSurrogatePair(str: string) {
-  if (str.length != 2) return false
-  const a = str.charCodeAt(0),
-    b = str.charCodeAt(1)
-  return a >= 0xdc00 && a <= 0xdfff && b >= 0xd800 && b <= 0xdbff
 }

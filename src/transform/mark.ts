@@ -14,14 +14,14 @@ import type { Transform } from "./transform.ts"
 /** @internal */
 export function addMark(tr: Transform<any>, from: number, to: number, mark: Mark<any>): void {
   // Excluded marks are dropped by the step itself; its inverse restores them (transform 1.12.3).
-  const added: Array<AddMarkStep<any>> = []
+  const added: Array<AddMarkStep<any> | RemoveMarkStep<any>> = []
   tr.doc.nodesBetween(from, to, (node, pos, parent) => {
     if (!node.isInline) return
     const marks = node.marks
     if (!mark.isInSet(marks) && Option.isSome(parent) && parent.value.type.allowsMarkType(mark.type)) {
       const start = Math.max(pos, from),
         end = Math.min(pos + node.nodeSize, to)
-      pushMarkStep(AddMarkStep, start, end, mark, added as Array<AddMarkStep<any> | RemoveMarkStep<any>>)
+      pushMarkStep(AddMarkStep, start, end, mark, added)
     }
   })
   added.forEach((s) => tr.stepUnsafe(s))

@@ -7,7 +7,7 @@ import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import { type AnySchema, Fragment, JSONError, Mark, type Node, Slice } from "../model.ts"
 import type { Mappable } from "./map.ts"
-import { MarkSetStep, pushMarkStep } from "./mark_set_step.ts"
+import { markStepGroup, pushMarkStep } from "./mark_set_step.ts"
 import { Step, type StepJSON, StepResult } from "./step.ts"
 
 function mapFragment<Sc extends AnySchema>(
@@ -74,11 +74,13 @@ export class AddMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
           const from = Math.max(this.from, pos),
             to = Math.min(this.to, pos + node.nodeSize)
           pushMarkStep(RemoveMarkStep, from, to, this.mark, steps)
-          for (const mark of node.marks) if (!mark.isInSet(added)) pushMarkStep(AddMarkStep, from, to, mark, steps)
+          node.marks.forEach((mark) => {
+            if (!mark.isInSet(added)) pushMarkStep(AddMarkStep, from, to, mark, steps)
+          })
         }
       }
     })
-    return steps.length === 1 ? steps[0]! : new MarkSetStep(steps)
+    return markStepGroup(steps)
   }
 
   map(mapping: Mappable): Option.Option<Step<Sc>> {
@@ -147,7 +149,7 @@ export class RemoveMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
         pushMarkStep(AddMarkStep, Math.max(this.from, pos), Math.min(this.to, pos + node.nodeSize), this.mark, steps)
       }
     })
-    return steps.length === 1 ? steps[0]! : new MarkSetStep(steps)
+    return markStepGroup(steps)
   }
 
   map(mapping: Mappable): Option.Option<Step<Sc>> {

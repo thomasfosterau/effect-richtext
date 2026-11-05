@@ -147,8 +147,8 @@ describe("Step", () => {
 describe("Step mapping", () => {
   // transform 1.12.2: insertions no longer count as deleting the mapped position.
   it("keeps node-targeted steps mapped over an insertion at their position", () => {
-    const mapped = new AttrStep(5, "level", 2).map(new Mapping([new StepMap([5, 0, 2])]))
-    ist((getSome(mapped) as AttrStep<any>).pos, 7)
+    const mapped = getSome(new AttrStep(5, "level", 2).map(new Mapping([new StepMap([5, 0, 2])])))
+    ist(mapped instanceof AttrStep && mapped.pos, 7)
   })
 
   it("drops node-targeted steps whose node is deleted", () => {

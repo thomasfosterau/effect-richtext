@@ -5,13 +5,21 @@
  * @internal
  */
 import type { ResolvedPos } from "../model.ts"
-import { NodeSelection, type Selection, TextSelection } from "../state.ts"
+import { NodeSelection, Selection, TextSelection } from "../state.ts"
 import * as browser from "./browser.ts"
-import { domIndex, isEquivalentPosition, isOnEdge, selectionCollapsed } from "./dom.ts"
+import { domIndex, isElt, isEquivalentPosition, isOnEdge, selectionCollapsed } from "./dom.ts"
 import type { EditorView } from "./view.ts"
 import type { NodeViewDesc, ViewDesc } from "./viewdesc.ts"
 
 type AnyView = EditorView<any, any, any>
+
+// Whether `scan`, or an ancestor reached through last children up to
+// `stop`, scrolls its overflow.
+function inScrollableWrapper(scan: globalThis.Node, stop: globalThis.Node): boolean {
+  if (isElt(scan) && getComputedStyle(scan).overflow != "visible") return true
+  if (scan == stop || scan.nextSibling || !scan.parentNode || !isElt(scan.parentNode)) return false
+  return inScrollableWrapper(scan.parentNode, stop)
+}
 
 /** @internal */
 export function selectionFromDOM(view: AnyView, origin: string | null = null): Selection<any> | null {
@@ -38,6 +46,21 @@ export function selectionFromDOM(view: AnyView, origin: string | null = null): S
     ) {
       const pos = nearestDesc.posBefore
       selection = new NodeSelection(head == pos ? $head : doc.resolveUnsafe(pos))
+    } else if (
+      browser.gecko &&
+      origin == "key" &&
+      head > view.state.selection.to &&
+      isElt(domSel.focusNode) &&
+      domSel.focusOffset == domSel.focusNode.childNodes.length &&
+      nearestDesc &&
+      nearestDesc.posAtStart > view.state.selection.to
+    ) {
+      // Firefox will jump across scrollable wrapper nodes on keyboard
+      // cursor motion (#1594). This tries to detect this situation and
+      // work around it (prosemirror-view 1.42.6).
+      if (inScrollableWrapper(domSel.focusNode, nearestDesc.dom)) {
+        selection = Selection.findFromOrNull(doc.resolveUnsafe(nearestDesc.posAtStart), 1) ?? undefined
+      }
     }
   } else {
     if (domSel instanceof view.dom.ownerDocument.defaultView!.Selection && domSel.rangeCount > 1) {
@@ -78,18 +101,18 @@ export function selectionToDOM(view: AnyView, force = false): void {
 
   if (!editorOwnsSelection(view)) return
 
-  // The delayed drag selection causes issues with Cell Selections
-  // in Safari. And the drag selection delay is to workarond issues
-  // which only present in Chrome.
-  if (!force && view.input.mouseDown && view.input.mouseDown.allowDefault && browser.chrome) {
+  // Need to delay selection normalization during a native selection
+  // drag on Chrome, or it will cause further dragging to glitch.
+  const mouseDown = view.input.mouseDown
+  if (!force && browser.chrome && mouseDown) {
     const domSel = view.domSelectionRange(),
       curSel = view.domObserver.currentSelection
     if (
       domSel.anchorNode &&
       curSel.anchorNode &&
-      isEquivalentPosition(domSel.anchorNode, domSel.anchorOffset, curSel.anchorNode, curSel.anchorOffset)
+      isEquivalentPosition(domSel.anchorNode, domSel.anchorOffset, curSel.anchorNode, curSel.anchorOffset) &&
+      mouseDown.delaySelUpdate()
     ) {
-      view.input.mouseDown.delayedSelectionSync = true
       view.domObserver.setCurSelection()
       return
     }

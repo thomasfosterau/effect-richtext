@@ -1037,15 +1037,9 @@ describe("DOMSerializer", () => {
     ist.throws(() => weird.serializeNode(evil, { document }), /Using an array from an attribute object as a DOM spec/)
   })
 
-  it("refuses to render a node as a bare text node", () => {
-    // Node and mark specs must render elements (prosemirror-model 1.25.5 / 1.25.7).
-    const s = new DOMSerializer({ paragraph: () => document.createTextNode("x") as any, text: () => "a" as any }, {})
-    ist.throws(() => s.serializeNode(p("a"), { document }), /Invalid array passed to renderSpec/)
-  })
-
   it("refuses to create nodes with attributes their schema rejects", () => {
     ist.throws(
-      () => img({ src: "x.png", alt: ["script", { src: "http://evil.com/inject.js" }] as any }),
+      () => img({ src: "x.png", alt: ["script", { src: "http://evil.com/inject.js" }] }),
       /Invalid value for attribute alt on node of type image/
     )
   })

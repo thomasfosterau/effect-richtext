@@ -4,6 +4,10 @@
 // marked as such) and dprint formatting, plus:
 // - runs in the browser project; the JSDOM documents are replaced by the
 //   browser's `document` and an XML document from `window.DOMParser`.
+// - "refuses to use values from attributes as DOM specs" builds its image
+//   in a schema whose `alt` has no validator: since prosemirror-model
+//   1.25.12, creating the test schema's image with an array `alt` already
+//   throws (upstream's own copy of this test fails against 1.25.12 too).
 import { describe, it } from "@effect/vitest"
 import type { Mark, Node as PMNode } from "effect-richtext/compat/model"
 import {
@@ -925,16 +929,14 @@ describe("DOMSerializer", () => {
   })
 
   it("refuses to use values from attributes as DOM specs", () => {
+    const loose = new Schema({
+      nodes: { doc: { content: "image*" }, image: { attrs: { src: {}, alt: { default: null } } }, text: {} }
+    })
     const weird = new DOMSerializer(
-      Object.assign({}, serializer.nodes, {
-        image: (node: PMNode) => ["span", ["img", { src: node.attrs.src }], node.attrs.alt]
-      }),
-      serializer.marks
+      { image: (node: PMNode) => ["span", ["img", { src: node.attrs.src }], node.attrs.alt] },
+      {}
     )
-    ist.throws(
-      () =>
-        weird.serializeNode(img({ src: "x.png", alt: ["script", { src: "http://evil.com/inject.js" }] }), { document }),
-      /Using an array from an attribute object as a DOM spec/
-    )
+    const evil = loose.nodes.image.create({ src: "x.png", alt: ["script", { src: "http://evil.com/inject.js" }] })
+    ist.throws(() => weird.serializeNode(evil, { document }), /Using an array from an attribute object as a DOM spec/)
   })
 })

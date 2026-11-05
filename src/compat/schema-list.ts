@@ -10,7 +10,7 @@
 import * as SL from "../schema-list.ts"
 import { fromCoreCommand } from "./commands.ts"
 import { CORE } from "./internal/core.ts"
-import type { Attrs, DOMOutputSpec, NodeRange, NodeSpec, NodeType } from "./model.ts"
+import { type Attrs, type DOMOutputSpec, type NodeRange, type NodeSpec, NodeType } from "./model.ts"
 import type { OrderedMap } from "./orderedmap.ts"
 import type { Command, Transaction } from "./state.ts"
 
@@ -122,7 +122,7 @@ export function wrapRangeInList(
 
 // One item type or several (prosemirror-schema-list 1.6.0), as core types.
 const coreItemTypes = (itemType: NodeType | ReadonlyArray<NodeType>): any =>
-  Array.isArray(itemType) ? itemType.map((t) => t[CORE]) : (itemType as NodeType)[CORE]
+  itemType instanceof NodeType ? itemType[CORE] : itemType.map((t) => t[CORE])
 
 /**
  * Build a command that splits a non-empty textblock at the top level

@@ -57,6 +57,10 @@ function clientRect(node: HTMLElement): Rect {
 
 /** @internal */
 export function scrollRectIntoView(view: AnyView, rect: Rect, startDOM: DOMNode): void {
+  // Skip empty rects with all sides at 0, for example when the element
+  // has no CSS box (display: none) (prosemirror-view 1.42.1).
+  if (!nonZero(rect) && rect.left == 0) return
+
   const scrollThreshold = view.someProp("scrollThreshold") || 0,
     scrollMargin = view.someProp("scrollMargin") || 5
   const doc = view.dom.ownerDocument
@@ -433,7 +437,7 @@ export function posAtCoords(
   return { pos, inside: desc ? desc.posAtStart - desc.border : -1 }
 }
 
-function nonZero(rect: DOMRect) {
+function nonZero(rect: Rect) {
   return rect.top < rect.bottom || rect.left < rect.right
 }
 

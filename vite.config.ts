@@ -144,9 +144,9 @@ export default defineConfig({
       // thomasfosterau/effect-richtext#3. Lower the count as sites are
       // fixed, and delete the line (back to the preset's `error`) when it
       // reaches zero.
-      "effect/avoid-non-null-assertion": "warn", // 1315
-      "effect/require-safety-comment-for-type-assertion": "warn", // 1049
-      "effect/prefer-option-over-null": "warn", // 1010
+      "effect/avoid-non-null-assertion": "warn", // 1309
+      "effect/require-safety-comment-for-type-assertion": "warn", // 1045
+      "effect/prefer-option-over-null": "warn", // 1008
       "effect/imperative-loops": "warn", // 608
       "effect/avoid-any": "warn", // 444
       "effect/no-runtime-typeof": "warn", // 77
@@ -158,7 +158,7 @@ export default defineConfig({
       "effect/effect-run-in-body": "warn", // 34
       "effect/avoid-try-catch": "warn", // 30
       "effect/no-chained-type-assertions": "warn", // 25
-      "effect/use-clock-service": "warn", // 24
+      "effect/use-clock-service": "warn", // 20
       "effect/no-unknown-returns": "warn", // 22
       "effect/yield-in-for-loop": "warn", // 18
       // The `suspicious` and `unicorn` rules joined with the move to
@@ -176,8 +176,8 @@ export default defineConfig({
       // tsgolint's verdict on "unnecessary" differs from the `check` task's
       // tsc on enough of them that the autofix breaks the type gate, so each
       // site is removed by hand, against `vp run check`.
-      "typescript/no-unsafe-type-assertion": "warn", // 889
-      "typescript/no-unnecessary-type-assertion": "warn", // 720
+      "typescript/no-unsafe-type-assertion": "warn", // 887
+      "typescript/no-unnecessary-type-assertion": "warn", // 715
       "typescript/no-unnecessary-type-arguments": "warn", // 54
       "effecttsgo/any-unknown-in-error-context": "warn", // 54
       "typescript/unbound-method": "warn", // 43

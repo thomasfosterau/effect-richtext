@@ -109,6 +109,11 @@ export function nodeSize(node: DOMNode): number {
 }
 
 /** @internal */
+export function isElt(node: DOMNode): node is HTMLElement {
+  return node.nodeType == 1
+}
+
+/** @internal */
 export function textNodeBefore(node: DOMNode, offset: number): Text | null {
   for (;;) {
     if (node.nodeType == 3 && offset) return node as Text

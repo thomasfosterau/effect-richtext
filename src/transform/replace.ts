@@ -440,11 +440,8 @@ function definesContent(type: NodeType<any, any>): boolean | undefined {
 // The depth to which `frag` can be opened on the given side: the number
 // of non-atom nodes along its first (`-1`) or last (`1`) edge.
 function maxOpen(frag: Fragment<any>, side: -1 | 1): number {
-  for (let count = 0; ; count++) {
-    const ch = side < 0 ? frag.content[0] : frag.content[frag.content.length - 1]
-    if (!ch || ch.isAtom) return count
-    frag = ch.content
-  }
+  const ch = side < 0 ? frag.content[0] : frag.content.at(-1)
+  return !ch || ch.isAtom ? 0 : 1 + maxOpen(ch.content, side)
 }
 
 /** @internal */

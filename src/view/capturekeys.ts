@@ -7,7 +7,9 @@
  */
 import { AllSelection, type EditorState, NodeSelection, Selection, TextSelection } from "../state.ts"
 import * as browser from "./browser.ts"
-import { domIndex, type DOMNode, hasBlockDesc, selectionCollapsed } from "./dom.ts"
+import * as Arr from "effect/Array"
+import * as Option from "effect/Option"
+import { domIndex, type DOMNode, hasBlockDesc, isElt, selectionCollapsed } from "./dom.ts"
 import { selectionToDOM } from "./selection.ts"
 import type { EditorView } from "./view.ts"
 
@@ -53,13 +55,13 @@ function selectHorizontally(view: AnyView, dir: number, mods: string) {
       if (!(node.isAtom || ((desc = view.docView.descAt(nodePos)) && !desc.contentDOM))) return false
       if (NodeSelection.isSelectable(node)) {
         return apply(view, new NodeSelection(dir < 0 ? view.state.doc.resolveUnsafe($head.pos - node.nodeSize) : $head))
-      } else if (browser.webkit) {
-        // Chrome and Safari will introduce extra pointless cursor
-        // positions around inline uneditable nodes, so we have to
-        // take over and move the cursor past them (#937)
-        return apply(view, new TextSelection(view.state.doc.resolveUnsafe(dir < 0 ? nodePos : nodePos + node.nodeSize)))
       } else {
-        return false
+        // Chrome and Safari will introduce extra pointless cursor
+        // positions around inline uneditable nodes (#937), and
+        // Firefox will sometimes just plain refuse to move across
+        // them (#1592), so in this situation we move the cursor
+        // ourselves (prosemirror-view 1.42.6).
+        return apply(view, new TextSelection(view.state.doc.resolveUnsafe(dir < 0 ? nodePos : nodePos + node.nodeSize)))
       }
     }
     return false
@@ -78,7 +80,11 @@ function nodeLen(node: DOMNode) {
 
 function isIgnorable(dom: DOMNode, dir: number) {
   const desc = dom.pmViewDesc
-  return desc && desc.size == 0 && (dir < 0 || dom.nextSibling || dom.nodeName != "BR")
+  // Uneditable elements that a node or mark view rendered without a desc
+  // are skipped too (prosemirror-view 1.42.4).
+  return desc
+    ? desc.size == 0 && (dir < 0 || dom.nextSibling || dom.nodeName != "BR")
+    : isElt(dom) && dom.contentEditable == "false"
 }
 
 function skipIgnoredNodes(view: AnyView, dir: number): boolean {
@@ -227,15 +233,13 @@ function setSelFocus(view: AnyView, node: DOMNode, offset: number) {
     }
   }
 
-  const sel = view.domSelection()
+  const sel = view.domSelection(),
+    range = view.domSelectionRange()
   if (!sel) return
-  if (selectionCollapsed(sel)) {
-    const range = document.createRange()
-    range.setEnd(node, offset)
-    range.setStart(node, offset)
-    sel.removeAllRanges()
-    sel.addRange(range)
+  if (selectionCollapsed(range)) {
+    sel.collapse(node, offset)
   } else if (sel.extend) {
+    sel.collapse(range.anchorNode, range.anchorOffset)
     sel.extend(node, offset)
   }
   view.domObserver.setCurSelection()
@@ -265,7 +269,15 @@ function findDirection(view: AnyView, pos: number): "rtl" | "ltr" {
       }
     }
   }
-  const computed = getComputedStyle(view.dom).direction
+  // Use the direction of the enclosing block, which may differ from the
+  // editor's (prosemirror-view 1.42.6).
+  // (Arr.range(1, 0) is [1], so a top-level position has no block to ask.)
+  const depths = $pos.depth > 0 ? Arr.range(1, $pos.depth).reverse() : []
+  const blockDOM = Arr.findFirst(depths, (d) => $pos.node(d).isBlock).pipe(
+    Option.flatMap((d) => view.nodeDOM($pos.beforeUnsafe(d))),
+    Option.filter(isElt)
+  )
+  const computed = getComputedStyle(Option.getOrElse(blockDOM, () => view.dom)).direction
   return computed == "rtl" ? "rtl" : "ltr"
 }
 

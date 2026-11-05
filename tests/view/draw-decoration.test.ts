@@ -564,4 +564,13 @@ describe("Decoration drawing", () => {
     ist(view.dom.querySelectorAll(".bar").length, 1)
     ist(view.dom.querySelectorAll(".baz").length, 1)
   })
+
+  // prosemirror-view 1.42.3
+  it("keeps a widget's own contenteditable attribute", () => {
+    const widget = document.createElement("span")
+    widget.setAttribute("contenteditable", "true")
+    const view = tempEditor({ doc: doc(p("foo")), plugins: [decoPlugin([Decoration.widget(2, widget)])] })
+    const drawn = view.dom.querySelector(".ProseMirror-widget")!
+    ist(drawn.getAttribute("contenteditable"), "true")
+  })
 })

@@ -7,6 +7,7 @@
  *
  * @internal
  */
+import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
 import { type AnySchema, JSONError, type Mark, type Node } from "../model.ts"
 import type { Mappable } from "./map.ts"
@@ -26,7 +27,7 @@ export function pushMarkStep<Sc extends AnySchema>(
   mark: Mark<Sc>,
   target: Array<AddMarkStep<Sc> | RemoveMarkStep<Sc>>
 ): void {
-  const last = target.length ? target[target.length - 1]! : null
+  const last = target.at(-1)
   if (last && last instanceof cls && last.to === from && last.mark.eq(mark)) {
     target[target.length - 1] = new cls(last.from, to, mark)
   } else {
@@ -41,29 +42,25 @@ export function pushMarkStep<Sc extends AnySchema>(
  * @internal
  */
 export class MarkSetStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
-  constructor(readonly steps: ReadonlyArray<AddMarkStep<Sc> | RemoveMarkStep<Sc>>) {
+  // Mark steps, or groups of them once inverted or mapped.
+  constructor(readonly steps: ReadonlyArray<Step<Sc>>) {
     super()
   }
 
   apply(doc: Node<Sc>): StepResult<Sc> {
-    for (const step of this.steps) {
-      const result = step.apply(doc)
-      if (result.docOrNull === null) return result
-      doc = result.docOrNull
-    }
-    return StepResult.ok(doc)
+    // Stops at the first failing step and returns its failure.
+    return this.steps.reduce(
+      (result, step) => (result.docOrNull === null ? result : step.apply(result.docOrNull)),
+      StepResult.ok(doc)
+    )
   }
 
   invert(doc: Node<Sc>): Step<Sc> {
-    return new MarkSetStep(this.steps.map((s) => s.invert(doc) as AddMarkStep<Sc> | RemoveMarkStep<Sc>))
+    return new MarkSetStep(this.steps.map((s) => s.invert(doc)))
   }
 
   map(mapping: Mappable): Option.Option<Step<Sc>> {
-    const result: Array<AddMarkStep<Sc> | RemoveMarkStep<Sc>> = []
-    for (const step of this.steps) {
-      const mapped = step.map(mapping)
-      if (Option.isSome(mapped)) result.push(mapped.value as AddMarkStep<Sc> | RemoveMarkStep<Sc>)
-    }
+    const result = Arr.getSomes(this.steps.map((step) => step.map(mapping)))
     return result.length ? Option.some(new MarkSetStep(result)) : Option.none()
   }
 
@@ -84,3 +81,13 @@ export class MarkSetStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
 }
 
 Step.jsonID("markSet", MarkSetStep)
+
+/**
+ * The single step in `steps`, or a `MarkSetStep` grouping them.
+ *
+ * @internal
+ */
+export const markStepGroup = <Sc extends AnySchema>(steps: ReadonlyArray<Step<Sc>>): Step<Sc> => {
+  const [only] = steps
+  return steps.length === 1 && only ? only : new MarkSetStep(steps)
+}

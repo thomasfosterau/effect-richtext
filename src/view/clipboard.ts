@@ -5,6 +5,7 @@
  * @internal
  */
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import { DOMParser, DOMSerializer, Fragment, type Node, type NodeType, type ResolvedPos, Slice } from "../model.ts"
 import { parseJson, stringifyJson } from "../internal/json.ts"
 import * as browser from "./browser.ts"
@@ -296,9 +297,10 @@ const wrapMap: { [node: string]: Array<string> } = {
   th: ["table", "tbody", "tr"]
 }
 
-let _detachedDoc: Document | null = null
+// A fresh document per read, so style sheets from earlier pastes don't
+// apply to later ones (prosemirror-view 1.42.0).
 function detachedDoc() {
-  return _detachedDoc || (_detachedDoc = document.implementation.createHTMLDocument("title"))
+  return document.implementation.createHTMLDocument("title")
 }
 
 let _policy: any = null
@@ -310,8 +312,13 @@ function maybeWrapTrusted(html: string): string {
   // innerHTML, even on a detached document. This wraps the string in
   // a way that makes the browser allow us to use its parser again.
   if (!_policy) {
+    // A default policy may lack `createHTML`; use our own policy then
+    // (prosemirror-view 1.42.3).
+    const fallback = trustedTypes.defaultPolicy
     _policy =
-      trustedTypes.defaultPolicy || trustedTypes.createPolicy("ProseMirrorClipboard", { createHTML: (s: string) => s })
+      fallback && Predicate.isFunction(fallback.createHTML)
+        ? fallback
+        : trustedTypes.createPolicy("ProseMirrorClipboard", { createHTML: (s: string) => s })
   }
   return _policy.createHTML(html)
 }
@@ -319,7 +326,8 @@ function maybeWrapTrusted(html: string): string {
 function readHTML(html: string) {
   const metas = /^(\s*<meta [^>]*>)*/.exec(html)
   if (metas) html = html.slice(metas[0].length)
-  let elt = detachedDoc().createElement("div")
+  const doc = detachedDoc()
+  let elt: HTMLElement = doc.body
   const firstTag = /<([a-z][^>\s]+)/i.exec(html)
   let wrap
   if ((wrap = firstTag && wrapMap[firstTag[1]!.toLowerCase()])) {
@@ -333,8 +341,20 @@ function readHTML(html: string) {
   }
   elt.innerHTML = maybeWrapTrusted(html)
   if (wrap) {
-    for (let i = 0; i < wrap.length; i++) elt = elt.querySelector(wrap[i]!) || elt
+    for (let i = 0; i < wrap.length; i++) elt = elt.querySelector<HTMLElement>(wrap[i]!) || elt
   }
+  // Inline styles defined in the pasted content, so that parse rules
+  // pick them up (prosemirror-view 1.42.0).
+  const root = elt
+  Array.from(doc.styleSheets).forEach((sheet) =>
+    Array.from(sheet.cssRules).forEach((rule) => {
+      if (rule instanceof CSSStyleRule) {
+        root.querySelectorAll<HTMLElement>(rule.selectorText).forEach((match) => {
+          match.style.cssText += rule.style.cssText
+        })
+      }
+    })
+  )
   return elt
 }
 
@@ -362,7 +382,14 @@ function addContext(slice: Slice<any>, context: string) {
   for (let i = array.length - 2; i >= 0; i -= 2) {
     const type = schema.nodes[array[i]]
     if (!type || type.hasRequiredAttrs()) break
-    content = Fragment.from(type.createUnsafe(array[i + 1], content))
+    // Context attributes come from the pasted HTML: stop wrapping at the
+    // first node whose attributes the schema rejects (prosemirror-view
+    // 1.42.3, an XSS fix).
+    try {
+      content = Fragment.from(type.createUnsafe(array[i + 1], content))
+    } catch {
+      break
+    }
     openStart++
     openEnd++
   }

@@ -6,7 +6,7 @@
  */
 import * as Arr from "effect/Array"
 import type * as Order from "effect/Order"
-import type { Mark, Node } from "../model.ts"
+import type { Fragment, Mark, Node } from "../model.ts"
 import type { EditorState } from "../state.ts"
 import type { Mappable, Mapping } from "../transform.ts"
 import type { DOMNode } from "./dom.ts"
@@ -20,10 +20,33 @@ function compareObjs(a: Readonly<Record<string, unknown>>, b: Readonly<Record<st
 }
 
 /** @internal */
+// Walks a fragment's children in increasing offset order, so validating
+// sorted node decorations costs linear rather than quadratic time
+// (prosemirror-view 1.42.7).
+class FragmentCursor {
+  index = 0
+  off = 0
+  constructor(readonly frag: Fragment<any, any>) {}
+
+  // Whether a non-text child spans exactly `from`..`to`. Calls must come
+  // in increasing `from` order.
+  spansNode(from: number, to: number): boolean {
+    const children = this.frag.content
+    while (this.off <= from && this.index < children.length) {
+      const next = children[this.index]
+      if (!next) break
+      if (this.off == from) return !next.isText && from + next.nodeSize == to
+      this.off += next.nodeSize
+      this.index++
+    }
+    return false
+  }
+}
+
 export interface DecorationType {
   spec: any
   map(mapping: Mappable, span: Decoration, offset: number, oldOffset: number): Decoration | null
-  valid(node: Node<any, any>, span: Decoration): boolean
+  valid(node: Node<any, any>, span: Decoration, cursor: FragmentCursor): boolean
   eq(other: DecorationType): boolean
   destroy(dom: DOMNode): void
 }
@@ -131,10 +154,8 @@ export class NodeType implements DecorationType {
     return new Decoration(from.pos - offset, to.pos - offset, this)
   }
 
-  valid(node: Node<any, any>, span: Decoration): boolean {
-    const { index, offset } = node.content.findIndex(span.from)
-    let child: Node<any, any>
-    return offset == span.from && !(child = node.content.content[index]!).isText && offset + child.nodeSize == span.to
+  valid(_node: Node<any, any>, span: Decoration, cursor: FragmentCursor): boolean {
+    return cursor.spansNode(span.from, span.to)
   }
 
   eq(other: DecorationType): boolean {
@@ -465,10 +486,13 @@ export class DecorationSet implements DecorationSource {
     options: DecorationMapOptions
   ): DecorationSet {
     let newLocal: Array<Decoration> | undefined
-    for (let i = 0; i < this.local.length; i++) {
-      const mapped = this.local[i]!.map(mapping, offset, oldOffset)
-      if (mapped && mapped.type.valid(node, mapped)) (newLocal || (newLocal = [])).push(mapped)
-      else if (options.onRemove) options.onRemove(this.local[i]!.spec)
+    if (this.local.length) {
+      const cur = new FragmentCursor(node.content)
+      for (let i = 0; i < this.local.length; i++) {
+        const mapped = this.local[i]!.map(mapping, offset, oldOffset)
+        if (mapped && mapped.type.valid(node, mapped, cur)) (newLocal || (newLocal = [])).push(mapped)
+        else if (options.onRemove) options.onRemove(this.local[i]!.spec)
+      }
     }
 
     if (this.children.length) {
@@ -518,7 +542,10 @@ export class DecorationSet implements DecorationSource {
     })
 
     const local = moveSpans(childIndex ? withoutNulls(decorations) : (decorations as Array<Decoration>), -offset)
-    for (let i = 0; i < local.length; i++) if (!local[i]!.type.valid(doc, local[i]!)) local.splice(i--, 1)
+    if (local.length) {
+      const cur = new FragmentCursor(doc.content)
+      for (let i = 0; i < local.length; i++) if (!local[i]!.type.valid(doc, local[i]!, cur)) local.splice(i--, 1)
+    }
 
     return new DecorationSet(
       local.length ? Arr.sort(this.local.concat(local), byPos) : this.local,
@@ -922,10 +949,13 @@ function buildTree(
     }
   })
   const locals = Arr.sort(moveSpans(hasNulls ? withoutNulls(spans) : (spans as Array<Decoration>), -offset), byPos)
-  for (let i = 0; i < locals.length; i++) {
-    if (!locals[i]!.type.valid(node, locals[i]!)) {
-      if (options.onRemove) options.onRemove(locals[i]!.spec)
-      locals.splice(i--, 1)
+  if (locals.length) {
+    const cur = new FragmentCursor(node.content)
+    for (let i = 0; i < locals.length; i++) {
+      if (!locals[i]!.type.valid(node, locals[i]!, cur)) {
+        if (options.onRemove) options.onRemove(locals[i]!.spec)
+        locals.splice(i--, 1)
+      }
     }
   }
   return locals.length || children.length ? new DecorationSet(locals, children) : empty

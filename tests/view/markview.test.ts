@@ -1,6 +1,6 @@
 // Ported from prosemirror-view/test/webtest-markview.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
-import { doc, p, strong } from "effect-richtext/test-builder"
+import { a, doc, p, strong } from "effect-richtext/test-builder"
 import type { ViewMutationRecord } from "effect-richtext/view"
 import ist from "../utils/ist.ts"
 import { flush, tempEditor } from "./helpers.ts"
@@ -78,5 +78,42 @@ describe("markViews prop", () => {
     view.dispatchUnsafe(view.state.tr.deleteUnsafe(1, 3))
     ist(view.dom.textContent, "")
     ist(destroyed)
+  })
+
+  // prosemirror-view 1.42.0
+  it("lets a mark view update itself in place", () => {
+    const updated: Array<string> = []
+    const view = tempEditor({
+      doc: doc(p(a("<a>foo<b>"))),
+      markViews: {
+        link(mark) {
+          const dom = document.createElement("a")
+          dom.setAttribute("href", mark.attrs.href)
+          return {
+            dom,
+            update(next) {
+              updated.push(next.attrs.href)
+              dom.setAttribute("href", next.attrs.href)
+              return true
+            }
+          }
+        }
+      }
+    })
+    const before = view.dom.querySelector("a")
+    view.dispatchUnsafe(view.state.tr.addMark(1, 4, view.state.schema.markUnsafe("link", { href: "bar" })))
+    ist(view.dom.querySelector("a"), before)
+    ist(before?.getAttribute("href"), "bar")
+    ist(updated.join(), "bar")
+  })
+
+  it("redraws a mark view whose update returns false", () => {
+    const view = tempEditor({
+      doc: doc(p(a("foo"))),
+      markViews: { link: () => ({ dom: document.createElement("a"), update: () => false }) }
+    })
+    const before = view.dom.querySelector("a")
+    view.dispatchUnsafe(view.state.tr.addMark(1, 4, view.state.schema.markUnsafe("link", { href: "bar" })))
+    ist(view.dom.querySelector("a") != before)
   })
 })

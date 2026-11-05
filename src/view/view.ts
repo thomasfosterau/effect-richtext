@@ -851,7 +851,8 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
         !(
           this.input.mouseDown &&
           this.domObserver.currentSelection.eq(this.domSelectionRange()) &&
-          anchorInRightPlace(this)
+          anchorInRightPlace(this) &&
+          this.input.mouseDown.delaySelUpdate()
         )
       ) {
         selectionToDOM(this, forceSelUpdate)
@@ -1337,7 +1338,9 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
 
   /** @internal */
   domSelectionRange(): DOMSelectionRange {
-    const sel = this.domSelection()
+    // Don't query the selection for an editor that isn't in the document
+    // (prosemirror-view 1.42.6).
+    const sel = this.dom.isConnected && this.domSelection()
     if (!sel) return { focusNode: null, focusOffset: 0, anchorNode: null, anchorOffset: 0 }
     return (
       (browser.safari &&

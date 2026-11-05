@@ -1,5 +1,6 @@
 // Ported from prosemirror-history/test/test-history.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
+import * as Arr from "effect/Array"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import { closeHistory, history, type HistoryCommand, redo, redoDepth, undo, undoDepth } from "effect-richtext/history"
@@ -441,14 +442,14 @@ describe("history", () => {
       docs = [...t1.docs, ...t2.docs]
     // Collab-style rebase over a remote insertion at 1.
     const tr = state.tr
-    for (let i = local.length - 1; i >= 0; i--) tr.stepUnsafe(local[i]!.invert(docs[i]!))
+    Arr.reverse(Arr.zip(local, docs)).forEach(([step, before]) => tr.stepUnsafe(step.invert(before)))
     tr.insertTextUnsafe("R", 1)
-    for (let i = 0; i < local.length; i++) {
-      const mapped = local[i]!.map(tr.mapping.slice(local.length - i))
+    local.forEach((step, i) => {
+      const mapped = step.map(tr.mapping.slice(local.length - i))
       if (Option.isSome(mapped) && tr.maybeStep(mapped.value).failedOrNull === null) {
         tr.mapping.setMirror(local.length - 1 - i, tr.steps.length - 1)
       }
-    }
+    })
     state = state.applyUnsafe(tr.setMeta("rebased", local.length).setMeta("addToHistory", false))
     ist(state.doc, doc(p("Ra1b2c")), eq)
     state = command(state, undo)

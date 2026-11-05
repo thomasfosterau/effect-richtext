@@ -6,6 +6,7 @@
  */
 import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import * as Result from "effect/Result"
 import { type Node, Slice } from "../model.ts"
 import { NodeSelection, Selection, TextSelection } from "../state.ts"
@@ -32,6 +33,7 @@ export class InputState {
   mouseDown: MouseDown | null = null
   lastKeyCode: number | null = null
   lastKeyCodeTime = 0
+  lastKeyDispatched = false
   lastClick = { time: 0, x: 0, y: 0, type: "", button: 0 }
   lastSelectionOrigin: string | null = null
   lastSelectionTime = 0
@@ -87,6 +89,7 @@ function setSelectionOrigin(view: AnyView, origin: string) {
 
 /** @internal */
 export function destroyInput(view: AnyView): void {
+  if (view.input.mouseDown) view.input.mouseDown.done()
   view.domObserver.stop()
   for (const type in view.input.eventHandlers) {
     view.dom.removeEventListener(type, view.input.eventHandlers[type]!)
@@ -131,12 +134,28 @@ export function dispatchEvent(view: AnyView, event: Event): void {
   }
 }
 
+/**
+ * Run `handleKeyDown` for `event` (or a synthesized Backspace / Enter key
+ * event), at most once per physical key press and never during
+ * composition (prosemirror-view 1.42.9).
+ *
+ * @internal
+ */
+export function dispatchKey(view: AnyView, event: KeyboardEvent | "Backspace" | "Enter"): boolean {
+  const { input } = view
+  if (input.lastKeyDispatched || view.composing) return false
+  input.lastKeyDispatched = true
+  const key = Predicate.isString(event) ? keyEvent(event == "Backspace" ? 8 : 13, event) : event
+  return view.someHandler("handleKeyDown", (f) => f(view, key))
+}
+
 editHandlers.keydown = (view: AnyView, _event: Event) => {
   const event = _event as KeyboardEvent
   view.input.shiftKey = event.keyCode == 16 || event.shiftKey
   if (inOrNearComposition(view, event)) return
   view.input.lastKeyCode = event.keyCode
   view.input.lastKeyCodeTime = Date.now()
+  view.input.lastKeyDispatched = false
   // Suppress enter key events on Chrome Android, because those tend
   // to be part of a confused sequence of composition events fired,
   // and handling them eagerly tends to corrupt the input.
@@ -152,11 +171,11 @@ editHandlers.keydown = (view: AnyView, _event: Event) => {
     view.input.lastIOSEnter = now
     view.input.lastIOSEnterFallbackTimeout = setTimeout(() => {
       if (view.input.lastIOSEnter == now) {
-        view.someHandler("handleKeyDown", (f) => f(view, keyEvent(13, "Enter")))
+        dispatchKey(view, "Enter")
         view.input.lastIOSEnter = 0
       }
     }, 200)
-  } else if (view.someHandler("handleKeyDown", (f) => f(view, event)) || captureKeyDown(view, event)) {
+  } else if (dispatchKey(view, event) || captureKeyDown(view, event)) {
     event.preventDefault()
   } else {
     setSelectionOrigin(view, "key")
@@ -305,13 +324,23 @@ function handleTripleClick(view: AnyView, pos: number, inside: number, event: Mo
 
 function defaultTripleClick(view: AnyView, inside: number, event: MouseEvent) {
   if (event.button != 0) return false
+  const found = selectionForTripleClick(view, inside, true),
+    doc = view.state.doc
+  if (Option.isNone(found)) return false
+  const selection = found.value
+  updateSelection(view, selection, "pointer")
+  // Dragging after a triple click extends the selection by whole blocks
+  // (prosemirror-view 1.41.9).
+  if (selection instanceof TextSelection && doc.eq(view.state.doc)) {
+    view.input.mouseDown = new TripleClickDrag(view, selection)
+  }
+  return true
+}
+
+function selectionForTripleClick(view: AnyView, inside: number, selectNodes: boolean): Option.Option<Selection<any>> {
   const doc = view.state.doc
   if (inside == -1) {
-    if (doc.inlineContent) {
-      updateSelection(view, TextSelection.createUnsafe(doc, 0, doc.content.size), "pointer")
-      return true
-    }
-    return false
+    return doc.inlineContent ? Option.some(TextSelection.createUnsafe(doc, 0, doc.content.size)) : Option.none()
   }
 
   const $pos = doc.resolveUnsafe(inside)
@@ -319,15 +348,12 @@ function defaultTripleClick(view: AnyView, inside: number, event: MouseEvent) {
     const node = i > $pos.depth ? $pos.nodeAfterOrNull! : $pos.node(i)
     const nodePos = $pos.beforeUnsafe(i)
     if (node.inlineContent) {
-      updateSelection(view, TextSelection.createUnsafe(doc, nodePos + 1, nodePos + 1 + node.content.size), "pointer")
-    } else if (NodeSelection.isSelectable(node)) {
-      updateSelection(view, NodeSelection.createUnsafe(doc, nodePos), "pointer")
-    } else {
-      continue
+      return Option.some(TextSelection.createUnsafe(doc, nodePos + 1, nodePos + 1 + node.content.size))
+    } else if (selectNodes && NodeSelection.isSelectable(node)) {
+      return Option.some(NodeSelection.createUnsafe(doc, nodePos))
     }
-    return true
   }
-  return false
+  return Option.none()
 }
 
 function forceDOMFlush(view: AnyView) {
@@ -353,12 +379,13 @@ handlers.mousedown = (view, _event) => {
   }
   view.input.lastClick = { time: now, x: event.clientX, y: event.clientY, type, button: event.button }
 
+  if (view.input.mouseDown) view.input.mouseDown.done()
+
   const pos = Option.getOrNull(view.posAtCoords(eventCoords(event)))
   if (!pos) return
 
   if (type == "singleClick") {
-    if (view.input.mouseDown) view.input.mouseDown.done()
-    view.input.mouseDown = new MouseDown(view, pos, event, flushed)
+    view.input.mouseDown = new LeftMouseDown(view, pos, event, flushed)
   } else if ((type == "doubleClick" ? handleDoubleClick : handleTripleClick)(view, pos.pos, pos.inside, event)) {
     event.preventDefault()
   } else {
@@ -366,20 +393,51 @@ handlers.mousedown = (view, _event) => {
   }
 }
 
-class MouseDown {
+// A pointer interaction in progress: listens for mouse moves and the
+// release on the view's root until done.
+abstract class MouseDown {
+  mightDrag: { node: Node<any, any>; pos: number; addAttr: boolean; setUneditable: boolean } | null = null
+
+  constructor(readonly view: AnyView) {
+    view.root.addEventListener("mouseup", (this.up = this.up.bind(this) as any))
+    view.root.addEventListener("mousemove", (this.move = this.move.bind(this) as any))
+  }
+
+  up(_event: MouseEvent): void {
+    this.done()
+  }
+
+  move(event: MouseEvent): void {
+    if (event.buttons == 0) this.done()
+  }
+
+  done(): void {
+    this.view.root.removeEventListener("mouseup", this.up as any)
+    this.view.root.removeEventListener("mousemove", this.move as any)
+    if (this.view.input.mouseDown == this) this.view.input.mouseDown = null
+  }
+
+  // Asks a pending default pointer selection to sync the DOM selection
+  // once the interaction ends; true when it will.
+  delaySelUpdate(): boolean {
+    return false
+  }
+}
+
+class LeftMouseDown extends MouseDown {
   startDoc: Node<any, any>
   selectNode: boolean
   allowDefault: boolean
   delayedSelectionSync = false
-  mightDrag: { node: Node<any, any>; pos: number; addAttr: boolean; setUneditable: boolean } | null = null
   target: HTMLElement | null
 
   constructor(
-    readonly view: AnyView,
+    view: AnyView,
     readonly pos: { pos: number; inside: number },
     readonly event: MouseEvent,
     readonly flushed: boolean
   ) {
+    super(view)
     this.startDoc = view.state.doc
     this.selectNode = event[selectNodeModifier]
     this.allowDefault = event.shiftKey
@@ -423,25 +481,25 @@ class MouseDown {
       this.view.domObserver.start()
     }
 
-    view.root.addEventListener("mouseup", (this.up = this.up.bind(this) as any))
-    view.root.addEventListener("mousemove", (this.move = this.move.bind(this) as any))
     setSelectionOrigin(view, "pointer")
   }
 
-  done() {
-    this.view.root.removeEventListener("mouseup", this.up as any)
-    this.view.root.removeEventListener("mousemove", this.move as any)
+  override done() {
+    super.done()
     if (this.mightDrag && this.target) {
       this.view.domObserver.stop()
       if (this.mightDrag.addAttr) this.target.removeAttribute("draggable")
       if (this.mightDrag.setUneditable) this.target.removeAttribute("contentEditable")
       this.view.domObserver.start()
     }
-    if (this.delayedSelectionSync) setTimeout(() => selectionToDOM(this.view))
-    this.view.input.mouseDown = null
+    if (this.delayedSelectionSync) {
+      setTimeout(() => {
+        if (!this.view.isDestroyed) selectionToDOM(this.view)
+      })
+    }
   }
 
-  up(event: MouseEvent) {
+  override up(event: MouseEvent) {
     this.done()
 
     if (!this.view.dom.contains(event.target as HTMLElement)) {
@@ -482,10 +540,10 @@ class MouseDown {
     }
   }
 
-  move(event: MouseEvent) {
+  override move(event: MouseEvent) {
     this.updateAllowDefault(event)
     setSelectionOrigin(this.view, "pointer")
-    if (event.buttons == 0) this.done()
+    super.move(event)
   }
 
   updateAllowDefault(event: MouseEvent) {
@@ -495,6 +553,46 @@ class MouseDown {
     ) {
       this.allowDefault = true
     }
+  }
+
+  override delaySelUpdate(): boolean {
+    if (!this.allowDefault) return false
+    this.delayedSelectionSync = true
+    return true
+  }
+}
+
+// Dragging after a triple click: extend the selection by whole textblocks.
+class TripleClickDrag extends MouseDown {
+  startDoc: Node<any, any>
+
+  constructor(
+    view: AnyView,
+    readonly startSelection: TextSelection<any>
+  ) {
+    super(view)
+    this.startDoc = view.state.doc
+  }
+
+  override move(event: MouseEvent) {
+    if (event.buttons == 0 || this.view.isDestroyed || !this.view.state.doc.eq(this.startDoc)) {
+      this.done()
+      return
+    }
+
+    event.preventDefault()
+    setSelectionOrigin(this.view, "pointer")
+
+    const found = Option.flatMap(this.view.posAtCoords(eventCoords(event)), (pos) =>
+      selectionForTripleClick(this.view, pos.inside, false)
+    )
+    if (Option.isNone(found)) return
+    const target = found.value
+
+    const { doc } = this.view.state,
+      start = this.startSelection
+    const [anchor, head] = target.from < start.from ? [start.to, target.from] : [start.from, target.to]
+    updateSelection(this.view, TextSelection.createUnsafe(doc, anchor, head), "pointer")
   }
 }
 
@@ -511,7 +609,7 @@ handlers.touchmove = (view) => {
 
 handlers.contextmenu = (view) => forceDOMFlush(view)
 
-function inOrNearComposition(view: AnyView, event: Event) {
+function inOrNearComposition(view: AnyView, _event: Event) {
   if (view.composing) return true
   // See https://www.stum.de/2016/06/24/handling-ime-events-in-javascript/.
   // On Japanese input method editors (IMEs), the Enter key is used to confirm character
@@ -523,7 +621,7 @@ function inOrNearComposition(view: AnyView, event: Event) {
   // This guards against the case where compositionend is triggered without the keyboard
   // (e.g. character confirmation may be done with the mouse), and keydown is triggered
   // afterwards- we wouldn't want to ignore the keydown event in this case.
-  if (browser.safari && Math.abs(event.timeStamp - view.input.compositionEndedAt) < 500) {
+  if (browser.safari && Math.abs(Date.now() - view.input.compositionEndedAt) < 500) {
     view.input.compositionEndedAt = -2e8
     return true
   }
@@ -540,6 +638,7 @@ editHandlers.compositionstart = editHandlers.compositionupdate = (view) => {
       $pos = state.selection.$to
     if (
       state.selection instanceof TextSelection &&
+      state.selection.empty &&
       (state.storedMarksOrNull ||
         (!$pos.textOffset &&
           $pos.parentOffset &&
@@ -590,10 +689,10 @@ function selectionBeforeUneditable(view: AnyView) {
   return next.nodeType == 1 && (next as HTMLElement).contentEditable == "false"
 }
 
-editHandlers.compositionend = (view, event) => {
+editHandlers.compositionend = (view, _event) => {
   if (view.composing) {
     view.input.composing = false
-    view.input.compositionEndedAt = event.timeStamp
+    view.input.compositionEndedAt = Date.now()
     view.input.compositionPendingChanges = view.domObserver.pendingRecords().length ? view.input.compositionID : 0
     view.input.compositionNode = null
     if (view.input.badSafariComposition) view.domObserver.forceFlush()
@@ -612,7 +711,7 @@ function scheduleComposeEnd(view: AnyView, delay: number) {
 export function clearComposition(view: AnyView): void {
   if (view.composing) {
     view.input.composing = false
-    view.input.compositionEndedAt = timestampFromCustomEvent()
+    view.input.compositionEndedAt = Date.now()
   }
   while (Arr.isArrayNonEmpty(view.input.compositionNodes)) view.input.compositionNodes.pop()!.markParentsDirty()
 }
@@ -637,12 +736,6 @@ export function findCompositionNode(view: AnyView): Text | null {
     }
   }
   return textBefore || textAfter
-}
-
-function timestampFromCustomEvent() {
-  const event = document.createEvent("Event")
-  event.initEvent("event", true, true)
-  return event.timeStamp
 }
 
 /** @internal */
@@ -785,8 +878,14 @@ export class Dragging {
 const dragCopyModifier: "altKey" | "ctrlKey" = browser.mac ? "altKey" : "ctrlKey"
 
 function dragMoves(view: AnyView, event: DragEvent) {
-  const moves = view.someProp("dragCopies", (test) => !test(event))
-  return moves != null ? moves : !event[dragCopyModifier]
+  // A dragCopies prop returning false must count too (prosemirror-view 1.41.8).
+  let asked = false,
+    copy = false
+  view.someProp("dragCopies", (test) => {
+    asked = true
+    copy = copy || test(event)
+  })
+  return asked ? !copy : !event[dragCopyModifier]
 }
 
 handlers.dragstart = (view, _event) => {
@@ -909,11 +1008,18 @@ handlers.focus = (view) => {
     view.dom.classList.add("ProseMirror-focused")
     view.domObserver.start()
     view.focused = true
-    setTimeout(() => {
-      if (view.docView && view.hasFocus() && !view.domObserver.currentSelection.eq(view.domSelectionRange())) {
-        selectionToDOM(view)
-      }
-    }, 20)
+    // Only restore the selection if nothing moved it after focusing
+    // (prosemirror-view 1.42.9).
+    const startSel = view.domSelectionRange()
+    if (!view.domObserver.currentSelection.eq(startSel)) {
+      const { focusNode, focusOffset } = startSel
+      setTimeout(() => {
+        const newSel = view.domSelectionRange()
+        if (newSel.focusNode == focusNode && newSel.focusOffset == focusOffset && view.docView && view.hasFocus()) {
+          selectionToDOM(view)
+        }
+      }, 20)
+    }
   }
 }
 
@@ -937,15 +1043,16 @@ handlers.beforeinput = (view, _event: Event) => {
 
   // Very specific hack to deal with backspace sometimes failing on
   // Chrome Android when after an uneditable node.
-  if (browser.chrome && browser.android && event.inputType == "deleteContentBackward") {
+  // (Chrome and, since prosemirror-view 1.42.2, Firefox on Android.)
+  if (browser.android && event.inputType == "deleteContentBackward") {
     view.domObserver.flushSoon()
     const { domChangeCount } = view.input
     setTimeout(() => {
-      if (view.input.domChangeCount != domChangeCount) return // Event already had some effect
+      if (view.input.domChangeCount != domChangeCount || view.domObserver.pendingRecords().length) return // Event already had some effect
       // This bug tends to close the virtual keyboard, so we refocus
       view.dom.blur()
       view.focus()
-      if (view.someHandler("handleKeyDown", (f) => f(view, keyEvent(8, "Backspace")))) return
+      if (dispatchKey(view, "Backspace")) return
       const $cursor = (view.state.selection as TextSelection<any>).$cursorOrNull
       // Crude approximation of backspace behavior when no command handled it
       if ($cursor && $cursor.pos > 0) {
