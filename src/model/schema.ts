@@ -55,14 +55,20 @@ import { Node, TextNode } from "./node.ts"
 /**
  * Describes a single attribute of a node or mark type.
  *
- * - `schema` is an Effect `Schema` used to validate the value (in
- *   `Node.check`) and to decode/encode it from/to JSON. It also gives
- *   the attribute its static type.
+ * - `schema` is an Effect `Schema` used to validate the value and to
+ *   decode/encode it from/to JSON. It also gives the attribute its
+ *   static type.
  * - `default` is used when no value is provided. Attributes without a
  *   default are required.
  * - `validate` is accepted for ProseMirror compatibility: either a
  *   `|`-separated list of primitive type names or a function that
  *   throws on invalid values.
+ *
+ * Supplied values are validated whenever a node or mark is created (as
+ * prosemirror-model does since 1.25.12), and again by `Node.check`;
+ * defaults are trusted. A `schema` or a type-name `validate` rejects a
+ * value with an `AttributeError`; a `validate` function's own exception
+ * propagates as thrown (a defect in the Effect API).
  *
  * @since 0.1.0
  * @category models
@@ -679,7 +685,8 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   }
 
   /**
-   * Create a node of this type. Attributes are extended with defaults;
+   * Create a node of this type. Attributes are extended with defaults,
+   * and supplied attribute values are validated (see `AttributeSpec`);
    * content is not checked against the content expression (see
    * `createChecked`).
    */
@@ -859,7 +866,8 @@ export class MarkType<Sc extends AnySchema = AnySchema, out M extends MarkNames<
 
   /**
    * Create a mark of this type. Attributes that are not given are
-   * filled in from their defaults.
+   * filled in from their defaults; supplied values are validated (see
+   * `AttributeSpec`).
    */
   create(attrs?: MarkAttrsInput<Sc, M> | null): Effect.Effect<Mark<Sc, M>, AttributeError> {
     return attempt(() => this.createUnsafe(attrs), isAttributeError)

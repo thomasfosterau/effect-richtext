@@ -456,15 +456,7 @@ export class ViewDesc {
     if (offset) return this.children[i]!.domFromPos(offset - this.children[i]!.border, side)
     // Go back if there were any zero-length widgets with side >= 0 before this point
     // (or buffer hack nodes)
-    for (; i > 0; i--) {
-      const prev = this.children[i - 1]
-      if (
-        !prev ||
-        prev.size ||
-        !(prev instanceof BufferHackViewDesc || (prev instanceof WidgetViewDesc && prev.side >= 0))
-      )
-        break
-    }
+    while (i > 0 && skippableBefore(this.children, i)) i--
     // Scan towards the first useable node
     if (side <= 0) {
       let prev,
@@ -1324,6 +1316,14 @@ class BufferHackViewDesc extends ViewDesc {
   override get ignoreForCoords() {
     return this.dom.nodeName == "IMG"
   }
+}
+
+// Zero-size descs that domFromPos steps back over: widgets with side >= 0
+// and buffer hack nodes (prosemirror-view 1.42.6).
+function skippableBefore(children: ReadonlyArray<ViewDesc>, index: number): boolean {
+  const desc = children[index - 1]
+  if (!desc || desc.size) return false
+  return desc instanceof BufferHackViewDesc || (desc instanceof WidgetViewDesc && desc.side >= 0)
 }
 
 // A separate subclass is used for customized node views, so that the

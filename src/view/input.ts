@@ -142,9 +142,8 @@ export function dispatchEvent(view: AnyView, event: Event): void {
  * @internal
  */
 export function dispatchKey(view: AnyView, event: KeyboardEvent | "Backspace" | "Enter"): boolean {
-  const { input } = view
-  if (input.lastKeyDispatched || view.composing) return false
-  input.lastKeyDispatched = true
+  if (view.input.lastKeyDispatched || view.composing) return false
+  view.input.lastKeyDispatched = true
   const key = Predicate.isString(event) ? keyEvent(event == "Backspace" ? 8 : 13, event) : event
   return view.someHandler("handleKeyDown", (f) => f(view, key))
 }
@@ -631,20 +630,27 @@ function inOrNearComposition(view: AnyView, _event: Event) {
 // Drop active composition after 5 seconds of inactivity on Android
 const timeoutComposition = browser.android ? 5000 : -1
 
+// Whether composition at an empty text cursor must wrap the cursor in
+// mark nodes different from the ones in the DOM context (#1500).
+function needsMarkCursor(view: AnyView): boolean {
+  const { state } = view,
+    $pos = state.selection.$to
+  if (!(state.selection instanceof TextSelection) || !state.selection.empty) return false
+  return !!(
+    state.storedMarksOrNull ||
+    (!$pos.textOffset &&
+      $pos.parentOffset &&
+      $pos.nodeBeforeOrNull!.marks.some((m) => m.type.spec.inclusive === false)) ||
+    (browser.chrome && browser.windows && selectionBeforeUneditable(view))
+  )
+}
+
 editHandlers.compositionstart = editHandlers.compositionupdate = (view) => {
   if (!view.composing) {
     view.domObserver.flush()
     const { state } = view,
       $pos = state.selection.$to
-    if (
-      state.selection instanceof TextSelection &&
-      state.selection.empty &&
-      (state.storedMarksOrNull ||
-        (!$pos.textOffset &&
-          $pos.parentOffset &&
-          $pos.nodeBeforeOrNull!.marks.some((m) => m.type.spec.inclusive === false)) ||
-        (browser.chrome && browser.windows && selectionBeforeUneditable(view)))
-    ) {
+    if (needsMarkCursor(view)) {
       // Issue #1500
       // Need to wrap the cursor in mark nodes different from the ones in the DOM context
       view.markCursor = view.state.storedMarksOrNull || $pos.marks()

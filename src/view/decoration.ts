@@ -19,7 +19,6 @@ function compareObjs(a: Readonly<Record<string, unknown>>, b: Readonly<Record<st
   return true
 }
 
-/** @internal */
 // Walks a fragment's children in increasing offset order, so validating
 // sorted node decorations costs linear rather than quadratic time
 // (prosemirror-view 1.42.7).
@@ -43,6 +42,7 @@ class FragmentCursor {
   }
 }
 
+/** @internal */
 export interface DecorationType {
   spec: any
   map(mapping: Mappable, span: Decoration, offset: number, oldOffset: number): Decoration | null

@@ -4,22 +4,42 @@
  *
  * @internal
  */
+import * as Option from "effect/Option"
 import type { ResolvedPos } from "../model.ts"
 import { NodeSelection, Selection, TextSelection } from "../state.ts"
 import * as browser from "./browser.ts"
-import { domIndex, isElt, isEquivalentPosition, isOnEdge, selectionCollapsed } from "./dom.ts"
+import { domIndex, type DOMSelectionRange, isElt, isEquivalentPosition, isOnEdge, selectionCollapsed } from "./dom.ts"
 import type { EditorView } from "./view.ts"
 import type { NodeViewDesc, ViewDesc } from "./viewdesc.ts"
 
 type AnyView = EditorView<any, any, any>
 
+// Firefox will jump across scrollable wrapper nodes on keyboard cursor
+// motion (#1594). Detect a cursor that landed past such a wrapper and put
+// it at the start of the node it skipped (prosemirror-view 1.42.6).
+function skippedScrollWrapper(view: AnyView, domSel: DOMSelectionRange, head: number, nearestDesc: ViewDesc) {
+  const to = view.state.selection.to
+  if (head <= to || nearestDesc.posAtStart <= to) return undefined
+  if (!focusAtElementEnd(domSel) || !inScrollableWrapper(domSel.focusNode!, nearestDesc.dom)) return undefined
+  return Option.getOrUndefined(Selection.findFrom(view.state.doc.resolveUnsafe(nearestDesc.posAtStart), 1))
+}
+
+const focusAtElementEnd = ({ focusNode, focusOffset }: DOMSelectionRange): boolean =>
+  !!focusNode && isElt(focusNode) && focusOffset == focusNode.childNodes.length
+
+const isScrollable = (node: globalThis.Node): boolean => isElt(node) && getComputedStyle(node).overflow != "visible"
+
+// The parent to keep scanning from: only through last children, up to `stop`.
+const climb = (scan: globalThis.Node, stop: globalThis.Node): Option.Option<globalThis.Node> => {
+  const parent = scan.parentNode
+  return scan == stop || scan.nextSibling || !parent || !isElt(parent) ? Option.none() : Option.some(parent)
+}
+
 // Whether `scan`, or an ancestor reached through last children up to
 // `stop`, scrolls its overflow.
-function inScrollableWrapper(scan: globalThis.Node, stop: globalThis.Node): boolean {
-  if (isElt(scan) && getComputedStyle(scan).overflow != "visible") return true
-  if (scan == stop || scan.nextSibling || !scan.parentNode || !isElt(scan.parentNode)) return false
-  return inScrollableWrapper(scan.parentNode, stop)
-}
+const inScrollableWrapper = (scan: globalThis.Node, stop: globalThis.Node): boolean =>
+  isScrollable(scan) ||
+  Option.match(climb(scan, stop), { onNone: () => false, onSome: (up) => inScrollableWrapper(up, stop) })
 
 /** @internal */
 export function selectionFromDOM(view: AnyView, origin: string | null = null): Selection<any> | null {
@@ -46,21 +66,8 @@ export function selectionFromDOM(view: AnyView, origin: string | null = null): S
     ) {
       const pos = nearestDesc.posBefore
       selection = new NodeSelection(head == pos ? $head : doc.resolveUnsafe(pos))
-    } else if (
-      browser.gecko &&
-      origin == "key" &&
-      head > view.state.selection.to &&
-      isElt(domSel.focusNode) &&
-      domSel.focusOffset == domSel.focusNode.childNodes.length &&
-      nearestDesc &&
-      nearestDesc.posAtStart > view.state.selection.to
-    ) {
-      // Firefox will jump across scrollable wrapper nodes on keyboard
-      // cursor motion (#1594). This tries to detect this situation and
-      // work around it (prosemirror-view 1.42.6).
-      if (inScrollableWrapper(domSel.focusNode, nearestDesc.dom)) {
-        selection = Selection.findFromOrNull(doc.resolveUnsafe(nearestDesc.posAtStart), 1) ?? undefined
-      }
+    } else if (browser.gecko && origin == "key" && nearestDesc) {
+      selection = skippedScrollWrapper(view, domSel, head, nearestDesc)
     }
   } else {
     if (domSel instanceof view.dom.ownerDocument.defaultView!.Selection && domSel.rangeCount > 1) {

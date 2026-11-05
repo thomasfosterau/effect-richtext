@@ -16,21 +16,7 @@ export function findDiffStart(a: Fragment<any, any>, b: Fragment<any, any>, pos:
     if (!childA.sameMarkup(childB)) return pos
 
     if (childA.isText && (childA as TextNode).text !== (childB as TextNode).text) {
-      const ta = (childA as TextNode).text,
-        tb = (childB as TextNode).text
-      let j = 0
-      for (; ta[j] === tb[j]; j++) pos++
-      // Never point between the halves of a surrogate pair (prosemirror-model 1.25.8).
-      if (
-        j &&
-        j < ta.length &&
-        j < tb.length &&
-        surrogateHigh(ta.charCodeAt(j - 1)) &&
-        surrogateLow(ta.charCodeAt(j))
-      ) {
-        pos--
-      }
-      return pos
+      return pos + sameTextStart((childA as TextNode).text, (childB as TextNode).text)
     }
     if (childA.content.size || childB.content.size) {
       const inner = findDiffStart(childA.content, childB.content, pos + 1)
@@ -62,27 +48,8 @@ export function findDiffEnd(
     if (!childA.sameMarkup(childB)) return { a: posA, b: posB }
 
     if (childA.isText && (childA as TextNode).text !== (childB as TextNode).text) {
-      const ta = (childA as TextNode).text,
-        tb = (childB as TextNode).text
-      let endA = ta.length,
-        endB = tb.length
-      while (endA > 0 && endB > 0 && ta[endA - 1] === tb[endB - 1]) {
-        endA--
-        endB--
-        posA--
-        posB--
-      }
-      if (
-        endA &&
-        endB &&
-        endA < ta.length &&
-        surrogateHigh(ta.charCodeAt(endA - 1)) &&
-        surrogateLow(ta.charCodeAt(endA))
-      ) {
-        posA++
-        posB++
-      }
-      return { a: posA, b: posB }
+      const same = sameTextEnd((childA as TextNode).text, (childB as TextNode).text)
+      return { a: posA - same, b: posB - same }
     }
     if (childA.content.size || childB.content.size) {
       const inner = findDiffEnd(childA.content, childB.content, posA - 1, posB - 1)
@@ -92,6 +59,27 @@ export function findDiffEnd(
     posB -= size
   }
 }
+
+// The length of the common prefix of two different strings, never
+// ending between the halves of a surrogate pair (prosemirror-model 1.25.8).
+function sameTextStart(ta: string, tb: string): number {
+  let j = 0
+  while (ta[j] === tb[j]) j++
+  return j && j < ta.length && j < tb.length && splitsPair(ta, j) ? j - 1 : j
+}
+
+// The length of the common suffix of two different strings, never
+// starting between the halves of a surrogate pair.
+function sameTextEnd(ta: string, tb: string): number {
+  let same = 0
+  while (same < ta.length && same < tb.length && ta[ta.length - same - 1] === tb[tb.length - same - 1]) same++
+  const end = ta.length - same
+  return end && same && same < tb.length && splitsPair(ta, end) ? same - 1 : same
+}
+
+// Whether index `i` of `text` falls between a high and a low surrogate.
+const splitsPair = (text: string, i: number): boolean =>
+  surrogateHigh(text.charCodeAt(i - 1)) && surrogateLow(text.charCodeAt(i))
 
 const surrogateLow = (ch: number): boolean => ch >= 0xdc00 && ch < 0xe000
 const surrogateHigh = (ch: number): boolean => ch >= 0xd800 && ch < 0xdc00

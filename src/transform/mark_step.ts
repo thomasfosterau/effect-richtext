@@ -25,6 +25,43 @@ function mapFragment<Sc extends AnySchema>(
   return Fragment.fromArray(mapped)
 }
 
+// Replace `from`..`to` with its content after applying `f` to each
+// inline node (with its parent; `parent` for the top level).
+function replaceMarked<Sc extends AnySchema>(
+  doc: Node<Sc>,
+  from: number,
+  to: number,
+  parent: Node<Sc>,
+  f: (node: Node<Sc>, parent: Node<Sc>) => Node<Sc>
+): StepResult<Sc> {
+  const oldSlice = doc.sliceUnsafe(from, to)
+  const slice = new Slice(mapFragment(oldSlice.content, f, parent), oldSlice.openStart, oldSlice.openEnd)
+  return StepResult.fromReplace(doc, from, to, slice)
+}
+
+// Build an inverse from the steps `visit` collects for each inline atom
+// in `from`..`to` (given clamped to the range), grouped as one step.
+function invertSteps<Sc extends AnySchema>(
+  doc: Node<Sc>,
+  from: number,
+  to: number,
+  visit: (node: Node<Sc>, from: number, to: number, steps: Array<AddMarkStep<Sc> | RemoveMarkStep<Sc>>) => void
+): Step<Sc> {
+  const steps: Array<AddMarkStep<Sc> | RemoveMarkStep<Sc>> = []
+  doc.nodesBetween(from, to, (node, pos) => {
+    if (node.isInline && node.isAtom) visit(node, Math.max(from, pos), Math.min(to, pos + node.nodeSize), steps)
+  })
+  return markStepGroup(steps)
+}
+
+// Map a mark step's range by position alone (prosemirror-transform
+// 1.12.3); none when it collapses.
+const mapMarkRange = (mapping: Mappable, from: number, to: number): Option.Option<readonly [number, number]> => {
+  const mappedFrom = mapping.map(from, 1),
+    mappedTo = mapping.map(to, -1)
+  return mappedFrom >= mappedTo ? Option.none() : Option.some([mappedFrom, mappedTo] as const)
+}
+
 /**
  * Add a mark to all inline content between two positions.
  *
@@ -45,49 +82,27 @@ export class AddMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
   }
 
   apply(doc: Node<Sc>): StepResult<Sc> {
-    const oldSlice = doc.sliceUnsafe(this.from, this.to),
-      $from = doc.resolveUnsafe(this.from)
-    const parent = $from.node($from.sharedDepth(this.to))
-    const slice = new Slice(
-      mapFragment(
-        oldSlice.content,
-        (node, parent) => {
-          if (!node.isAtom || !parent.type.allowsMarkType(this.mark.type)) return node
-          return node.mark(this.mark.addToSet(node.marks))
-        },
-        parent
-      ),
-      oldSlice.openStart,
-      oldSlice.openEnd
+    const $from = doc.resolveUnsafe(this.from)
+    return replaceMarked(doc, this.from, this.to, $from.node($from.sharedDepth(this.to)), (node, parent) =>
+      !node.isAtom || !parent.type.allowsMarkType(this.mark.type) ? node : node.mark(this.mark.addToSet(node.marks))
     )
-    return StepResult.fromReplace(doc, this.from, this.to, slice)
   }
 
   invert(doc: Node<Sc>): Step<Sc> {
     // Restore exactly what was there: remove the mark, and put back any
     // marks it excluded (transform 1.12.3).
-    const steps: Array<AddMarkStep<Sc> | RemoveMarkStep<Sc>> = []
-    doc.nodesBetween(this.from, this.to, (node, pos) => {
-      if (node.isInline && node.isAtom) {
-        const added = this.mark.addToSet(node.marks)
-        if (!Mark.sameSet(added, node.marks)) {
-          const from = Math.max(this.from, pos),
-            to = Math.min(this.to, pos + node.nodeSize)
-          pushMarkStep(RemoveMarkStep, from, to, this.mark, steps)
-          node.marks.forEach((mark) => {
-            if (!mark.isInSet(added)) pushMarkStep(AddMarkStep, from, to, mark, steps)
-          })
-        }
-      }
+    return invertSteps(doc, this.from, this.to, (node, from, to, steps) => {
+      const added = this.mark.addToSet(node.marks)
+      if (Mark.sameSet(added, node.marks)) return
+      pushMarkStep(RemoveMarkStep, from, to, this.mark, steps)
+      node.marks.forEach((mark) => {
+        if (!mark.isInSet(added)) pushMarkStep(AddMarkStep, from, to, mark, steps)
+      })
     })
-    return markStepGroup(steps)
   }
 
   map(mapping: Mappable): Option.Option<Step<Sc>> {
-    const from = mapping.map(this.from, 1),
-      to = mapping.map(this.to, -1)
-    if (from >= to) return Option.none()
-    return Option.some(new AddMarkStep(from, to, this.mark))
+    return Option.map(mapMarkRange(mapping, this.from, this.to), ([from, to]) => new AddMarkStep(from, to, this.mark))
   }
 
   override merge(other: Step<Sc>): Option.Option<Step<Sc>> {
@@ -132,31 +147,21 @@ export class RemoveMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
   }
 
   apply(doc: Node<Sc>): StepResult<Sc> {
-    const oldSlice = doc.sliceUnsafe(this.from, this.to)
-    const slice = new Slice(
-      mapFragment(oldSlice.content, (node) => node.mark(this.mark.removeFromSet(node.marks)), doc),
-      oldSlice.openStart,
-      oldSlice.openEnd
-    )
-    return StepResult.fromReplace(doc, this.from, this.to, slice)
+    return replaceMarked(doc, this.from, this.to, doc, (node) => node.mark(this.mark.removeFromSet(node.marks)))
   }
 
   invert(doc: Node<Sc>): Step<Sc> {
     // Only re-add the mark where it was actually present (transform 1.12.3).
-    const steps: Array<AddMarkStep<Sc> | RemoveMarkStep<Sc>> = []
-    doc.nodesBetween(this.from, this.to, (node, pos) => {
-      if (node.isInline && node.isAtom && this.mark.isInSet(node.marks)) {
-        pushMarkStep(AddMarkStep, Math.max(this.from, pos), Math.min(this.to, pos + node.nodeSize), this.mark, steps)
-      }
+    return invertSteps(doc, this.from, this.to, (node, from, to, steps) => {
+      if (this.mark.isInSet(node.marks)) pushMarkStep(AddMarkStep, from, to, this.mark, steps)
     })
-    return markStepGroup(steps)
   }
 
   map(mapping: Mappable): Option.Option<Step<Sc>> {
-    const from = mapping.map(this.from, 1),
-      to = mapping.map(this.to, -1)
-    if (from >= to) return Option.none()
-    return Option.some(new RemoveMarkStep(from, to, this.mark))
+    return Option.map(
+      mapMarkRange(mapping, this.from, this.to),
+      ([from, to]) => new RemoveMarkStep(from, to, this.mark)
+    )
   }
 
   override merge(other: Step<Sc>): Option.Option<Step<Sc>> {

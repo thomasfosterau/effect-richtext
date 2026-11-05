@@ -135,6 +135,16 @@ export type ItemTypes<Sc extends AnySchema, N extends NodeNames<Sc>> = NodeType<
 const isItem = (itemType: ItemTypes<any, any>, type: NodeType<any, any>): boolean =>
   Array.isArray(itemType) ? itemType.indexOf(type) > -1 : type === itemType
 
+// The block range around the selection whose parent is a list (its first
+// child is one of the item types).
+const itemRange = (state: EditorState<any, any, any>, itemType: ItemTypes<any, any>) => {
+  const { $from, $to } = state.selection
+  return $from.blockRangeOrNull($to, (node) => {
+    const first = node.content.content[0]
+    return !!first && isItem(itemType, first.type)
+  })
+}
+
 /**
  * Build a command that splits a non-empty textblock at the top level of
  * a list item by also splitting that list item.
@@ -226,11 +236,8 @@ export const splitListItemKeepMarks = <Sc extends AnySchema, N extends NodeNames
  */
 export const liftListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(itemType: ItemTypes<Sc, N>): Command<Sc> =>
   syncCommand<Sc>((state, dispatching): SyncResult<Sc> => {
-    const { $from, $to } = state.selection
-    const range = $from.blockRangeOrNull(
-      $to,
-      (node) => node.childCount > 0 && isItem(itemType, node.content.content[0]!.type)
-    )
+    const { $from } = state.selection
+    const range = itemRange(state, itemType)
     if (!range) return false
     if (!dispatching) return true
     if (isItem(itemType, $from.node(range.depth - 1).type)) {
@@ -329,11 +336,7 @@ function liftOutOfList(state: EditorState<any, any, any>, range: NodeRange<any>)
  */
 export const sinkListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(itemType: ItemTypes<Sc, N>): Command<Sc> =>
   syncCommand<Sc>((state, dispatching) => {
-    const { $from, $to } = state.selection
-    const range = $from.blockRangeOrNull(
-      $to,
-      (node) => node.childCount > 0 && isItem(itemType, node.content.content[0]!.type)
-    )
+    const range = itemRange(state, itemType)
     if (!range) return false
     const startIndex = range.startIndex
     if (startIndex === 0) return false
