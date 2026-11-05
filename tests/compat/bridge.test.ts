@@ -152,6 +152,13 @@ describe("compat bridge", () => {
     ist(schema.marks.link.instance, null)
   })
 
+  it("accepts ProseMirror's null attributes for marks", () => {
+    // The core's mark constructors take `undefined` for no attributes.
+    ist(schema.marks.em.create(null) === schema.marks.em.instance)
+    ist(schema.mark("em", null) === schema.marks.em.instance)
+    ist(schema.marks.link.create({ href: "x" }).attrs.href, "x")
+  })
+
   it("throws ProseMirror's errors", () => {
     const d = doc(p("foo"))
     assert.throws(() => d.resolve(100), RangeError)

@@ -604,7 +604,7 @@ describe("autoJoin", () => {
 describe("toggleMark", () => {
   const toggleEm = toggleMark(schema.marks.em),
     toggleStrong = toggleMark(schema.marks.strong)
-  const toggleEm2 = toggleMark(schema.marks.em, null, { removeWhenPresent: false })
+  const toggleEm2 = toggleMark(schema.marks.em, undefined, { removeWhenPresent: false })
 
   it("can add a mark", () => {
     apply(doc(p("one <a>two<b>")), toggleEm, doc(p("one ", em("two"))))
@@ -639,7 +639,7 @@ describe("toggleMark", () => {
   it("includes whitespace when asked", () => {
     apply(
       doc(p("one<a> two  <b>three")),
-      toggleMark(schema.marks.em, null, { includeWhitespace: true }),
+      toggleMark(schema.marks.em, undefined, { includeWhitespace: true }),
       doc(p("one", em(" two  "), "three"))
     )
   })
@@ -685,7 +685,7 @@ describe("toggleMark", () => {
     const { doc, em, footnote, para, schema } = footnoteSchema()
     apply(
       doc(para("h<a>ello", footnote("okay"), "<b>")),
-      toggleMark(schema.marks.em, null, { enterInlineAtoms: false }),
+      toggleMark(schema.marks.em, undefined, { enterInlineAtoms: false }),
       doc(para("h", em("ello", footnote("okay"))))
     )
   })
@@ -694,7 +694,7 @@ describe("toggleMark", () => {
     const { doc, em, footnote, para, schema } = footnoteSchema()
     apply(
       doc(para("hello", footnote("o<a>kay<b>"))),
-      toggleMark(schema.marks.em, null, { enterInlineAtoms: false }),
+      toggleMark(schema.marks.em, undefined, { enterInlineAtoms: false }),
       doc(para("hello", footnote("o", em("kay"))))
     )
   })
@@ -703,7 +703,7 @@ describe("toggleMark", () => {
     const { doc, em, footnote, para, schema } = footnoteSchema()
     apply(
       doc(para("h<a>ello", footnote(em("okay")), "<b>")),
-      toggleMark(schema.marks.em, null, { enterInlineAtoms: false }),
+      toggleMark(schema.marks.em, undefined, { enterInlineAtoms: false }),
       doc(para("h", em("ello", footnote(em("okay")))))
     )
   })
@@ -712,7 +712,7 @@ describe("toggleMark", () => {
     const { doc, em, footnote, para, schema } = footnoteSchema()
     apply(
       doc(para(em("h<a>ello", footnote(em("okay")), "<b>"))),
-      toggleMark(schema.marks.em, null, { enterInlineAtoms: false }),
+      toggleMark(schema.marks.em, undefined, { enterInlineAtoms: false }),
       doc(para(em("h"), "ello", footnote(em("okay"))))
     )
   })

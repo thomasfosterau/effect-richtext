@@ -264,7 +264,7 @@ export function toggleMark(
     includeWhitespace?: boolean
   }
 ): Command {
-  return fromCoreCommand(C.toggleMark(markType[CORE], attrs, options))
+  return fromCoreCommand(C.toggleMark(markType[CORE], attrs ?? undefined, options))
 }
 
 /**

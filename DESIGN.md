@@ -68,6 +68,8 @@ Errors are `Schema.TaggedError` classes with a `message` field, one family per l
 
 Public accessors return `Option`. Hot internal paths may use `@internal` `…OrNull` twins (e.g. `ContentMatch.matchTypeOrNull`, `ResolvedPos.nodeAfterOrNull`) to avoid allocations; these are not part of the public API.
 
+An absent argument is `undefined` (an omitted optional), not ProseMirror's `null`, as for the attributes of mark constructors (`MarkType.create`, `DocSchema.mark`) and `toggleMark`. Node constructors still accept `null` attributes. The compat facade keeps ProseMirror's `null` and maps it to `undefined` at the boundary.
+
 ### Typing
 
 - Every model class is generic over the schema: `Node<Sc, N>`, `Fragment<Sc, N>`, `Mark<Sc, M>`, `NodeType<Sc, N>`, `MarkType<Sc, M>`, `Slice<Sc>`, `ResolvedPos<Sc>`. The defaults (`AnySchema`, all names) make untyped usage work everywhere.
