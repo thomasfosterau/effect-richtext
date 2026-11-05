@@ -268,8 +268,13 @@ function addRange<Sc extends AnySchema>(
 }
 
 function close<Sc extends AnySchema>(node: Node<Sc>, content: Fragment<Sc>): Node<Sc> {
-  if (!node.type.validContent(content))
-    throw new ReplaceError({ message: "Invalid content for node " + node.type.name })
+  // Name the offending content (as checkContent does); the facade's
+  // messages don't need to match prosemirror-model's here.
+  if (!node.type.validContent(content)) {
+    throw new ReplaceError({
+      message: `Invalid content for node ${node.type.name}: ${content.toString().slice(0, 50)}`
+    })
+  }
   return node.copy(content)
 }
 

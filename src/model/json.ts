@@ -5,6 +5,7 @@
  * @since 0.1.0
  */
 import * as Effect from "effect/Effect"
+import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import * as S from "effect/Schema"
 import * as SchemaGetter from "effect/SchemaGetter"
@@ -12,7 +13,7 @@ import * as SchemaIssue from "effect/SchemaIssue"
 import { decodeAttrs } from "./attrsCodec.ts"
 import { isModelError, JSONError } from "./errors.ts"
 import { Fragment } from "./fragment.ts"
-import type { Mark } from "./mark.ts"
+import { Mark } from "./mark.ts"
 import { Node, type NodeJSON } from "./node.ts"
 import { Slice } from "./replace.ts"
 import type { AnySchema, Attrs } from "./schema.ts"
@@ -21,11 +22,17 @@ const fail = (message: string): never => {
   throw new JSONError({ message })
 }
 
-const decodeAttrsOrFail = (defs: Parameters<typeof decodeAttrs>[0], attrs: unknown, what: string): Attrs | null => {
-  if (attrs == null) return null
-  if (typeof attrs !== "object" || Array.isArray(attrs)) fail(`Invalid attributes for ${what}`)
+// The JSON attributes decoded by their Schemas; none when the JSON has
+// no attributes.
+const decodeAttrsOrFail = (
+  defs: Parameters<typeof decodeAttrs>[0],
+  attrs: unknown,
+  what: string
+): Option.Option<Attrs> => {
+  if (attrs == null) return Option.none()
+  if (typeof attrs !== "object" || Array.isArray(attrs)) return fail(`Invalid attributes for ${what}`)
   try {
-    return decodeAttrs(defs, attrs as Attrs)
+    return Option.some(decodeAttrs(defs, attrs as Attrs))
   } catch (e) {
     if (isModelError(e)) throw e
     return fail(
@@ -38,18 +45,18 @@ const decodeAttrsOrFail = (defs: Parameters<typeof decodeAttrs>[0], attrs: unkno
 export function markFromJSON<Sc extends AnySchema>(schema: Sc, json: any): Mark<Sc> {
   if (!json || typeof json !== "object") fail("Invalid input for Mark.fromJSON")
   const type = schema.marks[json.type]
-  if (!type) fail(`There is no mark type ${json.type} in this schema`)
-  return type!.createUnsafe(decodeAttrsOrFail(type!.attrs, json.attrs, `mark ${json.type}`) as any) as Mark<Sc>
+  if (!type) return fail(`There is no mark type ${json.type} in this schema`)
+  // Decoded attributes skip the Schema guard (the decode validated them).
+  return type.createDecodedUnsafe(decodeAttrsOrFail(type.attrs, json.attrs, `mark ${json.type}`))
 }
 
 /** @internal */
 export function nodeFromJSON<Sc extends AnySchema>(schema: Sc, json: any): Node<Sc> {
   if (!json || typeof json !== "object") fail("Invalid input for Node.fromJSON")
-  let marks: Array<Mark<Sc>> | undefined = undefined
-  if (json.marks) {
-    if (!Array.isArray(json.marks)) fail("Invalid mark data for Node.fromJSON")
-    marks = json.marks.map((m: unknown) => markFromJSON(schema, m))
-  }
+  if (json.marks && !Array.isArray(json.marks)) fail("Invalid mark data for Node.fromJSON")
+  const marks: ReadonlyArray<Mark<Sc>> = json.marks
+    ? json.marks.map((m: unknown) => markFromJSON(schema, m))
+    : Mark.none
   if (json.type === "text") {
     if (typeof json.text !== "string") fail("Invalid text node in JSON")
     if (!json.text) fail("Empty text nodes are not allowed")
@@ -57,12 +64,8 @@ export function nodeFromJSON<Sc extends AnySchema>(schema: Sc, json: any): Node<
   }
   const content = fragmentFromJSON(schema, json.content)
   const type = schema.nodes[json.type]
-  if (!type) fail("Unknown node type: " + json.type)
-  return type!.createUnsafe(
-    decodeAttrsOrFail(type!.attrs, json.attrs, `node ${json.type}`) as any,
-    content as any,
-    marks
-  ) as Node<Sc>
+  if (!type) return fail("Unknown node type: " + json.type)
+  return type.createDecodedUnsafe(decodeAttrsOrFail(type.attrs, json.attrs, `node ${json.type}`), content, marks)
 }
 
 /** @internal */
