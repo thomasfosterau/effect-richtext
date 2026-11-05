@@ -548,7 +548,10 @@ export function computeAttrs(
   attrs: Record<string, Attribute>,
   value: Attrs | null | undefined,
   type: string,
-  typeName: string
+  typeName: string,
+  // `value` holds values already decoded by their attribute Schemas (JSON
+  // input): the decode validated them, so the Schema guard is skipped.
+  decoded = false
 ): Attrs {
   const built = Object.create(null)
   for (const name in attrs) {
@@ -562,7 +565,7 @@ export function computeAttrs(
       // a node or mark can skip it (prosemirror-model 1.25.12). Defaults
       // are trusted.
       if (attr.validate) attr.validate(given)
-      if (attr.is && !attr.is(given)) {
+      if (!decoded && attr.is && !attr.is(given)) {
         throw new AttributeError({
           message: `Invalid value for attribute ${name} on ${type} of type ${typeName}: ${showJson(given)}`
         })
@@ -706,6 +709,23 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   ): Node<Sc, N> {
     if (this.isText) throw new ContentError({ message: "NodeType.create can't construct text nodes" })
     return new Node(this, this.computeAttrs(attrs) as any, Fragment.from(content), Mark.setFrom(marks)) as any
+  }
+
+  /**
+   * Like `createUnsafe`, for attributes already decoded by their Schemas.
+   *
+   * @internal
+   */
+  createDecodedUnsafe(attrs: Option.Option<Attrs>, content: Fragment<Sc>, marks: ReadonlyArray<Mark<Sc>>): Node<Sc, N> {
+    if (this.isText) throw new ContentError({ message: "NodeType.create can't construct text nodes" })
+    return new Node(this, this.computeDecodedAttrs(attrs) as any, content, Mark.setFrom(marks)) as any
+  }
+
+  // Without a decoded attrs object nothing was decoded: compute as usual.
+  private computeDecodedAttrs(attrs: Option.Option<Attrs>): Attrs {
+    return Option.isSome(attrs)
+      ? computeAttrs(this.attrs, attrs.value, "node", this.name, true)
+      : this.computeAttrs(Option.getOrNull(attrs))
   }
 
   /**
@@ -877,6 +897,17 @@ export class MarkType<Sc extends AnySchema = AnySchema, out M extends MarkNames<
   createUnsafe(attrs?: MarkAttrsInput<Sc, M> | null): Mark<Sc, M> {
     if (!attrs && this.instance) return this.instance
     return new Mark(this, computeAttrs(this.attrs, attrs, "mark", this.name) as any)
+  }
+
+  /**
+   * Like `createUnsafe`, for attributes already decoded by their Schemas.
+   *
+   * @internal
+   */
+  createDecodedUnsafe(attrs: Option.Option<Attrs>): Mark<Sc, M> {
+    return Option.isSome(attrs)
+      ? new Mark(this, computeAttrs(this.attrs, attrs.value, "mark", this.name, true) as any)
+      : this.createUnsafe()
   }
 
   /**

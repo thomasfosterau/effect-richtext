@@ -445,6 +445,8 @@ describe("Node", () => {
         assert.strictEqual(badAttr._tag, "JSONError")
         const missingAttr = yield* Effect.flip(schema.nodeFromJSON({ type: "image" }))
         assert.strictEqual(missingAttr._tag, "AttributeError")
+        const missingInObject = yield* Effect.flip(schema.nodeFromJSON({ type: "image", attrs: { alt: "a" } }))
+        assert.match(missingInObject.message, /No value supplied for attribute src/)
         ist.throws(() => schema.nodeFromJSONUnsafe({ type: "nope" }), /Unknown node type/)
       })
     )
