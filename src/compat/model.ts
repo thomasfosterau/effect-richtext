@@ -1415,7 +1415,7 @@ export class MarkType {
 
   /** @internal */
   get instance(): Mark | null {
-    return wrap(this[CORE].instance)
+    return nullable(this[CORE].instance)
   }
 
   /** Create a mark of this type. */
