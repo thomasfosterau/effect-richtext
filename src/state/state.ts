@@ -144,6 +144,52 @@ export class Configuration<Sc extends AnySchema> {
 
 const isStateError = (u: unknown): u is StateError => u instanceof StateError
 
+// The first field init hook that returned an Effect, with that Effect.
+interface PendingInit {
+  readonly index: number
+  readonly effect: Effect.Effect<unknown, unknown>
+}
+
+// Create a state and run its fields' init hooks synchronously, stopping at
+// the first hook that returns an Effect (left pending for finishCreate).
+// Throws a StateError for an invalid configuration.
+function startCreate(config: EditorStateConfig<any, any>): {
+  readonly instance: EditorState<any, any, any>
+  readonly pending: Option.Option<PendingInit>
+} {
+  const schema = config.doc ? config.doc.type.schema : config.schema
+  if (!schema) throw new StateError({ message: "Either `doc` or `schema` must be provided" })
+  const $config = new Configuration(schema, config.plugins)
+  const instance = new EditorState<any, any, any>($config)
+  for (let i = 0; i < $config.fields.length; i++) {
+    const field = $config.fields[i]!
+    const result = field.init.call(field.self, config, instance)
+    // The hook's requirements are the plugins' R, which create's and
+    // createUnsafe's types carry; the continuation runs in that context.
+    if (Effect.isEffect(result))
+      return { instance, pending: Option.some({ index: i, effect: result as Effect.Effect<unknown, unknown> }) }
+    instance.slots[field.name] = result
+  }
+  return { instance, pending: Option.none() }
+}
+
+// Run the pending init Effect and the remaining init hooks.
+const finishCreate = (
+  config: EditorStateConfig<any, any>,
+  instance: EditorState<any, any, any>,
+  pending: PendingInit
+): Effect.Effect<EditorState<any, any, any>, unknown> =>
+  Effect.gen(function* () {
+    const fields = instance.config.fields
+    instance.slots[fields[pending.index]!.name] = yield* pending.effect
+    for (let i = pending.index + 1; i < fields.length; i++) {
+      const field = fields[i]!
+      const result = yield* trySync(() => field.init.call(field.self, config, instance))
+      instance.slots[field.name] = Effect.isEffect(result) ? yield* result as Effect.Effect<unknown, unknown> : result
+    }
+    return instance
+  })
+
 /** Marker returned by the synchronous fast path when a hook returned an Effect. */
 const NeedsEffect: unique symbol = Symbol("effect-richtext/state/NeedsEffect")
 
@@ -528,20 +574,11 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
     PluginErrors<P> | StateError,
     PluginRequirements<P>
   > {
-    return Effect.gen(function* () {
-      const schema = config.doc ? (config.doc.type.schema as Sc) : config.schema
-      if (!schema) return yield* Effect.fail(new StateError({ message: "Either `doc` or `schema` must be provided" }))
-      const $config = yield* trySync(() => new Configuration(schema, config.plugins))
-      const instance = new EditorState<Sc, PluginRequirements<P>, PluginErrors<P>>($config)
-      for (let i = 0; i < $config.fields.length; i++) {
-        const field = $config.fields[i]!
-        const result = yield* trySync(() => field.init.call(field.self, config, instance))
-        instance.slots[field.name] = Effect.isEffect(result)
-          ? yield* result as Effect.Effect<unknown, any, any>
-          : result
-      }
-      return instance
-    }) as any
+    return Effect.flatMap(
+      trySync(() => startCreate(config)),
+      ({ instance, pending }) =>
+        Option.isSome(pending) ? finishCreate(config, instance, pending.value) : Effect.succeed(instance)
+    ) as any
   }
 
   /**
@@ -551,7 +588,9 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
   static createUnsafe<Sc extends AnySchema, const P extends ReadonlyArray<Plugin<any, any, any, never>> = readonly []>(
     config: EditorStateConfig<Sc, P>
   ): EditorState<Sc, never, PluginErrors<P>> {
-    return runSyncUnsafe(EditorState.create(config)) as any
+    // Synchronous unless a plugin's init hook returns an Effect.
+    const { instance, pending } = startCreate(config)
+    return (Option.isSome(pending) ? runSyncUnsafe(finishCreate(config, instance, pending.value)) : instance) as any
   }
 
   /**

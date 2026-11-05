@@ -6,6 +6,10 @@
     "module": "preserve",
     "moduleResolution": "bundler",
     "target": "es2022",
+    // Class fields compile to constructor assignments, not define-semantics
+    // field declarations: the model's hot constructors (Node, Fragment, Mark,
+    // ResolvedPos, steps) build objects measurably faster this way.
+    "useDefineForClassFields": false,
     "lib": ["es2022", "dom", "dom.iterable"],
     "moduleDetection": "force",
     // Source imports are written `./x.ts`; the build rewrites them to `./x.js`.

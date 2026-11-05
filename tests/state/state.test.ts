@@ -246,6 +246,31 @@ describe("EditorState (Effect API)", () => {
     ist(stepCountPlugin.spec.state !== undefined)
   })
 
+  // createUnsafe / create run init hooks synchronously until one returns an
+  // Effect, then continue from that hook: none runs twice.
+  it("runs each init hook once when a later one returns an Effect", () => {
+    const calls: Array<string> = []
+    const sync = new Plugin({ state: { init: () => (calls.push("sync"), 1), apply: (_tr, v: number) => v } })
+    const lazy = new Plugin({
+      state: { init: () => (calls.push("lazy"), Effect.succeed(2)), apply: (_tr, v: number) => v }
+    })
+    const after = new Plugin({ state: { init: () => (calls.push("after"), 3), apply: (_tr, v: number) => v } })
+    const state = EditorState.createUnsafe({ schema, plugins: [sync, lazy, after] })
+    ist(calls.join(), "sync,lazy,after")
+    ist([sync, lazy, after].map((pl) => getSome(pl.getState(state))).join(), "1,2,3")
+    calls.length = 0
+    const viaEffect = Effect.runSync(EditorState.create({ schema, plugins: [sync, lazy, after] }))
+    ist(calls.join(), "sync,lazy,after")
+    ist(getSome(lazy.getState(viaEffect)), 2)
+  })
+
+  it.effect("fails create with a StateError for an invalid configuration", () =>
+    Effect.gen(function* () {
+      const err = yield* Effect.flip(EditorState.create({} as any))
+      assert.strictEqual(err._tag, "StateError")
+    })
+  )
+
   it("supports state fields whose apply returns an Effect", () => {
     const state = EditorState.createUnsafe({ doc: doc(p("ab")), plugins: [docSizePlugin] })
     ist(count(docSizePlugin, state), 4)

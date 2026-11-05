@@ -23,20 +23,22 @@ const fail = (message: string): never => {
 }
 
 // The JSON attributes decoded by their Schemas; none when the JSON has
-// no attributes.
+// no attributes. `kind` and `name` only label error messages, so no label
+// string is built per node.
 const decodeAttrsOrFail = (
   defs: Parameters<typeof decodeAttrs>[0],
   attrs: unknown,
-  what: string
+  kind: string,
+  name: string
 ): Option.Option<Attrs> => {
   if (attrs == null) return Option.none()
-  if (typeof attrs !== "object" || Array.isArray(attrs)) return fail(`Invalid attributes for ${what}`)
+  if (typeof attrs !== "object" || Array.isArray(attrs)) return fail(`Invalid attributes for ${kind} ${name}`)
   try {
     return Option.some(decodeAttrs(defs, attrs as Attrs))
   } catch (e) {
     if (isModelError(e)) throw e
     return fail(
-      `Invalid attributes for ${what}: ${Predicate.hasProperty(e, "message") ? String(e.message) : String(e)}`
+      `Invalid attributes for ${kind} ${name}: ${Predicate.hasProperty(e, "message") ? String(e.message) : String(e)}`
     )
   }
 }
@@ -47,7 +49,7 @@ export function markFromJSON<Sc extends AnySchema>(schema: Sc, json: any): Mark<
   const type = schema.marks[json.type]
   if (!type) return fail(`There is no mark type ${json.type} in this schema`)
   // Decoded attributes skip the Schema guard (the decode validated them).
-  return type.createDecodedUnsafe(decodeAttrsOrFail(type.attrs, json.attrs, `mark ${json.type}`))
+  return type.createDecodedUnsafe(decodeAttrsOrFail(type.attrs, json.attrs, "mark", json.type))
 }
 
 /** @internal */
@@ -65,7 +67,7 @@ export function nodeFromJSON<Sc extends AnySchema>(schema: Sc, json: any): Node<
   const content = fragmentFromJSON(schema, json.content)
   const type = schema.nodes[json.type]
   if (!type) return fail("Unknown node type: " + json.type)
-  return type.createDecodedUnsafe(decodeAttrsOrFail(type.attrs, json.attrs, `node ${json.type}`), content, marks)
+  return type.createDecodedUnsafe(decodeAttrsOrFail(type.attrs, json.attrs, "node", json.type), content, marks)
 }
 
 /** @internal */
