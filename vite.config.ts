@@ -326,6 +326,17 @@ export default defineConfig({
           "effect/avoid-direct-json": "off"
         }
       },
+      // The benchmarks are an entry point and a harness: tests/bench/run.ts
+      // provides its platform layer where it runs the program, and the core
+      // adapter runs each command synchronously (as tests/commands/apply.ts
+      // does) so that it is timed like ProseMirror's.
+      {
+        files: ["tests/bench/run.ts", "tests/bench/core.ts"],
+        rules: {
+          "effecttsgo/strict-effect-provide": "off",
+          "effect/effect-run-in-body": "off"
+        }
+      },
       // Test fixtures are the seams under test, not domain code.
       {
         files: ["tests/**/*.ts"],
@@ -393,6 +404,16 @@ export default defineConfig({
       // Compiles AND RUNS every JSDoc `@example` (see docgen.json). Examples
       // import the package by name exactly as a consumer would, which
       // resolves through `exports` to `dist/` — hence the build edge.
+      // The complex-workload benchmarks (tests/bench/run.ts): every workload on
+      // ProseMirror and on the built `dist/`, one process per library per
+      // round. tsconfig.base.json has no `paths`, so the package name
+      // resolves through `exports` to `dist/` (the product) rather than to
+      // `src/` as in the tests. Timings are never cached.
+      bench: {
+        command: "tsx --tsconfig tsconfig.base.json tests/bench/run.ts",
+        dependsOn: ["build"],
+        cache: false
+      },
       docgen: {
         command: "docgen",
         dependsOn: ["build"],

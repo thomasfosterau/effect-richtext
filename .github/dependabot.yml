@@ -21,6 +21,8 @@
 # - `effect`: the Effect 4 line is a lockstep-versioned singleton set
 #   (`@effect/tsgo` and `@effect/docgen` are claimed by the groups above).
 # - `changesets`, `fallow`: their own release cadences.
+# - `prosemirror`: the reference implementation tests/bench/
+#   compares against; a release there is upstream work to port.
 # - `minor-and-patch`: everything else; majors outside a group arrive alone.
 #
 # Hand moves Dependabot cannot make (do them on the matching group's PR, then
@@ -99,6 +101,11 @@ updates:
         applies-to: version-updates
         patterns:
           - "fallow"
+        update-types: ["major", "minor", "patch"]
+      prosemirror:
+        applies-to: version-updates
+        patterns:
+          - "prosemirror-*"
         update-types: ["major", "minor", "patch"]
       minor-and-patch:
         applies-to: version-updates

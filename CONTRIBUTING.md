@@ -45,4 +45,8 @@ vp run build                                  # emit dist/
 vp run docgen                                 # examples + API reference under docs/
 vp run test:coverage                          # one Istanbul map for fallow
 vp run fallow:audit                           # change-set review (not a CI gate)
+vp run bench                                  # complex workloads vs ProseMirror (builds first)
+BENCH_FILTER=collab BENCH_ROUNDS=5 vp run bench  # one workload, more rounds
 ```
+
+`vp run bench` times the workloads in `tests/bench/workloads.ts` on ProseMirror and on the built `dist/`, each library and workload in its own Node process, and prints each core/ProseMirror ratio. Run nothing else while it runs. `tests/bench/workloads.test.ts` runs the same workloads in the unit suite and checks that both libraries end in the same document, so a new workload is checked as well as timed.
