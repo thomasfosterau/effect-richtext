@@ -358,7 +358,7 @@ handlers.mousedown = (view, _event) => {
 
   if (type == "singleClick") {
     if (view.input.mouseDown) view.input.mouseDown.done()
-    view.input.mouseDown = new MouseDown(view, pos, event, !!flushed)
+    view.input.mouseDown = new MouseDown(view, pos, event, flushed)
   } else if ((type == "doubleClick" ? handleDoubleClick : handleTripleClick)(view, pos.pos, pos.inside, event)) {
     event.preventDefault()
   } else {
@@ -381,7 +381,7 @@ class MouseDown {
     readonly flushed: boolean
   ) {
     this.startDoc = view.state.doc
-    this.selectNode = !!event[selectNodeModifier]
+    this.selectNode = event[selectNodeModifier]
     this.allowDefault = event.shiftKey
 
     let targetNode: Node<any, any>, targetPos

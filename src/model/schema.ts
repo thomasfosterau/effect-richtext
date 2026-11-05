@@ -509,7 +509,7 @@ function validateType(typeName: string, attrName: string, type: string) {
     const name = value === null ? "null" : typeof value
     if (types.indexOf(name) < 0) {
       throw new AttributeError({
-        message: `Expected value of type ${types} for attribute ${attrName} on type ${typeName}, got ${name}`
+        message: `Expected value of type ${types.join(",")} for attribute ${attrName} on type ${typeName}, got ${name}`
       })
     }
   }

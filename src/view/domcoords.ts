@@ -663,5 +663,5 @@ export function endOfTextblock(view: AnyView, state: EditorState<any, any, any>,
   return (cachedResult =
     dir == "up" || dir == "down"
       ? endOfTextblockVertical(view, state, dir)
-      : !!endOfTextblockHorizontal(view, state, dir))
+      : endOfTextblockHorizontal(view, state, dir))
 }

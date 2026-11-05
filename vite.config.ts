@@ -77,9 +77,13 @@ export default defineConfig({
   // the type-aware rules sitting at `warn` below, and tsgolint's
   // `no-unnecessary-type-assertion` / `-type-arguments` fixes break the
   // `check` task's tsc on some sites (#19), so a commit could land code that
-  // no longer type-checks. Lint errors still fail the commit.
+  // no longer type-checks. Lint errors still fail the commit. CSS, JSON and
+  // Markdown are only formatted: Oxlint has nothing to lint in them, and a
+  // lint pass handed no lintable file fails ("No files found to lint"), which
+  // blocked every commit touching only those files (a changeset, say).
   staged: {
-    "*.{js,ts,css,json,md}": ["vp check --fix --no-lint", "vp check --no-fmt"]
+    "*.{js,ts}": ["vp check --fix --no-lint", "vp check --no-fmt"],
+    "*.{css,json,md}": "vp check --fix --no-lint"
   },
   // The repo's own style, carried over from its dprint config: no
   // semicolons, no trailing commas, 120 columns.
@@ -141,7 +145,7 @@ export default defineConfig({
       // fixed, and delete the line (back to the preset's `error`) when it
       // reaches zero.
       "effect/avoid-non-null-assertion": "warn", // 1315
-      "effect/require-safety-comment-for-type-assertion": "warn", // 1051
+      "effect/require-safety-comment-for-type-assertion": "warn", // 1049
       "effect/prefer-option-over-null": "warn", // 1010
       "effect/imperative-loops": "warn", // 608
       "effect/avoid-any": "warn", // 444
@@ -172,7 +176,7 @@ export default defineConfig({
       // tsgolint's verdict on "unnecessary" differs from the `check` task's
       // tsc on enough of them that the autofix breaks the type gate, so each
       // site is removed by hand, against `vp run check`.
-      "typescript/no-unsafe-type-assertion": "warn", // 891
+      "typescript/no-unsafe-type-assertion": "warn", // 889
       "typescript/no-unnecessary-type-assertion": "warn", // 720
       "typescript/no-unnecessary-type-arguments": "warn", // 54
       "effecttsgo/any-unknown-in-error-context": "warn", // 54
@@ -180,10 +184,11 @@ export default defineConfig({
       "typescript/consistent-return": "warn", // 22
       "typescript/no-unnecessary-type-parameters": "warn", // 14
       "effecttsgo/strict-effect-provide": "warn", // 13
-      "typescript/restrict-template-expressions": "warn", // 6
-      "typescript/no-unnecessary-type-conversion": "warn", // 6
+      // The three left normalise a value a JS caller supplies (a node spec's
+      // `code`, a command's result, an `attributes` prop) that ProseMirror
+      // code may hand over as a non-boolean or non-string.
+      "typescript/no-unnecessary-type-conversion": "warn", // 3
       "effecttsgo/unsafe-effect-type-assertion": "warn", // 6
-      "typescript/no-base-to-string": "warn", // 5
       // `editable` compares with `=== false` as ProseMirror does: a JS
       // caller's prop may return `undefined`, which must stay "editable".
       "typescript/no-unnecessary-boolean-literal-compare": "warn", // 1

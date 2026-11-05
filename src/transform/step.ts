@@ -119,11 +119,12 @@ export abstract class Step<Sc extends AnySchema = AnySchema> {
 
   /** Like `fromJSON`, but throws a `JSONError` (or other model error) for invalid input. */
   static fromJSONUnsafe<Sc extends AnySchema>(schema: Sc, json: any): Step<Sc> {
-    if (!Predicate.isObjectOrArray(json) || !("stepType" in json) || !json.stepType) {
+    const stepType: unknown = Predicate.isObjectOrArray(json) && "stepType" in json ? json.stepType : undefined
+    if (!Predicate.isString(stepType) || stepType === "") {
       throw new JSONError({ message: "Invalid input for Step.fromJSON" })
     }
-    const type = stepsByID[String(json.stepType)]
-    if (!type) throw new JSONError({ message: `No step type ${json.stepType} defined` })
+    const type = stepsByID[stepType]
+    if (!type) throw new JSONError({ message: `No step type ${stepType} defined` })
     return type.fromJSONUnsafe(schema, json)
   }
 

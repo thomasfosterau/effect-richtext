@@ -290,7 +290,7 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     if (pos === 0) return retIndex(0, pos)
     if (pos === this.size) return retIndex(this.content.length, pos)
     if (pos > this.size || pos < 0) {
-      throw new PositionError({ message: `Position ${pos} outside of fragment (${this})` })
+      throw new PositionError({ message: `Position ${pos} outside of fragment (${this.toString()})` })
     }
     for (let i = 0, curPos = 0; ; i++) {
       const cur = this.content[i]!,

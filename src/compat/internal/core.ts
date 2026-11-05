@@ -17,6 +17,7 @@ import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
 import * as Match from "effect/Match"
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 
 /** @internal */
 export const CORE: unique symbol = Symbol.for("effect-richtext/compat/core") as never
@@ -180,9 +181,9 @@ const proseMirrorError = (tag: string, message: string): Option.Option<Error> =>
 
 /** Convert a core (tagged) error into the exception ProseMirror would throw. @internal */
 export const convertError = (e: unknown): unknown => {
-  if (e === null || typeof e !== "object" || !("_tag" in e)) return e
-  const message = (e as { message?: string }).message ?? String(e)
-  return Option.getOrElse(proseMirrorError((e as { _tag: string })._tag, message), () => e)
+  if (e === null || typeof e !== "object" || !("_tag" in e) || !Predicate.isString(e._tag)) return e
+  const message = "message" in e && Predicate.isString(e.message) ? e.message : e._tag
+  return Option.getOrElse(proseMirrorError(e._tag, message), () => e)
 }
 
 /** Run `f`, converting core errors into ProseMirror's exceptions. @internal */
