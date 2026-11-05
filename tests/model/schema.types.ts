@@ -16,6 +16,7 @@ import {
   type NodeType
 } from "effect-richtext/model"
 import type { Equals, Expect } from "../utils/types.ts"
+import { toggleMark } from "effect-richtext/commands"
 
 const schema = DocSchema.makeUnsafe({
   nodes: {
@@ -54,6 +55,16 @@ schema.marks.link.createUnsafe({ href: "https://x.y" })
 schema.nodeUnsafe("paragraph")
 schema.nodeUnsafe("image", { src: "a.png" })
 schema.markUnsafe("link", { href: "https://x.y" })
+
+// Mark constructors take `undefined`, not ProseMirror's `null`, for no
+// attributes (the compat facade maps one to the other).
+// @ts-expect-error no attributes is `undefined`
+schema.marks.em.createUnsafe(null)
+// @ts-expect-error no attributes is `undefined`
+schema.markUnsafe("em", null)
+// @ts-expect-error no attributes is `undefined`
+toggleMark(schema.marks.em, null)
+toggleMark(schema.marks.em, undefined, { removeWhenPresent: false })
 
 // @ts-expect-error `src` is required
 schema.nodes.image.createUnsafe()

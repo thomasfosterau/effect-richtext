@@ -1120,17 +1120,17 @@ export class MarkType<Sc extends AnySchema = AnySchema, out M extends MarkNames<
    */
   create(
     this: MarkType<Sc, MarksWithOptionalAttrs<Sc>>,
-    attrs?: MarkAttrsInput<Sc, M> | null
+    attrs?: MarkAttrsInput<Sc, M>
   ): Effect.Effect<Mark<Sc, M>, AttributeError>
   create(attrs: MarkAttrsInput<Sc, M>): Effect.Effect<Mark<Sc, M>, AttributeError>
-  create(attrs?: MarkAttrsInput<Sc, M> | null): Effect.Effect<Mark<Sc, M>, AttributeError> {
+  create(attrs?: MarkAttrsInput<Sc, M>): Effect.Effect<Mark<Sc, M>, AttributeError> {
     return attempt(() => this.createUnsafe(attrs), isAttributeError)
   }
 
   /** Like `create`, but throws an `AttributeError` on failure. */
-  createUnsafe(this: MarkType<Sc, MarksWithOptionalAttrs<Sc>>, attrs?: MarkAttrsInput<Sc, M> | null): Mark<Sc, M>
+  createUnsafe(this: MarkType<Sc, MarksWithOptionalAttrs<Sc>>, attrs?: MarkAttrsInput<Sc, M>): Mark<Sc, M>
   createUnsafe(attrs: MarkAttrsInput<Sc, M>): Mark<Sc, M>
-  createUnsafe(attrs?: MarkAttrsInput<Sc, M> | null): Mark<Sc, M> {
+  createUnsafe(attrs?: MarkAttrsInput<Sc, M>): Mark<Sc, M> {
     if (!attrs && Option.isSome(this.instance)) return this.instance.value
     return new Mark(this, computeAttrs(this.attrs, attrs, "mark", this.name) as any)
   }
@@ -1373,7 +1373,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
   /** Create a mark with the given type and attributes. */
   mark<K extends MarksWithOptionalAttrs<DocSchema<N, M>>>(
     type: K | MarkType<DocSchema<N, M>, K>,
-    attrs?: MarkAttrsInput<DocSchema<N, M>, K> | null
+    attrs?: MarkAttrsInput<DocSchema<N, M>, K>
   ): Effect.Effect<Mark<DocSchema<N, M>, K>, AttributeError>
   mark<K extends keyof M & string>(
     type: K | MarkType<DocSchema<N, M>, K>,
@@ -1381,7 +1381,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
   ): Effect.Effect<Mark<DocSchema<N, M>, K>, AttributeError>
   mark<K extends keyof M & string>(
     type: K | MarkType<DocSchema<N, M>, K>,
-    attrs?: MarkAttrsInput<DocSchema<N, M>, K> | null
+    attrs?: MarkAttrsInput<DocSchema<N, M>, K>
   ): Effect.Effect<Mark<DocSchema<N, M>, K>, AttributeError> {
     return attempt(() => this.markUnsafe(type, attrs), isAttributeError)
   }
@@ -1389,7 +1389,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
   /** Like `mark`, but throws on failure. */
   markUnsafe<K extends MarksWithOptionalAttrs<DocSchema<N, M>>>(
     type: K | MarkType<DocSchema<N, M>, K>,
-    attrs?: MarkAttrsInput<DocSchema<N, M>, K> | null
+    attrs?: MarkAttrsInput<DocSchema<N, M>, K>
   ): Mark<DocSchema<N, M>, K>
   markUnsafe<K extends keyof M & string>(
     type: K | MarkType<DocSchema<N, M>, K>,
@@ -1397,7 +1397,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
   ): Mark<DocSchema<N, M>, K>
   markUnsafe<K extends keyof M & string>(
     type: K | MarkType<DocSchema<N, M>, K>,
-    attrs?: MarkAttrsInput<DocSchema<N, M>, K> | null
+    attrs?: MarkAttrsInput<DocSchema<N, M>, K>
   ): Mark<DocSchema<N, M>, K> {
     const markType = typeof type === "string" ? this.marks[type] : type
     if (!markType) throw new AttributeError({ message: "Unknown mark type: " + String(type) })

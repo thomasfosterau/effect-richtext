@@ -933,7 +933,7 @@ export interface ToggleMarkOptions {
  */
 export const toggleMark = <Sc extends AnySchema, M extends MarkNames<Sc>>(
   markType: MarkType<Sc, M>,
-  attrs: MarkAttrsInput<Sc, M> | null = null,
+  attrs?: MarkAttrsInput<Sc, M>,
   options?: ToggleMarkOptions
 ): Command<Sc> => {
   const removeWhenPresent = (options && options.removeWhenPresent) !== false

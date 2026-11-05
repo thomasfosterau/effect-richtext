@@ -242,13 +242,13 @@ function tokenHandlers<Sc extends AnySchema>(
       if (!markType) throw new MarkdownError({ message: "Unknown mark type: " + spec.mark })
       if (noCloseToken(spec, type)) {
         handlers[type] = (state, tok, tokens, i) => {
-          state.openMark(markType.createUnsafe(attrs(spec, tok, tokens, i)))
+          state.openMark(markType.createUnsafe(attrs(spec, tok, tokens, i) ?? undefined))
           state.addText(withoutTrailingNewline(tok.content))
           state.closeMark(markType)
         }
       } else {
         handlers[type + "_open"] = (state, tok, tokens, i) =>
-          state.openMark(markType.createUnsafe(attrs(spec, tok, tokens, i)))
+          state.openMark(markType.createUnsafe(attrs(spec, tok, tokens, i) ?? undefined))
         handlers[type + "_close"] = (state) => state.closeMark(markType)
       }
     } else if (spec.ignore) {

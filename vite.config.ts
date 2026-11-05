@@ -146,7 +146,7 @@ export default defineConfig({
       // reaches zero.
       "effect/avoid-non-null-assertion": "warn", // 1303
       "effect/require-safety-comment-for-type-assertion": "warn", // 1042
-      "effect/prefer-option-over-null": "warn", // 1003
+      "effect/prefer-option-over-null": "warn", // 994
       "effect/imperative-loops": "warn", // 607
       "effect/avoid-any": "warn", // 444
       "effect/no-runtime-typeof": "warn", // 77
@@ -177,7 +177,7 @@ export default defineConfig({
       // tsc on enough of them that the autofix breaks the type gate, so each
       // site is removed by hand, against `vp run check`.
       "typescript/no-unsafe-type-assertion": "warn", // 887
-      "typescript/no-unnecessary-type-assertion": "warn", // 707
+      "typescript/no-unnecessary-type-assertion": "warn", // 695
       "typescript/no-unnecessary-type-arguments": "warn", // 54
       "effecttsgo/any-unknown-in-error-context": "warn", // 54
       "typescript/unbound-method": "warn", // 43

@@ -1420,7 +1420,7 @@ export class MarkType {
 
   /** Create a mark of this type. */
   create(attrs: Attrs | null = null): Mark {
-    return wrap(guard(() => this[CORE].createUnsafe(attrs)))
+    return wrap(guard(() => this[CORE].createUnsafe(attrs ?? undefined)))
   }
 
   /** When there is a mark of this type in the given set, a new set without it is returned. */
@@ -1534,7 +1534,9 @@ export class Schema<Nodes extends string = any, Marks extends string = any> {
 
   /** Create a mark with the given type and attributes. */
   mark(type: string | MarkType, attrs?: Attrs | null): Mark {
-    return wrap(guard(() => this[CORE].markUnsafe(typeof type === "string" ? type : (type[CORE] as any), attrs)))
+    return wrap(
+      guard(() => this[CORE].markUnsafe(typeof type === "string" ? type : (type[CORE] as any), attrs ?? undefined))
+    )
   }
 
   /** Deserialize a node from its JSON representation. */
