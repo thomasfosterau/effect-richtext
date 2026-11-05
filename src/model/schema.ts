@@ -29,8 +29,11 @@
  * @since 0.1.0
  */
 import type * as Effect from "effect/Effect"
+import * as Arr from "effect/Array"
+import * as Rec from "effect/Record"
 import * as Option from "effect/Option"
 import * as S from "effect/Schema"
+import * as SchemaAST from "effect/SchemaAST"
 import { attempt } from "../internal/attempt.ts"
 import { showJson } from "../internal/json.ts"
 import { type ContentInput, ContentMatch, type SpecRefs } from "./content.ts"
@@ -493,6 +496,8 @@ export class Attribute {
   readonly schema: S.Codec<any, any> | undefined
   readonly validate: ((value: unknown) => void) | undefined
   readonly is: ((value: unknown) => boolean) | undefined
+  // The schema has no transformation (see attrsCodec).
+  readonly identityCodec: boolean
 
   constructor(typeName: string, attrName: string, definition: AttributeDefinition) {
     const options: AttributeSpec = S.isSchema(definition) ? { schema: definition as S.Codec<any, any> } : definition
@@ -500,6 +505,7 @@ export class Attribute {
     this.default = options.default
     this.schema = options.schema
     this.is = options.schema ? (S.is(options.schema as any) as (value: unknown) => boolean) : undefined
+    this.identityCodec = !options.schema || SchemaAST.toEncoded(options.schema.ast) === options.schema.ast
     this.validate =
       typeof options.validate === "string" ? validateType(typeName, attrName, options.validate) : options.validate
   }
@@ -520,6 +526,9 @@ function validateType(typeName: string, attrName: string, type: string) {
     }
   }
 }
+
+const identityAttrs = (attrs: Record<string, Attribute>): boolean =>
+  Arr.every(Rec.values(attrs), (a) => a.identityCodec)
 
 function initAttrs(typeName: string, attrs?: AttributeDefinitions) {
   const result: Record<string, Attribute> = Object.create(null)
@@ -613,6 +622,8 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   readonly attrs: Record<string, Attribute>
   /** @internal */
   readonly defaultAttrs: Attrs | null
+  /** @internal Every attribute's codec is the identity: JSON attrs are the attrs. */
+  readonly identityAttrs: boolean
   /** True if this is a block type. */
   readonly isBlock: boolean
   /** True if this is the text node type. */
@@ -636,6 +647,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     this.groups = spec.group ? spec.group.split(" ") : []
     this.attrs = initAttrs(name, spec.attrs)
     this.defaultAttrs = defaultAttrs(this.attrs)
+    this.identityAttrs = identityAttrs(this.attrs)
     this.isBlock = !(spec.inline || name === "text")
     this.isText = name === "text"
   }
@@ -863,6 +875,8 @@ const isAttributeError = (u: unknown): u is AttributeError => u instanceof Attri
 export class MarkType<Sc extends AnySchema = AnySchema, out M extends MarkNames<Sc> = MarkNames<Sc>> {
   /** @internal */
   readonly attrs: Record<string, Attribute>
+  /** @internal Every attribute's codec is the identity: JSON attrs are the attrs. */
+  readonly identityAttrs: boolean
   /** @internal */
   excluded!: ReadonlyArray<MarkType<Sc>>
   /** @internal */
@@ -880,6 +894,7 @@ export class MarkType<Sc extends AnySchema = AnySchema, out M extends MarkNames<
     readonly spec: MarkSpecOf<Sc, M> & MarkSpec
   ) {
     this.attrs = initAttrs(name, spec.attrs)
+    this.identityAttrs = identityAttrs(this.attrs)
     const defaults = defaultAttrs(this.attrs)
     this.instance = defaults ? new Mark(this, defaults as any) : null
   }

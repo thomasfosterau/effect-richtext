@@ -144,9 +144,9 @@ export default defineConfig({
       // thomasfosterau/effect-richtext#3. Lower the count as sites are
       // fixed, and delete the line (back to the preset's `error`) when it
       // reaches zero.
-      "effect/avoid-non-null-assertion": "warn", // 1304
-      "effect/require-safety-comment-for-type-assertion": "warn", // 1043
-      "effect/prefer-option-over-null": "warn", // 1005
+      "effect/avoid-non-null-assertion": "warn", // 1303
+      "effect/require-safety-comment-for-type-assertion": "warn", // 1042
+      "effect/prefer-option-over-null": "warn", // 1004
       "effect/imperative-loops": "warn", // 608
       "effect/avoid-any": "warn", // 444
       "effect/no-runtime-typeof": "warn", // 77
@@ -177,7 +177,7 @@ export default defineConfig({
       // tsc on enough of them that the autofix breaks the type gate, so each
       // site is removed by hand, against `vp run check`.
       "typescript/no-unsafe-type-assertion": "warn", // 887
-      "typescript/no-unnecessary-type-assertion": "warn", // 710
+      "typescript/no-unnecessary-type-assertion": "warn", // 707
       "typescript/no-unnecessary-type-arguments": "warn", // 54
       "effecttsgo/any-unknown-in-error-context": "warn", // 54
       "typescript/unbound-method": "warn", // 43

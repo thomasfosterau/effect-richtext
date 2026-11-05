@@ -1,8 +1,10 @@
 import * as S from "effect/Schema"
+import type { Attribute } from "./schema.ts"
 
-interface AttrDef {
-  readonly schema: S.Codec<any, any> | undefined
-}
+// `identityCodec` is set when the schema has no transformation, so its
+// encoded form is its value: encoding is the identity and decoding is just
+// the `is` guard.
+type AttrDef = Pick<Attribute, "schema" | "identityCodec" | "is">
 
 const encoderCache = new WeakMap<object, (u: unknown) => unknown>()
 const decoderCache = new WeakMap<object, (u: unknown) => unknown>()
@@ -38,7 +40,8 @@ export const encodeAttrs = (
   let out: Record<string, unknown> | undefined
   for (const name in attrs) {
     const def = defs[name]
-    if (def?.schema) {
+    // Values were validated when the node or mark was created.
+    if (def?.schema && !def.identityCodec) {
       const encoded = encoder(def.schema)(attrs[name])
       if (encoded !== attrs[name]) {
         if (!out) out = { ...attrs }
@@ -62,7 +65,9 @@ export const decodeAttrs = (
   let out: Record<string, unknown> | undefined
   for (const name in attrs) {
     const def = defs[name]
-    if (def?.schema) {
+    // A passing guard is a successful identity decode; otherwise the full
+    // decoder runs, to transform or to report the failure.
+    if (def?.schema && !(def.identityCodec && def.is && def.is(attrs[name]))) {
       const decoded = decoder(def.schema)(attrs[name])
       if (decoded !== attrs[name]) {
         if (!out) out = { ...attrs }

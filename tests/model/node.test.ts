@@ -447,6 +447,28 @@ describe("Node", () => {
         assert.strictEqual(missingAttr._tag, "AttributeError")
         const missingInObject = yield* Effect.flip(schema.nodeFromJSON({ type: "image", attrs: { alt: "a" } }))
         assert.match(missingInObject.message, /No value supplied for attribute src/)
+        const badIdentity = yield* Effect.flip(
+          schema.nodeFromJSON({ type: "heading", attrs: { level: "x" }, content: [] })
+        )
+        assert.strictEqual(badIdentity._tag, "JSONError")
+      })
+    )
+
+    it.effect("decodes and encodes attributes whose schema transforms", () =>
+      Effect.gen(function* () {
+        const s = DocSchema.makeUnsafe({
+          nodes: {
+            doc: { content: Content.parse("stamp*") },
+            stamp: { attrs: { at: { schema: Schema.Trim, default: "" } } },
+            text: {}
+          }
+        })
+        const node = yield* s.nodeFromJSON({ type: "doc", content: [{ type: "stamp", attrs: { at: "  5 " } }] })
+        const stamp = getSome(node.content.firstChild)
+        assert.strictEqual("at" in stamp.attrs && stamp.attrs.at, "5")
+        assert.deepStrictEqual(node.toJSON(), { type: "doc", content: [{ type: "stamp", attrs: { at: "5" } }] })
+        const bad = yield* Effect.flip(s.nodeFromJSON({ type: "stamp", attrs: { at: 5 } }))
+        assert.strictEqual(bad._tag, "JSONError")
         ist.throws(() => schema.nodeFromJSONUnsafe({ type: "nope" }), /Unknown node type/)
       })
     )

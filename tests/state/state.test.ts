@@ -258,15 +258,25 @@ describe("EditorState (Effect API)", () => {
     const state = EditorState.createUnsafe({ schema, plugins: [sync, lazy, after] })
     ist(calls.join(), "sync,lazy,after")
     ist([sync, lazy, after].map((pl) => getSome(pl.getState(state))).join(), "1,2,3")
-    calls.length = 0
-    const viaEffect = Effect.runSync(EditorState.create({ schema, plugins: [sync, lazy, after] }))
-    ist(calls.join(), "sync,lazy,after")
-    ist(getSome(lazy.getState(viaEffect)), 2)
   })
+
+  it.effect("runs each init hook once through the Effect API too", () =>
+    Effect.gen(function* () {
+      const calls: Array<string> = []
+      const sync = new Plugin({ state: { init: () => (calls.push("sync"), 1), apply: (_tr, v: number) => v } })
+      const lazy = new Plugin({
+        state: { init: () => (calls.push("lazy"), Effect.succeed(2)), apply: (_tr, v: number) => v }
+      })
+      const after = new Plugin({ state: { init: () => (calls.push("after"), 3), apply: (_tr, v: number) => v } })
+      const state = yield* EditorState.create({ schema, plugins: [sync, lazy, after] })
+      ist(calls.join(), "sync,lazy,after")
+      ist(getSome(lazy.getState(state)), 2)
+    })
+  )
 
   it.effect("fails create with a StateError for an invalid configuration", () =>
     Effect.gen(function* () {
-      const err = yield* Effect.flip(EditorState.create({} as any))
+      const err = yield* Effect.flip(EditorState.create({}))
       assert.strictEqual(err._tag, "StateError")
     })
   )

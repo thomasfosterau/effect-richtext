@@ -235,17 +235,19 @@ export const keydownHandler = <const B extends Bindings>(
   bindings: B
 ): KeydownHandler<BindingsError<B>, BindingsRequirements<B>> => {
   const map = normalizeBindings<Command<any, any, any>>(bindings)
-  return (view, event) =>
-    Effect.suspend(() => {
-      const candidates = matchBindings(map, event)
-      if (Arr.isArrayEmpty(candidates)) return succeedFalse
-      const loop = (i: number): Effect.Effect<boolean, any, any> =>
-        i === candidates.length
-          ? succeedFalse
-          : Effect.flatMap(
-              Effect.suspend(() => candidates[i]!(view.state, view.dispatch, view)),
-              (handled) => (handled ? succeedTrue : loop(i + 1))
-            )
-      return loop(0)
-    })
+  // Matching is pure, so it happens when the handler is called: an
+  // unbound key (most keystrokes) yields the completed `succeedFalse`
+  // and the view needs no fiber to run it.
+  return (view, event) => {
+    const candidates = matchBindings(map, event)
+    if (Arr.isArrayEmpty(candidates)) return succeedFalse
+    const loop = (i: number): Effect.Effect<boolean, any, any> =>
+      i === candidates.length
+        ? succeedFalse
+        : Effect.flatMap(
+            Effect.suspend(() => candidates[i]!(view.state, view.dispatch, view)),
+            (handled) => (handled ? succeedTrue : loop(i + 1))
+          )
+    return loop(0)
+  }
 }

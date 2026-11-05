@@ -1031,6 +1031,13 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
    */
   runHandler(result: HandlerResult<any, any>): boolean {
     if (!Effect.isEffect(result)) return !!result
+    // A completed Effect (an Exit, such as `Effect.succeed(false)`) needs
+    // no fiber.
+    if (Exit.isExit(result)) {
+      if (Exit.isSuccess(result)) return !!result.value
+      this.reportError(result.cause)
+      return false
+    }
     const exit = this.runEffect(result as Effect.Effect<boolean, unknown, R>)
     if (exit === undefined) return true
     return Exit.isSuccess(exit) ? !!exit.value : false
