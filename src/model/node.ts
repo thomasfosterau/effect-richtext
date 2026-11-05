@@ -491,7 +491,7 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
       marks?: ReadonlyArray<MarkJSON>
     } = { type: this.type.name }
     for (const _ in this.attrs) {
-      obj.attrs = encodeAttrs(this.type.attrs, this.attrs as Attrs)
+      obj.attrs = this.type.identityAttrs ? this.attrs : encodeAttrs(this.type.attrs, this.attrs as Attrs)
       break
     }
     if (this.content.size) obj.content = this.content.toJSON()!

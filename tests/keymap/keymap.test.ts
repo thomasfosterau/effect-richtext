@@ -12,7 +12,8 @@ import ist from "../utils/ist.ts"
 
 const fakeView = { state: {}, dispatch: () => Effect.void } as unknown as KeymapView
 
-type Handler = (view: KeymapView, event: KeyboardEvent) => Effect.Effect<boolean, any, never>
+// The maps `dispatch` drives bind commands that never fail.
+type Handler = (view: KeymapView, event: KeyboardEvent) => Effect.Effect<boolean, never, never>
 
 function dispatch(map: Plugin<any, any, any, never>, key: string, props?: { [name: string]: any }): boolean {
   const event: any = {}

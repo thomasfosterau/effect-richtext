@@ -110,7 +110,7 @@ export class Mark<Sc extends AnySchema = AnySchema, out M extends MarkNames<Sc> 
   toJSON(): MarkJSON {
     const obj: { type: string; attrs?: Record<string, unknown> } = { type: this.type.name }
     for (const _ in this.attrs) {
-      obj.attrs = encodeAttrs(this.type.attrs, this.attrs)
+      obj.attrs = this.type.identityAttrs ? this.attrs : encodeAttrs(this.type.attrs, this.attrs)
       break
     }
     return obj

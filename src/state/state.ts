@@ -144,6 +144,42 @@ export class Configuration<Sc extends AnySchema> {
 
 const isStateError = (u: unknown): u is StateError => u instanceof StateError
 
+// Create a state and run its fields' init hooks synchronously, stopping at
+// the first hook that returns an Effect. That Effect is left in the field's
+// slot for finishCreate, and its index returned (-1 when every hook ran).
+// Throws a StateError for an invalid configuration.
+function startCreate(config: EditorStateConfig<any, any>) {
+  const schema = config.doc ? config.doc.type.schema : config.schema
+  if (!schema) throw new StateError({ message: "Either `doc` or `schema` must be provided" })
+  const instance = new EditorState<any, any, any>(new Configuration(schema, config.plugins))
+  const pending = instance.config.fields.findIndex((field) =>
+    Effect.isEffect((instance.slots[field.name] = field.init.call(field.self, config, instance)))
+  )
+  return { instance, pending }
+}
+
+// Run the pending init Effect (left in its slot) and the remaining hooks.
+// The hooks' requirements are the plugins' R, which create's and
+// createUnsafe's types carry; the continuation runs in that context.
+const finishCreate = <Sc extends AnySchema, P extends ReadonlyArray<AnyPlugin>>(
+  config: EditorStateConfig<Sc, P>,
+  instance: EditorState<any, any, any>,
+  pending: number
+): Effect.Effect<
+  EditorState<Sc, PluginRequirements<P>, PluginErrors<P>>,
+  PluginErrors<P> | StateError,
+  PluginRequirements<P>
+> =>
+  Effect.gen(function* () {
+    for (const [i, field] of instance.config.fields.entries()) {
+      if (i < pending) continue
+      const result =
+        i === pending ? instance.slots[field.name] : yield* trySync(() => field.init.call(field.self, config, instance))
+      instance.slots[field.name] = Effect.isEffect(result) ? yield* result as Effect.Effect<unknown, any, any> : result
+    }
+    return instance
+  }) as any
+
 /** Marker returned by the synchronous fast path when a hook returned an Effect. */
 const NeedsEffect: unique symbol = Symbol("effect-richtext/state/NeedsEffect")
 
@@ -528,20 +564,10 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
     PluginErrors<P> | StateError,
     PluginRequirements<P>
   > {
-    return Effect.gen(function* () {
-      const schema = config.doc ? (config.doc.type.schema as Sc) : config.schema
-      if (!schema) return yield* Effect.fail(new StateError({ message: "Either `doc` or `schema` must be provided" }))
-      const $config = yield* trySync(() => new Configuration(schema, config.plugins))
-      const instance = new EditorState<Sc, PluginRequirements<P>, PluginErrors<P>>($config)
-      for (let i = 0; i < $config.fields.length; i++) {
-        const field = $config.fields[i]!
-        const result = yield* trySync(() => field.init.call(field.self, config, instance))
-        instance.slots[field.name] = Effect.isEffect(result)
-          ? yield* result as Effect.Effect<unknown, any, any>
-          : result
-      }
-      return instance
-    }) as any
+    return Effect.flatMap(
+      trySync(() => startCreate(config)),
+      ({ instance, pending }) => (pending < 0 ? Effect.succeed(instance) : finishCreate(config, instance, pending))
+    )
   }
 
   /**
@@ -551,7 +577,9 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
   static createUnsafe<Sc extends AnySchema, const P extends ReadonlyArray<Plugin<any, any, any, never>> = readonly []>(
     config: EditorStateConfig<Sc, P>
   ): EditorState<Sc, never, PluginErrors<P>> {
-    return runSyncUnsafe(EditorState.create(config)) as any
+    // Synchronous unless a plugin's init hook returns an Effect.
+    const { instance, pending } = startCreate(config)
+    return (pending < 0 ? instance : runSyncUnsafe(finishCreate(config, instance, pending))) as any
   }
 
   /**
