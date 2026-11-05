@@ -160,8 +160,12 @@ export class StepMap implements Mappable {
         const result = start + diff + (side < 0 ? 0 : newSize)
         if (simple) return result
         const recover = pos === (assoc < 0 ? start : end) ? null : makeRecover(i / 3, pos - start)
-        let del = pos === start ? DEL_AFTER : pos === end ? DEL_BEFORE : DEL_ACROSS
-        if (assoc < 0 ? pos !== start : pos !== end) del |= DEL_SIDE
+        // Pure insertions delete nothing (transform 1.12.2).
+        let del = 0
+        if (oldSize) {
+          del |= pos === start ? DEL_AFTER : pos === end ? DEL_BEFORE : DEL_ACROSS
+          if (assoc < 0 ? pos !== start : pos !== end) del |= DEL_SIDE
+        }
         return new MapResult(result, del, recover)
       }
       diff += newSize - oldSize

@@ -5,8 +5,9 @@
  */
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
-import { type AnySchema, Fragment, JSONError, type Mark, type Node, Slice } from "../model.ts"
+import { type AnySchema, Fragment, JSONError, Mark, type Node, Slice } from "../model.ts"
 import type { Mappable } from "./map.ts"
+import { MarkSetStep, pushMarkStep } from "./mark_set_step.ts"
 import { Step, type StepJSON, StepResult } from "./step.ts"
 
 function mapFragment<Sc extends AnySchema>(
@@ -62,15 +63,29 @@ export class AddMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
     return StepResult.fromReplace(doc, this.from, this.to, slice)
   }
 
-  invert(): Step<Sc> {
-    return new RemoveMarkStep(this.from, this.to, this.mark)
+  invert(doc: Node<Sc>): Step<Sc> {
+    // Restore exactly what was there: remove the mark, and put back any
+    // marks it excluded (transform 1.12.3).
+    const steps: Array<AddMarkStep<Sc> | RemoveMarkStep<Sc>> = []
+    doc.nodesBetween(this.from, this.to, (node, pos) => {
+      if (node.isInline && node.isAtom) {
+        const added = this.mark.addToSet(node.marks)
+        if (!Mark.sameSet(added, node.marks)) {
+          const from = Math.max(this.from, pos),
+            to = Math.min(this.to, pos + node.nodeSize)
+          pushMarkStep(RemoveMarkStep, from, to, this.mark, steps)
+          for (const mark of node.marks) if (!mark.isInSet(added)) pushMarkStep(AddMarkStep, from, to, mark, steps)
+        }
+      }
+    })
+    return steps.length === 1 ? steps[0]! : new MarkSetStep(steps)
   }
 
   map(mapping: Mappable): Option.Option<Step<Sc>> {
-    const from = mapping.mapResult(this.from, 1),
-      to = mapping.mapResult(this.to, -1)
-    if ((from.deleted && to.deleted) || from.pos >= to.pos) return Option.none()
-    return Option.some(new AddMarkStep(from.pos, to.pos, this.mark))
+    const from = mapping.map(this.from, 1),
+      to = mapping.map(this.to, -1)
+    if (from >= to) return Option.none()
+    return Option.some(new AddMarkStep(from, to, this.mark))
   }
 
   override merge(other: Step<Sc>): Option.Option<Step<Sc>> {
@@ -124,15 +139,22 @@ export class RemoveMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
     return StepResult.fromReplace(doc, this.from, this.to, slice)
   }
 
-  invert(): Step<Sc> {
-    return new AddMarkStep(this.from, this.to, this.mark)
+  invert(doc: Node<Sc>): Step<Sc> {
+    // Only re-add the mark where it was actually present (transform 1.12.3).
+    const steps: Array<AddMarkStep<Sc> | RemoveMarkStep<Sc>> = []
+    doc.nodesBetween(this.from, this.to, (node, pos) => {
+      if (node.isInline && node.isAtom && this.mark.isInSet(node.marks)) {
+        pushMarkStep(AddMarkStep, Math.max(this.from, pos), Math.min(this.to, pos + node.nodeSize), this.mark, steps)
+      }
+    })
+    return steps.length === 1 ? steps[0]! : new MarkSetStep(steps)
   }
 
   map(mapping: Mappable): Option.Option<Step<Sc>> {
-    const from = mapping.mapResult(this.from, 1),
-      to = mapping.mapResult(this.to, -1)
-    if ((from.deleted && to.deleted) || from.pos >= to.pos) return Option.none()
-    return Option.some(new RemoveMarkStep(from.pos, to.pos, this.mark))
+    const from = mapping.map(this.from, 1),
+      to = mapping.map(this.to, -1)
+    if (from >= to) return Option.none()
+    return Option.some(new RemoveMarkStep(from, to, this.mark))
   }
 
   override merge(other: Step<Sc>): Option.Option<Step<Sc>> {

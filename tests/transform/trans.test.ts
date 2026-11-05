@@ -879,6 +879,16 @@ describe("Transform", () => {
         eq
       )
     })
+
+    // transform 1.12.1 / 1.12.5: fitting an open slice must not drop the nested list.
+    it("keeps nested open content when fitting a slice into a list", () => {
+      const slice = new Slice(Fragment.from([p(), ol(li(p()))]), 1, 2)
+      ist(
+        new Transform(doc(ol(li(p()), li(p("baz"))))).replaceUnsafe(2, 9, slice).doc,
+        doc(ol(li(p(), ol(li(p())), p("z")))),
+        eq
+      )
+    })
   })
 
   describe("replaceRange", () => {
