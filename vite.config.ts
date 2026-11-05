@@ -146,11 +146,11 @@ export default defineConfig({
       // reaches zero.
       "effect/avoid-non-null-assertion": "warn", // 1303
       "effect/require-safety-comment-for-type-assertion": "warn", // 1042
-      "effect/prefer-option-over-null": "warn", // 1004
-      "effect/imperative-loops": "warn", // 608
+      "effect/prefer-option-over-null": "warn", // 1003
+      "effect/imperative-loops": "warn", // 607
       "effect/avoid-any": "warn", // 444
       "effect/no-runtime-typeof": "warn", // 77
-      "effect/no-unsafe-dictionary-type": "warn", // 77
+      "effect/no-unsafe-dictionary-type": "warn", // 73
       "effect/no-unknown-parameters": "warn", // 59
       "effect/prefer-effect-is": "warn", // 50
       "effect/avoid-object-type": "warn", // 33
