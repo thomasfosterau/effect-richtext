@@ -13,6 +13,8 @@ vp exec playwright install chromium   # once, for the browser tests
 
 `vp` is [Vite+](https://viteplus.dev)'s CLI, installed as a dev dependency; run it through `pnpm exec vp` if it is not on your PATH.
 
+Open in a Codespace or Dev Container: `.devcontainer/` provisions it with the same hook as agent sessions.
+
 ## Branches
 
 Branch off `trunk`, rebase rather than merge, squash-merge with a conventional prefix: see [AGENTS.md](AGENTS.md#branches-and-pull-requests).
