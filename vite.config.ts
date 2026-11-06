@@ -410,7 +410,7 @@ export default defineConfig({
       // resolves through `exports` to `dist/` (the product) rather than to
       // `src/` as in the tests. Timings are never cached.
       bench: {
-        command: "tsx --tsconfig tsconfig.base.json tests/bench/run.ts",
+        command: "vpx --tsconfig tsconfig.base.json tests/bench/run.ts",
         dependsOn: ["build"],
         cache: false
       },
