@@ -1,4 +1,4 @@
-# pnpm workspace — the single published package `effect-richtext`, which
+# pnpm workspace — the single published package `@thomasfosterau/effect-richtext`, which
 # lives at the repository root (there is no `packages/*`).
 #
 # The `catalog:` protocol pins versions that MUST be singletons. Effect

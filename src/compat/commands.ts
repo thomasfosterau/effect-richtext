@@ -1,6 +1,6 @@
 /**
  * A `prosemirror-commands`-compatible module: the core editing commands
- * (`effect-richtext/commands`), bridged to ProseMirror-style
+ * (`@thomasfosterau/effect-richtext/commands`), bridged to ProseMirror-style
  * `(state, dispatch?, view?) => boolean` commands.
  *
  * Ported API surface from prosemirror-commands (MIT, Marijn Haverbeke and others).

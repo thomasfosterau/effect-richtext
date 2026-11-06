@@ -1,8 +1,8 @@
 // Ported from prosemirror-view/test/webtest-draw.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
-import { DocSchema } from "effect-richtext/model"
-import { Plugin } from "effect-richtext/state"
-import { doc, h1, hr, img, p, pre, schema, strong } from "effect-richtext/test-builder"
+import { DocSchema } from "@thomasfosterau/effect-richtext/model"
+import { Plugin } from "@thomasfosterau/effect-richtext/state"
+import { doc, h1, hr, img, p, pre, schema, strong } from "@thomasfosterau/effect-richtext/test-builder"
 import ist from "../utils/ist.ts"
 import { tempEditor } from "./helpers.ts"
 

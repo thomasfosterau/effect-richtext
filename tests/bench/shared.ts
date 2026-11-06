@@ -6,7 +6,7 @@
  * @copyright Thomas Foster
  */
 import * as Option from "effect/Option"
-import type { NodeJSON } from "effect-richtext/model"
+import type { NodeJSON } from "@thomasfosterau/effect-richtext/model"
 
 interface Sized {
   readonly content: { readonly size: number }

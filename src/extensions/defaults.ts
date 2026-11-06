@@ -292,7 +292,7 @@ export const defineBaseCommands = (): CommandsExtension<BaseCommands> =>
   }) as any
 
 /**
- * The platform's base keymap (`baseKeymap` from `effect-richtext/commands`:
+ * The platform's base keymap (`baseKeymap` from `@thomasfosterau/effect-richtext/commands`:
  * Enter, Backspace, Delete, Mod-a, …), at low priority so that other
  * keymaps take precedence.
  *
@@ -374,7 +374,7 @@ export const defineList = () =>
 // -----------------------------------------------------------------------------
 
 /**
- * Everything above: the nodes and marks of `effect-richtext/schema-basic`,
+ * Everything above: the nodes and marks of `@thomasfosterau/effect-richtext/schema-basic`,
  * lists, base commands, the base keymap and history.
  *
  * @since 0.1.0

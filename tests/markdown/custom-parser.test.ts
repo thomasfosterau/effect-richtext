@@ -1,8 +1,8 @@
 // Ported from prosemirror-markdown/test/test-custom-parser.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
-import { MarkdownParser, schema } from "effect-richtext/markdown"
-import type { Node } from "effect-richtext/model"
-import { eq } from "effect-richtext/test-builder"
+import { MarkdownParser, schema } from "@thomasfosterau/effect-richtext/markdown"
+import type { Node } from "@thomasfosterau/effect-richtext/model"
+import { eq } from "@thomasfosterau/effect-richtext/test-builder"
 import MarkdownIt from "markdown-it"
 import ist from "../utils/ist.ts"
 import { br, doc, p } from "./build.ts"

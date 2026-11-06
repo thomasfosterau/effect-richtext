@@ -1,10 +1,10 @@
-// Tests for effect-richtext/placeholder.
+// Tests for @thomasfosterau/effect-richtext/placeholder.
 import { describe, it } from "@effect/vitest"
-import { placeholder, placeholderCSS } from "effect-richtext/placeholder"
-import { TextSelection } from "effect-richtext/state"
-import { blockquote, doc, h1, p } from "effect-richtext/test-builder"
-import type { EditorView } from "effect-richtext/view"
-import { injectCSSUnsafe } from "effect-richtext/view-css"
+import { placeholder, placeholderCSS } from "@thomasfosterau/effect-richtext/placeholder"
+import { TextSelection } from "@thomasfosterau/effect-richtext/state"
+import { blockquote, doc, h1, p } from "@thomasfosterau/effect-richtext/test-builder"
+import type { EditorView } from "@thomasfosterau/effect-richtext/view"
+import { injectCSSUnsafe } from "@thomasfosterau/effect-richtext/view-css"
 import ist from "../utils/ist.ts"
 import { tempEditor } from "./helpers.ts"
 

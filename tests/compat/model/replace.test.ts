@@ -1,11 +1,11 @@
 // Ported from prosemirror-model/test/test-replace.ts (MIT, Marijn Haverbeke and others).
-// Changes: imports only (ProseMirror packages -> effect-richtext/compat/*, ist ->
+// Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
 // ../../utils/ist.ts, mocha describe/it -> @effect/vitest; type-only imports
 // marked as such) and dprint formatting.
 import { describe, it } from "@effect/vitest"
-import type { Node } from "effect-richtext/compat/model"
-import { Slice } from "effect-richtext/compat/model"
-import { blockquote, doc, eq, h1, li, p, ul } from "effect-richtext/compat/test-builder"
+import type { Node } from "@thomasfosterau/effect-richtext/compat/model"
+import { Slice } from "@thomasfosterau/effect-richtext/compat/model"
+import { blockquote, doc, eq, h1, li, p, ul } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
 
 describe("Node", () => {

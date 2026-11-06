@@ -1,5 +1,5 @@
 /**
- * A `prosemirror-state`-compatible facade over `effect-richtext/state`.
+ * A `prosemirror-state`-compatible facade over `@thomasfosterau/effect-richtext/state`.
  *
  * `Selection` can be subclassed like ProseMirror's: a subclass of the
  * facade `Selection` is adapted into a core selection that calls back

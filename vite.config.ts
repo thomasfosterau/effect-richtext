@@ -440,7 +440,7 @@ export default defineConfig({
     // tsconfig.test.json's `paths` type-checks them), so the runner resolves
     // that name to `src/` rather than to the built `dist/` that `exports`
     // points at — a test run never needs a build first.
-    alias: [{ find: /^effect-richtext\/(.+)$/, replacement: `${srcDir}$1.ts` }]
+    alias: [{ find: /^@thomasfosterau\/effect-richtext\/(.+)$/, replacement: `${srcDir}$1.ts` }]
   },
   test: {
     ...(maxWorkers === undefined ? {} : { maxWorkers: Number(maxWorkers) }),

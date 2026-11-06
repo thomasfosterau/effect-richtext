@@ -5,8 +5,8 @@
  *
  * ```ts skip-type-checking
  * import { Effect } from "effect"
- * import { createEditor, defineBasicExtension, defineCommands, union } from "effect-richtext/extensions"
- * import type { Command } from "effect-richtext/state"
+ * import { createEditor, defineBasicExtension, defineCommands, union } from "@thomasfosterau/effect-richtext/extensions"
+ * import type { Command } from "@thomasfosterau/effect-richtext/state"
  *
  * const extension = union(
  *   defineBasicExtension(),

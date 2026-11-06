@@ -1,13 +1,13 @@
 // Ported from prosemirror-view/test/webtest-composition.ts (MIT, Marijn Haverbeke and others).
-// Changes: imports only (ProseMirror packages -> effect-richtext/compat/*, ist ->
+// Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
 // ../utils/ist.ts, ./view.js -> ./compat-view.ts, mocha describe/it ->
 // @effect/vitest; type-only imports marked as such) and dprint formatting
 import { describe, it } from "@effect/vitest"
-import type { EditorState } from "effect-richtext/compat/state"
-import { Plugin } from "effect-richtext/compat/state"
-import { code, doc, em, eq, p, schema, strong } from "effect-richtext/compat/test-builder"
-import type { EditorView } from "effect-richtext/compat/view"
-import { __endComposition, Decoration, DecorationSet } from "effect-richtext/compat/view"
+import type { EditorState } from "@thomasfosterau/effect-richtext/compat/state"
+import { Plugin } from "@thomasfosterau/effect-richtext/compat/state"
+import { code, doc, em, eq, p, schema, strong } from "@thomasfosterau/effect-richtext/compat/test-builder"
+import type { EditorView } from "@thomasfosterau/effect-richtext/compat/view"
+import { __endComposition, Decoration, DecorationSet } from "@thomasfosterau/effect-richtext/compat/view"
 import ist from "../utils/ist.ts"
 import { findTextNode, flush, requireFocus, tempEditor } from "./compat-view.ts"
 

@@ -1,11 +1,11 @@
 // Ported from prosemirror-transform/test/test-trans.ts (MIT, Marijn Haverbeke and others).
-// Changes: imports only (ProseMirror packages -> effect-richtext/compat/*, ist ->
+// Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
 // ../../utils/ist.ts, mocha describe/it -> @effect/vitest; type-only imports
 // marked as such), `throw new Error(...)` in test helpers -> `assert.fail(...)`,
 // and dprint formatting.
 import { assert, describe, it } from "@effect/vitest"
-import type { Mark, MarkType, Node, NodeType } from "effect-richtext/compat/model"
-import { type Attrs, Fragment, type NodeSpec, Schema, Slice } from "effect-richtext/compat/model"
+import type { Mark, MarkType, Node, NodeType } from "@thomasfosterau/effect-richtext/compat/model"
+import { type Attrs, Fragment, type NodeSpec, Schema, Slice } from "@thomasfosterau/effect-richtext/compat/model"
 import {
   a,
   blockquote,
@@ -26,8 +26,8 @@ import {
   schema,
   strong,
   ul
-} from "effect-richtext/compat/test-builder"
-import { findWrapping, liftTarget, Transform } from "effect-richtext/compat/transform"
+} from "@thomasfosterau/effect-richtext/compat/test-builder"
+import { findWrapping, liftTarget, Transform } from "@thomasfosterau/effect-richtext/compat/transform"
 import ist from "../../utils/ist.ts"
 import { testTransform } from "./trans.ts"
 

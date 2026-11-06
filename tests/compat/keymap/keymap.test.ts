@@ -1,11 +1,11 @@
 // Ported from prosemirror-keymap/test/test-keymap.ts (MIT, Marijn Haverbeke and others).
-// Changes: imports only (ProseMirror packages -> effect-richtext/compat/*, ist ->
+// Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
 // ../../utils/ist.ts, mocha describe/it -> @effect/vitest; type-only imports
 // marked as such) and dprint formatting.
 import { describe, it } from "@effect/vitest"
-import { keymap } from "effect-richtext/compat/keymap"
-import type { Plugin } from "effect-richtext/compat/state"
-import { type Command } from "effect-richtext/compat/state"
+import { keymap } from "@thomasfosterau/effect-richtext/compat/keymap"
+import type { Plugin } from "@thomasfosterau/effect-richtext/compat/state"
+import { type Command } from "@thomasfosterau/effect-richtext/compat/state"
 import ist from "../../utils/ist.ts"
 
 const fakeView = { state: {}, dispatch: () => {} }

@@ -1,5 +1,5 @@
 /**
- * The `Lib` adapter over effect-richtext's core, through the synchronous
+ * The `Lib` adapter over @thomasfosterau/effect-richtext's core, through the synchronous
  * `…Unsafe` twins an editor's hot path uses (DESIGN.md, "Fallible
  * operations").
  *
@@ -17,10 +17,10 @@ import {
   splitBlock,
   toggleMark,
   wrapIn
-} from "effect-richtext/commands"
-import { history, redo, undo } from "effect-richtext/history"
-import type { Mark, Node } from "effect-richtext/model"
-import { liftListItem, sinkListItem } from "effect-richtext/schema-list"
+} from "@thomasfosterau/effect-richtext/commands"
+import { history, redo, undo } from "@thomasfosterau/effect-richtext/history"
+import type { Mark, Node } from "@thomasfosterau/effect-richtext/model"
+import { liftListItem, sinkListItem } from "@thomasfosterau/effect-richtext/schema-list"
 import {
   type Command,
   EditorState,
@@ -28,10 +28,10 @@ import {
   type PluginSpec,
   TextSelection,
   type Transaction
-} from "effect-richtext/state"
-import { schema } from "effect-richtext/test-builder"
-import { Mapping, type Step, Transform } from "effect-richtext/transform"
-import { Decoration, DecorationSet } from "effect-richtext/view"
+} from "@thomasfosterau/effect-richtext/state"
+import { schema } from "@thomasfosterau/effect-richtext/test-builder"
+import { Mapping, type Step, Transform } from "@thomasfosterau/effect-richtext/transform"
+import { Decoration, DecorationSet } from "@thomasfosterau/effect-richtext/view"
 import type { Lib, StatePluginSpec, Types } from "./lib.ts"
 import { shared } from "./shared.ts"
 

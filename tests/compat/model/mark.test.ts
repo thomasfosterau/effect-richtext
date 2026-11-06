@@ -1,11 +1,11 @@
 // Ported from prosemirror-model/test/test-mark.ts (MIT, Marijn Haverbeke and others).
-// Changes: imports only (ProseMirror packages -> effect-richtext/compat/*, ist ->
+// Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
 // ../../utils/ist.ts, mocha describe/it -> @effect/vitest; type-only imports
 // marked as such) and dprint formatting.
 import { describe, it } from "@effect/vitest"
-import type { Node } from "effect-richtext/compat/model"
-import { Mark, Schema } from "effect-richtext/compat/model"
-import { a, doc, em, p, schema } from "effect-richtext/compat/test-builder"
+import type { Node } from "@thomasfosterau/effect-richtext/compat/model"
+import { Mark, Schema } from "@thomasfosterau/effect-richtext/compat/model"
+import { a, doc, em, p, schema } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
 
 const em_ = schema.mark("em")

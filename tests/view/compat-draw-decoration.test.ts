@@ -1,16 +1,26 @@
 // Ported from prosemirror-view/test/webtest-draw-decoration.ts (MIT, Marijn Haverbeke and others).
-// Changes: imports only (ProseMirror packages -> effect-richtext/compat/*, ist ->
+// Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
 // ../utils/ist.ts, ./view.js -> ./compat-view.ts, mocha describe/it ->
 // @effect/vitest; type-only imports marked as such) and dprint formatting
 import { describe, it } from "@effect/vitest"
 import * as Arr from "effect/Array"
 import * as Order from "effect/Order"
 import * as Predicate from "effect/Predicate"
-import { Schema } from "effect-richtext/compat/model"
-import { Plugin, TextSelection } from "effect-richtext/compat/state"
-import { blockquote, doc, em, h1, hr, img, p, schema, strong } from "effect-richtext/compat/test-builder"
-import type { EditorView } from "effect-richtext/compat/view"
-import { Decoration, DecorationSet, type DecorationSource } from "effect-richtext/compat/view"
+import { Schema } from "@thomasfosterau/effect-richtext/compat/model"
+import { Plugin, TextSelection } from "@thomasfosterau/effect-richtext/compat/state"
+import {
+  blockquote,
+  doc,
+  em,
+  h1,
+  hr,
+  img,
+  p,
+  schema,
+  strong
+} from "@thomasfosterau/effect-richtext/compat/test-builder"
+import type { EditorView } from "@thomasfosterau/effect-richtext/compat/view"
+import { Decoration, DecorationSet, type DecorationSource } from "@thomasfosterau/effect-richtext/compat/view"
 import ist from "../utils/ist.ts"
 import { tempEditor } from "./compat-view.ts"
 

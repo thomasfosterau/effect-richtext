@@ -1,7 +1,7 @@
 // Ported from prosemirror-state/test/state.ts (MIT, Marijn Haverbeke and others)
 // Wrapper object to make writing state tests easier.
 import * as Effect from "effect/Effect"
-import type { AnySchema, Node } from "effect-richtext/model"
+import type { AnySchema, Node } from "@thomasfosterau/effect-richtext/model"
 import {
   type Command,
   EditorState,
@@ -9,7 +9,7 @@ import {
   Selection,
   TextSelection,
   type Transaction
-} from "effect-richtext/state"
+} from "@thomasfosterau/effect-richtext/state"
 
 export function selFor(doc: Node<any>): Selection<any> {
   const tag = (doc as any).tag

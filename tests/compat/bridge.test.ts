@@ -9,7 +9,7 @@ import {
   Schema,
   Slice,
   toCore as modelToCore
-} from "effect-richtext/compat/model"
+} from "@thomasfosterau/effect-richtext/compat/model"
 import {
   type Command,
   EditorState,
@@ -23,8 +23,8 @@ import {
   toCore as stateToCore,
   toCoreCommand,
   type Transaction
-} from "effect-richtext/compat/state"
-import { doc, eq, p, schema } from "effect-richtext/compat/test-builder"
+} from "@thomasfosterau/effect-richtext/compat/state"
+import { doc, eq, p, schema } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import {
   type Mappable,
   ReplaceStep,
@@ -34,10 +34,10 @@ import {
   toCore as transformToCore,
   Transform,
   TransformError
-} from "effect-richtext/compat/transform"
-import * as CoreModel from "effect-richtext/model"
-import * as CoreState from "effect-richtext/state"
-import * as CoreTransform from "effect-richtext/transform"
+} from "@thomasfosterau/effect-richtext/compat/transform"
+import * as CoreModel from "@thomasfosterau/effect-richtext/model"
+import * as CoreState from "@thomasfosterau/effect-richtext/state"
+import * as CoreTransform from "@thomasfosterau/effect-richtext/transform"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 

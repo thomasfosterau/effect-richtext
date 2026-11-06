@@ -1,8 +1,8 @@
 // Ported from prosemirror-view/test/webtest-endOfTextblock.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
-import { TextSelection } from "effect-richtext/state"
-import { a, doc, p, schema } from "effect-richtext/test-builder"
-import { Decoration, DecorationSet } from "effect-richtext/view"
+import { TextSelection } from "@thomasfosterau/effect-richtext/state"
+import { a, doc, p, schema } from "@thomasfosterau/effect-richtext/test-builder"
+import { Decoration, DecorationSet } from "@thomasfosterau/effect-richtext/view"
 import ist from "../utils/ist.ts"
 import { tempEditor } from "./helpers.ts"
 

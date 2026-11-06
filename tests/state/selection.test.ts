@@ -3,8 +3,28 @@ import { assert, describe, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
-import { AllSelection, NodeSelection, Selection, SelectionFromJSON, TextSelection } from "effect-richtext/state"
-import { a, blockquote, br, doc, em, eq, hr, img, li, p, pre, schema, ul } from "effect-richtext/test-builder"
+import {
+  AllSelection,
+  NodeSelection,
+  Selection,
+  SelectionFromJSON,
+  TextSelection
+} from "@thomasfosterau/effect-richtext/state"
+import {
+  a,
+  blockquote,
+  br,
+  doc,
+  em,
+  eq,
+  hr,
+  img,
+  li,
+  p,
+  pre,
+  schema,
+  ul
+} from "@thomasfosterau/effect-richtext/test-builder"
 import ist from "../utils/ist.ts"
 import { TestState } from "./state.ts"
 import { getSome } from "../utils/option.ts"

@@ -3,11 +3,19 @@ import { describe, it } from "@effect/vitest"
 import * as Arr from "effect/Array"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
-import { closeHistory, history, type HistoryCommand, redo, redoDepth, undo, undoDepth } from "effect-richtext/history"
-import { Fragment, type Node, Slice } from "effect-richtext/model"
-import { EditorState, Plugin, TextSelection } from "effect-richtext/state"
-import { doc, eq, p, schema } from "effect-richtext/test-builder"
-import { ReplaceStep } from "effect-richtext/transform"
+import {
+  closeHistory,
+  history,
+  type HistoryCommand,
+  redo,
+  redoDepth,
+  undo,
+  undoDepth
+} from "@thomasfosterau/effect-richtext/history"
+import { Fragment, type Node, Slice } from "@thomasfosterau/effect-richtext/model"
+import { EditorState, Plugin, TextSelection } from "@thomasfosterau/effect-richtext/state"
+import { doc, eq, p, schema } from "@thomasfosterau/effect-richtext/test-builder"
+import { ReplaceStep } from "@thomasfosterau/effect-richtext/transform"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 

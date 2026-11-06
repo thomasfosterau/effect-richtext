@@ -8,7 +8,7 @@
  * may appear inside each node:
  *
  * ```ts skip-type-checking
- * import { Content } from "effect-richtext/model"
+ * import { Content } from "@thomasfosterau/effect-richtext/model"
  *
  * Content.seq("heading", Content.zeroOrMore("block"))
  * // ContentExpr<"heading" | "block">

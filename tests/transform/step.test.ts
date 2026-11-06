@@ -3,8 +3,8 @@ import { assert, describe, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
-import { Fragment, Slice } from "effect-richtext/model"
-import { doc, eq, p, schema } from "effect-richtext/test-builder"
+import { Fragment, Slice } from "@thomasfosterau/effect-richtext/model"
+import { doc, eq, p, schema } from "@thomasfosterau/effect-richtext/test-builder"
 import {
   AddMarkStep,
   AttrStep,
@@ -17,7 +17,7 @@ import {
   StepMap,
   StepResult,
   Transform
-} from "effect-richtext/transform"
+} from "@thomasfosterau/effect-richtext/transform"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 

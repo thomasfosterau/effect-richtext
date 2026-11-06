@@ -1,7 +1,7 @@
 // Ported from prosemirror-view/test/webtest-selection.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
-import type { Node as PMNode } from "effect-richtext/model"
-import { NodeSelection, Selection } from "effect-richtext/state"
+import type { Node as PMNode } from "@thomasfosterau/effect-richtext/model"
+import { NodeSelection, Selection } from "@thomasfosterau/effect-richtext/state"
 import {
   blockquote,
   br,
@@ -15,9 +15,9 @@ import {
   p,
   strong,
   ul
-} from "effect-richtext/test-builder"
-import type { EditorView } from "effect-richtext/view"
-import { Decoration, DecorationSet } from "effect-richtext/view"
+} from "@thomasfosterau/effect-richtext/test-builder"
+import type { EditorView } from "@thomasfosterau/effect-richtext/view"
+import { Decoration, DecorationSet } from "@thomasfosterau/effect-richtext/view"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 import { findTextNode, flush, tempEditor, workspace } from "./helpers.ts"

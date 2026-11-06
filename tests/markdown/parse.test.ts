@@ -1,8 +1,13 @@
 // Ported from prosemirror-markdown/test/test-parse.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
-import { defaultMarkdownParser, defaultMarkdownSerializer, MarkdownSerializer, schema } from "effect-richtext/markdown"
-import type { Node } from "effect-richtext/model"
-import { eq } from "effect-richtext/test-builder"
+import {
+  defaultMarkdownParser,
+  defaultMarkdownSerializer,
+  MarkdownSerializer,
+  schema
+} from "@thomasfosterau/effect-richtext/markdown"
+import type { Node } from "@thomasfosterau/effect-richtext/model"
+import { eq } from "@thomasfosterau/effect-richtext/test-builder"
 import ist from "../utils/ist.ts"
 import { a, blockquote, br, code, doc, em, h1, h2, hr, img, li, link, ol, ol3, p, pre, strong, ul } from "./build.ts"
 

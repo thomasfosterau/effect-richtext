@@ -1,11 +1,11 @@
 // Ported from prosemirror-transform/test/trans.ts (MIT, Marijn Haverbeke and others).
-// Changes: imports only (ProseMirror packages -> effect-richtext/compat/*, ist ->
+// Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
 // ../../utils/ist.ts, mocha describe/it -> @effect/vitest; type-only imports
 // marked as such), formatting, and the EMIT_JSON transform-dumping helper
 // removed (a debugging aid for other implementations, never used here).
-import type { Node } from "effect-richtext/compat/model"
-import { eq } from "effect-richtext/compat/test-builder"
-import { Mapping, Step, Transform } from "effect-richtext/compat/transform"
+import type { Node } from "@thomasfosterau/effect-richtext/compat/model"
+import { eq } from "@thomasfosterau/effect-richtext/compat/test-builder"
+import { Mapping, Step, Transform } from "@thomasfosterau/effect-richtext/compat/transform"
 import ist from "../../utils/ist.ts"
 
 function invert(transform: Transform) {

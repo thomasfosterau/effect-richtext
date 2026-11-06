@@ -1,5 +1,5 @@
 // Ported from prosemirror-model/test/test-dom.ts (MIT, Marijn Haverbeke and others).
-// Changes: imports only (ProseMirror packages -> effect-richtext/compat/*, ist ->
+// Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
 // ../../utils/ist.ts, mocha describe/it -> @effect/vitest; type-only imports
 // marked as such) and dprint formatting, plus:
 // - runs in the browser project; the JSDOM documents are replaced by the
@@ -9,7 +9,7 @@
 //   1.25.12, creating the test schema's image with an array `alt` already
 //   throws (upstream's own copy of this test fails against 1.25.12 too).
 import { describe, it } from "@effect/vitest"
-import type { Mark, Node as PMNode } from "effect-richtext/compat/model"
+import type { Mark, Node as PMNode } from "@thomasfosterau/effect-richtext/compat/model"
 import {
   DOMParser,
   DOMSerializer,
@@ -18,7 +18,7 @@ import {
   type ParseRule,
   Schema,
   Slice
-} from "effect-richtext/compat/model"
+} from "@thomasfosterau/effect-richtext/compat/model"
 import {
   a,
   blockquote,
@@ -39,7 +39,7 @@ import {
   schema,
   strong,
   ul
-} from "effect-richtext/compat/test-builder"
+} from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
 
 const document: any = globalThis.document

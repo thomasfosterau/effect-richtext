@@ -12,7 +12,7 @@ The publish step is `pnpm run release`: `vp run build`, then `pnpm publish --acc
 
 ## Maintainer setup (one-time)
 
-1. **Decide the package name.** The manifest publishes as the unscoped `effect-richtext`; neither `effect-richtext` nor `@thomasfosterau/effect-richtext` exists on npm yet. Renaming later is a breaking change for consumers, so settle it before the first publish.
+1. **The package name is settled.** The manifest publishes as the scoped `@thomasfosterau/effect-richtext` (with `publishConfig.access: "public"`, since scoped packages default to restricted); it does not exist on npm yet. Renaming later is a breaking change for consumers.
 2. **Allow Actions to open the version PR.** **Settings → Actions → General → Workflow permissions** → enable **"Allow GitHub Actions to create and approve pull requests"**. Without it the built-in `GITHUB_TOKEN` cannot open pull requests, even though the job grants `pull-requests: write`.
 3. **Bootstrap the package on npm.** A trusted publisher can only be configured on a package that already exists, so the very first version is published by hand from a clean checkout (`vp run build && pnpm publish --access public`, with an npm login that has publish rights; no `--provenance`, which only CI can generate), or the first `Release` run is given a short-lived granular token via a `NODE_AUTH_TOKEN` step that is removed afterwards.
 4. **Configure the trusted publisher** on npmjs.com → the package → **Settings → Trusted Publisher**:

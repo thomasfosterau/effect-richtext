@@ -1,7 +1,7 @@
 // Ported from prosemirror-transform/test/test-mapping.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
 import * as Option from "effect/Option"
-import { Mapping, StepMap } from "effect-richtext/transform"
+import { Mapping, StepMap } from "@thomasfosterau/effect-richtext/transform"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 

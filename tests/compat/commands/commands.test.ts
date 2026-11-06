@@ -1,11 +1,17 @@
 // Ported from prosemirror-commands/test/test-commands.ts (MIT, Marijn Haverbeke and others).
-// Changes: imports only (ProseMirror packages -> effect-richtext/compat/*, ist ->
+// Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
 // ../../utils/ist.ts, mocha describe/it -> @effect/vitest; type-only imports
 // marked as such) and dprint formatting.
 import { describe, it } from "@effect/vitest"
-import type { Node } from "effect-richtext/compat/model"
-import { Schema } from "effect-richtext/compat/model"
-import { type Command, EditorState, NodeSelection, Selection, TextSelection } from "effect-richtext/compat/state"
+import type { Node } from "@thomasfosterau/effect-richtext/compat/model"
+import { Schema } from "@thomasfosterau/effect-richtext/compat/model"
+import {
+  type Command,
+  EditorState,
+  NodeSelection,
+  Selection,
+  TextSelection
+} from "@thomasfosterau/effect-richtext/compat/state"
 import {
   blockquote,
   builders,
@@ -22,7 +28,7 @@ import {
   schema,
   strong,
   ul
-} from "effect-richtext/compat/test-builder"
+} from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
 
 import {
@@ -48,7 +54,7 @@ import {
   splitBlockKeepMarks,
   toggleMark,
   wrapIn
-} from "effect-richtext/compat/commands"
+} from "@thomasfosterau/effect-richtext/compat/commands"
 
 function t(node: Node): { [name: string]: number } {
   return (node as any).tag

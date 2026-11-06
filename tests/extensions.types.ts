@@ -1,4 +1,4 @@
-// Compile-time assertions for `effect-richtext/extensions`. Never executed:
+// Compile-time assertions for `@thomasfosterau/effect-richtext/extensions`. Never executed:
 // `vp run check` type-checks this file (tsconfig.test.json), and every
 // `@ts-expect-error` directive is an assertion that the statement below it
 // must NOT compile.
@@ -24,9 +24,9 @@ import {
   type ExtensionNodes,
   type TypesOf,
   union
-} from "effect-richtext/extensions"
-import type { Mark, Node as PMNode, NodeNames } from "effect-richtext/model"
-import { type Command, Plugin, type Transaction } from "effect-richtext/state"
+} from "@thomasfosterau/effect-richtext/extensions"
+import type { Mark, Node as PMNode, NodeNames } from "@thomasfosterau/effect-richtext/model"
+import { type Command, Plugin, type Transaction } from "@thomasfosterau/effect-richtext/state"
 import type { Equals, Expect } from "./utils/types.ts"
 
 class Svc extends Context.Service<Svc, { readonly n: number }>()("typetest/Svc") {}

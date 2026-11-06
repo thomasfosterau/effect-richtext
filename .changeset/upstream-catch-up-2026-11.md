@@ -1,5 +1,5 @@
 ---
-"effect-richtext": minor
+"@thomasfosterau/effect-richtext": minor
 ---
 
 Catch up with the ProseMirror releases published since the port was taken: prosemirror-model 1.25.12, -transform 1.12.5, -view 1.42.9, -commands 1.7.2, -schema-list 1.6.0, -history 1.5.1 and -markdown 1.13.9.

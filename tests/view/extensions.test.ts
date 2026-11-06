@@ -1,4 +1,4 @@
-// Browser tests for effect-richtext/extensions: mounting editors and
+// Browser tests for @thomasfosterau/effect-richtext/extensions: mounting editors and
 // keyboard handling through extension keymaps.
 import { assert, describe, it } from "@effect/vitest"
 import * as Context from "effect/Context"
@@ -14,8 +14,8 @@ import {
   Priority,
   union,
   withPriority
-} from "effect-richtext/extensions"
-import { type Command, Plugin, TextSelection, type Transaction } from "effect-richtext/state"
+} from "@thomasfosterau/effect-richtext/extensions"
+import { type Command, Plugin, TextSelection, type Transaction } from "@thomasfosterau/effect-richtext/state"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 import { workspace } from "./helpers.ts"

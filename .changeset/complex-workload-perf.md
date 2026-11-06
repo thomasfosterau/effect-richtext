@@ -1,5 +1,5 @@
 ---
-"effect-richtext": patch
+"@thomasfosterau/effect-richtext": patch
 ---
 
 Speed up complex editing workloads in the core:

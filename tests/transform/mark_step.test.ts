@@ -2,9 +2,16 @@
 import { describe, it } from "@effect/vitest"
 import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
-import type { Node } from "effect-richtext/model"
-import { a, doc, eq, em, p, schema } from "effect-richtext/test-builder"
-import { AddMarkStep, Mapping, RemoveMarkStep, Step, StepMap, Transform } from "effect-richtext/transform"
+import type { Node } from "@thomasfosterau/effect-richtext/model"
+import { a, doc, eq, em, p, schema } from "@thomasfosterau/effect-richtext/test-builder"
+import {
+  AddMarkStep,
+  Mapping,
+  RemoveMarkStep,
+  Step,
+  StepMap,
+  Transform
+} from "@thomasfosterau/effect-richtext/transform"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 

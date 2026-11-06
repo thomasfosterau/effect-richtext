@@ -9,7 +9,7 @@
  */
 import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
-import type { NodeJSON } from "effect-richtext/model"
+import type { NodeJSON } from "@thomasfosterau/effect-richtext/model"
 import { type Append, between, deepListJSON, type Filter, type Lib, proseJSON, random, type Types } from "./lib.ts"
 
 /**

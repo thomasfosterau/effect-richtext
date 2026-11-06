@@ -2,8 +2,15 @@
 import { assert, describe, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
-import { Content, type ContentExpr, ContentMatch, DocSchema, type Node, type NodeSpecs } from "effect-richtext/model"
-import { br, doc, eq, h1, hr, img, p, pre, schema } from "effect-richtext/test-builder"
+import {
+  Content,
+  type ContentExpr,
+  ContentMatch,
+  DocSchema,
+  type Node,
+  type NodeSpecs
+} from "@thomasfosterau/effect-richtext/model"
+import { br, doc, eq, h1, hr, img, p, pre, schema } from "@thomasfosterau/effect-richtext/test-builder"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 
@@ -183,7 +190,7 @@ describe("ContentMatch", () => {
 })
 
 // -----------------------------------------------------------------------------
-// Typed content combinators (effect-richtext specific)
+// Typed content combinators (@thomasfosterau/effect-richtext specific)
 // -----------------------------------------------------------------------------
 
 const samples = [

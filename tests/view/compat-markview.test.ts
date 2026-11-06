@@ -1,10 +1,10 @@
 // Ported from prosemirror-view/test/webtest-markview.ts (MIT, Marijn Haverbeke and others).
-// Changes: imports only (ProseMirror packages -> effect-richtext/compat/*, ist ->
+// Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
 // ../utils/ist.ts, ./view.js -> ./compat-view.ts, mocha describe/it ->
 // @effect/vitest; type-only imports marked as such) and dprint formatting
 import { describe, it } from "@effect/vitest"
-import { doc, p, strong } from "effect-richtext/compat/test-builder"
-import { type ViewMutationRecord } from "effect-richtext/compat/view"
+import { doc, p, strong } from "@thomasfosterau/effect-richtext/compat/test-builder"
+import { type ViewMutationRecord } from "@thomasfosterau/effect-richtext/compat/view"
 import ist from "../utils/ist.ts"
 import { flush, tempEditor } from "./compat-view.ts"
 
