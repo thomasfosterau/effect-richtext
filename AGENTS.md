@@ -95,7 +95,7 @@ Steps 2–8 are CI's required `ci` job, in its order ([ci.yml](.github/workflows
 
 Read the installed package before writing Effect code: `node_modules/effect/dist/*.d.ts` (and `node_modules/effect/src`, plus `node_modules/effect/AGENTS.md` / `ai-docs/` where shipped). Never guess at an Effect API.
 
-- The pinned version is the `effect` entry in `pnpm-workspace.yaml`'s catalog; the published peer floor is under `catalogs.peers`. Raising the floor is a breaking change.
+- The pinned version is the `effect` entry in `pnpm-workspace.yaml`'s catalog; the published peer range is under `catalogs.peers`. The `effect` peer is `^4.0.0`: raise it only when a dependency requires it (or the package needs an unstable module first shipped in a later minor), naming the dependency or module in the catalog comment, and prove the floor by re-running the gates with the catalog pin at that version. Raising the floor is a breaking change.
 - Tagged errors are `Schema.TaggedError<Self>()(tag, fields)` classes.
 - Plugins, commands and view props may return Effects; their requirements (`R`) and errors (`E`) are tracked through `EditorState` / `EditorView` types (DESIGN.md, "Commands and plugins"). Keep that inference intact: a change that widens a command's `R` to `any` or drops an `E` is a type regression even when every test passes, and `tests/**/*.types.ts` is where it gets pinned.
 

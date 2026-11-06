@@ -109,7 +109,10 @@ catalog:
 # manifest. Raising a floor is a breaking change.
 catalogs:
   peers:
-    effect: ^4.0.2
+    # The owner's policy: `effect ^4.0.0`, raised only when a dependency of
+    # the package requires more (name it here). None does: the runtime
+    # dependencies (markdown-it, rope-sequence, w3c-keyname) don't use Effect.
+    effect: ^4.0.0
 
 overrides:
   # undici <8.12.2 — GHSA-xjj6-f33q-929c (high): an unhandled error on a

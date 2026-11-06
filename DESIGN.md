@@ -8,7 +8,7 @@ This document records the design decisions agreed for the project and the conven
 
 | Topic | Decision |
 | --- | --- |
-| Effect version | Effect **4.x** (`effect@^4.0.2`). |
+| Effect version | Effect **4.x** (`effect@^4.0.0`). |
 | Effect depth | **Effect everywhere**: every fallible public operation returns an `Effect` with tagged errors. |
 | Absent values | Accessors that may not produce a value return **`Option<A>`** (`node.firstChild`, `$pos.nodeAfter`, `match.matchType(t)`, …). |
 | Document typing | Schemas are fully typed. Node/mark names are literal unions, attributes are described with Effect `Schema`s, and **content expressions are typed combinators** (`Content.seq`, `Content.oneOrMore`, …) so the allowed children of every node type are known statically. |
