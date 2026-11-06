@@ -95,3 +95,17 @@ updates:
     cooldown:
       default-days: 1
     # No groups: each action updates in its own PR.
+  # The .devcontainer/ features (the image tag moves with vite-plus by hand).
+  - package-ecosystem: "devcontainers"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    cooldown:
+      default-days: 1
