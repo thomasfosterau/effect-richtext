@@ -13,7 +13,7 @@
  * `BENCH_FILTER` (a substring of the workload names to run; default all).
  * Workers discard stderr (ProseMirror warns there about the selections the
  * deep-list workload creates); to see a failing worker's output, run it
- * directly: `vp exec tsx --tsconfig tsconfig.base.json tests/bench/run.ts core 6`.
+ * directly: `vpx --tsconfig tsconfig.base.json tests/bench/run.ts core 6`.
  *
  * @copyright Thomas Foster
  */
@@ -88,7 +88,7 @@ const worker = (name: LibName, index: number): Effect.Effect<void> =>
       Effect.flatMap(name === "core" ? time(core, run) : time(prosemirror, run), (ms) => Console.log(String(ms)))
   })
 
-// Runs one worker in a fresh process, with this process's loader flags (tsx).
+// Runs one worker in a fresh process, with this process's loader flags (vpx's).
 const spawn = Effect.fn("spawn")(function* (name: LibName, index: number) {
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner
   const failed = (cause: unknown) => new WorkerError({ message: `Worker ${name} ${index} failed`, cause })
