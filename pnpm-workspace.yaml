@@ -23,7 +23,7 @@ catalog:
   "@effect/language-service": ^0.87.5
   # tests/bench/run.ts spawns its worker processes through `effect/process`;
   # this is the Node implementation. Moves with `effect` (same version).
-  "@effect/platform-node": 4.0.6
+  "@effect/platform-node": 4.1.2
   # Effect Language Service as a native (TypeScript-Go) binary — the TS7 side
   # of the 6/7 split. `effect-tsgo patch` overwrites the native `tsc` binary
   # with an Effect-patched build matched by gitHead, so this pins in lockstep
@@ -37,7 +37,7 @@ catalog:
   # before bumping any of the three.
   "@effect/tsgo": 0.63.0
   # `it.effect` / `layer` helpers on top of the vitest singleton below.
-  "@effect/vitest": 4.0.6
+  "@effect/vitest": 4.1.2
   # The Effect lint rules (`effect/*`, the anti-slop set included) that
   # `vp check` runs. 0.9.0 depends on `effect` 4.1.0 (exact) but runs on the
   # singleton (the `effect` override below); its load in `vite.config.ts`
@@ -51,7 +51,7 @@ catalog:
   "@vitest/browser-playwright": 5.0.5
   # Must equal `vitest` below (its peer is the exact vitest version).
   "@vitest/coverage-istanbul": 5.0.5
-  effect: 4.0.6
+  effect: 4.1.2
   fallow: 3.37.0
   # The `node` test project's DOM.
   # 21.x for GHSA-834v-8h66-3h79 (high: >=17.0.0 <=21.0.3, an unsanitized
