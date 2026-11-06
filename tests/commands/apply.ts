@@ -1,9 +1,9 @@
 // Ported from the `apply` helper in prosemirror-commands/test/test-commands.ts
 // (MIT, Marijn Haverbeke and others).
 import * as Effect from "effect/Effect"
-import type { Node } from "effect-richtext/model"
-import { type Command, EditorState } from "effect-richtext/state"
-import { eq, tagsOf } from "effect-richtext/test-builder"
+import type { Node } from "@thomasfosterau/effect-richtext/model"
+import { type Command, EditorState } from "@thomasfosterau/effect-richtext/state"
+import { eq, tagsOf } from "@thomasfosterau/effect-richtext/test-builder"
 import { selFor } from "../state/state.ts"
 import ist from "../utils/ist.ts"
 

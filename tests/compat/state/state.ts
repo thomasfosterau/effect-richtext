@@ -1,10 +1,16 @@
 // Ported from prosemirror-state/test/state.ts (MIT, Marijn Haverbeke and others).
-// Changes: imports only (ProseMirror packages -> effect-richtext/compat/*, ist ->
+// Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
 // ../../utils/ist.ts, mocha describe/it -> @effect/vitest; type-only imports
 // marked as such) and dprint formatting.
-import type { Node, Schema } from "effect-richtext/compat/model"
-import type { Transaction } from "effect-richtext/compat/state"
-import { type Command, EditorState, NodeSelection, Selection, TextSelection } from "effect-richtext/compat/state"
+import type { Node, Schema } from "@thomasfosterau/effect-richtext/compat/model"
+import type { Transaction } from "@thomasfosterau/effect-richtext/compat/state"
+import {
+  type Command,
+  EditorState,
+  NodeSelection,
+  Selection,
+  TextSelection
+} from "@thomasfosterau/effect-richtext/compat/state"
 
 // Wrapper object to make writing state tests easier.
 

@@ -1,11 +1,11 @@
 // Ported from prosemirror-state/test/test-state.ts (MIT, Marijn Haverbeke and others).
-// Changes: imports only (ProseMirror packages -> effect-richtext/compat/*, ist ->
+// Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
 // ../../utils/ist.ts, mocha describe/it -> @effect/vitest; type-only imports
 // marked as such) and dprint formatting.
 import { describe, it } from "@effect/vitest"
 import * as Str from "effect/String"
-import { EditorState, Plugin, PluginKey, TextSelection } from "effect-richtext/compat/state"
-import { doc, eq, p, schema } from "effect-richtext/compat/test-builder"
+import { EditorState, Plugin, PluginKey, TextSelection } from "@thomasfosterau/effect-richtext/compat/state"
+import { doc, eq, p, schema } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
 import { toJsonString } from "../../utils/json.ts"
 

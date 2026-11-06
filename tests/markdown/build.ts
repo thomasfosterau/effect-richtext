@@ -1,6 +1,6 @@
 // Ported from prosemirror-markdown/test/build.ts (MIT, Marijn Haverbeke and others)
-import { schema } from "effect-richtext/markdown"
-import { builders } from "effect-richtext/test-builder"
+import { schema } from "@thomasfosterau/effect-richtext/markdown"
+import { builders } from "@thomasfosterau/effect-richtext/test-builder"
 
 const b = builders(schema, {
   p: { nodeType: "paragraph" },

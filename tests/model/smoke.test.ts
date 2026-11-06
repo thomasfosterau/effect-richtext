@@ -3,8 +3,8 @@ import * as Effect from "effect/Effect"
 import * as Equal from "effect/Equal"
 import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
-import { Content, DocSchema, NodeFromJSON, type NodeSpecs, Slice } from "effect-richtext/model"
-import { doc, p, schema, strong } from "effect-richtext/test-builder"
+import { Content, DocSchema, NodeFromJSON, type NodeSpecs, Slice } from "@thomasfosterau/effect-richtext/model"
+import { doc, p, schema, strong } from "@thomasfosterau/effect-richtext/test-builder"
 
 describe("model smoke", () => {
   it("builds documents with tags", () => {

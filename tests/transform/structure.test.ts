@@ -2,9 +2,9 @@
 import { assert, describe, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
-import { Content, DocSchema, type Node, Slice } from "effect-richtext/model"
-import { eq, schema as baseSchema } from "effect-richtext/test-builder"
-import { canSplit, findWrapping, liftTarget, Transform } from "effect-richtext/transform"
+import { Content, DocSchema, type Node, Slice } from "@thomasfosterau/effect-richtext/model"
+import { eq, schema as baseSchema } from "@thomasfosterau/effect-richtext/test-builder"
+import { canSplit, findWrapping, liftTarget, Transform } from "@thomasfosterau/effect-richtext/transform"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 

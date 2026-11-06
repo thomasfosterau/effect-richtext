@@ -5,9 +5,9 @@
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
-import { chainCommands, deleteSelection } from "effect-richtext/commands"
-import type { AnySchema } from "effect-richtext/model"
-import type { Command } from "effect-richtext/state"
+import { chainCommands, deleteSelection } from "@thomasfosterau/effect-richtext/commands"
+import type { AnySchema } from "@thomasfosterau/effect-richtext/model"
+import type { Command } from "@thomasfosterau/effect-richtext/state"
 
 class Log extends Context.Service<Log, { readonly entries: Array<string> }>()("typetest/Log") {}
 class Denied extends Schema.TaggedError<Denied>()("Denied", { reason: Schema.String }) {}

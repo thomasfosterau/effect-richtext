@@ -13,7 +13,7 @@ import {
   type NodeSpec,
   type NodeType,
   Slice
-} from "effect-richtext/model"
+} from "@thomasfosterau/effect-richtext/model"
 import {
   a,
   blockquote,
@@ -34,8 +34,8 @@ import {
   schema,
   strong,
   ul
-} from "effect-richtext/test-builder"
-import { findWrapping, liftTarget, Transform } from "effect-richtext/transform"
+} from "@thomasfosterau/effect-richtext/test-builder"
+import { findWrapping, liftTarget, Transform } from "@thomasfosterau/effect-richtext/transform"
 import ist from "../utils/ist.ts"
 import { testTransform } from "./trans.ts"
 import { getSome } from "../utils/option.ts"

@@ -1,11 +1,23 @@
 // Ported from prosemirror-view/test/webtest-domchange.ts (MIT, Marijn Haverbeke and others).
-// Changes: imports only (ProseMirror packages -> effect-richtext/compat/*, ist ->
+// Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
 // ../utils/ist.ts, ./view.js -> ./compat-view.ts, mocha describe/it ->
 // @effect/vitest; type-only imports marked as such) and dprint formatting
 import { describe, it } from "@effect/vitest"
-import { EditorState, TextSelection } from "effect-richtext/compat/state"
-import { a, blockquote, br, doc, em, eq, h1, img as img_, p, pre, strong } from "effect-richtext/compat/test-builder"
-import type { Step } from "effect-richtext/compat/transform"
+import { EditorState, TextSelection } from "@thomasfosterau/effect-richtext/compat/state"
+import {
+  a,
+  blockquote,
+  br,
+  doc,
+  em,
+  eq,
+  h1,
+  img as img_,
+  p,
+  pre,
+  strong
+} from "@thomasfosterau/effect-richtext/compat/test-builder"
+import type { Step } from "@thomasfosterau/effect-richtext/compat/transform"
 import ist from "../utils/ist.ts"
 import { findTextNode, flush, tempEditor } from "./compat-view.ts"
 

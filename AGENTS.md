@@ -2,21 +2,21 @@
 
 `CLAUDE.md` is a symlink to this file. Project conventions live here; personal style preferences live in user memory.
 
-This repo publishes `effect-richtext`, a reimplementation of the core ProseMirror toolkit (`prosemirror-model`, `-transform`, `-state`, `-view`, `-keymap`, `-commands` and the common extras) on Effect 4, as ONE package at the repository root whose parts are subpath entries. ProseMirror's own test suites are the behavioural spec: they are ported under `tests/` and must keep passing. [DESIGN.md](DESIGN.md) is the design note (decisions, the `x` / `xUnsafe` convention, typing, the view, extensions, the compat layer); read it before changing a module.
+This repo publishes `@thomasfosterau/effect-richtext`, a reimplementation of the core ProseMirror toolkit (`prosemirror-model`, `-transform`, `-state`, `-view`, `-keymap`, `-commands` and the common extras) on Effect 4, as ONE package at the repository root whose parts are subpath entries. ProseMirror's own test suites are the behavioural spec: they are ported under `tests/` and must keep passing. [DESIGN.md](DESIGN.md) is the design note (decisions, the `x` / `xUnsafe` convention, typing, the view, extensions, the compat layer); read it before changing a module.
 
 | Entry | Source | Ported from / purpose |
 | --- | --- | --- |
-| `effect-richtext/model` | `src/model.ts`, `src/model/` | prosemirror-model (DOM parser / serializer, JSON codecs) |
-| `effect-richtext/transform` | `src/transform.ts`, `src/transform/` | prosemirror-transform |
-| `effect-richtext/state` | `src/state.ts`, `src/state/` | prosemirror-state |
-| `effect-richtext/view`, `/view-css` | `src/view.ts`, `src/view/`, `src/view-css.ts` | prosemirror-view and its stylesheet |
-| `effect-richtext/keymap`, `/commands`, `/history`, `/inputrules` | `src/<name>.ts` (+ `src/<name>/`) | the matching prosemirror-\* package |
-| `effect-richtext/gapcursor`, `/dropcursor`, `/placeholder` | `src/<name>.ts` | cursors and placeholder decorations |
-| `effect-richtext/schema-basic`, `/schema-list`, `/test-builder` | `src/<name>.ts` (+ `src/<name>/`) | the matching prosemirror-\* package |
-| `effect-richtext/markdown`, `/html` | `src/markdown.ts`, `src/markdown/`, `src/html.ts` | prosemirror-markdown; HTML string helpers |
-| `effect-richtext/reactive` | `src/reactive.ts`, `src/reactive/` | `SubscriptionRef` / `Stream` bindings |
-| `effect-richtext/extensions` | `src/extensions.ts`, `src/extensions/` | typed extensions and chainable commands |
-| `effect-richtext/compat/*` | `src/compat/` | a ProseMirror-compatible facade over the core |
+| `@thomasfosterau/effect-richtext/model` | `src/model.ts`, `src/model/` | prosemirror-model (DOM parser / serializer, JSON codecs) |
+| `@thomasfosterau/effect-richtext/transform` | `src/transform.ts`, `src/transform/` | prosemirror-transform |
+| `@thomasfosterau/effect-richtext/state` | `src/state.ts`, `src/state/` | prosemirror-state |
+| `@thomasfosterau/effect-richtext/view`, `/view-css` | `src/view.ts`, `src/view/`, `src/view-css.ts` | prosemirror-view and its stylesheet |
+| `@thomasfosterau/effect-richtext/keymap`, `/commands`, `/history`, `/inputrules` | `src/<name>.ts` (+ `src/<name>/`) | the matching prosemirror-\* package |
+| `@thomasfosterau/effect-richtext/gapcursor`, `/dropcursor`, `/placeholder` | `src/<name>.ts` | cursors and placeholder decorations |
+| `@thomasfosterau/effect-richtext/schema-basic`, `/schema-list`, `/test-builder` | `src/<name>.ts` (+ `src/<name>/`) | the matching prosemirror-\* package |
+| `@thomasfosterau/effect-richtext/markdown`, `/html` | `src/markdown.ts`, `src/markdown/`, `src/html.ts` | prosemirror-markdown; HTML string helpers |
+| `@thomasfosterau/effect-richtext/reactive` | `src/reactive.ts`, `src/reactive/` | `SubscriptionRef` / `Stream` bindings |
+| `@thomasfosterau/effect-richtext/extensions` | `src/extensions.ts`, `src/extensions/` | typed extensions and chainable commands |
+| `@thomasfosterau/effect-richtext/compat/*` | `src/compat/` | a ProseMirror-compatible facade over the core |
 
 A new entry is added to `entries` in `vite.config.ts`, to `exports` in `package.json`, to `entry` in `.fallowrc.json` (plus a zone and rule when it is a new layer), and to the tables here and in `README.md`. `src/internal/` and `src/compat/internal/` are never exported.
 

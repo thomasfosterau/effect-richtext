@@ -9,7 +9,7 @@
  *
  * ```ts skip-type-checking
  * import { Schema } from "effect"
- * import { Content, DocSchema } from "effect-richtext/model"
+ * import { Content, DocSchema } from "@thomasfosterau/effect-richtext/model"
  *
  * const schema = DocSchema.make({
  *   nodes: {

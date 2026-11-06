@@ -1,9 +1,9 @@
 // Ported from prosemirror-view/test/webtest-nodeview.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
 import * as Option from "effect/Option"
-import { Plugin } from "effect-richtext/state"
-import { blockquote, br, doc, p } from "effect-richtext/test-builder"
-import { Decoration, DecorationSet, type ViewMutationRecord } from "effect-richtext/view"
+import { Plugin } from "@thomasfosterau/effect-richtext/state"
+import { blockquote, br, doc, p } from "@thomasfosterau/effect-richtext/test-builder"
+import { Decoration, DecorationSet, type ViewMutationRecord } from "@thomasfosterau/effect-richtext/view"
 import ist from "../utils/ist.ts"
 import { flush, tempEditor } from "./helpers.ts"
 

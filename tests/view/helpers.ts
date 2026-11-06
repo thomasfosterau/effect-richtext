@@ -1,10 +1,16 @@
 // Ported from prosemirror-view/test/view.ts (MIT, Marijn Haverbeke and others)
 import { assert } from "@effect/vitest"
-import type { Node as PMNode } from "effect-richtext/model"
-import { EditorState, NodeSelection, type Plugin, Selection, TextSelection } from "effect-richtext/state"
-import { schema } from "effect-richtext/test-builder"
-import { type DirectEditorProps, EditorView } from "effect-richtext/view"
-import { injectViewCSSUnsafe } from "effect-richtext/view-css"
+import type { Node as PMNode } from "@thomasfosterau/effect-richtext/model"
+import {
+  EditorState,
+  NodeSelection,
+  type Plugin,
+  Selection,
+  TextSelection
+} from "@thomasfosterau/effect-richtext/state"
+import { schema } from "@thomasfosterau/effect-richtext/test-builder"
+import { type DirectEditorProps, EditorView } from "@thomasfosterau/effect-richtext/view"
+import { injectViewCSSUnsafe } from "@thomasfosterau/effect-richtext/view-css"
 
 /** The `#workspace` element the ProseMirror test page provides. */
 export const workspace = (): HTMLElement => {

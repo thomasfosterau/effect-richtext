@@ -1,12 +1,12 @@
 // Ported from prosemirror-transform/test/test-structure.ts (MIT, Marijn Haverbeke and others).
-// Changes: imports only (ProseMirror packages -> effect-richtext/compat/*, ist ->
+// Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
 // ../../utils/ist.ts, mocha describe/it -> @effect/vitest; type-only imports
 // marked as such) and dprint formatting.
 import { describe, it } from "@effect/vitest"
-import type { Node } from "effect-richtext/compat/model"
-import { Schema, Slice } from "effect-richtext/compat/model"
-import { eq, schema as baseSchema } from "effect-richtext/compat/test-builder"
-import { canSplit, findWrapping, liftTarget, Transform } from "effect-richtext/compat/transform"
+import type { Node } from "@thomasfosterau/effect-richtext/compat/model"
+import { Schema, Slice } from "@thomasfosterau/effect-richtext/compat/model"
+import { eq, schema as baseSchema } from "@thomasfosterau/effect-richtext/compat/test-builder"
+import { canSplit, findWrapping, liftTarget, Transform } from "@thomasfosterau/effect-richtext/compat/transform"
 import ist from "../../utils/ist.ts"
 
 const schema = new Schema({

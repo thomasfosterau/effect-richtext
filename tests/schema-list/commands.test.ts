@@ -1,14 +1,25 @@
 // Ported from prosemirror-schema-list/test/test-commands.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
-import { Content, DocSchema } from "effect-richtext/model"
+import { Content, DocSchema } from "@thomasfosterau/effect-richtext/model"
 import {
   liftListItem,
   sinkListItem,
   splitListItem,
   splitListItemKeepMarks,
   wrapInList
-} from "effect-richtext/schema-list"
-import { blockquote, builders, doc, em, li, ol, p, schema, strong, ul } from "effect-richtext/test-builder"
+} from "@thomasfosterau/effect-richtext/schema-list"
+import {
+  blockquote,
+  builders,
+  doc,
+  em,
+  li,
+  ol,
+  p,
+  schema,
+  strong,
+  ul
+} from "@thomasfosterau/effect-richtext/test-builder"
 import { apply, mkState, run } from "../commands/apply.ts"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"

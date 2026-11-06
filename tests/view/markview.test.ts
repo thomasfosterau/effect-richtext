@@ -1,7 +1,7 @@
 // Ported from prosemirror-view/test/webtest-markview.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
-import { a, doc, p, strong } from "effect-richtext/test-builder"
-import type { ViewMutationRecord } from "effect-richtext/view"
+import { a, doc, p, strong } from "@thomasfosterau/effect-richtext/test-builder"
+import type { ViewMutationRecord } from "@thomasfosterau/effect-richtext/view"
 import ist from "../utils/ist.ts"
 import { flush, tempEditor } from "./helpers.ts"
 

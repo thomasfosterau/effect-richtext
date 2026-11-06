@@ -1,6 +1,6 @@
 /**
  * The seam the workloads are written against: one adapter per library
- * (`core.ts` for effect-richtext, `prosemirror.ts` for ProseMirror), each
+ * (`core.ts` for @thomasfosterau/effect-richtext, `prosemirror.ts` for ProseMirror), each
  * typed against its own library, so a workload runs the same algorithm on
  * both and the results can be compared node for node.
  *
@@ -8,7 +8,7 @@
  */
 import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
-import type { NodeJSON } from "effect-richtext/model"
+import type { NodeJSON } from "@thomasfosterau/effect-richtext/model"
 
 /**
  * The library's own types behind an adapter.

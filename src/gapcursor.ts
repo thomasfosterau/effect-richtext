@@ -306,7 +306,7 @@ function drawGapCursor(state: EditorState<any>): DecorationSet | null {
 /**
  * The gap cursor's stylesheet (from `prosemirror-gapcursor`'s
  * `style/gapcursor.css`). Add it to the page (for example with
- * `injectCSS` from `effect-richtext/view-css`) or provide your own
+ * `injectCSS` from `@thomasfosterau/effect-richtext/view-css`) or provide your own
  * styles for `.ProseMirror-gapcursor`.
  *
  * @since 0.1.0

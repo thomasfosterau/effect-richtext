@@ -1,7 +1,7 @@
 /**
  * Tagged errors raised by the document model.
  *
- * Every fallible operation in `effect-richtext/model` reports failure
+ * Every fallible operation in `@thomasfosterau/effect-richtext/model` reports failure
  * through the Effect error channel using one of these errors. The
  * `*Unsafe` variants of those operations throw the same error values
  * instead, which makes them usable from synchronous code.

@@ -1,11 +1,11 @@
 // Ported from prosemirror-view/test/webtest-composition.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
 import * as Option from "effect/Option"
-import type { EditorState } from "effect-richtext/state"
-import { Plugin } from "effect-richtext/state"
-import { code, doc, em, eq, p, schema, strong } from "effect-richtext/test-builder"
-import type { EditorView } from "effect-richtext/view"
-import { __endComposition, Decoration, DecorationSet } from "effect-richtext/view"
+import type { EditorState } from "@thomasfosterau/effect-richtext/state"
+import { Plugin } from "@thomasfosterau/effect-richtext/state"
+import { code, doc, em, eq, p, schema, strong } from "@thomasfosterau/effect-richtext/test-builder"
+import type { EditorView } from "@thomasfosterau/effect-richtext/view"
+import { __endComposition, Decoration, DecorationSet } from "@thomasfosterau/effect-richtext/view"
 import ist from "../utils/ist.ts"
 import { findTextNode, flush, requireFocus, tempEditor } from "./helpers.ts"
 

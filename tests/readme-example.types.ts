@@ -1,13 +1,13 @@
 // Kept in sync with the README example so it stays type-correct.
 import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
-import { baseKeymap, toggleMark } from "effect-richtext/commands"
-import { history, redo, undo } from "effect-richtext/history"
-import { keymap } from "effect-richtext/keymap"
-import { Content, DocSchema } from "effect-richtext/model"
-import { EditorState } from "effect-richtext/state"
-import { EditorView } from "effect-richtext/view"
-import { createEditor, defineBasicExtension } from "effect-richtext/extensions"
+import { baseKeymap, toggleMark } from "@thomasfosterau/effect-richtext/commands"
+import { history, redo, undo } from "@thomasfosterau/effect-richtext/history"
+import { keymap } from "@thomasfosterau/effect-richtext/keymap"
+import { Content, DocSchema } from "@thomasfosterau/effect-richtext/model"
+import { EditorState } from "@thomasfosterau/effect-richtext/state"
+import { EditorView } from "@thomasfosterau/effect-richtext/view"
+import { createEditor, defineBasicExtension } from "@thomasfosterau/effect-richtext/extensions"
 
 const schema = DocSchema.makeUnsafe({
   nodes: {
@@ -40,7 +40,7 @@ const mountEditor = Effect.fn("mountEditor")(function* (place: HTMLElement) {
 
 Effect.runFork(Effect.scoped(Effect.andThen(mountEditor(document.body), Effect.never)))
 
-// The README's `effect-richtext/extensions` example.
+// The README's `@thomasfosterau/effect-richtext/extensions` example.
 const mountBasicEditor = Effect.fn("mountBasicEditor")(function* (place: HTMLElement) {
   const editor = yield* createEditor(defineBasicExtension())
   yield* editor.mount(place)

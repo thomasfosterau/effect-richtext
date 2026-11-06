@@ -1,7 +1,7 @@
 /**
  * A `prosemirror-schema-list`-compatible module: list node specs,
  * `addListNodes`, and the list commands (bridged to the core
- * `effect-richtext/schema-list` commands).
+ * `@thomasfosterau/effect-richtext/schema-list` commands).
  *
  * Ported from prosemirror-schema-list (MIT, Marijn Haverbeke and others).
  *

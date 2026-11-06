@@ -1,4 +1,4 @@
-# effect-richtext
+# @thomasfosterau/effect-richtext
 
 A reimplementation of the core [ProseMirror](https://prosemirror.net) toolkit (`prosemirror-model`, `-transform`, `-state`, `-view`, `-keymap`, `-commands`) on top of [Effect](https://effect.website) 4, in a single package.
 
@@ -15,46 +15,46 @@ See [`DESIGN.md`](https://github.com/thomasfosterau/effect-richtext/blob/trunk/D
 ## Install
 
 ```sh
-pnpm add effect-richtext effect
+pnpm add @thomasfosterau/effect-richtext effect
 ```
 
 `effect` (4.x) is a peer dependency: your application provides the single copy. The package is ESM-only and has no `.` entry; import the modules you use by subpath.
 
 ## Modules
 
-| Module                         | Ported from / purpose                                        |
-| ------------------------------ | ------------------------------------------------------------ |
-| `effect-richtext/model`        | prosemirror-model (incl. DOM parser/serializer, JSON codecs) |
-| `effect-richtext/transform`    | prosemirror-transform                                        |
-| `effect-richtext/state`        | prosemirror-state                                            |
-| `effect-richtext/view`         | prosemirror-view                                             |
-| `effect-richtext/view-css`     | prosemirror-view's stylesheet                                |
-| `effect-richtext/keymap`       | prosemirror-keymap                                           |
-| `effect-richtext/commands`     | prosemirror-commands                                         |
-| `effect-richtext/history`      | prosemirror-history                                          |
-| `effect-richtext/inputrules`   | prosemirror-inputrules                                       |
-| `effect-richtext/gapcursor`    | prosemirror-gapcursor                                        |
-| `effect-richtext/dropcursor`   | prosemirror-dropcursor                                       |
-| `effect-richtext/schema-basic` | prosemirror-schema-basic                                     |
-| `effect-richtext/schema-list`  | prosemirror-schema-list                                      |
-| `effect-richtext/markdown`     | prosemirror-markdown                                         |
-| `effect-richtext/test-builder` | prosemirror-test-builder                                     |
-| `effect-richtext/html`         | HTML string helpers                                          |
-| `effect-richtext/placeholder`  | placeholder decorations                                      |
-| `effect-richtext/reactive`     | `SubscriptionRef`/`Stream` bindings                          |
-| `effect-richtext/extensions`   | composable, typed extensions and chainable commands          |
-| `effect-richtext/compat/*`     | ProseMirror-compatible facade API                            |
+| Module                                         | Ported from / purpose                                        |
+| ---------------------------------------------- | ------------------------------------------------------------ |
+| `@thomasfosterau/effect-richtext/model`        | prosemirror-model (incl. DOM parser/serializer, JSON codecs) |
+| `@thomasfosterau/effect-richtext/transform`    | prosemirror-transform                                        |
+| `@thomasfosterau/effect-richtext/state`        | prosemirror-state                                            |
+| `@thomasfosterau/effect-richtext/view`         | prosemirror-view                                             |
+| `@thomasfosterau/effect-richtext/view-css`     | prosemirror-view's stylesheet                                |
+| `@thomasfosterau/effect-richtext/keymap`       | prosemirror-keymap                                           |
+| `@thomasfosterau/effect-richtext/commands`     | prosemirror-commands                                         |
+| `@thomasfosterau/effect-richtext/history`      | prosemirror-history                                          |
+| `@thomasfosterau/effect-richtext/inputrules`   | prosemirror-inputrules                                       |
+| `@thomasfosterau/effect-richtext/gapcursor`    | prosemirror-gapcursor                                        |
+| `@thomasfosterau/effect-richtext/dropcursor`   | prosemirror-dropcursor                                       |
+| `@thomasfosterau/effect-richtext/schema-basic` | prosemirror-schema-basic                                     |
+| `@thomasfosterau/effect-richtext/schema-list`  | prosemirror-schema-list                                      |
+| `@thomasfosterau/effect-richtext/markdown`     | prosemirror-markdown                                         |
+| `@thomasfosterau/effect-richtext/test-builder` | prosemirror-test-builder                                     |
+| `@thomasfosterau/effect-richtext/html`         | HTML string helpers                                          |
+| `@thomasfosterau/effect-richtext/placeholder`  | placeholder decorations                                      |
+| `@thomasfosterau/effect-richtext/reactive`     | `SubscriptionRef`/`Stream` bindings                          |
+| `@thomasfosterau/effect-richtext/extensions`   | composable, typed extensions and chainable commands          |
+| `@thomasfosterau/effect-richtext/compat/*`     | ProseMirror-compatible facade API                            |
 
 ## Example
 
 ```ts
 import { Effect, Schema } from "effect"
-import { baseKeymap, toggleMark } from "effect-richtext/commands"
-import { history, redo, undo } from "effect-richtext/history"
-import { keymap } from "effect-richtext/keymap"
-import { Content, DocSchema } from "effect-richtext/model"
-import { EditorState } from "effect-richtext/state"
-import { EditorView } from "effect-richtext/view"
+import { baseKeymap, toggleMark } from "@thomasfosterau/effect-richtext/commands"
+import { history, redo, undo } from "@thomasfosterau/effect-richtext/history"
+import { keymap } from "@thomasfosterau/effect-richtext/keymap"
+import { Content, DocSchema } from "@thomasfosterau/effect-richtext/model"
+import { EditorState } from "@thomasfosterau/effect-richtext/state"
+import { EditorView } from "@thomasfosterau/effect-richtext/view"
 
 const schema = DocSchema.makeUnsafe({
   nodes: {
@@ -88,11 +88,11 @@ const mountEditor = Effect.fn("mountEditor")(function* (place: HTMLElement) {
 Effect.runFork(Effect.scoped(Effect.andThen(mountEditor(document.body), Effect.never)))
 ```
 
-With `effect-richtext/extensions`, the same editor is:
+With `@thomasfosterau/effect-richtext/extensions`, the same editor is:
 
 ```ts
 import { Effect } from "effect"
-import { createEditor, defineBasicExtension } from "effect-richtext/extensions"
+import { createEditor, defineBasicExtension } from "@thomasfosterau/effect-richtext/extensions"
 
 const mountBasicEditor = Effect.fn("mountBasicEditor")(function* (place: HTMLElement) {
   const editor = yield* createEditor(defineBasicExtension())

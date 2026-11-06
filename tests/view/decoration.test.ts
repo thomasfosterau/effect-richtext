@@ -5,10 +5,16 @@ import * as Option from "effect/Option"
 import * as Order from "effect/Order"
 import * as Predicate from "effect/Predicate"
 import * as Schema from "effect/Schema"
-import { DocSchema, Fragment, type Node, NodeRange, Slice } from "effect-richtext/model"
-import { blockquote, builders, doc, h1, li, p, schema, ul } from "effect-richtext/test-builder"
-import { liftTarget, ReplaceAroundStep, ReplaceStep, StepMap, Transform } from "effect-richtext/transform"
-import { Decoration, DecorationSet } from "effect-richtext/view"
+import { DocSchema, Fragment, type Node, NodeRange, Slice } from "@thomasfosterau/effect-richtext/model"
+import { blockquote, builders, doc, h1, li, p, schema, ul } from "@thomasfosterau/effect-richtext/test-builder"
+import {
+  liftTarget,
+  ReplaceAroundStep,
+  ReplaceStep,
+  StepMap,
+  Transform
+} from "@thomasfosterau/effect-richtext/transform"
+import { Decoration, DecorationSet } from "@thomasfosterau/effect-richtext/view"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 

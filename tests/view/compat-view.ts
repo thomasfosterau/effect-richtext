@@ -1,14 +1,14 @@
 // Ported from prosemirror-view/test/view.ts (MIT, Marijn Haverbeke and others).
-// Changes: imports only (ProseMirror packages -> effect-richtext/compat/*), plus:
+// Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*), plus:
 // - creates the `#workspace` element (and test CSS) that the ProseMirror test
 //   page provides, using `workspace()` from ./helpers.ts.
 // - `requireFocus` fails the test with `assert.fail` instead of throwing.
 import { assert } from "@effect/vitest"
-import type { Node as PMNode } from "effect-richtext/compat/model"
-import type { Plugin } from "effect-richtext/compat/state"
-import { EditorState, NodeSelection, Selection, TextSelection } from "effect-richtext/compat/state"
-import { schema } from "effect-richtext/compat/test-builder"
-import { type DirectEditorProps, EditorView } from "effect-richtext/compat/view"
+import type { Node as PMNode } from "@thomasfosterau/effect-richtext/compat/model"
+import type { Plugin } from "@thomasfosterau/effect-richtext/compat/state"
+import { EditorState, NodeSelection, Selection, TextSelection } from "@thomasfosterau/effect-richtext/compat/state"
+import { schema } from "@thomasfosterau/effect-richtext/compat/test-builder"
+import { type DirectEditorProps, EditorView } from "@thomasfosterau/effect-richtext/compat/view"
 import { workspace } from "./helpers.ts"
 
 workspace()

@@ -1,8 +1,8 @@
 import { describe, it } from "@effect/vitest"
-import type { Node } from "effect-richtext/model"
-import { isMarkActive, isNodeActive } from "effect-richtext/reactive"
-import { EditorState, NodeSelection } from "effect-richtext/state"
-import { blockquote, doc, em, h2, img, li, p, schema, strong, ul } from "effect-richtext/test-builder"
+import type { Node } from "@thomasfosterau/effect-richtext/model"
+import { isMarkActive, isNodeActive } from "@thomasfosterau/effect-richtext/reactive"
+import { EditorState, NodeSelection } from "@thomasfosterau/effect-richtext/state"
+import { blockquote, doc, em, h2, img, li, p, schema, strong, ul } from "@thomasfosterau/effect-richtext/test-builder"
 import { selFor } from "../state/state.ts"
 import ist from "../utils/ist.ts"
 

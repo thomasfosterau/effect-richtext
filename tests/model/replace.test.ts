@@ -1,8 +1,8 @@
 // Ported from prosemirror-model/test/test-replace.ts (MIT, Marijn Haverbeke and others)
 import { assert, describe, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
-import { Fragment, type Node, Slice } from "effect-richtext/model"
-import { blockquote, doc, eq, h1, hr, li, p, tagsOf, ul } from "effect-richtext/test-builder"
+import { Fragment, type Node, Slice } from "@thomasfosterau/effect-richtext/model"
+import { blockquote, doc, eq, h1, hr, li, p, tagsOf, ul } from "@thomasfosterau/effect-richtext/test-builder"
 import ist from "../utils/ist.ts"
 
 const sliceOf = (insert: Node | null): Slice =>

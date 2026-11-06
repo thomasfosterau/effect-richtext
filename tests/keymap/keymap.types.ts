@@ -3,10 +3,10 @@
 // executed. Every `@ts-expect-error` directive is an assertion that the
 // statement below it must NOT compile.
 import * as Context from "effect/Context"
-import { keymap } from "effect-richtext/keymap"
-import type { AnySchema } from "effect-richtext/model"
-import { type Command, EditorState } from "effect-richtext/state"
-import { schema } from "effect-richtext/test-builder"
+import { keymap } from "@thomasfosterau/effect-richtext/keymap"
+import type { AnySchema } from "@thomasfosterau/effect-richtext/model"
+import { type Command, EditorState } from "@thomasfosterau/effect-richtext/state"
+import { schema } from "@thomasfosterau/effect-richtext/test-builder"
 
 class Clipboard extends Context.Service<Clipboard, { readonly copied: Array<string> }>()("typetest/Clipboard") {}
 

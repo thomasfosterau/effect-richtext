@@ -1,8 +1,8 @@
 // Ported from prosemirror-transform/test/trans.ts (MIT, Marijn Haverbeke and others)
 import * as Schema from "effect/Schema"
-import type { Node } from "effect-richtext/model"
-import { eq } from "effect-richtext/test-builder"
-import { Mapping, Step, StepFromJSON, Transform } from "effect-richtext/transform"
+import type { Node } from "@thomasfosterau/effect-richtext/model"
+import { eq } from "@thomasfosterau/effect-richtext/test-builder"
+import { Mapping, Step, StepFromJSON, Transform } from "@thomasfosterau/effect-richtext/transform"
 import ist from "../utils/ist.ts"
 import { jsonRoundTrip } from "../utils/json.ts"
 

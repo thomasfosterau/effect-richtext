@@ -3,8 +3,8 @@ import { assert, describe, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 import * as Equal from "effect/Equal"
 import * as Hash from "effect/Hash"
-import { Fragment, type Node, Slice } from "effect-richtext/model"
-import { a, blockquote, doc, em, li, p, schema, tagsOf, ul } from "effect-richtext/test-builder"
+import { Fragment, type Node, Slice } from "@thomasfosterau/effect-richtext/model"
+import { a, blockquote, doc, em, li, p, schema, tagsOf, ul } from "@thomasfosterau/effect-richtext/test-builder"
 import ist from "../utils/ist.ts"
 
 describe("Node", () => {
@@ -78,7 +78,7 @@ describe("Node", () => {
     })
 
     // -------------------------------------------------------------------------
-    // effect-richtext specific
+    // @thomasfosterau/effect-richtext specific
     // -------------------------------------------------------------------------
 
     it.effect("fails with a PositionError for out-of-range positions", () =>

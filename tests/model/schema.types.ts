@@ -14,9 +14,9 @@ import {
   type NodeSpecs,
   type NodesWithOptionalAttrs,
   type NodeType
-} from "effect-richtext/model"
+} from "@thomasfosterau/effect-richtext/model"
 import type { Equals, Expect } from "../utils/types.ts"
-import { toggleMark } from "effect-richtext/commands"
+import { toggleMark } from "@thomasfosterau/effect-richtext/commands"
 
 const schema = DocSchema.makeUnsafe({
   nodes: {

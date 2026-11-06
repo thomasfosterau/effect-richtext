@@ -4,7 +4,7 @@
 
 Please report security vulnerabilities privately via GitHub's [**Report a vulnerability**](https://github.com/thomasfosterau/effect-richtext/security/advisories/new) button (Security → Advisories), **not** through public issues.
 
-You can expect an initial response within a few days. Please include a description, reproduction steps, and the affected version and entry point (`effect-richtext/<module>`).
+You can expect an initial response within a few days. Please include a description, reproduction steps, and the affected version and entry point (`@thomasfosterau/effect-richtext/<module>`).
 
 ## Supply-chain hardening
 
@@ -25,4 +25,4 @@ The publishing pipeline and its one-time maintainer setup (trusted publisher, pr
 
 ## Scope
 
-`effect-richtext` renders and parses HTML: the DOM parser (`effect-richtext/model`), clipboard handling and the view (`effect-richtext/view`), and the Markdown and HTML helpers. A schema's `parseDOM` / `toDOM` rules decide what markup survives, as in ProseMirror; content from an untrusted source should be parsed with a schema that admits only the nodes, marks and attributes you mean to render. A way to get script execution, or markup a schema does not admit, through those paths is in scope for a report.
+`@thomasfosterau/effect-richtext` renders and parses HTML: the DOM parser (`@thomasfosterau/effect-richtext/model`), clipboard handling and the view (`@thomasfosterau/effect-richtext/view`), and the Markdown and HTML helpers. A schema's `parseDOM` / `toDOM` rules decide what markup survives, as in ProseMirror; content from an untrusted source should be parsed with a schema that admits only the nodes, marks and attributes you mean to render. A way to get script execution, or markup a schema does not admit, through those paths is in scope for a report.

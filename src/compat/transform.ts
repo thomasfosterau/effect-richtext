@@ -1,6 +1,6 @@
 /**
  * A `prosemirror-transform`-compatible facade over
- * `effect-richtext/transform`.
+ * `@thomasfosterau/effect-richtext/transform`.
  *
  * `Step` can be subclassed exactly like ProseMirror's: a subclass of
  * the facade `Step` is adapted into a core step (see `toCore`), so

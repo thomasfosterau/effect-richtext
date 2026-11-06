@@ -1,12 +1,23 @@
 // Ported from prosemirror-schema-list/test/test-commands.ts (MIT, Marijn Haverbeke and others).
-// Changes: imports only (ProseMirror packages -> effect-richtext/compat/*, ist ->
+// Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
 // ../../utils/ist.ts, mocha describe/it -> @effect/vitest; type-only imports
 // marked as such) and dprint formatting.
 import { describe, it } from "@effect/vitest"
-import type { Node } from "effect-richtext/compat/model"
-import { liftListItem, sinkListItem, splitListItem, wrapInList } from "effect-richtext/compat/schema-list"
-import { type Command, EditorState, NodeSelection, Selection, TextSelection } from "effect-richtext/compat/state"
-import { blockquote, doc, eq, li, ol, p, schema, ul } from "effect-richtext/compat/test-builder"
+import type { Node } from "@thomasfosterau/effect-richtext/compat/model"
+import {
+  liftListItem,
+  sinkListItem,
+  splitListItem,
+  wrapInList
+} from "@thomasfosterau/effect-richtext/compat/schema-list"
+import {
+  type Command,
+  EditorState,
+  NodeSelection,
+  Selection,
+  TextSelection
+} from "@thomasfosterau/effect-richtext/compat/state"
+import { blockquote, doc, eq, li, ol, p, schema, ul } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
 
 function selFor(doc: Node) {

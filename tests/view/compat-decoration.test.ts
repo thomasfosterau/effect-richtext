@@ -1,5 +1,5 @@
 // Ported from prosemirror-view/test/webtest-decoration.ts (MIT, Marijn Haverbeke and others).
-// Changes: imports only (ProseMirror packages -> effect-richtext/compat/*, ist ->
+// Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
 // ../utils/ist.ts, ./view.js -> ./compat-view.ts, mocha describe/it ->
 // @effect/vitest; type-only imports marked as such) and dprint formatting
 import { describe, it } from "@effect/vitest"
@@ -7,11 +7,17 @@ import * as Arr from "effect/Array"
 import * as Order from "effect/Order"
 import * as Predicate from "effect/Predicate"
 import * as EffectSchema from "effect/Schema"
-import type { Node } from "effect-richtext/compat/model"
-import { Fragment, NodeRange, Schema, Slice } from "effect-richtext/compat/model"
-import { blockquote, builders, doc, h1, li, p, schema, ul } from "effect-richtext/compat/test-builder"
-import { liftTarget, ReplaceAroundStep, ReplaceStep, StepMap, Transform } from "effect-richtext/compat/transform"
-import { Decoration, DecorationSet } from "effect-richtext/compat/view"
+import type { Node } from "@thomasfosterau/effect-richtext/compat/model"
+import { Fragment, NodeRange, Schema, Slice } from "@thomasfosterau/effect-richtext/compat/model"
+import { blockquote, builders, doc, h1, li, p, schema, ul } from "@thomasfosterau/effect-richtext/compat/test-builder"
+import {
+  liftTarget,
+  ReplaceAroundStep,
+  ReplaceStep,
+  StepMap,
+  Transform
+} from "@thomasfosterau/effect-richtext/compat/transform"
+import { Decoration, DecorationSet } from "@thomasfosterau/effect-richtext/compat/view"
 import ist from "../utils/ist.ts"
 
 const widget = document.createElement("button")

@@ -1,5 +1,5 @@
 ---
-"effect-richtext": minor
+"@thomasfosterau/effect-richtext": minor
 ---
 
 Tighten the document schema's types. These are type-level changes that may reject code that compiled before; runtime behaviour is unchanged.

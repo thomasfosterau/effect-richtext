@@ -2,8 +2,8 @@
 // `vp run check` type-checks this file (tsconfig.test.json); it is never
 // executed. Every `@ts-expect-error` directive is an assertion that the
 // statement below it must NOT compile.
-import type { Transform } from "effect-richtext/transform"
-import { schema } from "effect-richtext/test-builder"
+import type { Transform } from "@thomasfosterau/effect-richtext/transform"
+import { schema } from "@thomasfosterau/effect-richtext/test-builder"
 
 declare const tr: Transform<typeof schema>
 

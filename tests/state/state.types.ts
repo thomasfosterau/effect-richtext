@@ -4,9 +4,9 @@
 // statement below it must NOT compile.
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
-import type { AnySchema } from "effect-richtext/model"
-import { EditorState, Plugin, type Transaction } from "effect-richtext/state"
-import { schema } from "effect-richtext/test-builder"
+import type { AnySchema } from "@thomasfosterau/effect-richtext/model"
+import { EditorState, Plugin, type Transaction } from "@thomasfosterau/effect-richtext/state"
+import { schema } from "@thomasfosterau/effect-richtext/test-builder"
 
 class Counter extends Context.Service<Counter, { readonly step: number }>()("typetest/Counter") {}
 

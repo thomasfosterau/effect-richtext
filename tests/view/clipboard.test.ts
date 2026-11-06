@@ -1,13 +1,13 @@
 // Ported from prosemirror-view/test/webtest-clipboard.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
-import { Content, DocSchema, Fragment, Slice } from "effect-richtext/model"
-import { NodeSelection, TextSelection } from "effect-richtext/state"
-import { blockquote, br, doc, eq, hr, li, ol, p, strong, ul } from "effect-richtext/test-builder"
+import { Content, DocSchema, Fragment, Slice } from "@thomasfosterau/effect-richtext/model"
+import { NodeSelection, TextSelection } from "@thomasfosterau/effect-richtext/state"
+import { blockquote, br, doc, eq, hr, li, ol, p, strong, ul } from "@thomasfosterau/effect-richtext/test-builder"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 import { tempEditor } from "./helpers.ts"
 
-import { __parseFromClipboard } from "effect-richtext/view"
+import { __parseFromClipboard } from "@thomasfosterau/effect-richtext/view"
 
 const embedContext = (url: string) => `<p data-pm-slice='1 1 ["embed",{"url":"${url}"}]'>hi</p>`
 

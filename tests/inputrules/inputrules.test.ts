@@ -8,10 +8,10 @@ import {
   openDoubleQuote,
   textblockTypeInputRule,
   wrappingInputRule
-} from "effect-richtext/inputrules"
-import type { Node } from "effect-richtext/model"
-import { EditorState, TextSelection, type Transaction } from "effect-richtext/state"
-import { blockquote, doc, eq, h1, h3, li, ol, p, pre, schema, ul } from "effect-richtext/test-builder"
+} from "@thomasfosterau/effect-richtext/inputrules"
+import type { Node } from "@thomasfosterau/effect-richtext/model"
+import { EditorState, TextSelection, type Transaction } from "@thomasfosterau/effect-richtext/state"
+import { blockquote, doc, eq, h1, h3, li, ol, p, pre, schema, ul } from "@thomasfosterau/effect-richtext/test-builder"
 import ist from "../utils/ist.ts"
 
 const nodes = schema.nodes

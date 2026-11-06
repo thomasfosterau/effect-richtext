@@ -1,5 +1,5 @@
 /**
- * A `prosemirror-model`-compatible facade over `effect-richtext/model`.
+ * A `prosemirror-model`-compatible facade over `@thomasfosterau/effect-richtext/model`.
  *
  * The classes exported here have the API of their ProseMirror
  * counterparts (nullable results instead of `Option`, exceptions

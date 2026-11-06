@@ -1,15 +1,15 @@
 // Ported from prosemirror-view/test/webtest-clipboard.ts (MIT, Marijn Haverbeke and others).
-// Changes: imports only (ProseMirror packages -> effect-richtext/compat/*, ist ->
+// Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
 // ../utils/ist.ts, ./view.js -> ./compat-view.ts, mocha describe/it ->
 // @effect/vitest; type-only imports marked as such) and dprint formatting
 import { describe, it } from "@effect/vitest"
-import { Fragment, Schema, Slice } from "effect-richtext/compat/model"
-import { NodeSelection, TextSelection } from "effect-richtext/compat/state"
-import { blockquote, br, doc, eq, hr, li, ol, p, strong, ul } from "effect-richtext/compat/test-builder"
+import { Fragment, Schema, Slice } from "@thomasfosterau/effect-richtext/compat/model"
+import { NodeSelection, TextSelection } from "@thomasfosterau/effect-richtext/compat/state"
+import { blockquote, br, doc, eq, hr, li, ol, p, strong, ul } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../utils/ist.ts"
 import { tempEditor } from "./compat-view.ts"
 
-import { __parseFromClipboard as parseFromClipboard } from "effect-richtext/compat/view"
+import { __parseFromClipboard as parseFromClipboard } from "@thomasfosterau/effect-richtext/compat/view"
 
 describe("Clipboard interface", () => {
   it("copies only the node for a node selection", () => {

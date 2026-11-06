@@ -1,8 +1,8 @@
 // Ported from prosemirror-model/test/test-diff.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
 import * as Option from "effect/Option"
-import type { Node } from "effect-richtext/model"
-import { blockquote, doc, em, h1, h2, p, strong, tagsOf } from "effect-richtext/test-builder"
+import type { Node } from "@thomasfosterau/effect-richtext/model"
+import { blockquote, doc, em, h1, h2, p, strong, tagsOf } from "@thomasfosterau/effect-richtext/test-builder"
 import ist from "../utils/ist.ts"
 
 describe("Fragment", () => {

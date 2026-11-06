@@ -8,7 +8,7 @@
     // first (vite.config.ts's `resolve.alias` does the same at run time).
     // Relative to this file; TypeScript 7 removed `baseUrl`.
     "paths": {
-      "effect-richtext/*": ["./src/*.ts"]
+      "@thomasfosterau/effect-richtext/*": ["./src/*.ts"]
     },
     // Test code is ported from ProseMirror's suites, which leave parameters
     // and locals unused in callbacks and fixtures.

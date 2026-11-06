@@ -1,12 +1,12 @@
-// Tests for effect-richtext/dropcursor (prosemirror-dropcursor has no
+// Tests for @thomasfosterau/effect-richtext/dropcursor (prosemirror-dropcursor has no
 // test suite of its own).
 import { afterEach, describe, it } from "@effect/vitest"
-import { dropCursor } from "effect-richtext/dropcursor"
-import { DocSchema } from "effect-richtext/model"
-import { marks, nodes } from "effect-richtext/schema-basic"
-import { EditorState } from "effect-richtext/state"
-import { doc, hr, p } from "effect-richtext/test-builder"
-import { EditorView } from "effect-richtext/view"
+import { dropCursor } from "@thomasfosterau/effect-richtext/dropcursor"
+import { DocSchema } from "@thomasfosterau/effect-richtext/model"
+import { marks, nodes } from "@thomasfosterau/effect-richtext/schema-basic"
+import { EditorState } from "@thomasfosterau/effect-richtext/state"
+import { doc, hr, p } from "@thomasfosterau/effect-richtext/test-builder"
+import { EditorView } from "@thomasfosterau/effect-richtext/view"
 import ist from "../utils/ist.ts"
 import { tempEditor, workspace } from "./helpers.ts"
 

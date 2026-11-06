@@ -1,5 +1,5 @@
 /**
- * A `prosemirror-view`-compatible facade over `effect-richtext/view`.
+ * A `prosemirror-view`-compatible facade over `@thomasfosterau/effect-richtext/view`.
  *
  * `new EditorView(place, props)` creates a core view with
  * `EditorView.makeUnsafe`, translating the ProseMirror-style props

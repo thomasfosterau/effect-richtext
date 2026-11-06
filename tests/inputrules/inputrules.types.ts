@@ -6,9 +6,9 @@ import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
-import { emDash, InputRule, inputRules, type InputRulesState } from "effect-richtext/inputrules"
-import type { AnySchema } from "effect-richtext/model"
-import type { Plugin } from "effect-richtext/state"
+import { emDash, InputRule, inputRules, type InputRulesState } from "@thomasfosterau/effect-richtext/inputrules"
+import type { AnySchema } from "@thomasfosterau/effect-richtext/model"
+import type { Plugin } from "@thomasfosterau/effect-richtext/state"
 
 class Counter extends Context.Service<Counter, { readonly step: number }>()("typetest/Counter") {}
 class Boom extends Schema.TaggedError<Boom>()("Boom", { message: Schema.String }) {}

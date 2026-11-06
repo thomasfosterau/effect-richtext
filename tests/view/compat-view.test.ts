@@ -1,12 +1,12 @@
 // Ported from prosemirror-view/test/webtest-view.ts (MIT, Marijn Haverbeke and others).
-// Changes: imports only (ProseMirror packages -> effect-richtext/compat/*, ist ->
+// Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
 // ../utils/ist.ts, ./view.js -> ./compat-view.ts, mocha describe/it ->
 // @effect/vitest; type-only imports marked as such) and dprint formatting
 import { describe, it } from "@effect/vitest"
-import { Schema } from "effect-richtext/compat/model"
-import { EditorState } from "effect-richtext/compat/state"
-import { doc, em, hr, li, p, schema, strong, ul } from "effect-richtext/compat/test-builder"
-import { EditorView } from "effect-richtext/compat/view"
+import { Schema } from "@thomasfosterau/effect-richtext/compat/model"
+import { EditorState } from "@thomasfosterau/effect-richtext/compat/state"
+import { doc, em, hr, li, p, schema, strong, ul } from "@thomasfosterau/effect-richtext/compat/test-builder"
+import { EditorView } from "@thomasfosterau/effect-richtext/compat/view"
 import ist from "../utils/ist.ts"
 import { tempEditor } from "./compat-view.ts"
 

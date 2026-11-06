@@ -1,6 +1,6 @@
 {
   "$schema": "https://www.schemastore.org/package",
-  "name": "effect-richtext",
+  "name": "@thomasfosterau/effect-richtext",
   "version": "0.0.0",
   "description": "An Effect-native reimplementation of the ProseMirror rich text editing toolkit: typed schemas and documents, transforms, editor state, a DOM view, keymaps, commands, history, input rules, Markdown and HTML serializers, typed extensions and a ProseMirror-compatible facade.",
   "keywords": [
