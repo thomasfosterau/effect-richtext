@@ -19,6 +19,8 @@ catalog:
   "@changesets/cli": ^3.0.3
   # Compiles AND RUNS every JSDoc `@example` (the `docgen` task); needs `tsx`
   # and a TypeScript JS API — the TS6 alias below satisfies its peer.
+  # It depends on `effect` / `@effect/platform-node` at its own version, so it
+  # moves in Dependabot's `effect` group, never ahead of the `effect` pin.
   "@effect/docgen": ^4.0.6
   "@effect/language-service": ^0.87.5
   # tests/bench/run.ts spawns its worker processes through `effect/process`;
@@ -42,7 +44,8 @@ catalog:
   # `vp check` runs. 0.9.0 depends on `effect` 4.1.0 (exact) but runs on the
   # singleton (the `effect` override below); its load in `vite.config.ts`
   # calls Effect APIs, so an `effect` bump re-runs `vp check` against it too.
-  # Moves with the toolchain group (it is checked against vite-plus's oxlint).
+  # Not in the toolchain group: it ranges `@oxlint/plugins` rather than
+  # pinning vite-plus's oxlint, so Dependabot proposes it on its own.
   "@enfect/oxlint": 0.9.0
   "@types/node": ^26.6.6
   # The Playwright provider behind `vite-plus/test/browser-playwright` (the

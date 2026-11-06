@@ -1,29 +1,29 @@
 # Dependabot version updates. Every version lives in pnpm-workspace.yaml's
 # catalog, which Dependabot edits along with pnpm-lock.yaml.
 #
-# Groups collect the dependencies that MUST move together, so a lockstep set
-# arrives as one PR instead of a set of PRs that are each red on their own.
-# A dependency joins the FIRST group whose patterns match it, so the groups run
-# specific → general:
+# Groups exist only for dependencies that MUST move together, so a lockstep
+# set arrives as one PR instead of a set of PRs that are each red on their own.
+# Everything else (`tsx`, `fallow`, `@changesets/*`, the `prosemirror-*`
+# reference tests/bench/ compares against, `@enfect/oxlint`, …) updates in its
+# own PR; there is no catch-all. A dependency joins the FIRST group whose
+# patterns match it:
 #
 # - `toolchain`: vite-plus pins `oxlint`, `oxfmt`, `oxlint-tsgolint` and
-#   `vitest` exactly, `vite` / `vitest` / `@vitest/*` must equal its pins, and
-#   `effect-tsgo patch` (the `prepare` script) matches the native `tsc`
-#   (`@typescript/native`) and `oxlint` by gitHead, hard-erroring
-#   (UnsupportedTargetPackageVersionError) on any pairing it has no artifact
-#   for. The TS6 alias (`typescript` → `@typescript/typescript6`) and the
-#   Effect lint rules (`@enfect/oxlint`, checked against vite-plus's oxlint)
-#   ride along. Read the catalog comments before merging. When the new
-#   vite-plus carries an oxlint that the pinned `@effect/tsgo` has no artifact
-#   for, the PR fails at `pnpm install`: pick the `@effect/tsgo` whose
-#   `components` table covers it, by hand, on that PR's branch.
-# - `docgen`: `@effect/docgen` runs its examples under `tsx`.
-# - `effect`: the Effect 4 line is a lockstep-versioned singleton set
-#   (`@effect/tsgo` and `@effect/docgen` are claimed by the groups above).
-# - `changesets`, `fallow`: their own release cadences.
-# - `prosemirror`: the reference implementation tests/bench/
-#   compares against; a release there is upstream work to port.
-# - `minor-and-patch`: everything else; majors outside a group arrive alone.
+#   `vitest` exactly (the first three are transitive pins), `vitest` /
+#   `@vitest/*` must equal its pins, and `effect-tsgo patch` (the `prepare`
+#   script) matches the native `tsc` (`@typescript/native`) and `oxlint` by
+#   gitHead, hard-erroring (UnsupportedTargetPackageVersionError) on any
+#   pairing it has no artifact for. Read the catalog comments before merging.
+#   When the new vite-plus carries an oxlint that the pinned `@effect/tsgo` has
+#   no artifact for, the PR fails at `pnpm install`: pick the `@effect/tsgo`
+#   whose `components` table covers it, by hand, on that PR's branch.
+#   `@enfect/oxlint` ranges its `@oxlint/plugins` dependency, so it is not in
+#   the set.
+# - `effect`: the Effect 4 line is a lockstep-versioned singleton set, and
+#   `@effect/docgen` is on it: each release depends on `effect` and
+#   `@effect/platform-node` at its own version, so it must not run ahead of
+#   the `effect` pin (`@effect/tsgo` and `@effect/language-service` are
+#   versioned separately).
 #
 # Hand moves Dependabot cannot make (do them on the matching group's PR, then
 # `pnpm install` and commit the lockfile):
@@ -61,28 +61,17 @@ updates:
       exclude:
         - "@thomasfosterau/*"
     groups:
+      # vite-plus pins vitest / @vitest/*; @effect/tsgo supports only the
+      # oxlint / tsgolint / TypeScript its components table lists.
       toolchain:
         applies-to: version-updates
         patterns:
           - "vite-plus"
-          - "vite"
           - "vitest"
           - "@vitest/*"
-          - "oxlint"
-          - "oxfmt"
-          - "oxlint-tsgolint"
           - "@effect/tsgo"
-          - "@typescript/native"
-          - "typescript"
-          - "@typescript/typescript6"
-          - "@enfect/oxlint"
         update-types: ["major", "minor", "patch"]
-      docgen:
-        applies-to: version-updates
-        patterns:
-          - "@effect/docgen"
-          - "tsx"
-        update-types: ["major", "minor", "patch"]
+      # One release train: `effect`, `@effect/*` and `@effect/docgen`.
       effect:
         applies-to: version-updates
         patterns:
@@ -90,28 +79,8 @@ updates:
           - "@effect/*"
         exclude-patterns:
           - "@effect/tsgo"
-          - "@effect/docgen"
+          - "@effect/language-service"
         update-types: ["major", "minor", "patch"]
-      changesets:
-        applies-to: version-updates
-        patterns:
-          - "@changesets/*"
-        update-types: ["major", "minor", "patch"]
-      fallow:
-        applies-to: version-updates
-        patterns:
-          - "fallow"
-        update-types: ["major", "minor", "patch"]
-      prosemirror:
-        applies-to: version-updates
-        patterns:
-          - "prosemirror-*"
-        update-types: ["major", "minor", "patch"]
-      minor-and-patch:
-        applies-to: version-updates
-        patterns:
-          - "*"
-        update-types: ["minor", "patch"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -125,8 +94,4 @@ updates:
       include: "scope"
     cooldown:
       default-days: 1
-    groups:
-      github-actions:
-        applies-to: version-updates
-        patterns:
-          - "*"
+    # No groups: each action updates in its own PR.
