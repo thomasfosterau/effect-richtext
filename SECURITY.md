@@ -16,7 +16,7 @@ This package is published with a hardened, automated pipeline designed to resist
 - **Pinned actions.** All GitHub Actions are pinned to full commit SHAs, so a hijacked tag cannot inject malicious workflow code.
 - **Least privilege.** Workflows default to `permissions: {}`; each job opts into only the scopes it needs. CI checks out with `persist-credentials: false`.
 - **Small runtime surface.** The package's runtime dependencies are `markdown-it`, `rope-sequence` and `w3c-keyname`; `effect` is a peer the consuming application owns. `pnpm audit --audit-level high` runs in CI.
-- **Manual approval gate.** Publishing runs in a protected `release` environment that requires manual approval.
+- **Manual approval gate.** Publishing runs in a protected `release` environment that requires manual approval. The Release workflow splits versioning from publishing (changesets/action's `select-mode`, `version` and `publish` sub-actions): only its `publish` job runs in that environment and holds `id-token: write`, so refreshing the version PR needs no approval and cannot publish.
 - **Locked dependencies with a cooling-off period.** Installs use `pnpm install --frozen-lockfile` against the committed `pnpm-lock.yaml`; `minimumReleaseAge` holds newly published third-party versions for a day before pnpm will install them; Dependabot proposes updates for review with the same cooldown.
 
 ## Release pipeline
