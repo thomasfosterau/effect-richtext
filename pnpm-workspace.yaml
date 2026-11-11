@@ -69,7 +69,7 @@ catalog:
   # the port tracks.
   prosemirror-commands: ^1.7.2
   prosemirror-history: ^1.5.1
-  prosemirror-model: ^1.25.12
+  prosemirror-model: ^1.25.13
   prosemirror-schema-list: ^1.6.0
   prosemirror-state: ^1.4.4
   prosemirror-test-builder: ^1.1.1
