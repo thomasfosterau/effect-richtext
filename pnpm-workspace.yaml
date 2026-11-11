@@ -37,7 +37,7 @@ catalog:
   # on any other component version, failing `pnpm install` itself. Read the
   # `components` table in node_modules/@effect/tsgo/dist/effect-tsgo.cjs
   # before bumping any of the three.
-  "@effect/tsgo": 0.67.3
+  "@effect/tsgo": 0.67.5
   # `it.effect` / `layer` helpers on top of the vitest singleton below.
   "@effect/vitest": 4.1.2
   # The Effect lint rules (`effect/*`, the anti-slop set included) that
