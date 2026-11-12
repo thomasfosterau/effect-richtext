@@ -45,16 +45,14 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Setup pnpm
-        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-      - name: Setup Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - name: Setup Vite+ and install dependencies
+        uses: voidzero-dev/setup-vp@v1.22.0
         with:
-          node-version: 22.x
-          cache: pnpm
+          node-version: "22"
+          cache: true
           registry-url: https://registry.npmjs.org
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+          run-install: |
+            args: ['--frozen-lockfile', '--ignore-scripts']
       - name: Select mode
         id: mode
         uses: changesets/action/select-mode@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
@@ -78,16 +76,14 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Setup pnpm
-        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-      - name: Setup Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - name: Setup Vite+ and install dependencies
+        uses: voidzero-dev/setup-vp@v1.22.0
         with:
-          node-version: 22.x
-          cache: pnpm
+          node-version: "22"
+          cache: true
           registry-url: https://registry.npmjs.org
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+          run-install: |
+            args: ['--frozen-lockfile', '--ignore-scripts']
       - name: Create or update the version PR
         uses: changesets/action/version@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         with:
@@ -138,26 +134,22 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      # Installs the pnpm version pinned by the package.json "packageManager"
-      # field. Must run before setup-node so its pnpm cache can find the store.
-      - name: Setup pnpm
-        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          # A pinned major (the `engines` floor), never `latest`: setup-node
-          # resolves `latest` to a Node pre-release, and a publish must not run
-          # on one.
-          node-version: 22.x
-          cache: pnpm
-          registry-url: https://registry.npmjs.org
-
+      # voidzero-dev/setup-vp installs the Vite+ CLI at the repo's `vite-plus`
+      # pin, Node.js and the pnpm named by package.json's `packageManager`, then
+      # runs `vp install` with the arguments below. It is pinned to an exact
+      # release tag (see .github/zizmor.yml).
+      #
+      # Node: a pinned major (the `engines` floor), never `latest` or a
+      # pre-release; a publish must not run on one.
+      #
+      # No dependency cache in this job: it holds `id-token: write`, so it
+      # installs from the registry rather than trust a cache another run wrote.
+      #
       # No npm upgrade: pnpm 11 publishes natively (libnpmpublish; it no
       # longer shells out to `npm publish`) and performs the OIDC trusted
       # publishing exchange itself, so the npm bundled with Node is never on
       # the publish path. See PUBLISHING.md.
-
+      #
       # --ignore-scripts stops a compromised dependency from running install
       # scripts in the privileged publish job (the Shai-Hulud vector). It also
       # skips this workspace's own `prepare` (git hooks + the tsc/oxlint
@@ -165,8 +157,14 @@ jobs:
       # because `pnpm_config_verify_deps_before_run` is off for this job (see
       # the job `env` above); otherwise a later `pnpm run` could re-install
       # with scripts.
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Setup Vite+ and install dependencies
+        uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          node-version: "22"
+          cache: false
+          registry-url: https://registry.npmjs.org
+          run-install: |
+            args: ['--frozen-lockfile', '--ignore-scripts']
 
       # Once the version PR has merged (no changesets remain), this runs `pnpm
       # run release`, which builds the package, publishes it with `pnpm publish
