@@ -49,7 +49,7 @@ A new entry is added to `entries` in `vite.config.ts`, to `exports` in `package.
 
 - `pnpm install` — dependencies plus the Vite+ git hooks (pre-commit runs `vp staged`: format + lint on staged files) and the `prepare` step that patches the native `tsc` / `oxlint` with `@effect/tsgo`. No pre-push hook: run the gates yourself.
 - `vp check` — format + lint (Oxfmt + Oxlint, type-aware through oxlint-tsgolint with `typeCheck` on). `vp run check` — the type gate: `src` under `tsconfig.json`, then the tests (including `tests/**/*.types.ts`) under `tsconfig.test.json`. They are different commands.
-- `vp run ci` — every CI gate in order (format and lint, the type gate, unit and browser tests, build, docgen, `pnpm audit`), stopping at the first failure; it is the one command CI runs. A new gate is added to this task in `vite.config.ts`, never as a workflow step.
+- `vp run ci` — every CI gate in order (a released-Node check, format and lint, the type gate, unit and browser tests, build, docgen, `pnpm audit`), stopping at the first failure; it is the one command CI runs. A new gate is added to this task in `vite.config.ts`, never as a workflow step.
 - `vp run test:unit` — the `node` test project (happy-dom).
 - `vp run test:browser` — the `browser` project: prosemirror-view's suites in headless Chromium via Playwright. Needs a Chromium: `vp exec playwright install chromium`, or point `PLAYWRIGHT_CHROMIUM_EXECUTABLE` at an installed one (agent containers: `/opt/pw-browsers/chromium`).
 - `vp run build` — `vp pack` → `dist/`.

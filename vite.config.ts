@@ -400,7 +400,16 @@ export default defineConfig({
       // the audit) always run.
       ci: {
         command:
-          "vp check && vp run check && vp run test:unit && vp run browser:install && vp run test:browser && vp run build && vp run docgen && pnpm audit --audit-level high",
+          "vp run node:released && vp check && vp run check && vp run test:unit && vp run browser:install && vp run test:browser && vp run build && vp run docgen && pnpm audit --audit-level high",
+        cache: false
+      },
+      // Prints the Node version and fails on a pre-release (a version with a
+      // `-`, such as `v27.0.0-alpha.0`): what the CI matrix's `latest` alias
+      // resolves to depends on the Vite+ version, so a green leg must itself
+      // prove it ran on a released Node.
+      "node:released": {
+        command:
+          "node -e \"console.log('Node ' + process.version); if (process.version.includes('-')) { console.error('pre-release Node ' + process.version); process.exit(1) }\"",
         cache: false
       },
       // The Chromium the pinned `playwright` expects, for `test:browser`.
