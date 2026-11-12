@@ -158,7 +158,7 @@ declare const user: Editor<TypesOf<typeof userExt>>
 void user.commands.repeat("a")
 const repeat = user.commands.repeat("a", 2)
 type _repeat = Expect<Equals<typeof repeat, Effect.Effect<boolean, Boom, Svc>>>
-const chained = user.chain().repeat("a", 1).toggleMark("em").run()
+const chained = user.chain().repeat("a", 1).toggleMark("em").run
 type _chained = Expect<Equals<typeof chained, Effect.Effect<boolean, Boom, Svc>>>
 // @ts-expect-error -- the schema has no `nope` mark
 void user.chain().repeat("a", 1).toggleMark("nope")
