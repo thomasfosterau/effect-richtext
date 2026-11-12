@@ -79,7 +79,7 @@ export function parseFromClipboard(
   const asText = !!text && (plainText || inCode || !html)
   if (asText) {
     view.someProp("transformPastedText", (f) => {
-      text = f(text, !!(inCode || plainText), view)
+      text = f(text, inCode || plainText, view)
     })
     if (inCode) {
       slice = new Slice(Fragment.from(view.state.schema.textUnsafe(text.replace(/\r\n?/g, "\n"))), 0, 0)

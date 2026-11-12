@@ -1040,7 +1040,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     }
     const exit = this.runEffect(result as Effect.Effect<boolean, unknown, R>)
     if (exit === undefined) return true
-    return Exit.isSuccess(exit) ? !!exit.value : false
+    return Exit.isSuccess(exit) ? exit.value : false
   }
 
   /**
@@ -1379,7 +1379,7 @@ function computeDocDeco(view: EditorView<any, any, any>) {
         } else if (attr == "style") {
           attrs.style = (attrs.style ? attrs.style + ";" : "") + value[attr]
         } else if (!attrs[attr] && attr != "contenteditable" && attr != "nodeName") {
-          attrs[attr] = String(value[attr])
+          attrs[attr] = value[attr]
         }
       }
     }
@@ -1405,7 +1405,7 @@ function updateCursorWrapper(view: EditorView<any, any, any>) {
 }
 
 function getEditable(view: EditorView<any, any, any>) {
-  return !view.someProp("editable", (value) => value(view.state as EditorState<any>) === false)
+  return !view.someProp("editable", (value) => !value(view.state as EditorState<any>))
 }
 
 function selectionContextChanged(sel1: Selection<any>, sel2: Selection<any>) {

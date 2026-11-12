@@ -113,8 +113,8 @@ export const make = <Sc extends AnySchema, R = never, E = never>(
         let failure: Cause.Cause<E | StateFailure> | undefined
         const commandDispatch: Dispatch<Sc> = (tr) =>
           failure ? Effect.void : Effect.catchCause(dispatch(tr), (cause) => Effect.sync(() => void (failure = cause)))
-        return Effect.flatMap(command(source.ref.value, commandDispatch), (result) =>
-          failure ? Effect.failCause(failure) : Effect.succeed(result)
+        return Effect.tap(command(source.ref.value, commandDispatch), () =>
+          failure ? Effect.failCause(failure) : Effect.void
         )
       })
 

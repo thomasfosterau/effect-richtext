@@ -20,25 +20,26 @@ function mkStep(from: number, to: number, val: string | null) {
   }
 }
 
+function yes(from1: number, to1: number, val1: string | null, from2: number, to2: number, val2: string | null) {
+  return () => {
+    const step1 = mkStep(from1, to1, val1),
+      step2 = mkStep(from2, to2, val2)
+    const merged = step1.merge(step2)
+    ist(merged)
+    ist(merged!.apply(testDoc).doc, step2.apply(step1.apply(testDoc).doc!).doc, eq)
+  }
+}
+
+function no(from1: number, to1: number, val1: string | null, from2: number, to2: number, val2: string | null) {
+  return () => {
+    const step1 = mkStep(from1, to1, val1),
+      step2 = mkStep(from2, to2, val2)
+    ist(!step1.merge(step2))
+  }
+}
+
 describe("Step", () => {
   describe("merge", () => {
-    function yes(from1: number, to1: number, val1: string | null, from2: number, to2: number, val2: string | null) {
-      return () => {
-        const step1 = mkStep(from1, to1, val1),
-          step2 = mkStep(from2, to2, val2)
-        const merged = step1.merge(step2)
-        ist(merged)
-        ist(merged!.apply(testDoc).doc, step2.apply(step1.apply(testDoc).doc!).doc, eq)
-      }
-    }
-    function no(from1: number, to1: number, val1: string | null, from2: number, to2: number, val2: string | null) {
-      return () => {
-        const step1 = mkStep(from1, to1, val1),
-          step2 = mkStep(from2, to2, val2)
-        ist(!step1.merge(step2))
-      }
-    }
-
     it("merges typing changes", yes(2, 2, "a", 3, 3, "b"))
 
     it("merges inverse typing", yes(2, 2, "a", 2, 2, "b"))

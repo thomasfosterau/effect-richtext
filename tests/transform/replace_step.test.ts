@@ -6,21 +6,21 @@ import { ReplaceAroundStep, Transform } from "@thomasfosterau/effect-richtext/tr
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 
-describe("ReplaceAroundStep.map", () => {
-  function test(
-    doc: Node<any>,
-    change: (tr: Transform<any>) => void,
-    otherChange: (tr: Transform<any>) => void,
-    expected: Node<any>
-  ) {
-    const trA = new Transform(doc),
-      trB = new Transform(doc)
-    change(trA)
-    otherChange(trB)
-    const result = new Transform(trB.doc).stepUnsafe(getSome(trA.steps[0]!.map(trB.mapping))).doc
-    ist(result, expected, eq)
-  }
+function test(
+  doc: Node<any>,
+  change: (tr: Transform<any>) => void,
+  otherChange: (tr: Transform<any>) => void,
+  expected: Node<any>
+) {
+  const trA = new Transform(doc),
+    trB = new Transform(doc)
+  change(trA)
+  otherChange(trB)
+  const result = new Transform(trB.doc).stepUnsafe(getSome(trA.steps[0]!.map(trB.mapping))).doc
+  ist(result, expected, eq)
+}
 
+describe("ReplaceAroundStep.map", () => {
   it("doesn't break wrap steps on insertions", () =>
     test(
       doc(p("a")),

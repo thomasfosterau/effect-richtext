@@ -324,6 +324,12 @@ describe("wrapIn", () => {
   it("can wrap a node selection", () => apply(doc("<a>", ul(li(p("foo")))), wrap, doc(blockquote(ul(li(p("foo")))))))
 })
 
+// Attach a `tag` (as recorded by the test builders) to a node.
+const withTag = (node: Node<any>, a: number) => {
+  Object.defineProperty(node, "tag", { value: { a } })
+  return node
+}
+
 describe("splitBlock", () => {
   it("splits a paragraph at the end", () => apply(doc(p("foo<a>")), splitBlock, doc(p("foo"), p())))
 
@@ -363,11 +369,6 @@ describe("splitBlock", () => {
       span: { inline: true, group: "inline", content: Content.parse("inline*") }
     }
   })
-  // Attach a `tag` (as recorded by the test builders) to a node.
-  const withTag = (node: Node<any>, a: number) => {
-    Object.defineProperty(node, "tag", { value: { a } })
-    return node
-  }
   function hDoc(a: number) {
     return withTag(
       hSchema.nodeUnsafe("doc", null, [hSchema.nodeUnsafe("heading", null, hSchema.textUnsafe("foobar"))]),
@@ -601,6 +602,21 @@ describe("autoJoin", () => {
     ))
 })
 
+function footnoteSchema() {
+  const schema = DocSchema.makeUnsafe({
+    nodes: {
+      text: { inline: true },
+      doc: { content: Content.parse("para+") },
+      footnote: { content: Content.parse("text*"), atom: true, inline: true },
+      para: { content: Content.parse("(text | footnote)*") }
+    },
+    marks: {
+      em: {}
+    }
+  })
+  return builders(schema)
+}
+
 describe("toggleMark", () => {
   const toggleEm = toggleMark(schema.marks.em),
     toggleStrong = toggleMark(schema.marks.strong)
@@ -656,21 +672,6 @@ describe("toggleMark", () => {
   it("can remove marks with trailing space when remove-when-present is off", () => {
     apply(doc(p(em("o<a>ne two"), "  <b>three")), toggleEm2, doc(p(em("o"), "ne two  three")))
   })
-
-  function footnoteSchema() {
-    const schema = DocSchema.makeUnsafe({
-      nodes: {
-        text: { inline: true },
-        doc: { content: Content.parse("para+") },
-        footnote: { content: Content.parse("text*"), atom: true, inline: true },
-        para: { content: Content.parse("(text | footnote)*") }
-      },
-      marks: {
-        em: {}
-      }
-    })
-    return builders(schema)
-  }
 
   it("enters inline atoms by default", () => {
     const { doc, em, footnote, para, schema } = footnoteSchema()

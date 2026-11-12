@@ -233,6 +233,25 @@ export type EditorStateTypeId = typeof EditorStateTypeId
  * States whose plugins require no services (`R = never`) can also be
  * updated synchronously with `applyUnsafe`.
  *
+ * @example
+ * ```ts
+ * import * as assert from "node:assert"
+ * import * as Effect from "effect/Effect"
+ * import { EditorState } from "@thomasfosterau/effect-richtext/state"
+ * import { doc, p, schema } from "@thomasfosterau/effect-richtext/test-builder"
+ *
+ * const program = Effect.gen(function* () {
+ *   const state = yield* EditorState.create({ schema, doc: doc(p("Hello")) })
+ *
+ *   // States are persistent: applying a transaction returns a new state.
+ *   const next = yield* state.apply(state.tr.insertTextUnsafe(" world", 6))
+ *   assert.strictEqual(state.doc.textContent, "Hello")
+ *   assert.strictEqual(next.doc.textContent, "Hello world")
+ * })
+ *
+ * Effect.runSync(program)
+ * ```
+ *
  * @since 0.1.0
  * @category models
  */
@@ -482,7 +501,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
     const self = this
     return Effect.gen(function* () {
       if (!tr.before.eq(self.doc)) {
-        return yield* Effect.fail(new StateError({ message: "Applying a mismatched transaction" }))
+        return yield* new StateError({ message: "Applying a mismatched transaction" })
       }
       const newInstance = new EditorState<Sc, R, E>(self.config),
         fields = self.config.fields
@@ -604,10 +623,10 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
     return Effect.gen(function* () {
       const data = json as Record<string, any> | null | undefined
       if (!data || typeof data !== "object") {
-        return yield* Effect.fail(new StateError({ message: "Invalid input for EditorState.fromJSON" }))
+        return yield* new StateError({ message: "Invalid input for EditorState.fromJSON" })
       }
       if (!config.schema) {
-        return yield* Effect.fail(new StateError({ message: "Required config field 'schema' missing" }))
+        return yield* new StateError({ message: "Required config field 'schema' missing" })
       }
       const $config = yield* trySync(() => new Configuration(config.schema, config.plugins))
       const instance = new EditorState<Sc, PluginRequirements<P>, PluginErrors<P>>($config)

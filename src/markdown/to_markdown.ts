@@ -182,6 +182,19 @@ function isPlainURL(link: Mark<any, any>, parent: Node<any, any>, index: number)
  * A serializer for the Markdown schema (or any schema using the same
  * node and mark names).
  *
+ * @example
+ * ```ts
+ * import * as assert from "node:assert"
+ * import * as Effect from "effect/Effect"
+ * import { defaultMarkdownParser, defaultMarkdownSerializer } from "@thomasfosterau/effect-richtext/markdown"
+ *
+ * const source = "# Hello *world*\n\nSome `code`."
+ * const doc = Effect.runSync(defaultMarkdownParser.parse(source))
+ *
+ * // Serializing is synchronous, and round-trips this document.
+ * assert.strictEqual(defaultMarkdownSerializer.serialize(doc), source)
+ * ```
+ *
  * @since 0.1.0
  * @category serializers
  */
