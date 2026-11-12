@@ -8,16 +8,16 @@ import { blockquote, doc, eq, p, schema } from "@thomasfosterau/effect-richtext/
 import { Transform } from "@thomasfosterau/effect-richtext/compat/transform"
 import ist from "../../utils/ist.ts"
 
-describe("ReplaceAroundStep.map", () => {
-  function test(doc: Node, change: (tr: Transform) => void, otherChange: (tr: Transform) => void, expected: Node) {
-    const trA = new Transform(doc),
-      trB = new Transform(doc)
-    change(trA)
-    otherChange(trB)
-    const result = new Transform(trB.doc).step(trA.steps[0].map(trB.mapping)!).doc
-    ist(result, expected, eq)
-  }
+function test(doc: Node, change: (tr: Transform) => void, otherChange: (tr: Transform) => void, expected: Node) {
+  const trA = new Transform(doc),
+    trB = new Transform(doc)
+  change(trA)
+  otherChange(trB)
+  const result = new Transform(trB.doc).step(trA.steps[0].map(trB.mapping)!).doc
+  ist(result, expected, eq)
+}
 
+describe("ReplaceAroundStep.map", () => {
   it("doesn't break wrap steps on insertions", () =>
     test(
       doc(p("a")),

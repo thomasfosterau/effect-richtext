@@ -66,31 +66,32 @@ function range(pos: number, end?: number) {
   return doc.resolveUnsafe(pos).blockRange(end == null ? undefined : doc.resolveUnsafe(end))
 }
 
-describe("canSplit", () => {
-  function yes(pos: number, depth?: number, after?: string) {
-    return () => ist(canSplit(doc, pos, depth, after == null ? undefined : [{ type: schema.nodes[after]! }]))
-  }
-  function no(pos: number, depth?: number, after?: string) {
-    return () => ist(!canSplit(doc, pos, depth, after == null ? undefined : [{ type: schema.nodes[after]! }]))
-  }
+function yesInCansplit(pos: number, depth?: number, after?: string) {
+  return () => ist(canSplit(doc, pos, depth, after == null ? undefined : [{ type: schema.nodes[after]! }]))
+}
 
-  it("can't at start", no(0))
-  it("can't in head", no(3))
-  it("can by making head a para", yes(3, 1, "para"))
-  it("can't on top level", no(6))
-  it("can in regular para", yes(8))
-  it("can't at start of section", no(14))
-  it("can't in section head", no(17))
-  it("can if also splitting the section", yes(17, 2))
-  it("can if making the remaining head a para", yes(18, 1, "para"))
-  it("can't after the section head", no(46))
-  it("can in the first section para", yes(48))
-  it("can't in the figure caption", no(60))
-  it("can't if it also splits the figure", no(62, 2))
-  it("can't after the figure caption", no(72))
-  it("can in the first para in a quote", yes(76))
-  it("can if it also splits the quote", yes(77, 2))
-  it("can't at the end of the document", no(97))
+function noInCansplit(pos: number, depth?: number, after?: string) {
+  return () => ist(!canSplit(doc, pos, depth, after == null ? undefined : [{ type: schema.nodes[after]! }]))
+}
+
+describe("canSplit", () => {
+  it("can't at start", noInCansplit(0))
+  it("can't in head", noInCansplit(3))
+  it("can by making head a para", yesInCansplit(3, 1, "para"))
+  it("can't on top level", noInCansplit(6))
+  it("can in regular para", yesInCansplit(8))
+  it("can't at start of section", noInCansplit(14))
+  it("can't in section head", noInCansplit(17))
+  it("can if also splitting the section", yesInCansplit(17, 2))
+  it("can if making the remaining head a para", yesInCansplit(18, 1, "para"))
+  it("can't after the section head", noInCansplit(46))
+  it("can in the first section para", yesInCansplit(48))
+  it("can't in the figure caption", noInCansplit(60))
+  it("can't if it also splits the figure", noInCansplit(62, 2))
+  it("can't after the figure caption", noInCansplit(72))
+  it("can in the first para in a quote", yesInCansplit(76))
+  it("can if it also splits the quote", yesInCansplit(77, 2))
+  it("can't at the end of the document", noInCansplit(97))
 
   it("doesn't return true when the split-off content doesn't fit in the given node type", () => {
     const { doc: _doc, ...rest } = schema.spec.nodes
@@ -121,26 +122,27 @@ describe("canSplit", () => {
   })
 })
 
-describe("liftTarget", () => {
-  function yes(pos: number) {
-    return () => {
-      const r = range(pos)
-      ist(Option.isSome(r) && Option.isSome(liftTarget(r.value)))
-    }
+function yesInLifttarget(pos: number) {
+  return () => {
+    const r = range(pos)
+    ist(Option.isSome(r) && Option.isSome(liftTarget(r.value)))
   }
-  function no(pos: number) {
-    return () => {
-      const r = range(pos)
-      ist(!(Option.isSome(r) && Option.getOrNull(liftTarget(r.value))))
-    }
-  }
+}
 
-  it("can't at the start of the doc", no(0))
-  it("can't in the heading", no(3))
-  it("can't in a subsection para", no(52))
-  it("can't in a figure caption", no(70))
-  it("can from a quote", yes(76))
-  it("can't in a section head", no(86))
+function noInLifttarget(pos: number) {
+  return () => {
+    const r = range(pos)
+    ist(!(Option.isSome(r) && Option.getOrNull(liftTarget(r.value))))
+  }
+}
+
+describe("liftTarget", () => {
+  it("can't at the start of the doc", noInLifttarget(0))
+  it("can't in the heading", noInLifttarget(3))
+  it("can't in a subsection para", noInLifttarget(52))
+  it("can't in a figure caption", noInLifttarget(70))
+  it("can from a quote", yesInLifttarget(76))
+  it("can't in a section head", noInLifttarget(86))
 
   it("notices unliftable content after or before", () => {
     const s = DocSchema.makeUnsafe({
@@ -163,46 +165,47 @@ describe("liftTarget", () => {
   })
 })
 
-describe("findWrapping", () => {
-  function yes(pos: number, end: number, type: string) {
-    return () => {
-      const r = range(pos, end)
-      ist(Option.isSome(r) && Option.isSome(findWrapping(r.value, schema.nodes[type]!)))
-    }
+function yesInFindwrapping(pos: number, end: number, type: string) {
+  return () => {
+    const r = range(pos, end)
+    ist(Option.isSome(r) && Option.isSome(findWrapping(r.value, schema.nodes[type]!)))
   }
-  function no(pos: number, end: number, type: string) {
-    return () => {
-      const r = range(pos, end)
-      ist(Option.isNone(r) || Option.isNone(findWrapping(r.value, schema.nodes[type]!)))
-    }
-  }
+}
 
-  it("can wrap the whole doc in a section", yes(0, 92, "sect"))
-  it("can't wrap a head before a para in a section", no(4, 4, "sect"))
-  it("can wrap a top paragraph in a quote", yes(8, 8, "quote"))
-  it("can't wrap a section head in a quote", no(18, 18, "quote"))
-  it("can wrap a figure in a quote", yes(55, 74, "quote"))
-  it("can't wrap a head in a figure", no(90, 90, "figure"))
+function noInFindwrapping(pos: number, end: number, type: string) {
+  return () => {
+    const r = range(pos, end)
+    ist(Option.isNone(r) || Option.isNone(findWrapping(r.value, schema.nodes[type]!)))
+  }
+}
+
+describe("findWrapping", () => {
+  it("can wrap the whole doc in a section", yesInFindwrapping(0, 92, "sect"))
+  it("can't wrap a head before a para in a section", noInFindwrapping(4, 4, "sect"))
+  it("can wrap a top paragraph in a quote", yesInFindwrapping(8, 8, "quote"))
+  it("can't wrap a section head in a quote", noInFindwrapping(18, 18, "quote"))
+  it("can wrap a figure in a quote", yesInFindwrapping(55, 74, "quote"))
+  it("can't wrap a head in a figure", noInFindwrapping(90, 90, "figure"))
 })
+
+function repl(
+  doc: Node<any>,
+  from: number,
+  to: number,
+  content: Node<any> | null,
+  openStart: number,
+  openEnd: number,
+  result: Node<any>
+) {
+  return () => {
+    const slice = content ? new Slice(content.content, openStart, openEnd) : Slice.empty
+    const tr = new Transform(doc).replaceUnsafe(from, to, slice)
+    ist(tr.doc, result, eq)
+  }
+}
 
 describe("Transform", () => {
   describe("replace", () => {
-    function repl(
-      doc: Node<any>,
-      from: number,
-      to: number,
-      content: Node<any> | null,
-      openStart: number,
-      openEnd: number,
-      result: Node<any>
-    ) {
-      return () => {
-        const slice = content ? new Slice(content.content, openStart, openEnd) : Slice.empty
-        const tr = new Transform(doc).replaceUnsafe(from, to, slice)
-        ist(tr.doc, result, eq)
-      }
-    }
-
     it(
       "automatically adds a heading to a section",
       repl(

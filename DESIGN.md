@@ -163,7 +163,7 @@ A ProseKit-style composition layer on top of the core. It is purely additive (no
 const extension = union(defineBasicExtension(), defineCommands({ shout: (s: string) => command }))
 const editor = yield * createEditor(extension, { doc: "<p>Hi</p>" })
 yield * editor.commands.toggleMark("strong") // "strong" must be a mark of the merged schema
-yield * editor.chain().setBlockType("heading", { level: 2 }).insertText("!").run() // one transaction
+yield * editor.chain().setBlockType("heading", { level: 2 }).insertText("!").run // one transaction
 yield * editor.mount(place) // EditorView.make: needs Scope | R
 ```
 

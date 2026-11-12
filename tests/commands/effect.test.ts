@@ -144,18 +144,18 @@ describe("commands without dispatch", () => {
   )
 })
 
-describe("commands with a view", () => {
-  const view = (atEnd: boolean): TextblockBoundaryView & { calls: Array<string> } => {
-    const calls: Array<string> = []
-    return {
-      calls,
-      endOfTextblock(dir) {
-        calls.push(dir)
-        return atEnd
-      }
+const view = (atEnd: boolean): TextblockBoundaryView & { calls: Array<string> } => {
+  const calls: Array<string> = []
+  return {
+    calls,
+    endOfTextblock(dir) {
+      calls.push(dir)
+      return atEnd
     }
   }
+}
 
+describe("commands with a view", () => {
   it.effect("use the view's endOfTextblock when available", () =>
     Effect.gen(function* () {
       // The cursor isn't at offset 0, but the view says it is at the start of the textblock.

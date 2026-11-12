@@ -211,6 +211,20 @@ const succeedTrue: Effect.Effect<boolean> = Effect.succeed(true)
  * the bound commands. Throws a `KeymapError` when a key name is invalid
  * or bound twice.
  *
+ * @example
+ * ```ts
+ * import * as assert from "node:assert"
+ * import { toggleMark } from "@thomasfosterau/effect-richtext/commands"
+ * import { keymap } from "@thomasfosterau/effect-richtext/keymap"
+ * import { EditorState } from "@thomasfosterau/effect-richtext/state"
+ * import { doc, p, schema } from "@thomasfosterau/effect-richtext/test-builder"
+ *
+ * // Bind keys to commands and add the plugin to a state; the view calls it on keydown.
+ * const plugin = keymap({ "Mod-b": toggleMark(schema.marks.strong) })
+ * const state = EditorState.createUnsafe({ schema, doc: doc(p("Hello")), plugins: [plugin] })
+ * assert.strictEqual(state.plugins.length, 1)
+ * ```
+ *
  * @since 0.1.0
  * @category constructors
  */

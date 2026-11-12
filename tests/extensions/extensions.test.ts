@@ -220,8 +220,7 @@ describe("Editor", () => {
         .insertText(" world", 6)
         .setBlockType("heading", { level: 2 })
         .selectAll()
-        .toggleMark("em")
-        .run()
+        .toggleMark("em").run
       ist(ok)
       ist(editor.state.doc.toString(), `doc(heading(em("hello world")))`)
       ist(undoDepth(editor.state), 1)
@@ -261,8 +260,7 @@ describe("Editor", () => {
         .record()
         .joinUp() // doesn't apply
         .appendOwn("d")
-        .record()
-        .run()
+        .record().run
       ist(!ok)
       assert.deepStrictEqual(seen, ["ab@3", "abc@4", "abcd@5"])
       ist(editor.state.doc.toString(), `doc(paragraph("abcd"))`)
@@ -273,9 +271,9 @@ describe("Editor", () => {
     Effect.gen(function* () {
       const editor = createEditorUnsafe(defineBasicExtension())
       const before = editor.state
-      ist(!(yield* editor.chain().joinUp().run()))
+      ist(!(yield* editor.chain().joinUp().run))
       ist(editor.state, before)
-      ist(yield* editor.chain().run())
+      ist(yield* editor.chain().run)
     }).pipe(Effect.runSync))
 
   it("replaces content with setContent, undoably", () =>
@@ -316,7 +314,7 @@ describe("Effect requirements and errors", () => {
     Effect.gen(function* () {
       const editor = yield* createEditor(union(defineBasicExtension(), definePlugin(counter)))
       yield* editor.commands.insertText("a")
-      yield* editor.chain().insertText("b").insertText("c").run()
+      yield* editor.chain().insertText("b").insertText("c").run
       ist(getSome(counter.getState(editor.state)), 4)
     }).pipe(Effect.provideService(Step, { size: 2 }), Effect.runSync))
 
@@ -342,7 +340,7 @@ describe("Effect requirements and errors", () => {
       ist(editor.state.doc.textContent, "")
       const viaCommand = yield* Effect.exit(editor.commands.fail())
       ist(Exit.findErrorOption(viaCommand).pipe(getSome)._tag, "Rejected")
-      const viaChain = yield* Effect.exit(editor.chain().insertText("a").insertText("!").run())
+      const viaChain = yield* Effect.exit(editor.chain().insertText("a").insertText("!").run)
       ist(Exit.isFailure(viaChain))
       ist(editor.state.doc.textContent, "")
     }).pipe(Effect.runSync))

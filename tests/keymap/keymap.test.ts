@@ -116,6 +116,8 @@ const refuse: Command<AnySchema, ReadOnly> = () => Effect.fail(new ReadOnly({ ke
 
 const unhandled = counter()
 
+const pass: Command = () => Effect.succeed(false)
+
 describe("keymap (Effect API)", () => {
   it("returns false when no binding matches", () => {
     ist(dispatch(keymap({ "Ctrl-a": unhandled }), "b"), false)
@@ -123,7 +125,6 @@ describe("keymap (Effect API)", () => {
   })
 
   it("tries the next candidate when a binding returns false", () => {
-    const pass: Command = () => Effect.succeed(false)
     const fromCode = counter()
     const map = keymap({ "Ctrl-%": pass, "Ctrl-Shift-5": fromCode })
     // `Ctrl-%` declines, so the keyCode fallback (`Shift-Ctrl-5`) runs.

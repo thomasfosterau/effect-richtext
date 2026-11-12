@@ -8,12 +8,24 @@ import ist from "../utils/ist.ts"
 const sliceOf = (insert: Node | null): Slice =>
   insert ? insert.sliceUnsafe(tagsOf(insert).a!, tagsOf(insert).b) : Slice.empty
 
+function rpl(doc: Node, insert: Node | null, expected: Node) {
+  ist(doc.replaceUnsafe(tagsOf(doc).a!, tagsOf(doc).b!, sliceOf(insert)), expected, eq)
+}
+
+function bad(doc: Node, insert: Node | null, pattern: string) {
+  ist.throws(() => doc.replaceUnsafe(tagsOf(doc).a!, tagsOf(doc).b!, sliceOf(insert)), new RegExp(pattern, "i"))
+}
+
+function badEffect(doc: Node, insert: Node | null, pattern: RegExp) {
+  return Effect.gen(function* () {
+    const err = yield* Effect.flip(doc.replace(tagsOf(doc).a!, tagsOf(doc).b!, sliceOf(insert)))
+    assert.strictEqual(err._tag, "ReplaceError")
+    assert.match(err.message, pattern)
+  })
+}
+
 describe("Node", () => {
   describe("replace", () => {
-    function rpl(doc: Node, insert: Node | null, expected: Node) {
-      ist(doc.replaceUnsafe(tagsOf(doc).a!, tagsOf(doc).b!, sliceOf(insert)), expected, eq)
-    }
-
     it("joins on delete", () => rpl(doc(p("on<a>e"), p("t<b>wo")), null, doc(p("onwo"))))
 
     it("merges matching blocks", () =>
@@ -87,10 +99,6 @@ describe("Node", () => {
     it("keeps the node type even when empty", () =>
       rpl(doc(h1("<a>bar"), "<b>"), doc(p("foo<a>baz"), "<b>"), doc(h1("baz"))))
 
-    function bad(doc: Node, insert: Node | null, pattern: string) {
-      ist.throws(() => doc.replaceUnsafe(tagsOf(doc).a!, tagsOf(doc).b!, sliceOf(insert)), new RegExp(pattern, "i"))
-    }
-
     it("doesn't allow the left side to be too deep", () =>
       bad(doc(p("<a><b>")), doc(blockquote(p("<a>")), "<b>"), "deeper"))
 
@@ -109,14 +117,6 @@ describe("Node", () => {
   })
 
   describe("replace (Effect)", () => {
-    function badEffect(doc: Node, insert: Node | null, pattern: RegExp) {
-      return Effect.gen(function* () {
-        const err = yield* Effect.flip(doc.replace(tagsOf(doc).a!, tagsOf(doc).b!, sliceOf(insert)))
-        assert.strictEqual(err._tag, "ReplaceError")
-        assert.match(err.message, pattern)
-      })
-    }
-
     it.effect("succeeds for valid replacements", () =>
       Effect.gen(function* () {
         const d = doc(p("on<a>e"), p("t<b>wo"))

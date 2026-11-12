@@ -48,7 +48,7 @@ describe("Editor (view)", () => {
           yield* editor.commands.insertText("!", 6)
           ist(view.state, editor.state)
           ist(view.dom.innerHTML, "<p>hello!</p>")
-          yield* editor.chain().selectAll().setBlockType("heading", { level: 2 }).run()
+          yield* editor.chain().selectAll().setBlockType("heading", { level: 2 }).run
           ist(view.dom.innerHTML, "<h2>hello!</h2>")
         })
       )

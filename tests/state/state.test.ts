@@ -358,14 +358,14 @@ describe("EditorState (Effect API)", () => {
   })
 })
 
-describe("Command", () => {
-  const insertX: Command<AnySchema> = (state, dispatch) =>
-    Effect.gen(function* () {
-      if (!state.selection.empty) return false
-      if (dispatch) yield* dispatch(state.tr.insertTextUnsafe("x"))
-      return true
-    })
+const insertX: Command<AnySchema> = (state, dispatch) =>
+  Effect.gen(function* () {
+    if (!state.selection.empty) return false
+    if (dispatch) yield* dispatch(state.tr.insertTextUnsafe("x"))
+    return true
+  })
 
+describe("Command", () => {
   it("runs commands with a dispatch function", () => {
     const state = new TestState({ doc: doc(p("a<a>b")) })
     ist(state.command(insertX), true)

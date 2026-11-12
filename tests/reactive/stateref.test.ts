@@ -30,6 +30,8 @@ const countPlugin = new Plugin({
   }
 })
 
+const wordCount = (s: EditorState<any, any, any>) => s.doc.textContent.split(/\s+/).filter(Boolean).length
+
 describe("StateRef", () => {
   it.effect("holds the state and applies dispatched transactions", () =>
     Effect.gen(function* () {
@@ -109,7 +111,6 @@ describe("StateRef", () => {
   it.effect("derives deduplicated projections with select", () =>
     Effect.gen(function* () {
       const ref = yield* StateRef.make(stateFor(doc(p("one two<a>"))))
-      const wordCount = (s: EditorState<any, any, any>) => s.doc.textContent.split(/\s+/).filter(Boolean).length
       const counts = yield* collect(ref.select(wordCount))
       const lengths = yield* collect(
         ref.select(
@@ -190,13 +191,7 @@ describe("StateRef", () => {
       ist(mismatch instanceof StateError)
       const boom = yield* Effect.flip(ref.dispatch(ref.state.getUnsafe().tr.setMeta("boom", true)))
       ist(boom instanceof Boom)
-      let thrown: unknown
-      try {
-        ref.dispatchUnsafe(ref.state.getUnsafe().tr.setMeta("boom", true))
-      } catch (e) {
-        thrown = e
-      }
-      ist(thrown instanceof Boom)
+      assert.throws(() => ref.dispatchUnsafe(ref.state.getUnsafe().tr.setMeta("boom", true)), Boom)
       // A command whose dispatch fails fails too.
       const exit = yield* Effect.exit(
         ref.execute((state, dispatch) =>

@@ -11,6 +11,18 @@ import { tempEditor } from "./compat-view.ts"
 
 import { __parseFromClipboard as parseFromClipboard } from "@thomasfosterau/effect-richtext/compat/view"
 
+function tableSchema() {
+  return new Schema({
+    nodes: {
+      td: { content: "text*", toDOM: () => ["td", 0], parseDOM: [{ tag: "td" }] },
+      tr: { content: "td+", toDOM: () => ["tr", 0], parseDOM: [{ tag: "tr" }] },
+      table: { content: "tr+", toDOM: () => ["table", ["tbody", 0]], parseDOM: [{ tag: "table" }] },
+      doc: { content: "table+" },
+      text: {}
+    }
+  })
+}
+
 describe("Clipboard interface", () => {
   it("copies only the node for a node selection", () => {
     const d = doc(blockquote(p("a"), "<a>", hr()), p("b"))
@@ -148,18 +160,6 @@ describe("Clipboard interface", () => {
       eq
     )
   })
-
-  function tableSchema() {
-    return new Schema({
-      nodes: {
-        td: { content: "text*", toDOM: () => ["td", 0], parseDOM: [{ tag: "td" }] },
-        tr: { content: "td+", toDOM: () => ["tr", 0], parseDOM: [{ tag: "tr" }] },
-        table: { content: "tr+", toDOM: () => ["table", ["tbody", 0]], parseDOM: [{ tag: "table" }] },
-        doc: { content: "table+" },
-        text: {}
-      }
-    })
-  }
 
   it("adds necessary wrappers for parsing", () => {
     const s = tableSchema()
