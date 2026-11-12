@@ -1,5 +1,21 @@
 # @thomasfosterau/effect-richtext
 
+## 0.2.0
+
+### Minor Changes
+
+- [#63](https://github.com/thomasfosterau/effect-richtext/pull/63) [`ab4dca7`](https://github.com/thomasfosterau/effect-richtext/commit/ab4dca7968a878519fd291791724a3d42e70e092) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - `editor.chain()…run` is now an `Effect`, not a function returning one: write `yield* editor.chain().toggleMark("em").run` (no call parentheses). An Effect is already lazy, so the wrapping function added nothing.
+
+### Patch Changes
+
+- [#56](https://github.com/thomasfosterau/effect-richtext/pull/56) [`78d7ec9`](https://github.com/thomasfosterau/effect-richtext/commit/78d7ec9139e95c3549e7ec20c3a7de2e287eca33) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - Ship `CHANGELOG.md` in the npm tarball, so the release notes can be read from `node_modules`.
+
+- [#64](https://github.com/thomasfosterau/effect-richtext/pull/64) [`c300a33`](https://github.com/thomasfosterau/effect-richtext/commit/c300a338efdef63981432ac4a993c97377438580) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - Doc comments on the model, transform, state, commands, history, keymap, markdown, html, schema and test-builder entries now carry runnable `@example`s.
+
+- [#63](https://github.com/thomasfosterau/effect-richtext/pull/63) [`8d887fe`](https://github.com/thomasfosterau/effect-richtext/commit/8d887fe92ac9cbbd8f59b516a76aaf48348b335f) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - The view's `editable` prop is read as the boolean its type declares: any falsy result makes the view read-only, where before only `false` did. The compat facade keeps ProseMirror's rule (only `false` is "not editable"). Pasted-text transforms, command results and decoration attributes are likewise passed through without re-coercion.
+
+- [#66](https://github.com/thomasfosterau/effect-richtext/pull/66) [`1aa281c`](https://github.com/thomasfosterau/effect-richtext/commit/1aa281c3b3f5c49ba6f56aba917cc55106246f90) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - Heading `level`, ordered-list `order` and the Markdown schema's equivalents are now declared with `Schema.Int`, so decoding rejects non-integer and non-finite values (`NaN`, `Infinity`) that were previously accepted.
+
 ## 0.1.0
 
 ### Minor Changes

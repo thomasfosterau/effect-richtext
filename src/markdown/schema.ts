@@ -45,7 +45,7 @@ export const nodes = {
   }),
 
   heading: nodeSpec({
-    attrs: { level: { schema: S.Number, default: 1 } },
+    attrs: { level: { schema: S.Int, default: 1 } },
     content: Content.zeroOrMore(Content.choice("text", "image")),
     group: "block",
     defining: true,
@@ -85,7 +85,7 @@ export const nodes = {
     content: Content.oneOrMore("list_item"),
     group: "block",
     attrs: {
-      order: { schema: S.Number, default: 1 },
+      order: { schema: S.Int, default: 1 },
       tight: { schema: S.Boolean, default: false }
     },
     parseDOM: [

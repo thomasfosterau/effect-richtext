@@ -24,7 +24,7 @@ const olDOM: DOMOutputSpec = ["ol", 0],
  * @category specs
  */
 export const orderedList = nodeSpec({
-  attrs: { order: { schema: S.Number, default: 1 } },
+  attrs: { order: { schema: S.Int, default: 1 } },
   parseDOM: [
     {
       tag: "ol",

@@ -281,7 +281,7 @@ describe("Selection (Effect API)", () => {
         const viaFromJSON = yield* Selection.fromJSON(d, json)
         ist(viaFromJSON.eq(sel))
       }
-      const bad = yield* Effect.flip(Schema.decodeUnknownEffect(codec)({ type: "bogus" }))
+      const bad = yield* Effect.flip(Schema.decodeEffect(codec)({ type: "bogus" }))
       assert.match(bad.message, /No selection type bogus/)
       const err = yield* Effect.flip(Selection.fromJSON(d, { type: "text", anchor: 1 }))
       assert.strictEqual(err._tag, "JSONError")

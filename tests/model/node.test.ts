@@ -490,14 +490,14 @@ describe("Node", () => {
         assert.deepStrictEqual(json, d.toJSON())
         const back = yield* Schema.decodeUnknownEffect(codec)(jsonRoundTrip(json))
         ist(back, d, eq)
-        const para = yield* Schema.decodeUnknownEffect(codec)({
+        const para = yield* Schema.decodeEffect(codec)({
           type: "paragraph",
           content: [{ type: "text", text: "x" }]
         })
         ist(para, p("x"), eq)
         yield* Effect.flip(Schema.decodeUnknownEffect(codec)({ type: 1 }))
-        yield* Effect.flip(Schema.decodeUnknownEffect(codec)({ type: "image", attrs: { src: 1 } }))
-        yield* Effect.flip(Schema.decodeUnknownEffect(codec)({ type: "doc", content: [{ type: "list_item" }] }))
+        yield* Effect.flip(Schema.decodeEffect(codec)({ type: "image", attrs: { src: 1 } }))
+        yield* Effect.flip(Schema.decodeEffect(codec)({ type: "doc", content: [{ type: "list_item" }] }))
       })
     )
 
@@ -505,9 +505,9 @@ describe("Node", () => {
       Effect.gen(function* () {
         const codec = DocFromJSON(schema)
         const d = doc(p("foo"))
-        const back = yield* Schema.decodeUnknownEffect(codec)(d.toJSON())
+        const back = yield* Schema.decodeEffect(codec)(d.toJSON())
         ist(back, d, eq)
-        const err = yield* Effect.flip(Schema.decodeUnknownEffect(codec)(p("foo").toJSON()))
+        const err = yield* Effect.flip(Schema.decodeEffect(codec)(p("foo").toJSON()))
         assert.match(err.message, /Expected a doc node, got paragraph/)
       })
     )

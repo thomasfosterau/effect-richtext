@@ -41,7 +41,7 @@
       "entryPointRole": "support"
     }
   ],
-  "ignorePatterns": ["dist/**", "docs/**", "coverage/**"],
+  "ignorePatterns": ["dist/**", "docs/api/**", "coverage/**"],
   "ignoreDependencies": [
     "@types/node",
     "@effect/docgen",

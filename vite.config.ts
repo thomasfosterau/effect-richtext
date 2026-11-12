@@ -64,7 +64,7 @@ const entries = [
  * the lockfile back explicitly so a dependency upgrade still invalidates a
  * type-check or a test run.
  */
-const cacheInputs = [{ auto: true }, "!node_modules/**", "!docs/**", "!coverage/**", "pnpm-lock.yaml"]
+const cacheInputs = [{ auto: true }, "!node_modules/**", "!docs/api/**", "!coverage/**", "pnpm-lock.yaml"]
 
 const testEnv = ["VITEST_MAX_WORKERS", "NODE_OPTIONS", "PLAYWRIGHT_CHROMIUM_EXECUTABLE"]
 
@@ -95,7 +95,7 @@ export default defineConfig({
     trailingComma: "none",
     printWidth: 120,
     arrowParens: "always",
-    ignorePatterns: ["**/dist/**", "**/docs/**", "**/coverage/**", "CHANGELOG.md"],
+    ignorePatterns: ["**/dist/**", "**/docs/api/**", "**/coverage/**", "CHANGELOG.md"],
     overrides: [
       {
         files: ["**/*.md"],
@@ -106,7 +106,7 @@ export default defineConfig({
     ]
   },
   lint: {
-    ignorePatterns: ["**/dist/**", "**/docs/**", "**/coverage/**", "**/node_modules/**"],
+    ignorePatterns: ["**/dist/**", "**/docs/api/**", "**/coverage/**", "**/node_modules/**"],
     extends: [recommended, effect.configs.recommended],
     // Oxlint's default plugins (`typescript`, `unicorn`, `oxc`) plus the ones
     // that cover this repo's other surfaces: imports, promises, the vitest
@@ -187,6 +187,7 @@ export default defineConfig({
       "typescript/consistent-return": "warn", // 22
       "typescript/no-unnecessary-type-parameters": "warn", // 14
       "effecttsgo/strict-effect-provide": "warn", // 13
+      "effecttsgo/provide-layer-succeed-to-provide-service": "error",
       "effecttsgo/unsafe-effect-type-assertion": "warn", // 1
       // The four left are EditorState's Effect twins of its synchronous
       // transaction methods; with `this` in place of `self` their bodies
@@ -201,6 +202,7 @@ export default defineConfig({
       "effecttsgo/flat-map-conditional-to-filter-or-fail": "error",
       "effecttsgo/try-catch-in-effect-gen": "error",
       "effecttsgo/prefer-succeed-some-or-none": "error",
+      "effecttsgo/prefer-typed-schema-decoder": "error",
       "typescript/no-explicit-any": "off",
       "typescript/no-empty-object-type": "off",
       "typescript/ban-ts-comment": "off",
@@ -217,6 +219,7 @@ export default defineConfig({
       // lib that the es2022 target does not include.
       "unicorn/no-array-reverse": "off",
       "vite-plus/prefer-vite-plus-imports": "error",
+      "effecttsgo/schema-number": "error",
       // The ported ProseMirror suites assert through `ist` (tests/utils/ist.ts),
       // `@effect/vitest`'s `assert`, and per-suite helpers that wrap them
       // (`testTransform`, `same`, …).
@@ -443,7 +446,7 @@ export default defineConfig({
       docgen: {
         command: "bash -o pipefail -c 'docgen 2>&1 | tee /dev/stderr | { ! grep -q \"No examples found\"; }'",
         dependsOn: ["build"],
-        cache: { input: cacheInputs, output: ["docs/**"] }
+        cache: { input: cacheInputs, output: ["docs/api/**"] }
       }
     }
   },

@@ -37,10 +37,10 @@ describe("model smoke", () => {
       const d = doc(p("x", strong("y")))
       const codec = NodeFromJSON(schema)
       const json = yield* Schema.encodeEffect(codec)(d)
-      const back = yield* Schema.decodeUnknownEffect(codec)(json)
+      const back = yield* Schema.decodeEffect(codec)(json)
       assert.isTrue(back.eq(d))
       const bad = yield* Effect.flip(
-        Schema.decodeUnknownEffect(codec)({ type: "doc", content: [{ type: "text", text: "x" }] })
+        Schema.decodeEffect(codec)({ type: "doc", content: [{ type: "text", text: "x" }] })
       )
       assert.match(bad.message, /Invalid content/)
     })

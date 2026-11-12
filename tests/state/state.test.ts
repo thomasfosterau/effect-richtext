@@ -2,7 +2,6 @@
 import { assert, describe, it } from "@effect/vitest"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
-import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
 import * as Str from "effect/String"
@@ -235,7 +234,7 @@ describe("EditorState (Effect API)", () => {
       ist(last.doc, doc(p("ab")), eq)
       ist(count(stepCountPlugin, last), 6)
       ist(count(messageCountPlugin, last), 2)
-    }).pipe(Effect.provide(Layer.succeed(Counter, { step: 3 })))
+    }).pipe(Effect.provideService(Counter, { step: 3 }))
   )
 
   it("infers requirements and errors from plugins", () => {
