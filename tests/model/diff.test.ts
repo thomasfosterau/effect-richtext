@@ -5,12 +5,17 @@ import type { Node } from "@thomasfosterau/effect-richtext/model"
 import { blockquote, doc, em, h1, h2, p, strong, tagsOf } from "@thomasfosterau/effect-richtext/test-builder"
 import ist from "../utils/ist.ts"
 
+function start(a: Node, b: Node) {
+  ist(Option.getOrUndefined(a.content.findDiffStart(b.content)), tagsOf(a).a)
+}
+
+function end(a: Node, b: Node) {
+  const found = Option.getOrUndefined(a.content.findDiffEnd(b.content))
+  ist(found && found.a, tagsOf(a).a)
+}
+
 describe("Fragment", () => {
   describe("findDiffStart", () => {
-    function start(a: Node, b: Node) {
-      ist(Option.getOrUndefined(a.content.findDiffStart(b.content)), tagsOf(a).a)
-    }
-
     it("returns null for identical nodes", () =>
       start(
         doc(p("a", em("b")), p("hello"), blockquote(h1("bye"))),
@@ -46,11 +51,6 @@ describe("Fragment", () => {
   })
 
   describe("findDiffEnd", () => {
-    function end(a: Node, b: Node) {
-      const found = Option.getOrUndefined(a.content.findDiffEnd(b.content))
-      ist(found && found.a, tagsOf(a).a)
-    }
-
     it("returns null when there is no difference", () =>
       end(
         doc(p("a", em("b")), p("hello"), blockquote(h1("bye"))),

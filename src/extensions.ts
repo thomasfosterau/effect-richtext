@@ -24,7 +24,7 @@
  *   yield* editor.commands.greet("you")
  *   yield* editor.commands.toggleMark("strong") // only "link" | "em" | "strong" | "code" type-check
  *   // One transaction (one undo step) for several commands:
- *   yield* editor.chain().setBlockType("paragraph").toggleMark("em").run()
+ *   yield* editor.chain().setBlockType("paragraph").toggleMark("em").run
  *   const canUndo = yield* editor.can().undo()
  *   yield* editor.mount(document.body) // EditorView.make; destroyed with the scope
  * }).pipe(Effect.scoped)

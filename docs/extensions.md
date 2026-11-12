@@ -13,7 +13,7 @@ import { createEditor, defineBasicExtension } from "@thomasfosterau/effect-richt
 const mountBasicEditor = Effect.fn("mountBasicEditor")(function* (place: HTMLElement) {
   const editor = yield* createEditor(defineBasicExtension())
   yield* editor.mount(place)
-  yield* editor.chain().setBlockType("heading", { level: 2 }).toggleMark("strong").run()
+  yield* editor.chain().setBlockType("heading", { level: 2 }).toggleMark("strong").run
 })
 ```
 
@@ -47,7 +47,7 @@ const program = Effect.gen(function* () {
 ```
 
 - `editor.commands.x(...)` runs one command and dispatches what it produces. It succeeds with `true` when the command applied.
-- `editor.chain()…run()` queues commands and applies them to one shared transaction, so the whole chain is one undo step. Each command sees the document, selection and stored marks the previous ones produced. `run` succeeds with `true` when every command applied. A command named `run` cannot be chained.
+- `editor.chain()…run` queues commands and applies them to one shared transaction, so the whole chain is one undo step. Each command sees the document, selection and stored marks the previous ones produced. `run` succeeds with `true` when every command applied. A command named `run` cannot be chained.
 - `editor.can().x(...)` runs the command without dispatching, to ask whether it would apply.
 - A plugin failure reaches the caller in the error channel. A mismatched transaction (a `StateError`) is a defect.
 

@@ -7,12 +7,17 @@ import type { Node } from "@thomasfosterau/effect-richtext/compat/model"
 import { blockquote, doc, em, h1, h2, p, strong } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
 
+function start(a: Node, b: Node) {
+  ist(a.content.findDiffStart(b.content), (a as any).tag.a)
+}
+
+function end(a: Node, b: Node) {
+  const found = a.content.findDiffEnd(b.content)
+  ist(found && found.a, (a as any).tag.a)
+}
+
 describe("Fragment", () => {
   describe("findDiffStart", () => {
-    function start(a: Node, b: Node) {
-      ist(a.content.findDiffStart(b.content), (a as any).tag.a)
-    }
-
     it("returns null for identical nodes", () =>
       start(
         doc(p("a", em("b")), p("hello"), blockquote(h1("bye"))),
@@ -45,11 +50,6 @@ describe("Fragment", () => {
   })
 
   describe("findDiffEnd", () => {
-    function end(a: Node, b: Node) {
-      const found = a.content.findDiffEnd(b.content)
-      ist(found && found.a, (a as any).tag.a)
-    }
-
     it("returns null when there is no difference", () =>
       end(
         doc(p("a", em("b")), p("hello"), blockquote(h1("bye"))),

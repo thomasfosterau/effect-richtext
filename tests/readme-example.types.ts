@@ -45,7 +45,7 @@ Effect.runFork(Effect.scoped(Effect.andThen(mountEditor(document.body), Effect.n
 const mountBasicEditor = Effect.fn("mountBasicEditor")(function* (place: HTMLElement) {
   const editor = yield* createEditor(defineBasicExtension())
   yield* editor.mount(place)
-  yield* editor.chain().setBlockType("heading", { level: 2 }).toggleMark("strong").run()
+  yield* editor.chain().setBlockType("heading", { level: 2 }).toggleMark("strong").run
 })
 
 export { mountBasicEditor }

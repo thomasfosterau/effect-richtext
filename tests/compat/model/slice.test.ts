@@ -7,15 +7,15 @@ import type { Node } from "@thomasfosterau/effect-richtext/compat/model"
 import { a, blockquote, doc, em, li, p, ul } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
 
+function t(doc: Node, expect: Node, openStart: number, openEnd: number) {
+  const slice = doc.slice((doc as any).tag.a || 0, (doc as any).tag.b)
+  ist(slice.content.eq(expect.content))
+  ist(slice.openStart, openStart)
+  ist(slice.openEnd, openEnd)
+}
+
 describe("Node", () => {
   describe("slice", () => {
-    function t(doc: Node, expect: Node, openStart: number, openEnd: number) {
-      const slice = doc.slice((doc as any).tag.a || 0, (doc as any).tag.b)
-      ist(slice.content.eq(expect.content))
-      ist(slice.openStart, openStart)
-      ist(slice.openEnd, openEnd)
-    }
-
     it("can cut half a paragraph", () => t(doc(p("hello<b> world")), doc(p("hello")), 0, 1))
 
     it("can cut to the end of a pragraph", () => t(doc(p("hello<b>")), doc(p("hello")), 0, 1))
