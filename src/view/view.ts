@@ -1040,7 +1040,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     }
     const exit = this.runEffect(result as Effect.Effect<boolean, unknown, R>)
     if (exit === undefined) return true
-    return Exit.isSuccess(exit) ? !!exit.value : false
+    return Exit.isSuccess(exit) ? exit.value : false
   }
 
   /**
@@ -1379,7 +1379,7 @@ function computeDocDeco(view: EditorView<any, any, any>) {
         } else if (attr == "style") {
           attrs.style = (attrs.style ? attrs.style + ";" : "") + value[attr]
         } else if (!attrs[attr] && attr != "contenteditable" && attr != "nodeName") {
-          attrs[attr] = String(value[attr])
+          attrs[attr] = value[attr]
         }
       }
     }
