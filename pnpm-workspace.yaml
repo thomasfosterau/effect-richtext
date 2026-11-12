@@ -37,7 +37,7 @@ catalog:
   # on any other component version, failing `pnpm install` itself. Read the
   # `components` table in node_modules/@effect/tsgo/dist/effect-tsgo.cjs
   # before bumping any of the three.
-  "@effect/tsgo": 0.67.5
+  "@effect/tsgo": 0.67.7
   # `it.effect` / `layer` helpers on top of the vitest singleton below.
   "@effect/vitest": 4.1.4
   # The Effect lint rules (`effect/*`, the anti-slop set included) that
@@ -98,7 +98,7 @@ catalog:
   # bump: move `vite` by hand with `vite-plus` (or rerun
   # `pnpm dlx --package=vite-plus@<v> vp migrate --no-interactive`, then drop
   # the `minimumReleaseAgeExclude` entries it adds).
-  vite-plus: 1.5.0
+  vite-plus: 1.6.0
   vite: npm:@voidzero-dev/vite-plus-core@1.5.0
   vitest: 5.1.0
   w3c-keyname: ^2.2.8
