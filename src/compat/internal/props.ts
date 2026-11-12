@@ -39,6 +39,10 @@ export const toCoreFunction = (f: (...args: Array<any>) => any, self: unknown): 
     return unwrapResult(f.apply(self, wrapArgs(args)))
   }
 
+// The compat facade runs core hooks synchronously and without a context,
+// so any Effect a core hook returns here is one that requires nothing.
+const isRequirementFree = (u: unknown): u is Effect.Effect<unknown, unknown> => Effect.isEffect(u)
+
 /** Wrap a core function so that it can be called with facades. @internal */
 export const fromCoreFunction = (f: (...args: Array<any>) => any, self: unknown): ((...args: Array<any>) => any) =>
   function (this: unknown, ...args: Array<any>) {
@@ -46,7 +50,7 @@ export const fromCoreFunction = (f: (...args: Array<any>) => any, self: unknown)
       self,
       args.map((a) => (Array.isArray(a) ? unwrapArray(a) : unwrap(a)))
     )
-    if (Effect.isEffect(result)) result = runSync(result as Effect.Effect<unknown, unknown>)
+    if (isRequirementFree(result)) result = runSync(result)
     return Array.isArray(result) ? wrapArray(result) : wrap(result)
   }
 

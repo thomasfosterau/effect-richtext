@@ -909,7 +909,7 @@ export class EditorState {
 
   /** Create a new state based on this one, but with an adjusted set of active plugins. */
   reconfigure(config: { plugins?: ReadonlyArray<Plugin> }): EditorState {
-    return wrap(runSync(this[CORE].reconfigure(configToCore(config)) as Effect.Effect<any>))
+    return wrap(runSync(this[CORE].reconfigure(configToCore(config))))
   }
 
   /** Serialize this state to JSON. */
@@ -924,7 +924,7 @@ export class EditorState {
 
   /** Create a new state. */
   static create(config: EditorStateConfig): EditorState {
-    return wrap(runSync(S.EditorState.create(configToCore(config)) as Effect.Effect<any>))
+    return wrap(runSync(S.EditorState.create(configToCore(config))))
   }
 
   /** Deserialize a JSON representation of a state. */
@@ -937,7 +937,7 @@ export class EditorState {
     if (pluginFields) {
       for (const prop in pluginFields) fields![prop] = unwrap(pluginFields[prop])
     }
-    return wrap(runSync(S.EditorState.fromJSON(configToCore(config), json, fields) as Effect.Effect<any>))
+    return wrap(runSync(S.EditorState.fromJSON(configToCore(config), json, fields)))
   }
 }
 
