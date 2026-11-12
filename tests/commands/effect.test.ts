@@ -2,7 +2,6 @@
 import { assert, describe, it } from "@effect/vitest"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
-import * as Layer from "effect/Layer"
 import * as Schema from "effect/Schema"
 import {
   autoJoin,
@@ -79,7 +78,7 @@ describe("chainCommands", () => {
       const entries: Array<string> = []
       const chained = chainCommands(logged, joinBackward)
       const result = yield* runWith(mkState(doc(p("hi"), p("<a>there"))), chained).pipe(
-        Effect.provide(Layer.succeed(Log, { entries }))
+        Effect.provideService(Log, { entries })
       )
       ist(result.handled)
       ist(result.state.doc, doc(p("hithere")), eq)
@@ -92,7 +91,7 @@ describe("chainCommands", () => {
       const entries: Array<string> = []
       const chained = chainCommands(joinBackward, logged)
       const result = yield* runWith(mkState(doc(p("hi"), p("<a>there"))), chained).pipe(
-        Effect.provide(Layer.succeed(Log, { entries }))
+        Effect.provideService(Log, { entries })
       )
       ist(result.handled)
       assert.deepStrictEqual(entries, [])
@@ -127,7 +126,7 @@ describe("autoJoin", () => {
       void _check
       const entries: Array<string> = []
       const error = yield* Effect.flip(
-        runWith(mkState(doc(p("<a>foo"))), joined).pipe(Effect.provide(Layer.succeed(Log, { entries })))
+        runWith(mkState(doc(p("<a>foo"))), joined).pipe(Effect.provideService(Log, { entries }))
       )
       assert.strictEqual(error._tag, "Denied")
       assert.deepStrictEqual(entries, ["logged"])

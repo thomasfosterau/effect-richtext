@@ -184,6 +184,7 @@ export default defineConfig({
       "typescript/consistent-return": "warn", // 22
       "typescript/no-unnecessary-type-parameters": "warn", // 14
       "effecttsgo/strict-effect-provide": "warn", // 13
+      "effecttsgo/provide-layer-succeed-to-provide-service": "error",
       // The three left normalise a value a JS caller supplies (a node spec's
       // `code`, a command's result, an `attributes` prop) that ProseMirror
       // code may hand over as a non-boolean or non-string.

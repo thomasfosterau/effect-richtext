@@ -3,7 +3,6 @@ import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
 import * as Fiber from "effect/Fiber"
-import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
 import * as Scope from "effect/Scope"
@@ -175,7 +174,7 @@ describe("StateRef", () => {
       yield* dispatch
       ref.dispatchUnsafe(ref.state.getUnsafe().tr.insertTextUnsafe("c"))
       ist(getSome(countPlugin.getState(ref.state.getUnsafe())), 6)
-    }).pipe(Effect.scoped, Effect.provide(Layer.succeed(Step, { step: 3 })))
+    }).pipe(Effect.scoped, Effect.provideService(Step, { step: 3 }))
   )
 
   it.effect("fails with plugin errors and mismatched transactions", () =>

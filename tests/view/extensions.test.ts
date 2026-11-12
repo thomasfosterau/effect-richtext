@@ -3,7 +3,6 @@
 import { assert, describe, it } from "@effect/vitest"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
-import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import {
   createEditor,
@@ -176,6 +175,6 @@ describe("Editor (view)", () => {
       yield* editor.dispatch(editor.state.tr.setSelectionUnsafe(TextSelection.createUnsafe(editor.state.doc, 2)))
       ist(keyDown(view.dom, "Enter", 13).defaultPrevented)
       ist(getSome(ticks.getState(editor.state)), 6)
-    }).pipe(Effect.scoped, Effect.provide(Layer.succeed(Tick, { by: 3 })))
+    }).pipe(Effect.scoped, Effect.provideService(Tick, { by: 3 }))
   )
 })
