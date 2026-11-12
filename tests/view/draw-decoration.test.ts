@@ -51,6 +51,24 @@ function updateDeco(view: EditorView, add: readonly Decoration[] | null, remove?
   view.dispatchUnsafe(view.state.tr.setMeta("updateDecorations", { add, remove }))
 }
 
+function classes(n: HTMLElement) {
+  return Arr.sort(n.className.split(" "), Order.String).join(" ")
+}
+
+const mkButton = () => document.createElement("button")
+
+const toDOM = () => document.createElement("button")
+
+function thingSchema() {
+  return DocSchema.makeUnsafe({
+    nodes: {
+      doc: { content: "(text | thing)*" },
+      text: {},
+      thing: { inline: true, content: "text*", toDOM: () => ["strong", 0], parseDOM: [{ tag: "strong" }] }
+    }
+  })
+}
+
 describe("Decoration drawing", () => {
   it("draws inline decorations", () => {
     const view = tempEditor({ doc: doc(p("foobar")), plugins: [decoPlugin(["2-5-foo"])] })
@@ -100,9 +118,6 @@ describe("Decoration drawing", () => {
     const baz = Array.from(view.dom.querySelectorAll<HTMLElement>(".baz"))
     ist(baz.length, 5)
     ist(Array.prototype.map.call(baz, (x) => x.textContent).join("-"), "ab-c-d-e-f")
-    function classes(n: HTMLElement) {
-      return Arr.sort(n.className.split(" "), Order.String).join(" ")
-    }
     ist(classes(baz[1]), "baz foo")
     ist(classes(baz[2]), "bar baz foo")
     ist(classes(baz[3]), "bar baz")
@@ -451,7 +466,6 @@ describe("Decoration drawing", () => {
   })
 
   it("doesn't redraw widgets with matching keys", () => {
-    const mkButton = () => document.createElement("button")
     const view = tempEditor({
       doc: doc(p("hi")),
       decorations(state) {
@@ -464,7 +478,6 @@ describe("Decoration drawing", () => {
   })
 
   it("doesn't redraw widgets with identical specs", () => {
-    const toDOM = () => document.createElement("button")
     const view = tempEditor({
       doc: doc(p("hi")),
       decorations(state) {
@@ -491,16 +504,6 @@ describe("Decoration drawing", () => {
     view.dispatchUnsafe(view.state.tr.setSelectionUnsafe(TextSelection.createUnsafe(view.state.doc, 5)))
     ist(view.dom.textContent, "abab")
   })
-
-  function thingSchema() {
-    return DocSchema.makeUnsafe({
-      nodes: {
-        doc: { content: "(text | thing)*" },
-        text: {},
-        thing: { inline: true, content: "text*", toDOM: () => ["strong", 0], parseDOM: [{ tag: "strong" }] }
-      }
-    })
-  }
 
   it("only draws inline decorations on the innermost level", () => {
     const s = thingSchema()
