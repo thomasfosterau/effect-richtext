@@ -8,11 +8,6 @@
  * variants (`serialize`, `parse`, `parseSlice`), which read the
  * document from the `HtmlEnvironment` service.
  *
- * ```ts skip-type-checking
- * const html = toHTML(doc) // "<p>Hello</p>"
- * const doc2 = yield* fromHTML(schema, html)
- * ```
- *
  * @since 0.1.0
  */
 import * as Context from "effect/Context"
@@ -107,6 +102,22 @@ const resolveDocument = (document: Document | undefined): Document => {
  * Throws a `MissingDocumentError` when no document is available, and a
  * `DOMSpecError` for invalid `toDOM` output specs (both programming
  * errors).
+ *
+ * @example
+ * ```ts
+ * import * as assert from "node:assert"
+ * import { Window } from "happy-dom"
+ * import { fromHTMLUnsafe, toHTML } from "@thomasfosterau/effect-richtext/html"
+ * import { doc, p, schema, strong } from "@thomasfosterau/effect-richtext/test-builder"
+ *
+ * // Outside a browser, pass a DOM `document` (here from happy-dom).
+ * const document = new Window().document as unknown as Document
+ * const start = doc(p("Hello ", strong("world")))
+ *
+ * const html = toHTML(start, { document })
+ * assert.strictEqual(html, "<p>Hello <strong>world</strong></p>")
+ * assert.ok(fromHTMLUnsafe(schema, html, { document }).eq(start))
+ * ```
  *
  * @since 0.1.0
  * @category serialization

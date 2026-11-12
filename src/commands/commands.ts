@@ -928,6 +928,30 @@ export interface ToggleMarkOptions {
  * empty, this applies to the stored marks instead of a range of the
  * document.
  *
+ * @example
+ * ```ts
+ * import * as assert from "node:assert"
+ * import * as Effect from "effect/Effect"
+ * import { toggleMark } from "@thomasfosterau/effect-richtext/commands"
+ * import { EditorState, TextSelection } from "@thomasfosterau/effect-richtext/state"
+ * import { doc, p, schema, strong } from "@thomasfosterau/effect-richtext/test-builder"
+ *
+ * const start = doc(p("Hello world"))
+ * let state = EditorState.createUnsafe({ doc: start, selection: TextSelection.createUnsafe(start, 1, 6) })
+ *
+ * // A command gets the state and a `dispatch` callback, and succeeds with `true` when it applied.
+ * const handled = Effect.runSync(
+ *   toggleMark(schema.marks.strong)(state, (tr) =>
+ *     Effect.sync(() => {
+ *       state = state.applyUnsafe(tr)
+ *     })
+ *   )
+ * )
+ *
+ * assert.strictEqual(handled, true)
+ * assert.ok(state.doc.eq(doc(p(strong("Hello"), " world"))))
+ * ```
+ *
  * @since 0.1.0
  * @category commands
  */

@@ -7,15 +7,24 @@
  * are tracked at the type level, so the schema knows which node types
  * may appear inside each node:
  *
- * ```ts skip-type-checking
+ * ```ts
+ * import * as assert from "node:assert"
  * import { Content } from "@thomasfosterau/effect-richtext/model"
  *
- * Content.seq("heading", Content.zeroOrMore("block"))
- * // ContentExpr<"heading" | "block">
+ * // A `ContentExpr<"heading" | "block">`
+ * const expr = Content.seq("heading", Content.zeroOrMore("block"))
+ * assert.strictEqual(Content.format(expr), "heading block*")
  * ```
  *
  * `Content.parse` accepts the ProseMirror string syntax for
  * compatibility, at the cost of losing the type-level information.
+ *
+ * ```ts
+ * import * as assert from "node:assert"
+ * import { Content } from "@thomasfosterau/effect-richtext/model"
+ *
+ * assert.strictEqual(Content.format(Content.parse("paragraph+")), "paragraph+")
+ * ```
  *
  * @since 0.1.0
  */

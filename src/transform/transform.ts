@@ -76,6 +76,26 @@ export type StructureFailure = TransformError | StepError | PositionError | Attr
  * Methods that cannot fail for valid positions (`addMark`,
  * `removeMark`) are plain chainable methods.
  *
+ * @example
+ * ```ts
+ * import * as assert from "node:assert"
+ * import { ReplaceStep, Transform } from "@thomasfosterau/effect-richtext/transform"
+ * import { doc, p, schema, strong } from "@thomasfosterau/effect-richtext/test-builder"
+ *
+ * const tr = new Transform(doc(p("Hello world")))
+ * tr.insertUnsafe(6, schema.textUnsafe(","))
+ * tr.addMark(8, 13, schema.markUnsafe("strong"))
+ *
+ * assert.ok(tr.doc.eq(doc(p("Hello, ", strong("world")))))
+ * assert.strictEqual(tr.steps.length, 2)
+ * assert.ok(tr.steps[0] instanceof ReplaceStep)
+ *
+ * // Every step can be inverted against the document it was applied to.
+ * const back = new Transform(tr.doc)
+ * for (let i = tr.steps.length - 1; i >= 0; i--) back.stepUnsafe(tr.steps[i]!.invert(tr.docs[i]!))
+ * assert.ok(back.doc.eq(doc(p("Hello world"))))
+ * ```
+ *
  * @since 0.1.0
  * @category models
  */
