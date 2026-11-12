@@ -68,7 +68,10 @@ const cacheInputs = [{ auto: true }, "!node_modules/**", "!docs/**", "!coverage/
 
 const testEnv = ["VITEST_MAX_WORKERS", "NODE_OPTIONS", "PLAYWRIGHT_CHROMIUM_EXECUTABLE"]
 
-const maxWorkers = process.env.VITEST_MAX_WORKERS
+// Spread into `test` below: `undefined` leaves vitest's `maxWorkers` unset,
+// which `exactOptionalPropertyTypes` does not allow an explicit `undefined` for.
+const maxWorkers =
+  process.env.VITEST_MAX_WORKERS === undefined ? undefined : { maxWorkers: Number(process.env.VITEST_MAX_WORKERS) }
 const chromium = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
 
 export default defineConfig({
@@ -186,19 +189,20 @@ export default defineConfig({
       "typescript/consistent-return": "warn", // 22
       "typescript/no-unnecessary-type-parameters": "warn", // 14
       "effecttsgo/strict-effect-provide": "warn", // 13
-      // The three left normalise a value a JS caller supplies (a node spec's
-      // `code`, a command's result, an `attributes` prop) that ProseMirror
-      // code may hand over as a non-boolean or non-string.
-      "typescript/no-unnecessary-type-conversion": "warn", // 3
       "effecttsgo/unsafe-effect-type-assertion": "warn", // 6
-      // `editable` compares with `=== false` as ProseMirror does: a JS
-      // caller's prop may return `undefined`, which must stay "editable".
-      "typescript/no-unnecessary-boolean-literal-compare": "warn", // 1
       // The four left are EditorState's Effect twins of its synchronous
       // transaction methods; with `this` in place of `self` their bodies
       // become clones of the sync versions, so they wait on deduplicating
       // the twins.
       "typescript/no-this-alias": "warn", // 4
+      // ---- Paid down -------------------------------------------------------
+      // `@effect/tsgo`'s preset reports these as warnings; they have no sites
+      // left, so they are errors here (#18).
+      "effecttsgo/unnecessary-fail-yieldable-error": "error",
+      "effecttsgo/lazy-effect": "error",
+      "effecttsgo/flat-map-conditional-to-filter-or-fail": "error",
+      "effecttsgo/try-catch-in-effect-gen": "error",
+      "effecttsgo/prefer-succeed-some-or-none": "error",
       "typescript/no-explicit-any": "off",
       "typescript/no-empty-object-type": "off",
       "typescript/ban-ts-comment": "off",
@@ -289,10 +293,7 @@ export default defineConfig({
       {
         files: ["vite.config.ts"],
         rules: {
-          "effect/avoid-process-env": "off",
-          // `...(process.env.X ? { x } : {})` is how a vitest option is left
-          // unset under `exactOptionalPropertyTypes`.
-          "effect/no-conditional-empty-object-spread": "off"
+          "effect/avoid-process-env": "off"
         }
       },
       // Type-level tests: the expect-error directives ARE the assertions
@@ -451,7 +452,7 @@ export default defineConfig({
     alias: [{ find: /^@thomasfosterau\/effect-richtext\/(.+)$/, replacement: `${srcDir}$1.ts` }]
   },
   test: {
-    ...(maxWorkers === undefined ? {} : { maxWorkers: Number(maxWorkers) }),
+    ...maxWorkers,
     coverage: {
       provider: "istanbul",
       // `json` writes coverage-final.json, the Istanbul map `fallow audit`

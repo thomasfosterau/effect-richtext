@@ -97,7 +97,7 @@ import { createEditor, defineBasicExtension } from "@thomasfosterau/effect-richt
 const mountBasicEditor = Effect.fn("mountBasicEditor")(function* (place: HTMLElement) {
   const editor = yield* createEditor(defineBasicExtension())
   yield* editor.mount(place)
-  yield* editor.chain().setBlockType("heading", { level: 2 }).toggleMark("strong").run()
+  yield* editor.chain().setBlockType("heading", { level: 2 }).toggleMark("strong").run
 })
 ```
 
