@@ -6,7 +6,7 @@
 import * as Option from "effect/Option"
 import * as S from "effect/Schema"
 
-const encodeRanges = S.encodeSync(S.fromJsonString(S.Array(S.Number)))
+const encodeRanges = S.encodeSync(S.fromJsonString(S.Array(S.Int)))
 
 /**
  * There are several things that positions can be mapped through.

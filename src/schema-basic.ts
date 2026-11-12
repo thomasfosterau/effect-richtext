@@ -64,7 +64,7 @@ export const nodes = {
    * number 1 to 6. Parsed and serialized as `<h1>` to `<h6>` elements.
    */
   heading: nodeSpec({
-    attrs: { level: { schema: S.Number, default: 1 } },
+    attrs: { level: { schema: S.Int, default: 1 } },
     content: Content.zeroOrMore("inline"),
     group: "block",
     defining: true,
