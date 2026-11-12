@@ -24,4 +24,4 @@ The publish step is `pnpm run release`: `vp run build`, then `pnpm publish --acc
    Then remove any classic automation tokens for the package.
 
 5. **Protect the `release` environment.** **Settings → Environments → `release`** → enable **Required reviewers** (yourself) and restrict deployment to the `trunk` branch, so publishing pauses for manual approval.
-6. **Protect `trunk`.** Require pull requests and the passing `ci` check before merge, and disallow direct pushes, so a release can only be triggered by merging the reviewed version PR.
+6. **Protect `trunk`.** Require pull requests and the passing `ci (node lts)` and `ci (node latest)` checks before merge, and disallow direct pushes, so a release can only be triggered by merging the reviewed version PR.
