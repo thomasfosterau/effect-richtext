@@ -53,6 +53,8 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
+    assignees:
+      - "thomasfosterau"
     commit-message:
       prefix: "chore"
       prefix-development: "chore"
@@ -81,14 +83,20 @@ updates:
           - "@effect/tsgo"
           - "@effect/language-service"
         update-types: ["major", "minor", "patch"]
+  # `/` covers .github/workflows; the composite action is its own directory
+  # (without it the actions it pins are never updated).
   - package-ecosystem: "github-actions"
-    directory: "/"
+    directories:
+      - "/"
+      - "/.github/actions/setup"
     schedule:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    assignees:
+      - "thomasfosterau"
     commit-message:
       prefix: "ci"
       include: "scope"
@@ -104,6 +112,8 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    assignees:
+      - "thomasfosterau"
     commit-message:
       prefix: "chore"
       include: "scope"
