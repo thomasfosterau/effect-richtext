@@ -5,7 +5,6 @@ import * as Cause from "effect/Cause"
 import * as Context from "effect/Context"
 import * as Deferred from "effect/Deferred"
 import * as Effect from "effect/Effect"
-import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
 import {
@@ -316,7 +315,7 @@ describe("inputRules (Effect handlers)", () => {
       // The rule is undoable like a plain one.
       ist(yield* undoInputRule(view.state, view.dispatch))
       ist(view.state.doc, doc(p("a++")), eq)
-    }).pipe(Effect.scoped, Effect.provide(Layer.succeed(Counter, { step: 7 })))
+    }).pipe(Effect.scoped, Effect.provideService(Counter, { step: 7 }))
   )
 
   it.effect("continues with later rules when an effect produces None", () =>

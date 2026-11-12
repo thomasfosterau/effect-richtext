@@ -187,6 +187,7 @@ export default defineConfig({
       "typescript/consistent-return": "warn", // 22
       "typescript/no-unnecessary-type-parameters": "warn", // 14
       "effecttsgo/strict-effect-provide": "warn", // 13
+      "effecttsgo/provide-layer-succeed-to-provide-service": "error",
       "effecttsgo/unsafe-effect-type-assertion": "warn", // 6
       // The four left are EditorState's Effect twins of its synchronous
       // transaction methods; with `this` in place of `self` their bodies

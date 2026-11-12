@@ -2,7 +2,6 @@
 import { assert, describe, it } from "@effect/vitest"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
-import * as Layer from "effect/Layer"
 import * as Schema from "effect/Schema"
 import { keydownHandler, keymap, KeymapError, type KeymapView } from "@thomasfosterau/effect-richtext/keymap"
 import type { AnySchema } from "@thomasfosterau/effect-richtext/model"
@@ -161,7 +160,7 @@ describe("keymap (Effect API)", () => {
       const copied: Array<string> = []
       const handler = keydownHandler({ "Ctrl-c": copy })
       const handled = yield* handler(fakeView, { key: "c", ctrlKey: true } as KeyboardEvent).pipe(
-        Effect.provide(Layer.succeed(Clipboard, { copied }))
+        Effect.provideService(Clipboard, { copied })
       )
       ist(handled)
       assert.deepStrictEqual(copied, ["copy"])

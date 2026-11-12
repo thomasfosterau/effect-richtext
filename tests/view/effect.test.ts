@@ -6,7 +6,6 @@ import * as Context from "effect/Context"
 import * as Deferred from "effect/Deferred"
 import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
-import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import * as Result from "effect/Result"
@@ -82,7 +81,7 @@ describe("EditorView (Effect API)", () => {
       yield* view.tryDispatch(view.state.tr.insertTextUnsafe("c"))
       ist(view.state.doc, doc(p("fooabc")), eq)
       ist(count(view.state), 15)
-    }).pipe(Effect.scoped, Effect.provide(Layer.succeed(Counter, { step: 5 })))
+    }).pipe(Effect.scoped, Effect.provideService(Counter, { step: 5 }))
   )
 
   it.effect("runs Effect-returning handleKeyDown props", () =>
@@ -107,7 +106,7 @@ describe("EditorView (Effect API)", () => {
       const unhandled = keyDown(view, "y", 89)
       ist(!unhandled.defaultPrevented)
       assert.deepStrictEqual(seen, ["x2", "y2"])
-    }).pipe(Effect.scoped, Effect.provide(Layer.succeed(Counter, { step: 2 })))
+    }).pipe(Effect.scoped, Effect.provideService(Counter, { step: 2 }))
   )
 
   it.live("treats asynchronous handler effects as handled and lets them finish", () =>

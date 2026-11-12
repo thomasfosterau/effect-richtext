@@ -2,7 +2,6 @@ import { assert, describe, it } from "@effect/vitest"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
-import * as Layer from "effect/Layer"
 import * as R from "effect/Record"
 import * as Schema from "effect/Schema"
 import {
@@ -317,7 +316,7 @@ describe("Effect requirements and errors", () => {
       yield* editor.commands.insertText("a")
       yield* editor.chain().insertText("b").insertText("c").run
       ist(getSome(counter.getState(editor.state)), 4)
-    }).pipe(Effect.provide(Layer.succeed(Step, { size: 2 })), Effect.runSync))
+    }).pipe(Effect.provideService(Step, { size: 2 }), Effect.runSync))
 
   it("propagates plugin and command failures", () =>
     Effect.gen(function* () {
