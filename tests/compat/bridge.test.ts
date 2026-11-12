@@ -111,6 +111,15 @@ class HiddenCursor extends Selection {
 }
 Selection.jsonID("compatHidden", HiddenCursor)
 
+const insertX: Command = (state, dispatch) => {
+  if (dispatch) dispatch(state.tr.insertText("x"))
+  return true
+}
+
+// A core command used as a ProseMirror command.
+const coreSelectAll: CoreState.Command = (state, dispatch) =>
+  Effect.as(dispatch ? dispatch(state.tr.setSelectionUnsafe(new CoreState.AllSelection(state.doc))) : Effect.void, true)
+
 describe("compat bridge", () => {
   it("preserves identity when wrapping", () => {
     const d = doc(p("foo"), p("bar"))
@@ -267,10 +276,6 @@ describe("compat bridge", () => {
   })
 
   it("bridges commands in both directions", () => {
-    const insertX: Command = (state, dispatch) => {
-      if (dispatch) dispatch(state.tr.insertText("x"))
-      return true
-    }
     const core = toCoreCommand(insertX)
     ist(fromCoreCommand(core), insertX)
     const coreState = stateToCore(EditorState.create({ doc: doc(p("<a>foo")) }))
@@ -284,12 +289,6 @@ describe("compat bridge", () => {
     )
     ist(handled)
     ist(modelFromCore(result.doc).textContent, "xfoo")
-    // A core command used as a ProseMirror command.
-    const coreSelectAll: CoreState.Command = (state, dispatch) =>
-      Effect.as(
-        dispatch ? dispatch(state.tr.setSelectionUnsafe(new CoreState.AllSelection(state.doc))) : Effect.void,
-        true
-      )
     const pmSelectAll = fromCoreCommand(coreSelectAll)
     let state = EditorState.create({ doc: doc(p("foo")) })
     ist(pmSelectAll(state, (tr) => (state = state.apply(tr))))

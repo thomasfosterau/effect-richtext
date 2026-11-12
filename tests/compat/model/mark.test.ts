@@ -30,6 +30,10 @@ const remark1 = custom.remark.create({ id: 1 }),
   customEm = custom.em.create(),
   customStrong = custom.strong.create()
 
+function isAt(doc: Node, mark: Mark, result: boolean) {
+  ist(mark.isInSet(doc.resolve((doc as any).tag.a).marks()), result)
+}
+
 describe("Mark", () => {
   describe("sameSet", () => {
     it("returns true for two empty sets", () => ist(Mark.sameSet([], [])))
@@ -114,10 +118,6 @@ describe("Mark", () => {
   })
 
   describe("ResolvedPos.marks", () => {
-    function isAt(doc: Node, mark: Mark, result: boolean) {
-      ist(mark.isInSet(doc.resolve((doc as any).tag.a).marks()), result)
-    }
-
     it("recognizes a mark exists inside marked text", () => isAt(doc(p(em("fo<a>o"))), em_, true))
 
     it("recognizes a mark doesn't exist in non-marked text", () => isAt(doc(p(em("fo<a>o"))), strong, false))

@@ -321,7 +321,7 @@ describe("inputRules (Effect handlers)", () => {
 
   it.effect("continues with later rules when an effect produces None", () =>
     Effect.gen(function* () {
-      const none = new InputRule(/--$/, () => Effect.succeed(Option.none()))
+      const none = new InputRule(/--$/, () => Effect.succeedNone)
       const d = doc(p("<a>"))
       const state = EditorState.createUnsafe({
         doc: d,

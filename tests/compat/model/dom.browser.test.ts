@@ -48,26 +48,95 @@ const xmlDocument: any = new window.DOMParser().parseFromString("<tag/>", "appli
 const parser = DOMParser.fromSchema(schema)
 const serializer = DOMSerializer.fromSchema(schema)
 
+function domFrom(html: string, document_ = document) {
+  const dom = document_.createElement("div")
+  dom.innerHTML = html
+  return dom
+}
+
+function recover(html: string | HTMLElement, doc: PMNode, options?: ParseOptions) {
+  return () => {
+    const dom = document.createElement("div")
+    if (typeof html == "string") dom.innerHTML = html
+    else dom.appendChild(html)
+    ist(parser.parse(dom, options), doc, eq)
+  }
+}
+
+function parse(html: string, options: ParseOptions, doc: PMNode) {
+  return () => {
+    const dom = document.createElement("div")
+    dom.innerHTML = html
+    const result = parser.parse(dom, options)
+    ist(result, doc, eq)
+  }
+}
+
+function open(html: string, nodes: (string | PMNode)[], openStart: number, openEnd: number, options?: ParseOptions) {
+  return () => {
+    const dom = document.createElement("div")
+    dom.innerHTML = html
+    const result = parser.parseSlice(dom, options)
+    ist(
+      result,
+      new Slice(Fragment.from(nodes.map((n) => (typeof n == "string" ? schema.text(n) : n))), openStart, openEnd),
+      eq
+    )
+  }
+}
+
+function find(html: string, doc: PMNode) {
+  return () => {
+    const dom = document.createElement("div")
+    dom.innerHTML = html
+    const tag = dom.querySelector("var"),
+      prev = tag.previousSibling!,
+      next = tag.nextSibling
+    let pos
+    if (prev && next && prev.nodeType == 3 && next.nodeType == 3) {
+      pos = { node: prev, offset: prev.nodeValue.length }
+      prev.nodeValue += next.nodeValue
+      next.parentNode.removeChild(next)
+    } else {
+      pos = { node: tag.parentNode, offset: Array.prototype.indexOf.call(tag.parentNode.childNodes, tag) }
+    }
+    tag.parentNode.removeChild(tag)
+    const result = parser.parse(dom, {
+      findPositions: [pos]
+    })
+    ist(result, doc, eq)
+    ist((pos as any).pos, (doc as any).tag.a)
+  }
+}
+
+function contextParser(context: string) {
+  return new DOMParser(
+    schema,
+    [{ tag: "foo", node: "horizontal_rule", context } as ParseRule].concat(DOMParser.schemaRules(schema) as ParseRule[])
+  )
+}
+
+function nsParse(doc: Node, namespace?: string) {
+  const schema = new Schema({
+    nodes: { doc: { content: "h*" }, text: {}, h: { parseDOM: [{ tag: "h", namespace }] } }
+  })
+  return DOMParser.fromSchema(schema).parse(doc)
+}
+
+function test(doc: PMNode, html: string, document_ = document) {
+  return () => {
+    const derivedDOM = document_.createElement("div"),
+      schema = doc.type.schema
+    derivedDOM.appendChild(DOMSerializer.fromSchema(schema).serializeFragment(doc.content, { document: document_ }))
+    const declaredDOM = domFrom(html, document_)
+
+    ist(derivedDOM.innerHTML, declaredDOM.innerHTML)
+    ist(DOMParser.fromSchema(schema).parse(derivedDOM), doc, eq)
+  }
+}
+
 describe("DOMParser", () => {
   describe("parse", () => {
-    function domFrom(html: string, document_ = document) {
-      const dom = document_.createElement("div")
-      dom.innerHTML = html
-      return dom
-    }
-
-    function test(doc: PMNode, html: string, document_ = document) {
-      return () => {
-        const derivedDOM = document_.createElement("div"),
-          schema = doc.type.schema
-        derivedDOM.appendChild(DOMSerializer.fromSchema(schema).serializeFragment(doc.content, { document: document_ }))
-        const declaredDOM = domFrom(html, document_)
-
-        ist(derivedDOM.innerHTML, declaredDOM.innerHTML)
-        ist(DOMParser.fromSchema(schema).parse(derivedDOM), doc, eq)
-      }
-    }
-
     it("can represent simple node", test(doc(p("hello")), "<p>hello</p>"))
 
     it("can represent a line break", test(doc(p("hi", br(), "there")), "<p>hi<br/>there</p>"))
@@ -245,15 +314,6 @@ describe("DOMParser", () => {
       ist(dom.querySelector("use").attributes[0].namespaceURI, "http://www.w3.org/1999/xlink")
     })
 
-    function recover(html: string | HTMLElement, doc: PMNode, options?: ParseOptions) {
-      return () => {
-        const dom = document.createElement("div")
-        if (typeof html == "string") dom.innerHTML = html
-        else dom.appendChild(html)
-        ist(parser.parse(dom, options), doc, eq)
-      }
-    }
-
     it("can recover a list item", recover("<ol><p>Oh no</p></ol>", doc(ol(li(p("Oh no"))))))
 
     it("wraps a list item in a list", recover("<li>hey</li>", doc(ol(li(p("hey"))))))
@@ -380,15 +440,6 @@ describe("DOMParser", () => {
       recover(dom, doc(p("Hello"), hr()))()
     })
 
-    function parse(html: string, options: ParseOptions, doc: PMNode) {
-      return () => {
-        const dom = document.createElement("div")
-        dom.innerHTML = html
-        const result = parser.parse(dom, options)
-        ist(result, doc, eq)
-      }
-    }
-
     it(
       "accepts the topNode option",
       parse(
@@ -410,25 +461,6 @@ describe("DOMParser", () => {
     )
 
     it("accepts the preserveWhitespace option", parse("foo   bar", { preserveWhitespace: true }, doc(p("foo   bar"))))
-
-    function open(
-      html: string,
-      nodes: (string | PMNode)[],
-      openStart: number,
-      openEnd: number,
-      options?: ParseOptions
-    ) {
-      return () => {
-        const dom = document.createElement("div")
-        dom.innerHTML = html
-        const result = parser.parseSlice(dom, options)
-        ist(
-          result,
-          new Slice(Fragment.from(nodes.map((n) => (typeof n == "string" ? schema.text(n) : n))), openStart, openEnd),
-          eq
-        )
-      }
-    }
 
     it("can parse an open slice", open("foo", ["foo"], 0, 0))
 
@@ -581,30 +613,6 @@ describe("DOMParser", () => {
       )
     })
 
-    function find(html: string, doc: PMNode) {
-      return () => {
-        const dom = document.createElement("div")
-        dom.innerHTML = html
-        const tag = dom.querySelector("var"),
-          prev = tag.previousSibling!,
-          next = tag.nextSibling
-        let pos
-        if (prev && next && prev.nodeType == 3 && next.nodeType == 3) {
-          pos = { node: prev, offset: prev.nodeValue.length }
-          prev.nodeValue += next.nodeValue
-          next.parentNode.removeChild(next)
-        } else {
-          pos = { node: tag.parentNode, offset: Array.prototype.indexOf.call(tag.parentNode.childNodes, tag) }
-        }
-        tag.parentNode.removeChild(tag)
-        const result = parser.parse(dom, {
-          findPositions: [pos]
-        })
-        ist(result, doc, eq)
-        ist((pos as any).pos, (doc as any).tag.a)
-      }
-    }
-
     it("can find a position at the start of a paragraph", find("<p><var></var>hello</p>", doc(p("<a>hello"))))
 
     it("can find a position at the end of a paragraph", find("<p>hello<var></var></p>", doc(p("hello<a>"))))
@@ -634,15 +642,6 @@ describe("DOMParser", () => {
         "<p>hello</p>"
       )
     )
-
-    function contextParser(context: string) {
-      return new DOMParser(
-        schema,
-        [{ tag: "foo", node: "horizontal_rule", context } as ParseRule].concat(
-          DOMParser.schemaRules(schema) as ParseRule[]
-        )
-      )
-    }
 
     it("recognizes context restrictions", () => {
       ist(
@@ -840,13 +839,6 @@ describe("DOMParser", () => {
         "em bar foo i"
       )
     })
-
-    function nsParse(doc: Node, namespace?: string) {
-      const schema = new Schema({
-        nodes: { doc: { content: "h*" }, text: {}, h: { parseDOM: [{ tag: "h", namespace }] } }
-      })
-      return DOMParser.fromSchema(schema).parse(doc)
-    }
 
     it("includes nodes when namespace is correct", () => {
       const doc = xmlDocument.createElement("doc")

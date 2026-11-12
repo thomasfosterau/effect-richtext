@@ -13,6 +13,18 @@ const embedContext = (url: string) => `<p data-pm-slice='1 1 ["embed",{"url":"${
 
 const parseFromClipboard = (...args: Parameters<typeof __parseFromClipboard>) => __parseFromClipboard(...args)!
 
+function tableSchema() {
+  return DocSchema.makeUnsafe({
+    nodes: {
+      td: { content: "text*", toDOM: () => ["td", 0], parseDOM: [{ tag: "td" }] },
+      tr: { content: "td+", toDOM: () => ["tr", 0], parseDOM: [{ tag: "tr" }] },
+      table: { content: "tr+", toDOM: () => ["table", ["tbody", 0]], parseDOM: [{ tag: "table" }] },
+      doc: { content: "table+" },
+      text: {}
+    }
+  })
+}
+
 describe("Clipboard interface", () => {
   it("copies only the node for a node selection", () => {
     const d = doc(blockquote(p("a"), "<a>", hr()), p("b"))
@@ -158,18 +170,6 @@ describe("Clipboard interface", () => {
       eq
     )
   })
-
-  function tableSchema() {
-    return DocSchema.makeUnsafe({
-      nodes: {
-        td: { content: "text*", toDOM: () => ["td", 0], parseDOM: [{ tag: "td" }] },
-        tr: { content: "td+", toDOM: () => ["tr", 0], parseDOM: [{ tag: "tr" }] },
-        table: { content: "tr+", toDOM: () => ["table", ["tbody", 0]], parseDOM: [{ tag: "table" }] },
-        doc: { content: "table+" },
-        text: {}
-      }
-    })
-  }
 
   it("adds necessary wrappers for parsing", () => {
     const s = tableSchema()

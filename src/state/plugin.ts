@@ -223,13 +223,31 @@ export type PluginTypeId = typeof PluginTypeId
  * with, and the errors (`E`) and requirements (`R`) of its effectful
  * hooks, which are inferred from the spec:
  *
- * ```ts skip-type-checking
+ * @example
+ * ```ts
+ * import * as assert from "node:assert"
+ * import * as Clock from "effect/Clock"
+ * import * as Effect from "effect/Effect"
+ * import * as Option from "effect/Option"
+ * import { schema } from "@thomasfosterau/effect-richtext/schema-basic"
+ * import { EditorState, Plugin } from "@thomasfosterau/effect-richtext/state"
+ *
+ * // A `Plugin<number, AnySchema, never, never>`: the state hook may use services.
  * const counter = new Plugin({
  *   state: {
  *     init: () => 0,
- *     apply: (_tr, n) => Effect.map(Clock.currentTimeMillis, () => n + 1)
+ *     apply: (_tr, n: number) => Effect.map(Clock.currentTimeMillis, () => n + 1)
  *   }
- * }) // Plugin<number, AnySchema, never, never>
+ * })
+ *
+ * const program = Effect.gen(function* () {
+ *   const state = yield* EditorState.create({ schema, plugins: [counter] })
+ *   const next = yield* state.apply(state.tr.insertTextUnsafe("a"))
+ *   assert.deepStrictEqual(counter.getState(state), Option.some(0))
+ *   assert.deepStrictEqual(counter.getState(next), Option.some(1))
+ * })
+ *
+ * Effect.runSync(program)
  * ```
  *
  * @since 0.1.0

@@ -44,6 +44,31 @@ function compress(state: State) {
   hist.done = hist.done.compress()
 }
 
+function unsyncedComplex(state: State, doCompress: boolean) {
+  state = type(state, "hello")
+  state = state.applyUnsafe(closeHistory(state.tr))
+  state = type(state, "!")
+  state = state.applyUnsafe(state.tr.insertTextUnsafe("....", 1).setMeta("addToHistory", false))
+  state = state.applyUnsafe(state.tr.splitUnsafe(3))
+  ist(state.doc, doc(p(".."), p("..hello!")), eq)
+  state = state.applyUnsafe(state.tr.splitUnsafe(2).setMeta("addToHistory", false))
+  if (doCompress) compress(state)
+  state = command(state, undo)
+  state = command(state, undo)
+  ist(state.doc, doc(p("."), p("...hello")), eq)
+  state = command(state, undo)
+  ist(state.doc, doc(p("."), p("...")), eq)
+}
+
+const addPlugin = () =>
+  new Plugin({
+    appendTransaction: (trs, _old, state) => {
+      const add = Option.getOrUndefined(trs[0]!.getMeta<string>("add"))
+      if (add) return state.tr.insertUnsafe(1, schema.textUnsafe(add))
+      return undefined
+    }
+  })
+
 describe("history", () => {
   it("enables undo", () => {
     let state = mkState()
@@ -125,22 +150,6 @@ describe("history", () => {
     state = command(state, redo)
     ist(state.doc, doc(p("bar")), eq)
   })
-
-  function unsyncedComplex(state: State, doCompress: boolean) {
-    state = type(state, "hello")
-    state = state.applyUnsafe(closeHistory(state.tr))
-    state = type(state, "!")
-    state = state.applyUnsafe(state.tr.insertTextUnsafe("....", 1).setMeta("addToHistory", false))
-    state = state.applyUnsafe(state.tr.splitUnsafe(3))
-    ist(state.doc, doc(p(".."), p("..hello!")), eq)
-    state = state.applyUnsafe(state.tr.splitUnsafe(2).setMeta("addToHistory", false))
-    if (doCompress) compress(state)
-    state = command(state, undo)
-    state = command(state, undo)
-    ist(state.doc, doc(p("."), p("...hello")), eq)
-    state = command(state, undo)
-    ist(state.doc, doc(p("."), p("...")), eq)
-  }
 
   it("can handle complex editing sequences", () => {
     unsyncedComplex(mkState(), false)
@@ -339,15 +348,6 @@ describe("history", () => {
     state = command(state, undo)
     ist(state.doc, doc(p("x")), eq)
   })
-
-  const addPlugin = () =>
-    new Plugin({
-      appendTransaction: (trs, _old, state) => {
-        const add = Option.getOrUndefined(trs[0]!.getMeta<string>("add"))
-        if (add) return state.tr.insertUnsafe(1, schema.textUnsafe(add))
-        return undefined
-      }
-    })
 
   it("includes transactions appended to undo in the redo history", () => {
     let state = mkState(doc(p("x")), { plugins: [addPlugin()] })

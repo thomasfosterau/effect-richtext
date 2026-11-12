@@ -5,8 +5,8 @@ set -euo pipefail
 # Installer version: 3.6.0
 # Local deviations, re-apply after `fallow hooks install` regenerates this
 # file: the trusted-checkout block that replaces the fallow lookup arms, the
-# first-line cut of `fallow --version`, and the catalog wording of the
-# upgrade hint, each marked below or self-evident.
+# first-line cut of `fallow --version`, the coverage-map block, and the
+# catalog wording of the upgrade hint, each marked below or self-evident.
 # Requires bash and jq. On Windows run via git-bash or WSL.
 # Blocks Claude Code git commit and git push when fallow audit returns verdict fail.
 # Runtime errors fail open with a single stderr notice so skips stay visible.
@@ -117,6 +117,70 @@ if [ -n "$MIN_VERSION" ] && [ -n "$VERSION" ]; then
     exit 2
   fi
 fi
+
+# --- Coverage map: local deviation from the generated script ---
+# `fallow audit` scores CRAP from the Istanbul map at
+# coverage/coverage-final.json (`health.coverage` in .fallowrc.json). Without
+# the map it exits with a runtime error, which this gate treats as
+# non-blocking, so a commit in a checkout that never ran `vp run
+# test:coverage` (every fresh `.claude/worktrees/*`) went through unaudited.
+# A map older than a source or test file scores the functions that changed
+# since from stale counts. So the gate regenerates a missing or stale map
+# first. With no usable map afterwards it blocks, because the audit cannot
+# run; with a stale map it could not refresh (a failing test, say) it audits
+# against the stale one and says so. Set FALLOW_GATE_COVERAGE=skip to audit
+# against whatever is on disk. Re-apply this block after regenerating.
+COVERAGE_MAP=coverage/coverage-final.json
+COVERAGE_INPUTS=(src tests vite.config.ts package.json pnpm-lock.yaml)
+coverage_stale() {
+  [ -f "$COVERAGE_MAP" ] || return 0
+  [ -n "$(find "${COVERAGE_INPUTS[@]}" -type f -newer "$COVERAGE_MAP" -print -quit 2>/dev/null)" ]
+}
+if [ "${FALLOW_GATE_COVERAGE-}" != "skip" ] && coverage_stale; then
+  if [ -f "$COVERAGE_MAP" ]; then
+    echo "fallow-gate: $COVERAGE_MAP is older than the sources; running \`vp run test:coverage\`." >&2
+  else
+    echo "fallow-gate: no $COVERAGE_MAP in $PWD; running \`vp run test:coverage\`." >&2
+  fi
+  # The browser project needs a Chromium; agent containers ship one here.
+  if [ -z "${PLAYWRIGHT_CHROMIUM_EXECUTABLE-}" ] && [ -x /opt/pw-browsers/chromium ]; then
+    export PLAYWRIGHT_CHROMIUM_EXECUTABLE=/opt/pw-browsers/chromium
+  fi
+  COVERAGE_LOG="$(mktemp)"
+  # A failed run clears coverage/, so keep the stale map to put back.
+  COVERAGE_KEEP=
+  if [ -f "$COVERAGE_MAP" ]; then
+    COVERAGE_KEEP="$(mktemp)"
+    cp -p "$COVERAGE_MAP" "$COVERAGE_KEEP"
+  fi
+  if command -v vp >/dev/null 2>&1; then
+    COVERAGE_RUNNER=(vp run test:coverage)
+  else
+    COVERAGE_RUNNER=(./node_modules/.bin/vp run test:coverage)
+  fi
+  if "${COVERAGE_RUNNER[@]}" >"$COVERAGE_LOG" 2>&1 && [ -f "$COVERAGE_MAP" ]; then
+    rm -f "$COVERAGE_LOG" ${COVERAGE_KEEP:+"$COVERAGE_KEEP"}
+  else
+    {
+      echo "fallow-gate: \`vp run test:coverage\` failed; its last lines:"
+      tail -n 20 "$COVERAGE_LOG"
+    } >&2
+    rm -f "$COVERAGE_LOG"
+    if [ -n "$COVERAGE_KEEP" ]; then
+      mkdir -p "$(dirname "$COVERAGE_MAP")"
+      mv -f "$COVERAGE_KEEP" "$COVERAGE_MAP"
+    fi
+    if [ ! -f "$COVERAGE_MAP" ]; then
+      {
+        echo "fallow-gate: blocked: no coverage map, so the audit cannot run."
+        echo "fallow-gate: fix the test run, or set FALLOW_GATE_COVERAGE=skip to commit unaudited."
+      } >&2
+      exit 2
+    fi
+    echo "fallow-gate: auditing against the stale $COVERAGE_MAP." >&2
+  fi
+fi
+# --- End coverage map ---
 
 TMP_JSON="$(mktemp)"
 TMP_ERR="$(mktemp)"

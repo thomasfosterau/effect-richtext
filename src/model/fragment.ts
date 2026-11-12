@@ -38,6 +38,21 @@ export type NodeVisitor<Sc extends AnySchema = AnySchema> = (
  *
  * Fragments implement `Equal` (structural equality) and are iterable.
  *
+ * @example
+ * ```ts
+ * import * as assert from "node:assert"
+ * import { Fragment } from "@thomasfosterau/effect-richtext/model"
+ * import { schema } from "@thomasfosterau/effect-richtext/schema-basic"
+ *
+ * const paragraph = schema.nodeUnsafe("paragraph", null, [schema.textUnsafe("Hi")])
+ * const fragment = Fragment.from([paragraph, paragraph])
+ *
+ * // A paragraph holding "Hi" is 4 tokens long: open, two characters, close.
+ * assert.strictEqual(fragment.childCount, 2)
+ * assert.strictEqual(fragment.size, 8)
+ * assert.strictEqual(fragment.textBetween(0, fragment.size, " "), "Hi Hi")
+ * ```
+ *
  * @since 0.1.0
  * @category models
  */

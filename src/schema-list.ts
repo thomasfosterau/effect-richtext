@@ -95,6 +95,35 @@ export type ListNodes<ItemRefs extends string, Group extends string | undefined>
  * `listGroup` can be given to assign a group name to the list node
  * types, for example `"block"`.
  *
+ * @example
+ * ```ts
+ * import * as assert from "node:assert"
+ * import * as Effect from "effect/Effect"
+ * import { Content, DocSchema } from "@thomasfosterau/effect-richtext/model"
+ * import { marks, nodes } from "@thomasfosterau/effect-richtext/schema-basic"
+ * import { addListNodes, wrapInList } from "@thomasfosterau/effect-richtext/schema-list"
+ * import { EditorState, TextSelection } from "@thomasfosterau/effect-richtext/state"
+ *
+ * const schema = DocSchema.makeUnsafe({
+ *   nodes: addListNodes(nodes, Content.seq("paragraph", Content.zeroOrMore("block")), "block"),
+ *   marks
+ * })
+ *
+ * const start = schema.nodeUnsafe("doc", null, [schema.nodeUnsafe("paragraph", null, [schema.textUnsafe("item")])])
+ * let state = EditorState.createUnsafe({ doc: start, selection: TextSelection.createUnsafe(start, 2) })
+ *
+ * // The list commands work on schemas built this way.
+ * const wrapped = Effect.runSync(
+ *   wrapInList(schema.nodes.bullet_list)(state, (tr) =>
+ *     Effect.sync(() => {
+ *       state = state.applyUnsafe(tr)
+ *     })
+ *   )
+ * )
+ * assert.strictEqual(wrapped, true)
+ * assert.strictEqual(state.doc.toString(), 'doc(bullet_list(list_item(paragraph("item"))))')
+ * ```
+ *
  * @since 0.1.0
  * @category specs
  */

@@ -225,6 +225,18 @@ export const marks = {
  * CommonMark, minus the list elements, which are defined in the
  * `schema-list` module.
  *
+ * @example
+ * ```ts
+ * import * as assert from "node:assert"
+ * import { schema } from "@thomasfosterau/effect-richtext/schema-basic"
+ *
+ * const heading = schema.nodeUnsafe("heading", { level: 3 }, [schema.textUnsafe("Title", [schema.markUnsafe("em")])])
+ * const doc = schema.nodeUnsafe("doc", null, [heading])
+ *
+ * assert.strictEqual(doc.toString(), 'doc(heading(em("Title")))')
+ * assert.strictEqual(schema.nodes.heading.name, "heading")
+ * ```
+ *
  * @since 0.1.0
  * @category schemas
  */

@@ -619,6 +619,21 @@ describe("autoJoin", () => {
     ))
 })
 
+function footnoteSchema() {
+  const schema = new Schema({
+    nodes: {
+      text: { inline: true },
+      doc: { content: "para+" },
+      footnote: { content: "text*", atom: true, inline: true },
+      para: { content: "(text | footnote)*" }
+    },
+    marks: {
+      em: {}
+    }
+  })
+  return builders(schema)
+}
+
 describe("toggleMark", () => {
   const toggleEm = toggleMark(schema.marks.em),
     toggleStrong = toggleMark(schema.marks.strong)
@@ -674,21 +689,6 @@ describe("toggleMark", () => {
   it("can remove marks with trailing space when remove-when-present is off", () => {
     apply(doc(p(em("o<a>ne two"), "  <b>three")), toggleEm2, doc(p(em("o"), "ne two  three")))
   })
-
-  function footnoteSchema() {
-    const schema = new Schema({
-      nodes: {
-        text: { inline: true },
-        doc: { content: "para+" },
-        footnote: { content: "text*", atom: true, inline: true },
-        para: { content: "(text | footnote)*" }
-      },
-      marks: {
-        em: {}
-      }
-    })
-    return builders(schema)
-  }
 
   it("enters inline atoms by default", () => {
     const { doc, para, footnote, em, schema } = footnoteSchema()

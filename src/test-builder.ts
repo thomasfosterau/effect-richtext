@@ -8,11 +8,6 @@
  * the text and recorded (as document positions) in the resulting
  * node's `tag` object.
  *
- * ```ts skip-type-checking
- * const d = doc(p("hello <a>world"))
- * d.tag.a // => 7
- * ```
- *
  * @since 0.1.0
  */
 import {
@@ -222,10 +217,20 @@ export type Builders<Sc extends AnySchema, Extra extends Record<string, Attrs> =
 /**
  * Create builders for the given schema. `names` can be used to define
  * additional builders with preset attributes, using `nodeType` or
- * `markType` to specify the underlying type:
+ * `markType` to specify the underlying type.
  *
- * ```ts skip-type-checking
- * builders(schema, { h1: { nodeType: "heading", level: 1 } })
+ * @example
+ * ```ts
+ * import * as assert from "node:assert"
+ * import { schema } from "@thomasfosterau/effect-richtext/schema-basic"
+ * import { builders } from "@thomasfosterau/effect-richtext/test-builder"
+ *
+ * const { doc, paragraph, h1, em } = builders(schema, { h1: { nodeType: "heading", level: 1 } })
+ *
+ * // `<name>` markers are removed from the text and recorded as positions in `tag`.
+ * const d = doc(h1("Title"), paragraph("some <a>", em("emphasis")))
+ * assert.strictEqual(d.textContent, "Titlesome emphasis")
+ * assert.strictEqual(d.tag.a, 13)
  * ```
  *
  * @since 0.1.0
