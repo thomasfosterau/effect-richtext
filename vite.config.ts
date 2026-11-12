@@ -188,7 +188,7 @@ export default defineConfig({
       // `code`, a command's result, an `attributes` prop) that ProseMirror
       // code may hand over as a non-boolean or non-string.
       "typescript/no-unnecessary-type-conversion": "warn", // 3
-      "effecttsgo/unsafe-effect-type-assertion": "warn", // 6
+      "effecttsgo/unsafe-effect-type-assertion": "warn", // 1
       // `editable` compares with `=== false` as ProseMirror does: a JS
       // caller's prop may return `undefined`, which must stay "editable".
       "typescript/no-unnecessary-boolean-literal-compare": "warn", // 1

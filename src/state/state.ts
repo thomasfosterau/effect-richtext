@@ -9,7 +9,7 @@ import * as Exit from "effect/Exit"
 import * as Option from "effect/Option"
 import type { AnySchema, Mark, MarkJSON, ModelError, Node, NodeJSON } from "../model.ts"
 import { type SelectionError, StateError } from "./errors.ts"
-import type { AnyPlugin, Plugin, PluginErrors, PluginRequirements, StateField } from "./plugin.ts"
+import type { AnyPlugin, MaybeEffect, Plugin, PluginErrors, PluginRequirements, StateField } from "./plugin.ts"
 import { Selection, type SelectionJSON, type TextSelection } from "./selection.ts"
 import { Transaction } from "./transaction.ts"
 
@@ -65,6 +65,9 @@ interface FieldDesc {
   readonly init: StateField<any, any, any, any>["init"]
   readonly apply: StateField<any, any, any, any>["apply"]
 }
+
+// Narrow a field hook's result to its `Effect` case, keeping `E` and `R`.
+const isEffectOf = <A, E, R>(u: MaybeEffect<A, E, R>): u is Effect.Effect<A, E, R> => Effect.isEffect(u)
 
 const baseFields: ReadonlyArray<FieldDesc> = [
   {
@@ -486,7 +489,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
       for (let i = 0; i < fields.length; i++) {
         const field = fields[i]!
         const result = field.apply.call(field.self, tr, self.slots[field.name], self, newInstance)
-        newInstance.slots[field.name] = Effect.isEffect(result) ? yield* result as Effect.Effect<unknown, E, R> : result
+        newInstance.slots[field.name] = isEffectOf<unknown, E, R>(result) ? yield* result : result
       }
       return newInstance
     })
