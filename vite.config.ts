@@ -166,13 +166,11 @@ export default defineConfig({
       "effect/use-clock-service": "warn", // 20
       "effect/no-unknown-returns": "warn", // 22
       "effect/yield-in-for-loop": "warn", // 18
-      // The `suspicious` and `unicorn` rules joined with the move to
-      // @enfect/oxlint: the ported suites shadow the test-builder's `doc` /
-      // `schema` and keep ProseMirror's per-test helper closures, and src/
+      // The `suspicious` rules joined with the move to @enfect/oxlint: the
+      // ported suites shadow the test-builder's `doc` / `schema`, and src/
       // keeps ProseMirror's local names. Tracked in
       // thomasfosterau/effect-richtext#19.
-      "eslint/no-shadow": "warn", // 316
-      "unicorn/consistent-function-scoping": "warn", // 117
+      "eslint/no-shadow": "warn", // 314
       // ---- Type-aware allowances (tsgolint, see `options` below) ------------
       // Turned on with Vite+ 1.4; the same rules as above (a new site is a
       // defect, lower the count as sites go, delete the line at zero), tracked
@@ -279,7 +277,23 @@ export default defineConfig({
             "test",
             "unsyncedComplex",
             "open",
-            "find"
+            "find",
+            "addInAddmark",
+            "addInAddnodemark",
+            "delInDelete",
+            "delInDeleterange",
+            "replInReplace",
+            "replInReplacerange",
+            "replInReplacerangewith",
+            "setInSetnodeattribute",
+            "setInSetdocattribute",
+            "typeInSetBlockType",
+            "yesInCansplit",
+            "noInCansplit",
+            "yesInLifttarget",
+            "noInLifttarget",
+            "yesInFindwrapping",
+            "noInFindwrapping"
           ]
         }
       ],

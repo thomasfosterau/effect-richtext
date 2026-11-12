@@ -31,6 +31,8 @@ const countPlugin = new Plugin({
   }
 })
 
+const wordCount = (s: EditorState<any, any, any>) => s.doc.textContent.split(/\s+/).filter(Boolean).length
+
 describe("StateRef", () => {
   it.effect("holds the state and applies dispatched transactions", () =>
     Effect.gen(function* () {
@@ -110,7 +112,6 @@ describe("StateRef", () => {
   it.effect("derives deduplicated projections with select", () =>
     Effect.gen(function* () {
       const ref = yield* StateRef.make(stateFor(doc(p("one two<a>"))))
-      const wordCount = (s: EditorState<any, any, any>) => s.doc.textContent.split(/\s+/).filter(Boolean).length
       const counts = yield* collect(ref.select(wordCount))
       const lengths = yield* collect(
         ref.select(

@@ -49,26 +49,109 @@ const serializer = DOMSerializer.fromSchema(schema)
 const nodeSpecs = schema.spec.nodes
 const markSpecs = schema.spec.marks
 
+function domFrom(html: string, document_: Document = document) {
+  const dom = document_.createElement("div")
+  dom.innerHTML = html
+  return dom
+}
+
+function recover(html: string | HTMLElement, doc: PMNode<any>, options?: ParseOptions<any>) {
+  return () => {
+    const dom = document.createElement("div")
+    if (typeof html == "string") dom.innerHTML = html
+    else dom.appendChild(html)
+    ist(parser.parseUnsafe(dom, options), doc, eq)
+  }
+}
+
+function parse(html: string, options: ParseOptions<any>, doc: PMNode<any>) {
+  return () => {
+    const dom = document.createElement("div")
+    dom.innerHTML = html
+    const result = parser.parseUnsafe(dom, options)
+    ist(result, doc, eq)
+  }
+}
+
+function open(
+  html: string,
+  nodes: Array<string | PMNode<any>>,
+  openStart: number,
+  openEnd: number,
+  options?: ParseOptions<any>
+) {
+  return () => {
+    const dom = document.createElement("div")
+    dom.innerHTML = html
+    const result = parser.parseSliceUnsafe(dom, options)
+    ist(
+      result,
+      new Slice(
+        Fragment.from(nodes.map((n) => (typeof n == "string" ? (schema.textUnsafe(n) as PMNode<any>) : n))),
+        openStart,
+        openEnd
+      ),
+      eq
+    )
+  }
+}
+
+function find(html: string, doc: PMNode<any> & { readonly tag: { readonly [tag: string]: number } }) {
+  return () => {
+    const dom = document.createElement("div")
+    dom.innerHTML = html
+    const tag = dom.querySelector("var")!,
+      prev = tag.previousSibling!,
+      next = tag.nextSibling
+    let pos: { node: Node; offset: number; pos?: number }
+    if (prev && next && prev.nodeType == 3 && next.nodeType == 3) {
+      pos = { node: prev, offset: prev.nodeValue!.length }
+      prev.nodeValue += next.nodeValue!
+      next.parentNode!.removeChild(next)
+    } else {
+      pos = { node: tag.parentNode!, offset: Array.prototype.indexOf.call(tag.parentNode!.childNodes, tag) }
+    }
+    tag.parentNode!.removeChild(tag)
+    const result = parser.parseUnsafe(dom, {
+      findPositions: [pos]
+    })
+    ist(result, doc as PMNode<any>, eq)
+    ist(pos.pos, doc.tag.a)
+  }
+}
+
+function contextParser(context: string) {
+  return new DOMParser(
+    schema,
+    [{ tag: "foo", node: "horizontal_rule", context } as ParseRule].concat(DOMParser.schemaRules(schema))
+  )
+}
+
+function nsParse(doc: Node, namespace?: string | null) {
+  const schema = DocSchema.makeUnsafe({
+    nodes: {
+      doc: { content: Content.zeroOrMore("h") },
+      text: {},
+      h: { parseDOM: [{ tag: "h", namespace }] }
+    }
+  })
+  return DOMParser.fromSchema(schema).parseUnsafe(doc)
+}
+
+function test(doc: PMNode<any>, html: string, document_: Document = document) {
+  return () => {
+    const derivedDOM = document_.createElement("div"),
+      schema = doc.type.schema
+    derivedDOM.appendChild(DOMSerializer.fromSchema(schema).serializeFragment(doc.content, { document: document_ }))
+    const declaredDOM = domFrom(html, document_)
+
+    ist(derivedDOM.innerHTML, declaredDOM.innerHTML)
+    ist(DOMParser.fromSchema(schema).parseUnsafe(derivedDOM), doc, eq)
+  }
+}
+
 describe("DOMParser", () => {
   describe("parse", () => {
-    function domFrom(html: string, document_: Document = document) {
-      const dom = document_.createElement("div")
-      dom.innerHTML = html
-      return dom
-    }
-
-    function test(doc: PMNode<any>, html: string, document_: Document = document) {
-      return () => {
-        const derivedDOM = document_.createElement("div"),
-          schema = doc.type.schema
-        derivedDOM.appendChild(DOMSerializer.fromSchema(schema).serializeFragment(doc.content, { document: document_ }))
-        const declaredDOM = domFrom(html, document_)
-
-        ist(derivedDOM.innerHTML, declaredDOM.innerHTML)
-        ist(DOMParser.fromSchema(schema).parseUnsafe(derivedDOM), doc, eq)
-      }
-    }
-
     it("can represent simple node", test(doc(p("hello")), "<p>hello</p>"))
 
     it("can represent a line break", test(doc(p("hi", br(), "there")), "<p>hi<br/>there</p>"))
@@ -260,15 +343,6 @@ describe("DOMParser", () => {
       ist(dom.querySelector("use")!.attributes[0]!.namespaceURI, "http://www.w3.org/1999/xlink")
     })
 
-    function recover(html: string | HTMLElement, doc: PMNode<any>, options?: ParseOptions<any>) {
-      return () => {
-        const dom = document.createElement("div")
-        if (typeof html == "string") dom.innerHTML = html
-        else dom.appendChild(html)
-        ist(parser.parseUnsafe(dom, options), doc, eq)
-      }
-    }
-
     it("can recover a list item", recover("<ol><p>Oh no</p></ol>", doc(ol(li(p("Oh no"))))))
 
     it("wraps a list item in a list", recover("<li>hey</li>", doc(ol(li(p("hey"))))))
@@ -398,15 +472,6 @@ describe("DOMParser", () => {
       recover(dom, doc(p("Hello"), hr()))()
     })
 
-    function parse(html: string, options: ParseOptions<any>, doc: PMNode<any>) {
-      return () => {
-        const dom = document.createElement("div")
-        dom.innerHTML = html
-        const result = parser.parseUnsafe(dom, options)
-        ist(result, doc, eq)
-      }
-    }
-
     it(
       "accepts the topNode option",
       parse(
@@ -428,29 +493,6 @@ describe("DOMParser", () => {
     )
 
     it("accepts the preserveWhitespace option", parse("foo   bar", { preserveWhitespace: true }, doc(p("foo   bar"))))
-
-    function open(
-      html: string,
-      nodes: Array<string | PMNode<any>>,
-      openStart: number,
-      openEnd: number,
-      options?: ParseOptions<any>
-    ) {
-      return () => {
-        const dom = document.createElement("div")
-        dom.innerHTML = html
-        const result = parser.parseSliceUnsafe(dom, options)
-        ist(
-          result,
-          new Slice(
-            Fragment.from(nodes.map((n) => (typeof n == "string" ? (schema.textUnsafe(n) as PMNode<any>) : n))),
-            openStart,
-            openEnd
-          ),
-          eq
-        )
-      }
-    }
 
     it("can parse an open slice", open("foo", ["foo"], 0, 0))
 
@@ -606,30 +648,6 @@ describe("DOMParser", () => {
       )
     })
 
-    function find(html: string, doc: PMNode<any> & { readonly tag: { readonly [tag: string]: number } }) {
-      return () => {
-        const dom = document.createElement("div")
-        dom.innerHTML = html
-        const tag = dom.querySelector("var")!,
-          prev = tag.previousSibling!,
-          next = tag.nextSibling
-        let pos: { node: Node; offset: number; pos?: number }
-        if (prev && next && prev.nodeType == 3 && next.nodeType == 3) {
-          pos = { node: prev, offset: prev.nodeValue!.length }
-          prev.nodeValue += next.nodeValue!
-          next.parentNode!.removeChild(next)
-        } else {
-          pos = { node: tag.parentNode!, offset: Array.prototype.indexOf.call(tag.parentNode!.childNodes, tag) }
-        }
-        tag.parentNode!.removeChild(tag)
-        const result = parser.parseUnsafe(dom, {
-          findPositions: [pos]
-        })
-        ist(result, doc as PMNode<any>, eq)
-        ist(pos.pos, doc.tag.a)
-      }
-    }
-
     it("can find a position at the start of a paragraph", find("<p><var></var>hello</p>", doc(p("<a>hello"))))
 
     it("can find a position at the end of a paragraph", find("<p>hello<var></var></p>", doc(p("hello<a>"))))
@@ -663,13 +681,6 @@ describe("DOMParser", () => {
         "<p>hello</p>"
       )
     )
-
-    function contextParser(context: string) {
-      return new DOMParser(
-        schema,
-        [{ tag: "foo", node: "horizontal_rule", context } as ParseRule].concat(DOMParser.schemaRules(schema))
-      )
-    }
 
     it("recognizes context restrictions", () => {
       ist(
@@ -869,17 +880,6 @@ describe("DOMParser", () => {
         "em bar foo i"
       )
     })
-
-    function nsParse(doc: Node, namespace?: string | null) {
-      const schema = DocSchema.makeUnsafe({
-        nodes: {
-          doc: { content: Content.zeroOrMore("h") },
-          text: {},
-          h: { parseDOM: [{ tag: "h", namespace }] }
-        }
-      })
-      return DOMParser.fromSchema(schema).parseUnsafe(doc)
-    }
 
     it("includes nodes when namespace is correct", () => {
       const doc = xmlDocument.createElement("doc")
