@@ -197,6 +197,7 @@ export default defineConfig({
       // become clones of the sync versions, so they wait on deduplicating
       // the twins.
       "typescript/no-this-alias": "warn", // 4
+      "effecttsgo/prefer-typed-schema-decoder": "error",
       "typescript/no-explicit-any": "off",
       "typescript/no-empty-object-type": "off",
       "typescript/ban-ts-comment": "off",
