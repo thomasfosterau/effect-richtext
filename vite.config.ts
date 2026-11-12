@@ -125,10 +125,12 @@ export default defineConfig({
       "eslint/prefer-const": "warn",
       "eslint/no-console": "error",
       "typescript/consistent-type-imports": "error",
-      // `casting-awareness` is an awareness prompt, not a defect rule — it
-      // fires on every `as`, including the narrowings the DOM types
-      // structurally require. Stays visible as a warning.
-      "effect/casting-awareness": "warn",
+      // `casting-awareness` is a prompt, not a defect rule: it fires on every
+      // `as`, including the narrowings the DOM types structurally require, so
+      // it cannot reach zero. Every cast is already covered by
+      // `effect/require-safety-comment-for-type-assertion` and
+      // `typescript/no-unsafe-type-assertion` (#18).
+      "effect/casting-awareness": "off",
       // Hard-codes abbreviations (`Arr`, `P`, `R`, …) with no options, so it is
       // unsatisfiable under the full-name convention (`import { Effect,
       // Option } from "effect"`) this library shares with its consumers.
@@ -141,7 +143,7 @@ export default defineConfig({
       // committable while each site stays reported; a new site is a defect,
       // not headroom. The trailing number is the rule's site count when this
       // block was written; the remaining sites are tracked in
-      // thomasfosterau/effect-richtext#3. Lower the count as sites are
+      // thomasfosterau/effect-richtext#18. Lower the count as sites are
       // fixed, and delete the line (back to the preset's `error`) when it
       // reaches zero.
       "effect/avoid-non-null-assertion": "warn", // 1303
@@ -338,10 +340,16 @@ export default defineConfig({
         }
       },
       // Test fixtures are the seams under test, not domain code.
+      // `@effect/vitest` is the test API this repo mandates (AGENTS.md,
+      // "Tests import from `@effect/vitest`"), and Effect marks all of it
+      // unstable, as it does the `effect/unstable/process` modules the
+      // benchmark runner spawns its child processes with: every `it` in every
+      // suite is a site, and there is no stable API to move to.
       {
         files: ["tests/**/*.ts"],
         rules: {
-          "eslint/no-console": "off"
+          "eslint/no-console": "off",
+          "effecttsgo/unstable-api-usage": "off"
         }
       }
     ],
