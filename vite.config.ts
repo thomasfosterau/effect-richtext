@@ -393,6 +393,26 @@ export default defineConfig({
   },
   run: {
     tasks: {
+      // Every gate, in CI's order; the CI workflow runs exactly this, on each
+      // Node line of its matrix, so a local `vp run ci` is the same check. It
+      // stops at the first failing gate. Each `vp run` gate keeps its own
+      // cache; this task has none, so the uncached steps (format and lint,
+      // the audit) always run.
+      ci: {
+        command:
+          "vp check && vp run check && vp run test:unit && vp run browser:install && vp run test:browser && vp run build && vp run docgen && pnpm audit --audit-level high",
+        cache: false
+      },
+      // The Chromium the pinned `playwright` expects, for `test:browser`.
+      // Skipped when `PLAYWRIGHT_CHROMIUM_EXECUTABLE` names one already
+      // installed (agent containers); on CI it also installs the system
+      // libraries the browser needs (`--with-deps`, which uses sudo, so never
+      // on a developer's machine).
+      "browser:install": {
+        command:
+          "bash -c '[ -n \"${PLAYWRIGHT_CHROMIUM_EXECUTABLE:-}\" ] || playwright install ${CI:+--with-deps} chromium'",
+        cache: false
+      },
       // The type gate: `src` under the native, Effect-patched `tsc`, then the
       // tests (including the type-level `tests/*.types.ts`, whose
       // expect-error directives are the assertions) under tsconfig.test.json,

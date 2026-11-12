@@ -16,15 +16,21 @@
 # needs the repo on disk first).
 name: Setup toolchain
 description: Install Vite+ (with Node.js and pnpm), restore the package cache, and install dependencies.
+inputs:
+  node-version:
+    description: The Node.js version or alias (`lts`, `latest`, `24`, …) Vite+ installs.
+    required: false
+    # The newest LTS line. Neither `lts` nor `latest` resolves to a pre-release
+    # (a Node 27 alpha hangs some tests). package.json's `engines` sets the
+    # floor.
+    default: "lts"
 runs:
   using: composite
   steps:
     - name: Setup Vite+
       uses: voidzero-dev/setup-vp@v1.22.0
       with:
-        # The newest LTS line, never a pre-release (a Node 27 alpha hangs some
-        # tests). package.json's `engines` sets the floor.
-        node-version: "lts"
+        node-version: ${{ inputs.node-version }}
         cache: true
         run-install: |
           args: ['--frozen-lockfile']

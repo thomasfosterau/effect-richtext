@@ -49,6 +49,7 @@ A new entry is added to `entries` in `vite.config.ts`, to `exports` in `package.
 
 - `pnpm install` — dependencies plus the Vite+ git hooks (pre-commit runs `vp staged`: format + lint on staged files) and the `prepare` step that patches the native `tsc` / `oxlint` with `@effect/tsgo`. No pre-push hook: run the gates yourself.
 - `vp check` — format + lint (Oxfmt + Oxlint, type-aware through oxlint-tsgolint with `typeCheck` on). `vp run check` — the type gate: `src` under `tsconfig.json`, then the tests (including `tests/**/*.types.ts`) under `tsconfig.test.json`. They are different commands.
+- `vp run ci` — every CI gate in order (format and lint, the type gate, unit and browser tests, build, docgen, `pnpm audit`), stopping at the first failure; it is the one command CI runs. A new gate is added to this task in `vite.config.ts`, never as a workflow step.
 - `vp run test:unit` — the `node` test project (happy-dom).
 - `vp run test:browser` — the `browser` project: prosemirror-view's suites in headless Chromium via Playwright. Needs a Chromium: `vp exec playwright install chromium`, or point `PLAYWRIGHT_CHROMIUM_EXECUTABLE` at an installed one (agent containers: `/opt/pw-browsers/chromium`).
 - `vp run build` — `vp pack` → `dist/`.
@@ -73,7 +74,7 @@ Before you report work as done, run the gates below in order and quote each comm
 8. `pnpm audit --audit-level high` (network)
 9. `vp run test:coverage`, then `vp exec fallow audit --format json --quiet --explain --gate-marker agent` (the fallow gate below; not a CI step). `fallow audit` reads `coverage/coverage-final.json` and never refreshes it, so run `test:coverage` first (the PreToolUse gate refreshes a missing or stale map itself).
 
-Steps 2–8 are CI's required `ci` job, in its order ([ci.yml](.github/workflows/ci.yml)). `CONTRIBUTING.md` and the PR template link here rather than restating the list.
+Steps 2–8 are the `ci` task (`vp run ci`), in its order; CI runs exactly that task on a Node matrix (newest LTS and newest release), and the required check `ci` passes only when every leg did ([ci.yml](.github/workflows/ci.yml)). `CONTRIBUTING.md` and the PR template link here rather than restating the list.
 
 ## Branches and pull requests
 
