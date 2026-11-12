@@ -99,7 +99,7 @@ export type CanCommands<T extends ExtensionTypes> = EditorCommands<T>
 
 /**
  * `editor.chain()`: queues commands, which are all applied to a single
- * transaction by `run()`.
+ * transaction by `run`.
  *
  * @since 0.1.0
  * @category type-level
@@ -114,10 +114,12 @@ export type ChainedCommands<T extends ExtensionTypes> = {
  */
 export interface ChainRun<T extends ExtensionTypes> {
   /**
-   * Run the queued commands into one transaction and dispatch it.
-   * Succeeds with `true` when every command applied.
+   * Runs the queued commands into one transaction and dispatches it.
+   * Succeeds with `true` when every command applied. It is an Effect, not
+   * a function: `yield* editor.chain().toggleMark("em").run`. Running it
+   * again applies the queue again, to the state at that time.
    */
-  readonly run: () => Effect.Effect<boolean, T["E"], T["R"]>
+  readonly run: Effect.Effect<boolean, T["E"], T["R"]>
 }
 
 /**
@@ -434,7 +436,7 @@ export class Editor<T extends ExtensionTypes> {
    * Queue commands to apply them in a single transaction. Each command
    * sees the document, selection and stored marks produced by the
    * previous ones (through a state whose `tr` is the shared
-   * transaction). `run()` runs every queued command, then dispatches
+   * transaction). `run` runs every queued command, then dispatches
    * the transaction (when any command changed it), and succeeds with
    * `true` when all commands applied.
    */
@@ -448,21 +450,20 @@ export class Editor<T extends ExtensionTypes> {
         return chain
       }
     }
-    chain.run = () =>
-      Effect.gen({ self: this }, function* () {
-        const state = this.state
-        const tr = state.tr
-        const chained = new ChainableState(state, tr)
-        const dispatch: Dispatch<any> = (t) => Effect.sync(() => foldInto(tr, t))
-        let all = true
-        for (const command of queue) {
-          if (!(yield* command(chained, dispatch, this._view))) all = false
-        }
-        if (tr.docChanged || tr.selectionSet || tr.storedMarksSet || tr.scrolledIntoView || !tr.isGeneric) {
-          yield* this.dispatch(tr)
-        }
-        return all
-      })
+    chain.run = Effect.gen({ self: this }, function* () {
+      const state = this.state
+      const tr = state.tr
+      const chained = new ChainableState(state, tr)
+      const dispatch: Dispatch<any> = (t) => Effect.sync(() => foldInto(tr, t))
+      let all = true
+      for (const command of queue) {
+        if (!(yield* command(chained, dispatch, this._view))) all = false
+      }
+      if (tr.docChanged || tr.selectionSet || tr.storedMarksSet || tr.scrolledIntoView || !tr.isGeneric) {
+        yield* this.dispatch(tr)
+      }
+      return all
+    })
     return chain as any
   }
 

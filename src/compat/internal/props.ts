@@ -14,6 +14,7 @@
  * @internal
  */
 import * as Effect from "effect/Effect"
+import * as Predicate from "effect/Predicate"
 import { runSync, unwrap, unwrapArray, wrap, wrapArray } from "./core.ts"
 
 /** A translation cache. @internal */
@@ -103,6 +104,14 @@ export const propsToCore = (
         () => (view: unknown, from: number, to: number, text: string, deflt: () => unknown) =>
           value.call(self, wrap(view), from, to, text, () => wrap(deflt()))
       )
+    } else if (name === "editable" && Predicate.isFunction(value)) {
+      // ProseMirror treats only `false` as "not editable", so a prop that
+      // returns `undefined` leaves the view editable; the core's prop is a
+      // strict boolean.
+      target[name] = cached(cache, value, () => {
+        const editable = toCoreFunction(value, self)
+        return (...args: Parameters<typeof editable>) => editable(...args) !== false
+      })
     } else if (name === "plugins" && Array.isArray(value)) {
       target[name] = unwrapArray(value)
     } else if (typeof value === "function") {

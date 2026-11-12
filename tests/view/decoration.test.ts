@@ -93,6 +93,17 @@ function buildRem(doc: Node, ...decorations: (DecoSpec | DecoSpec[])[]) {
   return build(doc, ...(decorations as DecoSpec[])).remove(Array.isArray(toAdd) ? toAdd.map(make) : [make(toAdd)])
 }
 
+function setStr(doc: Node, set: DecorationSet) {
+  return set
+    .find()
+    .map(({ from }) => {
+      const node = doc.nodeAtOrNull(from)
+      return !node ? "X" : (node as any).text || ""
+    })
+    .filter((x) => x)
+    .join("-")
+}
+
 describe("DecorationSet", () => {
   it("builds up a matching tree", () => {
     const set = build(doc(p("foo"), blockquote(p("bar"))), { from: 2, to: 3 }, { from: 8, to: 9 })
@@ -456,16 +467,6 @@ describe("DecorationSet", () => {
       const oldSet = build(d, ...decorations),
         set = oldSet.map(tr.mapping, tr.doc)
 
-      function setStr(doc: Node, set: DecorationSet) {
-        return set
-          .find()
-          .map(({ from }) => {
-            const node = doc.nodeAtOrNull(from)
-            return !node ? "X" : (node as any).text || ""
-          })
-          .filter((x) => x)
-          .join("-")
-      }
       ist(setStr(tr.doc, set), setStr(d, oldSet))
     })
 

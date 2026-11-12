@@ -20,11 +20,13 @@ function dispatch(map: Plugin, key: string, props?: { [name: string]: any }) {
 }
 
 function counter() {
-  function result() {
-    result.count++
-    return true
-  }
-  result.count = 0
+  const result = Object.assign(
+    () => {
+      result.count++
+      return true
+    },
+    { count: 0 }
+  )
   return result as Command & { count: number }
 }
 

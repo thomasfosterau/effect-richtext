@@ -6,8 +6,10 @@ name: CI
 # plus the Chromium install the `browser` test project needs: nothing here
 # needs a database, a stage or a credential, so every PR (Dependabot's
 # included) runs the whole gate with a read-only token and no secrets. Every
-# action is pinned to a commit SHA (Dependabot's `github-actions` updates keep
-# the pins current) and the checkout never persists its credentials.
+# action is pinned to a commit SHA, except voidzero-dev/setup-vp in the setup
+# action, which is pinned to an exact release tag (Dependabot's
+# `github-actions` updates keep the pins current), and the checkout never
+# persists its credentials.
 
 on:
   pull_request:
@@ -47,21 +49,21 @@ jobs:
           restore-keys: |
             vp-task-v1-${{ runner.os }}-
       - name: Format and lint
-        run: pnpm exec vp check
+        run: vp check
       - name: Type gate (src + tests, including the type-level tests)
-        run: pnpm exec vp run check
+        run: vp run check
       - name: Unit tests (node, happy-dom)
-        run: pnpm exec vp run test:unit
+        run: vp run test:unit
       # The `browser` project runs prosemirror-view's suites in real Chromium
       # through Playwright; the runner image does not ship a matching build.
       - name: Install Chromium for the browser tests
-        run: pnpm exec vp exec playwright install --with-deps chromium
+        run: vp exec playwright install --with-deps chromium
       - name: Browser tests (Chromium)
-        run: pnpm exec vp run test:browser
+        run: vp run test:browser
       - name: Build
-        run: pnpm exec vp run build
+        run: vp run build
       # Type-checks AND runs every JSDoc @example against the built dist/.
       - name: Verify documentation examples (docgen)
-        run: pnpm exec vp run docgen
+        run: vp run docgen
       - name: Audit
         run: pnpm audit --audit-level high

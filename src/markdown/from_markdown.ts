@@ -350,6 +350,16 @@ const attrString = (value: string | number | null): string | null => (value == n
  * A parser parsing unextended [CommonMark](http://commonmark.org/),
  * without inline HTML, and producing a document in the Markdown schema.
  *
+ * @example
+ * ```ts
+ * import * as assert from "node:assert"
+ * import * as Effect from "effect/Effect"
+ * import { defaultMarkdownParser } from "@thomasfosterau/effect-richtext/markdown"
+ *
+ * const doc = Effect.runSync(defaultMarkdownParser.parse("# Hello *world*\n\nSome `code`."))
+ * assert.strictEqual(doc.toString(), 'doc(heading("Hello ", em("world")), paragraph("Some ", code("code"), "."))')
+ * ```
+ *
  * @since 0.1.0
  * @category parsers
  */

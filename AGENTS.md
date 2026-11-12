@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`CLAUDE.md` is a symlink to this file. Project conventions live here; personal style preferences live in user memory.
+Project conventions live here, for every contributor and coding agent; personal style preferences live in user memory. Guidance that only applies to Claude Code sessions (its hooks and worktrees) is in [.claude/CLAUDE.md](.claude/CLAUDE.md), which imports this file.
 
 This repo publishes `@thomasfosterau/effect-richtext`, a reimplementation of the core ProseMirror toolkit (`prosemirror-model`, `-transform`, `-state`, `-view`, `-keymap`, `-commands` and the common extras) on Effect 4, as ONE package at the repository root whose parts are subpath entries. ProseMirror's own test suites are the behavioural spec: they are ported under `tests/` and must keep passing. [DESIGN.md](DESIGN.md) is the design note (decisions, the `x` / `xUnsafe` convention, typing, the view, extensions, the compat layer); read it before changing a module.
 
@@ -29,7 +29,7 @@ A new entry is added to `entries` in `vite.config.ts`, to `exports` in `package.
 - **The compat facade mirrors ProseMirror's API exactly.** `src/compat/*` exists so ProseMirror code runs unchanged; its exported names and signatures follow ProseMirror's, not this repo's conventions. ProseMirror's own suites run against it (`tests/compat/`, `tests/view/compat-*`).
 - **The compat layer is the ProseMirror-parity guarantee; the core is not bound to it.** The core may adopt faster or more idiomatic code (richer error messages, Effect-native shapes, skipped redundant work) wherever that isn't observable through `compat/*`. Behaviour compat delegates to the core (documents, steps, positions, the view's DOM) must still match ProseMirror, or compat must adapt it. When porting an upstream release, take its fixes, not its incidental choices.
 - **`effect` is a peer, never a dependency.** Two copies break `Context` / `Layer` / `Schema` identity; the consuming app owns the singleton.
-- **`vp run docgen` executes your examples.** `@effect/docgen` compiles every JSDoc `@example` and runs it (`"runExamples": true`), importing the package by name through `dist/`. An example must be complete (import everything it uses), must not use `declare const`, and must not throw.
+- **`vp run docgen` executes your examples.** `@effect/docgen` compiles every JSDoc `@example` and runs it (`"runExamples": true`), importing the package by name through `dist/`. An example must be complete (import everything it uses), must not use `declare const`, and must not throw. Assert results with `node:assert`. A plain ` ```ts ` fence in a description is checked and run like an `@example`; ` ```ts skip-type-checking ` is skipped (only for DOM-bound sketches). The task fails when docgen logs `No examples found`.
 
 ## Conventions
 
@@ -71,14 +71,13 @@ Before you report work as done, run the gates below in order and quote each comm
 6. `vp run build`
 7. `vp run docgen`
 8. `pnpm audit --audit-level high` (network)
-9. `vp run test:coverage`, then `vp exec fallow audit --format json --quiet --explain --gate-marker agent` (the fallow gate below; not a CI step). The PreToolUse fallow gate audits against `coverage/coverage-final.json` and never refreshes it, so run `test:coverage` first.
+9. `vp run test:coverage`, then `vp exec fallow audit --format json --quiet --explain --gate-marker agent` (the fallow gate below; not a CI step). `fallow audit` reads `coverage/coverage-final.json` and never refreshes it, so run `test:coverage` first (the PreToolUse gate refreshes a missing or stale map itself).
 
 Steps 2–8 are CI's required `ci` job, in its order ([ci.yml](.github/workflows/ci.yml)). `CONTRIBUTING.md` and the PR template link here rather than restating the list.
 
 ## Branches and pull requests
 
 - Branch off `trunk`; PR against `trunk`; squash-merge with a conventional prefix (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`). Rebase onto `origin/trunk` before opening or updating a PR; never merge `trunk` into your branch (GitHub's Update-branch button merges).
-- Agent work uses git worktrees under `.claude/worktrees/`, one per branch, named `issue-<n>-<slug>` for issue-linked work. Start every command that targets a worktree with an explicit `cd` and confirm with `git log -1` before committing. A worktree needs its own `vp install`: the global `vp` (linked into `~/.local/bin` by the SessionStart hook) delegates to the checkout's own `vite-plus`.
 - Every change to the published package's behaviour carries a changeset (`pnpm changeset`). Changes to doc comments that reach the emitted `.d.ts` take a `patch` changeset; other docs-only changes (READMEs, guidance), CI and tooling need none. Never publish or version by hand: the Release workflow opens the version PR (`chore: version packages`) and the owner merges it. Publishing is npm trusted publishing (OIDC) from the protected `release` environment; there is no `NPM_TOKEN` ([PUBLISHING.md](PUBLISHING.md)).
 - Push your branch when a commit is ready. This repo grants no standing approval to open pull requests: open one only when the owner asks for it in the current session.
 - GitHub writes go to `thomasfosterau/effect-richtext` only — never to ProseMirror, the consuming applications or the owner's other libraries without the owner's explicit approval for that action in the current session. Pass `-R thomasfosterau/effect-richtext` whenever the cwd might be another checkout. If another repo needs something, say so in the PR body.
@@ -98,12 +97,6 @@ Read the installed package before writing Effect code: `node_modules/effect/dist
 - The pinned version is the `effect` entry in `pnpm-workspace.yaml`'s catalog; the published peer range is under `catalogs.peers`. The `effect` peer is `^4.0.0`: raise it only when a dependency requires it (or the package needs an unstable module first shipped in a later minor), naming the dependency or module in the catalog comment, and prove the floor by re-running the gates with the catalog pin at that version. Raising the floor is a breaking change.
 - Tagged errors are `Schema.TaggedError<Self>()(tag, fields)` classes.
 - Plugins, commands and view props may return Effects; their requirements (`R`) and errors (`E`) are tracked through `EditorState` / `EditorView` types (DESIGN.md, "Commands and plugins"). Keep that inference intact: a change that widens a command's `R` to `any` or drops an `E` is a type regression even when every test passes, and `tests/**/*.types.ts` is where it gets pinned.
-
-## Agent sessions
-
-- The SessionStart hook (`.claude/hooks/session-start.sh`) installs the global Vite+ CLI at the catalog's `vite-plus` pin with the official installer (npm-provenance and SHA-512 checked; it needs `vite.plus` and `viteplus.dev` on the environment's allowlist), links `vp` and `vpx` into `~/.local/bin` (the CLI lives under `$VP_HOME` when set, as in the Vite+ container image, else `~/.local/share/vite-plus`), and runs `vp install --frozen-lockfile`. The global `vp` delegates to each checkout's own `vite-plus` (worktrees included); everything else goes through it: `vp exec fallow …` for fallow, `vpx <file>.ts` for scripts. Nothing else is put on PATH, and the hook removes the `fallow` / `tsx` links and the walking `vp` shim earlier versions made. `tsx` is installed only because `@effect/docgen` requires it as a peer and runs it itself; never invoke it directly. If the installer can't run, `vp` falls back to this checkout's `node_modules` copy. It hydrates no secrets; none are needed, and nothing here can publish.
-- A PreToolUse hook (`.claude/hooks/fallow-gate.sh`) blocks `git commit` / `git push` when `fallow audit --base origin/trunk` (run as `vp exec fallow`) fails; it runs only in this checkout and its `.claude/worktrees/*`, and anywhere else runs none of that tree's tooling and skips the audit with a notice; it reads the coverage map on disk, so run `vp run test:coverage` first. A PostToolUse hook runs `vp fmt` on every source, JSON, CSS or Markdown file you write or edit.
-- Every gate in [Verification](#verification) runs in an agent session; the browser tests need `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/opt/pw-browsers/chromium` there, and `pnpm audit` needs the network.
 
 ## Documentation surfaces
 

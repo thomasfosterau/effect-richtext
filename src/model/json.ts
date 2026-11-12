@@ -115,9 +115,26 @@ const wrap = <A>(f: () => A): Effect.Effect<A, SchemaIssue.Issue> =>
  * into a `Node` of the given document schema (validating structure,
  * content, and attributes), and encodes nodes back to JSON.
  *
- * ```ts skip-type-checking
- * import { Schema } from "effect"
- * const doc = yield* Schema.decodeUnknownEffect(NodeFromJSON(mySchema))(json)
+ * @example
+ * ```ts
+ * import * as assert from "node:assert"
+ * import * as Effect from "effect/Effect"
+ * import * as Schema from "effect/Schema"
+ * import { NodeFromJSON } from "@thomasfosterau/effect-richtext/model"
+ * import { schema } from "@thomasfosterau/effect-richtext/schema-basic"
+ *
+ * const codec = NodeFromJSON(schema)
+ * const json = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Hi" }] }] }
+ *
+ * const doc = Schema.decodeUnknownSync(codec)(json)
+ * assert.strictEqual(doc.textContent, "Hi")
+ * assert.deepStrictEqual(Schema.encodeSync(codec)(doc), json)
+ *
+ * // Invalid documents fail in the error channel.
+ * const result = Effect.runSync(
+ *   Effect.result(Schema.decodeUnknownEffect(codec)({ type: "doc", content: [{ type: "nope" }] }))
+ * )
+ * assert.strictEqual(result._tag, "Failure")
  * ```
  *
  * @since 0.1.0

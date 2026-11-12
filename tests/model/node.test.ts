@@ -59,6 +59,34 @@ const customSchema = DocSchema.makeUnsafe({
   }
 })
 
+function cut(doc: Node, cut: Node) {
+  ist(doc.cut(tagsOf(doc).a || 0, tagsOf(doc).b), cut, eq)
+}
+
+function between(doc: Node, ...nodes: Array<string>) {
+  let i = 0
+  doc.nodesBetween(tagsOf(doc).a!, tagsOf(doc).b!, (node, pos) => {
+    if (i === nodes.length) {
+      assert.fail("More nodes iterated than listed (" + node.type.name + ")")
+    }
+    const compare = node.isTextNode() ? node.text : node.type.name
+    if (compare !== nodes[i++]) {
+      assert.fail("Expected " + showJson(nodes[i - 1]) + ", got " + showJson(compare))
+    }
+    if (!node.isText && Option.getOrNull(doc.nodeAt(pos)) !== node) {
+      assert.fail("Pos " + pos + " does not point at node " + node + " " + doc.nodeAt(pos))
+    }
+  })
+}
+
+function from(arg: Node | Array<Node> | Fragment | null, expect: Node) {
+  ist(expect.copy(Fragment.from(arg)), expect, eq)
+}
+
+function roundTrip(doc: Node) {
+  ist(schema.nodeFromJSONUnsafe(doc.toJSON()), doc, eq)
+}
+
 describe("Node", () => {
   describe("toString", () => {
     it("nests", () => {
@@ -81,10 +109,6 @@ describe("Node", () => {
   })
 
   describe("cut", () => {
-    function cut(doc: Node, cut: Node) {
-      ist(doc.cut(tagsOf(doc).a || 0, tagsOf(doc).b), cut, eq)
-    }
-
     it("extracts a full block", () => cut(doc(p("foo"), "<a>", p("bar"), "<b>", p("baz")), doc(p("bar"))))
 
     it("cuts text", () => cut(doc(p("0"), p("foo<a>bar<b>baz"), p("2")), doc(p("bar"))))
@@ -107,22 +131,6 @@ describe("Node", () => {
   })
 
   describe("between", () => {
-    function between(doc: Node, ...nodes: Array<string>) {
-      let i = 0
-      doc.nodesBetween(tagsOf(doc).a!, tagsOf(doc).b!, (node, pos) => {
-        if (i === nodes.length) {
-          assert.fail("More nodes iterated than listed (" + node.type.name + ")")
-        }
-        const compare = node.isTextNode() ? node.text : node.type.name
-        if (compare !== nodes[i++]) {
-          assert.fail("Expected " + showJson(nodes[i - 1]) + ", got " + showJson(compare))
-        }
-        if (!node.isText && Option.getOrNull(doc.nodeAt(pos)) !== node) {
-          assert.fail("Pos " + pos + " does not point at node " + node + " " + doc.nodeAt(pos))
-        }
-      })
-    }
-
     it("iterates over text", () => between(doc(p("foo<a>bar<b>baz")), "paragraph", "foobarbaz"))
 
     it("descends multiple levels", () =>
@@ -294,10 +302,6 @@ describe("Node", () => {
   })
 
   describe("from", () => {
-    function from(arg: Node | Array<Node> | Fragment | null, expect: Node) {
-      ist(expect.copy(Fragment.from(arg)), expect, eq)
-    }
-
     it("wraps a single node", () => from(schema.nodeUnsafe("paragraph"), doc(p())))
 
     it("wraps an array", () => from([schema.nodeUnsafe("hard_break"), schema.textUnsafe("foo")], p(br, "foo")))
@@ -310,10 +314,6 @@ describe("Node", () => {
   })
 
   describe("toJSON", () => {
-    function roundTrip(doc: Node) {
-      ist(schema.nodeFromJSONUnsafe(doc.toJSON()), doc, eq)
-    }
-
     it("can serialize a simple node", () => roundTrip(doc(p("foo"))))
 
     it("can serialize marks", () => roundTrip(doc(p("foo", em("bar", strong("baz")), " ", a("x")))))

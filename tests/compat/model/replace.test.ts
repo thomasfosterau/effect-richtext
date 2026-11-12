@@ -8,13 +8,18 @@ import { Slice } from "@thomasfosterau/effect-richtext/compat/model"
 import { blockquote, doc, eq, h1, li, p, ul } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
 
+function rpl(doc: Node, insert: Node | null, expected: Node) {
+  const slice = insert ? insert.slice((insert as any).tag.a, (insert as any).tag.b) : Slice.empty
+  ist(doc.replace((doc as any).tag.a, (doc as any).tag.b, slice), expected, eq)
+}
+
+function bad(doc: Node, insert: Node | null, pattern: string) {
+  const slice = insert ? insert.slice((insert as any).tag.a, (insert as any).tag.b) : Slice.empty
+  ist.throws(() => doc.replace((doc as any).tag.a, (doc as any).tag.b, slice), new RegExp(pattern, "i"))
+}
+
 describe("Node", () => {
   describe("replace", () => {
-    function rpl(doc: Node, insert: Node | null, expected: Node) {
-      const slice = insert ? insert.slice((insert as any).tag.a, (insert as any).tag.b) : Slice.empty
-      ist(doc.replace((doc as any).tag.a, (doc as any).tag.b, slice), expected, eq)
-    }
-
     it("joins on delete", () => rpl(doc(p("on<a>e"), p("t<b>wo")), null, doc(p("onwo"))))
 
     it("merges matching blocks", () =>
@@ -87,11 +92,6 @@ describe("Node", () => {
 
     it("keeps the node type even when empty", () =>
       rpl(doc(h1("<a>bar"), "<b>"), doc(p("foo<a>baz"), "<b>"), doc(h1("baz"))))
-
-    function bad(doc: Node, insert: Node | null, pattern: string) {
-      const slice = insert ? insert.slice((insert as any).tag.a, (insert as any).tag.b) : Slice.empty
-      ist.throws(() => doc.replace((doc as any).tag.a, (doc as any).tag.b, slice), new RegExp(pattern, "i"))
-    }
 
     it("doesn't allow the left side to be too deep", () =>
       bad(doc(p("<a><b>")), doc(blockquote(p("<a>")), "<b>"), "deeper"))
