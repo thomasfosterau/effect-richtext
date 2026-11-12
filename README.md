@@ -8,8 +8,6 @@ A reimplementation of the core [ProseMirror](https://prosemirror.net) toolkit (`
 - **Faithful port.** ProseMirror's own test suites are ported and pass (model, transform, state, commands, keymap, history, markdown, and all of prosemirror-view's browser tests in real Chromium).
 - **Nice-to-haves**, all additive and unopinionated: extensions with typed `editor.commands` / `editor.chain()` / `editor.can()`, input rules, gap and drop cursors, placeholders, undo history, reactive bindings (`SubscriptionRef`/`Stream`), HTML and Markdown serializers.
 
-See [`DESIGN.md`](https://github.com/thomasfosterau/effect-richtext/blob/trunk/DESIGN.md) for the design decisions and conventions.
-
 > Status: experimental (0.x). APIs may change.
 
 ## Install
@@ -88,31 +86,11 @@ const mountEditor = Effect.fn("mountEditor")(function* (place: HTMLElement) {
 Effect.runFork(Effect.scoped(Effect.andThen(mountEditor(document.body), Effect.never)))
 ```
 
-With `@thomasfosterau/effect-richtext/extensions`, the same editor is:
+## Documentation
 
-```ts
-import { Effect } from "effect"
-import { createEditor, defineBasicExtension } from "@thomasfosterau/effect-richtext/extensions"
-
-const mountBasicEditor = Effect.fn("mountBasicEditor")(function* (place: HTMLElement) {
-  const editor = yield* createEditor(defineBasicExtension())
-  yield* editor.mount(place)
-  yield* editor.chain().setBlockType("heading", { level: 2 }).toggleMark("strong").run
-})
-```
-
-## Development
-
-Contributor setup, hooks and single checks are in [CONTRIBUTING.md](https://github.com/thomasfosterau/effect-richtext/blob/trunk/CONTRIBUTING.md); the gates every change runs are in [AGENTS.md](https://github.com/thomasfosterau/effect-richtext/blob/trunk/AGENTS.md#verification). In short, with pnpm 11:
-
-```sh
-pnpm install
-vp check              # format + lint
-vp run check          # type gate (src + tests, including type-level tests)
-vp run test:unit      # node tests
-vp run test:browser   # prosemirror-view's suites in Chromium
-vp run build          # dist/
-```
+- [Guides](https://github.com/thomasfosterau/effect-richtext/tree/trunk/docs): [extensions](https://github.com/thomasfosterau/effect-richtext/blob/trunk/docs/extensions.md) (typed `editor.commands`, `editor.chain()` and `editor.can()`), and the [ProseMirror compatibility layer](https://github.com/thomasfosterau/effect-richtext/blob/trunk/docs/compat.md).
+- Every export has a doc comment; the main ones carry runnable examples.
+- [DESIGN.md](https://github.com/thomasfosterau/effect-richtext/blob/trunk/DESIGN.md) records the design decisions, and [CONTRIBUTING.md](https://github.com/thomasfosterau/effect-richtext/blob/trunk/CONTRIBUTING.md) the development setup.
 
 ## License
 
