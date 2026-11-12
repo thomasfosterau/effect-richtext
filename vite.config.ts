@@ -213,6 +213,7 @@ export default defineConfig({
       // lib that the es2022 target does not include.
       "unicorn/no-array-reverse": "off",
       "vite-plus/prefer-vite-plus-imports": "error",
+      "effecttsgo/schema-number": "error",
       // The ported ProseMirror suites assert through `ist` (tests/utils/ist.ts),
       // `@effect/vitest`'s `assert`, and per-suite helpers that wrap them
       // (`testTransform`, `same`, …).
