@@ -201,6 +201,7 @@ export default defineConfig({
       "effecttsgo/flat-map-conditional-to-filter-or-fail": "error",
       "effecttsgo/try-catch-in-effect-gen": "error",
       "effecttsgo/prefer-succeed-some-or-none": "error",
+      "effecttsgo/prefer-typed-schema-decoder": "error",
       "typescript/no-explicit-any": "off",
       "typescript/no-empty-object-type": "off",
       "typescript/ban-ts-comment": "off",
