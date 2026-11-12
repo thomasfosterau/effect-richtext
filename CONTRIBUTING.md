@@ -44,7 +44,7 @@ vp run test:unit                              # node tests (happy-dom)
 vp run test:browser                           # browser tests (Chromium)
 vp test run tests/model/node.test.ts          # a single file
 vp run build                                  # emit dist/
-vp run docgen                                 # examples + API reference under docs/
+vp run docgen                                 # examples + API reference under docs/api/
 vp run test:coverage                          # one Istanbul map for fallow
 vp run fallow:audit                           # change-set review (not a CI gate)
 vp run bench                                  # complex workloads vs ProseMirror (builds first)

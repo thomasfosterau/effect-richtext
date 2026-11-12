@@ -24,7 +24,7 @@ dist/
 
 # Generated API reference (`vp run docgen`). Never committed; the README is
 # the reference consumers read.
-docs/
+docs/api/
 
 # The Vite+ task cache and vitest scratch dirs (browser-mode screenshots).
 .vite/

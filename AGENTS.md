@@ -52,7 +52,7 @@ A new entry is added to `entries` in `vite.config.ts`, to `exports` in `package.
 - `vp run test:unit` — the `node` test project (happy-dom).
 - `vp run test:browser` — the `browser` project: prosemirror-view's suites in headless Chromium via Playwright. Needs a Chromium: `vp exec playwright install chromium`, or point `PLAYWRIGHT_CHROMIUM_EXECUTABLE` at an installed one (agent containers: `/opt/pw-browsers/chromium`).
 - `vp run build` — `vp pack` → `dist/`.
-- `vp run docgen` — builds, then compiles and runs every `@example` against `dist/` and writes the (git-ignored) API reference under `docs/`.
+- `vp run docgen` — builds, then compiles and runs every `@example` against `dist/` and writes the (git-ignored) API reference under `docs/api/`.
 - `vp run bench` — builds, then times the complex workloads in `tests/bench/workloads.ts` on ProseMirror and on `dist/`, one Node process per library per round (`BENCH_ROUNDS`, `BENCH_FILTER`). Not a gate; `tests/bench/workloads.test.ts` checks the same workloads give ProseMirror's documents.
 - `vp run test:coverage` — both test projects under one Istanbul map at `coverage/coverage-final.json`, which `fallow audit` reads for exact per-function CRAP scores. Without the map fallow scores every function as uncovered, and any function with cyclomatic complexity ≥ 5 fails the gate on its own.
 - `pnpm changeset` — add a changeset.
@@ -107,7 +107,7 @@ Read the installed package before writing Effect code: `node_modules/effect/dist
 
 ## Documentation surfaces
 
-`README.md` is both the landing page and the API overview consumers read on npm (it ships in the tarball, so its links are absolute or relative to files that ship); [DESIGN.md](DESIGN.md) is the design note (not published); `CONTRIBUTING.md` carries human setup, hooks and single-check commands; `PUBLISHING.md` the release pipeline and its one-time owner setup; `SECURITY.md` the reporting channel and supply-chain posture. No `docs/` tree is committed (`docs/` is docgen output); decisions go in issue comments.
+`README.md` is the short landing page consumers read on npm: what the package is, the install line, one example and the entry-point table (it ships in the tarball, so its links are absolute); `docs/*.md` are the committed guides (extensions, the compat layer), and detail about an export goes in its doc comment; [DESIGN.md](DESIGN.md) is the design note (not published); `CONTRIBUTING.md` carries human setup, hooks and single-check commands; `PUBLISHING.md` the release pipeline and its one-time owner setup; `SECURITY.md` the reporting channel and supply-chain posture. `docs/api/` is docgen output and never committed; decisions go in issue comments.
 
 ---
 

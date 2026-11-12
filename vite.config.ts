@@ -64,7 +64,7 @@ const entries = [
  * the lockfile back explicitly so a dependency upgrade still invalidates a
  * type-check or a test run.
  */
-const cacheInputs = [{ auto: true }, "!node_modules/**", "!docs/**", "!coverage/**", "pnpm-lock.yaml"]
+const cacheInputs = [{ auto: true }, "!node_modules/**", "!docs/api/**", "!coverage/**", "pnpm-lock.yaml"]
 
 const testEnv = ["VITEST_MAX_WORKERS", "NODE_OPTIONS", "PLAYWRIGHT_CHROMIUM_EXECUTABLE"]
 
@@ -92,7 +92,7 @@ export default defineConfig({
     trailingComma: "none",
     printWidth: 120,
     arrowParens: "always",
-    ignorePatterns: ["**/dist/**", "**/docs/**", "**/coverage/**", "CHANGELOG.md"],
+    ignorePatterns: ["**/dist/**", "**/docs/api/**", "**/coverage/**", "CHANGELOG.md"],
     overrides: [
       {
         files: ["**/*.md"],
@@ -103,7 +103,7 @@ export default defineConfig({
     ]
   },
   lint: {
-    ignorePatterns: ["**/dist/**", "**/docs/**", "**/coverage/**", "**/node_modules/**"],
+    ignorePatterns: ["**/dist/**", "**/docs/api/**", "**/coverage/**", "**/node_modules/**"],
     extends: [recommended, effect.configs.recommended],
     // Oxlint's default plugins (`typescript`, `unicorn`, `oxc`) plus the ones
     // that cover this repo's other surfaces: imports, promises, the vitest
@@ -417,7 +417,7 @@ export default defineConfig({
       docgen: {
         command: "docgen",
         dependsOn: ["build"],
-        cache: { input: cacheInputs, output: ["docs/**"] }
+        cache: { input: cacheInputs, output: ["docs/api/**"] }
       }
     }
   },

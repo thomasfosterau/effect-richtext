@@ -1,4 +1,5 @@
-// Kept in sync with the README example so it stays type-correct.
+// Kept in sync with the README example and docs/extensions.md's first
+// example so they stay type-correct.
 import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 import { baseKeymap, toggleMark } from "@thomasfosterau/effect-richtext/commands"
@@ -40,7 +41,7 @@ const mountEditor = Effect.fn("mountEditor")(function* (place: HTMLElement) {
 
 Effect.runFork(Effect.scoped(Effect.andThen(mountEditor(document.body), Effect.never)))
 
-// The README's `@thomasfosterau/effect-richtext/extensions` example.
+// The first example of docs/extensions.md.
 const mountBasicEditor = Effect.fn("mountBasicEditor")(function* (place: HTMLElement) {
   const editor = yield* createEditor(defineBasicExtension())
   yield* editor.mount(place)
