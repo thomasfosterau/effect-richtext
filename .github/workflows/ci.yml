@@ -11,8 +11,8 @@ name: CI
 # by Vite+; neither resolves to a pre-release). They are the same version
 # while the newest release line is itself LTS.
 #
-# The final `ci` job is the one stable check name for required-check
-# rulesets: it succeeds only when every matrix leg did.
+# There is no aggregate job: a required-check ruleset names each matrix leg,
+# `ci (node lts)` and `ci (node latest)`.
 #
 # Nothing here needs a database, a stage or a credential, so every PR
 # (Dependabot's included) runs the whole gate with a read-only token and no
@@ -36,7 +36,7 @@ concurrency:
 permissions: {}
 
 jobs:
-  test:
+  ci:
     name: ci (node ${{ matrix.node }})
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -69,20 +69,3 @@ jobs:
             vp-task-v2-${{ runner.os }}-node-${{ matrix.node }}-
       - name: Run every gate (vp run ci)
         run: vp run ci
-
-  # The required check. `if: always()` makes it report even when a leg failed
-  # or was cancelled; it passes only when the whole matrix succeeded.
-  ci:
-    name: ci
-    needs: [test]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions: {}
-    steps:
-      - name: Require every matrix leg to have passed
-        env:
-          RESULT: ${{ needs.test.result }}
-        run: |
-          echo "test matrix result: $RESULT"
-          test "$RESULT" = "success"

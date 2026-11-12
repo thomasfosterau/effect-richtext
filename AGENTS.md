@@ -74,7 +74,7 @@ Before you report work as done, run the gates below in order and quote each comm
 8. `pnpm audit --audit-level high` (network)
 9. `vp run test:coverage`, then `vp exec fallow audit --format json --quiet --explain --gate-marker agent` (the fallow gate below; not a CI step). `fallow audit` reads `coverage/coverage-final.json` and never refreshes it, so run `test:coverage` first (the PreToolUse gate refreshes a missing or stale map itself).
 
-Steps 2–8 are the `ci` task (`vp run ci`), in its order; CI runs exactly that task on a Node matrix (newest LTS and newest release), and the required check `ci` passes only when every leg did ([ci.yml](.github/workflows/ci.yml)). `CONTRIBUTING.md` and the PR template link here rather than restating the list.
+Steps 2–8 are the `ci` task (`vp run ci`), in its order; CI runs exactly that task on a Node matrix (newest LTS and newest release); its checks, the ones a ruleset requires, are `ci (node lts)` and `ci (node latest)` ([ci.yml](.github/workflows/ci.yml)). `CONTRIBUTING.md` and the PR template link here rather than restating the list.
 
 ## Branches and pull requests
 
