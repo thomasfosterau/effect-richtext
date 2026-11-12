@@ -230,6 +230,25 @@ export type EditorStateTypeId = typeof EditorStateTypeId
  * States whose plugins require no services (`R = never`) can also be
  * updated synchronously with `applyUnsafe`.
  *
+ * @example
+ * ```ts
+ * import * as assert from "node:assert"
+ * import * as Effect from "effect/Effect"
+ * import { EditorState } from "@thomasfosterau/effect-richtext/state"
+ * import { doc, p, schema } from "@thomasfosterau/effect-richtext/test-builder"
+ *
+ * const program = Effect.gen(function* () {
+ *   const state = yield* EditorState.create({ schema, doc: doc(p("Hello")) })
+ *
+ *   // States are persistent: applying a transaction returns a new state.
+ *   const next = yield* state.apply(state.tr.insertTextUnsafe(" world", 6))
+ *   assert.strictEqual(state.doc.textContent, "Hello")
+ *   assert.strictEqual(next.doc.textContent, "Hello world")
+ * })
+ *
+ * Effect.runSync(program)
+ * ```
+ *
  * @since 0.1.0
  * @category models
  */

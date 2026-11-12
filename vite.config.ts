@@ -410,9 +410,6 @@ export default defineConfig({
         command: "vp test run --coverage",
         cache: false
       },
-      // Compiles AND RUNS every JSDoc `@example` (see docgen.json). Examples
-      // import the package by name exactly as a consumer would, which
-      // resolves through `exports` to `dist/` — hence the build edge.
       // The complex-workload benchmarks (tests/bench/run.ts): every workload on
       // ProseMirror and on the built `dist/`, one process per library per
       // round. tsconfig.base.json has no `paths`, so the package name
@@ -423,8 +420,14 @@ export default defineConfig({
         dependsOn: ["build"],
         cache: false
       },
+      // Compiles AND RUNS every JSDoc `@example` (see docgen.json). Examples
+      // import the package by name exactly as a consumer would, which
+      // resolves through `exports` to `dist/` — hence the build edge.
+      // docgen only logs "No examples found." and exits 0 when no `@example`
+      // (or checked ```ts fence) exists, so a regression to zero would pass
+      // silently; the pipeline echoes docgen's output and fails on that line.
       docgen: {
-        command: "docgen",
+        command: "bash -o pipefail -c 'docgen 2>&1 | tee /dev/stderr | { ! grep -q \"No examples found\"; }'",
         dependsOn: ["build"],
         cache: { input: cacheInputs, output: ["docs/**"] }
       }

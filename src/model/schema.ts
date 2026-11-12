@@ -7,24 +7,7 @@
  * child types each node type allows (from its [content
  * expression](./content.ts)) are all available at the type level.
  *
- * ```ts skip-type-checking
- * import { Schema } from "effect"
- * import { Content, DocSchema } from "@thomasfosterau/effect-richtext/model"
- *
- * const schema = DocSchema.make({
- *   nodes: {
- *     doc: { content: Content.oneOrMore("block") },
- *     paragraph: { group: "block", content: Content.zeroOrMore("text") },
- *     heading: {
- *       group: "block",
- *       content: Content.zeroOrMore("text"),
- *       attrs: { level: { schema: Schema.Literals([1, 2, 3]), default: 1 } }
- *     },
- *     text: {}
- *   },
- *   marks: { strong: {} }
- * })
- * ```
+ * See `DocSchema` for an example.
  *
  * @since 0.1.0
  */
@@ -1203,6 +1186,39 @@ type MarkTypes<Sc extends AnySchema, M extends MarkSpecs> = {
  * A document schema. Holds node and mark type objects for the nodes and
  * marks that may occur in conforming documents, and provides
  * functionality for creating and deserializing such documents.
+ *
+ * @example
+ * ```ts
+ * import * as assert from "node:assert"
+ * import * as Effect from "effect/Effect"
+ * import * as Schema from "effect/Schema"
+ * import { Content, DocSchema } from "@thomasfosterau/effect-richtext/model"
+ *
+ * const schema = Effect.runSync(
+ *   DocSchema.make({
+ *     nodes: {
+ *       doc: { content: Content.oneOrMore("block") },
+ *       paragraph: { group: "block", content: Content.zeroOrMore("text") },
+ *       heading: {
+ *         group: "block",
+ *         content: Content.zeroOrMore("text"),
+ *         attrs: { level: { schema: Schema.Literals([1, 2, 3]), default: 1 } }
+ *       },
+ *       text: {}
+ *     },
+ *     marks: { strong: {} }
+ *   })
+ * )
+ *
+ * // `nodeUnsafe` throws on failure, `node` returns an Effect with a tagged error.
+ * const heading = schema.nodeUnsafe("heading", { level: 2 }, [schema.textUnsafe("Title")])
+ * assert.strictEqual(heading.attrs.level, 2)
+ * assert.strictEqual(heading.textContent, "Title")
+ *
+ * // A `doc` needs at least one block, so an empty one is rejected.
+ * const error = Effect.runSync(Effect.flip(schema.node("doc", null, [])))
+ * assert.strictEqual(error._tag, "ContentError")
+ * ```
  *
  * @since 0.1.0
  * @category models

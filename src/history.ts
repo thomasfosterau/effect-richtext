@@ -2,12 +2,6 @@
  * An undo/redo history for the editor, ported from
  * `prosemirror-history`.
  *
- * ```ts skip-type-checking
- * const state = EditorState.createUnsafe({ schema, plugins: [history()] })
- * // ...
- * yield* undo(state, dispatch)
- * ```
- *
  * @since 0.1.0
  */
 // Ported from prosemirror-history (MIT, Marijn Haverbeke and others)
@@ -568,6 +562,30 @@ export type HistoryCommand = <Sc extends AnySchema>(
  *
  * You can set an `"addToHistory"` metadata property of `false` on a
  * transaction to prevent it from being rolled back by undo.
+ *
+ * @example
+ * ```ts
+ * import * as assert from "node:assert"
+ * import * as Effect from "effect/Effect"
+ * import { history, redo, undo } from "@thomasfosterau/effect-richtext/history"
+ * import { EditorState, type Transaction } from "@thomasfosterau/effect-richtext/state"
+ * import { doc, p, schema } from "@thomasfosterau/effect-richtext/test-builder"
+ *
+ * let state = EditorState.createUnsafe({ schema, doc: doc(p("")), plugins: [history()] })
+ * const dispatch = (tr: Transaction<typeof schema>) =>
+ *   Effect.sync(() => {
+ *     state = state.applyUnsafe(tr)
+ *   })
+ *
+ * state = state.applyUnsafe(state.tr.insertTextUnsafe("Hello"))
+ * assert.strictEqual(state.doc.textContent, "Hello")
+ *
+ * Effect.runSync(undo(state, dispatch))
+ * assert.strictEqual(state.doc.textContent, "")
+ *
+ * Effect.runSync(redo(state, dispatch))
+ * assert.strictEqual(state.doc.textContent, "Hello")
+ * ```
  *
  * @since 0.1.0
  * @category constructors

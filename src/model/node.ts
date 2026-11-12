@@ -66,6 +66,29 @@ export interface ChildInfo<Sc extends AnySchema, N extends NodeNames<Sc>> {
  *
  * Nodes implement `Equal`, comparing structurally.
  *
+ * @example
+ * ```ts
+ * import * as assert from "node:assert"
+ * import { schema } from "@thomasfosterau/effect-richtext/schema-basic"
+ *
+ * const doc = schema.nodeUnsafe("doc", null, [
+ *   schema.nodeUnsafe("paragraph", null, [schema.textUnsafe("Hello ")]),
+ *   schema.nodeUnsafe("heading", { level: 2 }, [schema.textUnsafe("World")])
+ * ])
+ *
+ * assert.strictEqual(doc.childCount, 2)
+ * assert.strictEqual(doc.content.size, 15)
+ * assert.strictEqual(doc.textContent, "Hello World")
+ *
+ * // `is` narrows the node, so `attrs` is typed per node type.
+ * const heading = doc.childUnsafe(1)
+ * if (heading.is("heading")) assert.strictEqual(heading.attrs.level, 2)
+ *
+ * // Nodes are persistent: `copy` makes a new node and leaves the old one alone.
+ * assert.ok(doc.eq(doc.copy(doc.content)))
+ * assert.strictEqual(doc.toString(), 'doc(paragraph("Hello "), heading("World"))')
+ * ```
+ *
  * @since 0.1.0
  * @category models
  */
