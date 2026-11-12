@@ -1405,7 +1405,7 @@ function updateCursorWrapper(view: EditorView<any, any, any>) {
 }
 
 function getEditable(view: EditorView<any, any, any>) {
-  return !view.someProp("editable", (value) => value(view.state as EditorState<any>) === false)
+  return !view.someProp("editable", (value) => !value(view.state as EditorState<any>))
 }
 
 function selectionContextChanged(sel1: Selection<any>, sel2: Selection<any>) {
