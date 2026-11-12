@@ -71,7 +71,7 @@ Before you report work as done, run the gates below in order and quote each comm
 6. `vp run build`
 7. `vp run docgen`
 8. `pnpm audit --audit-level high` (network)
-9. `vp run test:coverage`, then `vp exec fallow audit --format json --quiet --explain --gate-marker agent` (the fallow gate below; not a CI step). The audit reads `coverage/coverage-final.json` and never refreshes it, so run `test:coverage` first.
+9. `vp run test:coverage`, then `vp exec fallow audit --format json --quiet --explain --gate-marker agent` (the fallow gate below; not a CI step). `fallow audit` reads `coverage/coverage-final.json` and never refreshes it, so run `test:coverage` first (the PreToolUse gate refreshes a missing or stale map itself).
 
 Steps 2–8 are CI's required `ci` job, in its order ([ci.yml](.github/workflows/ci.yml)). `CONTRIBUTING.md` and the PR template link here rather than restating the list.
 

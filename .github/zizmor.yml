@@ -9,6 +9,14 @@ rules:
       # cooldown, which counts whole days, waits 1 — longer than pnpm, so a
       # Dependabot PR never proposes a version pnpm would refuse.
       days: 1
+  unpinned-uses:
+    config:
+      policies:
+        # setup-vp's README asks for an exact release tag (its moving `v1` tag
+        # is frozen at v1.15.0), and the family pins it that way. This is the
+        # only action allowed a tag; everything else keeps a commit SHA.
+        voidzero-dev/setup-vp: ref-pin
+        "*": hash-pin
   self-repository:
     # `./.github/actions/setup` is the documented local-action path; the
     # `$/` spelling buys nothing for a single-repo composite action.
