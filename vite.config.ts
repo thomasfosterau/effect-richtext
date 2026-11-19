@@ -151,7 +151,7 @@ export default defineConfig({
       // reaches zero.
       "effect/avoid-non-null-assertion": "warn", // 1303
       "effect/require-safety-comment-for-type-assertion": "warn", // 1042
-      "effect/prefer-option-over-null": "warn", // 994
+      "effect/prefer-option-over-null": "warn", // 993
       "effect/imperative-loops": "warn", // 607
       "effect/avoid-any": "warn", // 444
       "effect/no-runtime-typeof": "warn", // 77
@@ -185,9 +185,6 @@ export default defineConfig({
       "effecttsgo/any-unknown-in-error-context": "warn", // 54
       "typescript/unbound-method": "warn", // 43
       "typescript/consistent-return": "warn", // 22
-      "typescript/no-unnecessary-type-parameters": "warn", // 14
-      "effecttsgo/strict-effect-provide": "warn", // 13
-      "effecttsgo/provide-layer-succeed-to-provide-service": "error",
       "effecttsgo/unsafe-effect-type-assertion": "warn", // 1
       // The four left are EditorState's Effect twins of its synchronous
       // transaction methods; with `this` in place of `self` their bodies
@@ -203,6 +200,9 @@ export default defineConfig({
       "effecttsgo/try-catch-in-effect-gen": "error",
       "effecttsgo/prefer-succeed-some-or-none": "error",
       "effecttsgo/prefer-typed-schema-decoder": "error",
+      "effecttsgo/provide-layer-succeed-to-provide-service": "error",
+      "effecttsgo/strict-effect-provide": "error",
+      "typescript/no-unnecessary-type-parameters": "error",
       "typescript/no-explicit-any": "off",
       "typescript/no-empty-object-type": "off",
       "typescript/ban-ts-comment": "off",
@@ -355,6 +355,26 @@ export default defineConfig({
         rules: {
           "effecttsgo/strict-effect-provide": "off",
           "effect/effect-run-in-body": "off"
+        }
+      },
+      // These helpers serialize or render any value at all (JSON encoding
+      // through `Schema.Unknown`, assertion messages, `ist`'s truthiness
+      // check): `unknown` is their domain, and the type parameter it
+      // replaced (`typescript/no-unnecessary-type-parameters`) only hid that.
+      {
+        files: ["src/internal/json.ts", "tests/utils/json.ts", "tests/utils/ist.ts"],
+        rules: {
+          "effect/no-unknown-parameters": "off"
+        }
+      },
+      // `Equals` is the standard exact-type-equality test: comparing two
+      // generic signatures whose `T` appears only in the deferred
+      // conditional is what makes it strict (`any` is not `unknown`), so the
+      // single use is the point, not a removable parameter.
+      {
+        files: ["tests/utils/types.ts"],
+        rules: {
+          "typescript/no-unnecessary-type-parameters": "off"
         }
       },
       // Test fixtures are the seams under test, not domain code.

@@ -83,23 +83,27 @@ describe("fromHTML", () => {
 })
 
 describe("HtmlEnvironment", () => {
-  it.effect("provides the global document", () =>
-    Effect.gen(function* () {
-      const html = yield* Html.serialize(doc(p("a")))
-      ist(html, "<p>a</p>")
-      const parsed = yield* Html.parse(schema, html)
-      ist(parsed, doc(p("a")), eq)
-      const slice = yield* Html.parseSlice(schema, "<em>x</em>")
-      ist(slice.content.childCount, 1)
-    }).pipe(Effect.provide(Html.HtmlEnvironment.layerGlobal))
-  )
+  it.layer(Html.HtmlEnvironment.layerGlobal)("layerGlobal", (withGlobal) => {
+    withGlobal.effect("provides the global document", () =>
+      Effect.gen(function* () {
+        const html = yield* Html.serialize(doc(p("a")))
+        ist(html, "<p>a</p>")
+        const parsed = yield* Html.parse(schema, html)
+        ist(parsed, doc(p("a")), eq)
+        const slice = yield* Html.parseSlice(schema, "<em>x</em>")
+        ist(slice.content.childCount, 1)
+      })
+    )
+  })
 
-  it.effect("can provide a specific document", () =>
-    Effect.gen(function* () {
-      const env = yield* Html.HtmlEnvironment
-      assert.strictEqual(env.document, otherDocument)
-      ist(yield* Html.serialize(doc(p("a"))), "<p>a</p>")
-      ist(yield* Html.parse(schema, "<p>a</p>"), doc(p("a")), eq)
-    }).pipe(Effect.provide(Html.HtmlEnvironment.layer(otherDocument)))
-  )
+  it.layer(Html.HtmlEnvironment.layer(otherDocument))("layer", (withDocument) => {
+    withDocument.effect("can provide a specific document", () =>
+      Effect.gen(function* () {
+        const env = yield* Html.HtmlEnvironment
+        assert.strictEqual(env.document, otherDocument)
+        ist(yield* Html.serialize(doc(p("a"))), "<p>a</p>")
+        ist(yield* Html.parse(schema, "<p>a</p>"), doc(p("a")), eq)
+      })
+    )
+  })
 })

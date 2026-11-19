@@ -342,8 +342,13 @@ interface HistoryMeta {
   readonly historyState: HistoryState
 }
 
-const meta = <A>(tr: Transaction<any>, key: Parameters<Transaction<any>["getMeta"]>[0]): A | undefined =>
-  Option.getOrUndefined(tr.getMeta<A>(key))
+// Whether `tr` carries a truthy metadata value under `key`.
+const hasMeta = (tr: Transaction<any>, key: Parameters<Transaction<any>["getMeta"]>[0]): boolean =>
+  Option.exists(tr.getMeta(key), Boolean)
+
+// Whether `tr` opts out of history with an `"addToHistory": false` meta.
+const skipsHistory = (tr: Transaction<any>): boolean =>
+  Option.getOrUndefined(tr.getMeta<boolean>("addToHistory")) === false
 
 // Record a transformation in undo history.
 function applyTransaction(
@@ -352,18 +357,18 @@ function applyTransaction(
   tr: Transaction<any>,
   options: HistoryConfig
 ): HistoryState {
-  const historyTr = meta<HistoryMeta>(tr, historyKey)
+  const historyTr = Option.getOrUndefined(tr.getMeta<HistoryMeta>(historyKey))
   if (historyTr) return historyTr.historyState
 
-  if (meta(tr, closeHistoryKey)) history = new HistoryState(history.done, history.undone, null, 0, -1)
+  if (hasMeta(tr, closeHistoryKey)) history = new HistoryState(history.done, history.undone, null, 0, -1)
 
-  const appended = meta<Transaction<any>>(tr, "appendedTransaction")
+  const appended = Option.getOrUndefined(tr.getMeta<Transaction<any>>("appendedTransaction"))
   let rebased: number | undefined
 
   if (Arr.isReadonlyArrayEmpty(tr.steps)) {
     return history
-  } else if (appended && meta(appended, historyKey)) {
-    if (meta<HistoryMeta>(appended, historyKey)!.redo) {
+  } else if (appended && hasMeta(appended, historyKey)) {
+    if (Option.getOrUndefined(appended.getMeta<HistoryMeta>(historyKey))!.redo) {
       return new HistoryState(
         history.done.addTransform(tr, undefined, options, mustPreserveItems(state)),
         history.undone,
@@ -380,9 +385,9 @@ function applyTransaction(
         history.prevComposition
       )
     }
-  } else if (meta(tr, "addToHistory") !== false && !(appended && meta(appended, "addToHistory") === false)) {
+  } else if (!skipsHistory(tr) && !(appended && skipsHistory(appended))) {
     // Group transforms that occur in quick succession into one event.
-    const composition = meta<number>(tr, "composition")
+    const composition = Option.getOrUndefined(tr.getMeta<number>("composition"))
     const newGroup =
       history.prevTime === 0 ||
       (!appended &&
@@ -401,7 +406,7 @@ function applyTransaction(
       tr.time,
       composition == null ? history.prevComposition : composition
     )
-  } else if ((rebased = meta<number>(tr, "rebased"))) {
+  } else if ((rebased = Option.getOrUndefined(tr.getMeta<number>("rebased")))) {
     // Used by the collab module to tell the history that some of its
     // content has been rebased.
     return new HistoryState(
