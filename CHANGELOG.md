@@ -1,5 +1,11 @@
 # @thomasfosterau/effect-richtext
 
+## 0.2.1
+
+### Patch Changes
+
+- [#86](https://github.com/thomasfosterau/effect-richtext/pull/86) [`bc5eefb`](https://github.com/thomasfosterau/effect-richtext/commit/bc5eefbed752fdbdc73b9af172ae0f37b059d2fb) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - `EditorState.apply` / `applyTransaction` (and their `Unsafe` twins) now run each plugin hook once per transaction. When a hook returned an Effect, they used to start over on the effectful path and run the hooks before it a second time; they now continue from that hook, as `create` already did. `reconfigureUnsafe` likewise stays synchronous until a hook returns an Effect.
+
 ## 0.2.0
 
 ### Minor Changes
