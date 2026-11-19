@@ -1,29 +1,4 @@
-# Dependabot version updates. Every version lives in pnpm-workspace.yaml's
-# catalog, which Dependabot edits along with pnpm-lock.yaml.
-#
-# Groups exist only for dependencies that MUST move together, so a lockstep
-# set arrives as one PR instead of a set of PRs that are each red on their own.
-# Everything else (`tsx`, `fallow`, `@changesets/*`, the `prosemirror-*`
-# reference tests/bench/ compares against, `@enfect/oxlint`, …) updates in its
-# own PR; there is no catch-all. A dependency joins the FIRST group whose
-# patterns match it:
-#
-# - `toolchain`: vite-plus pins `oxlint`, `oxfmt`, `oxlint-tsgolint` and
-#   `vitest` exactly (the first three are transitive pins), `vitest` /
-#   `@vitest/*` must equal its pins, and `effect-tsgo patch` (the `prepare`
-#   script) matches the native `tsc` (`@typescript/native`) and `oxlint` by
-#   gitHead, hard-erroring (UnsupportedTargetPackageVersionError) on any
-#   pairing it has no artifact for. Read the catalog comments before merging.
-#   When the new vite-plus carries an oxlint that the pinned `@effect/tsgo` has
-#   no artifact for, the PR fails at `pnpm install`: pick the `@effect/tsgo`
-#   whose `components` table covers it, by hand, on that PR's branch.
-#   `@enfect/oxlint` ranges its `@oxlint/plugins` dependency, so it is not in
-#   the set.
-# - `effect`: the Effect 4 line is a lockstep-versioned singleton set, and
-#   `@effect/docgen` is on it: each release depends on `effect` and
-#   `@effect/platform-node` at its own version, so it must not run ahead of
-#   the `effect` pin (`@effect/tsgo` and `@effect/language-service` are
-#   versioned separately).
+# Dependabot version updates.
 #
 # Hand moves Dependabot cannot make (do them on the matching group's PR, then
 # `pnpm install` and commit the lockfile):
@@ -37,19 +12,12 @@
 # - the `overrides` literals in pnpm-workspace.yaml (the `undici` security
 #   floor: drop it once its parents resolve the fixed version);
 # - `catalogs.peers` (the published `effect` range; raising it is breaking).
-#
-# `cooldown` is 1 day, Dependabot's smallest unit. pnpm-workspace.yaml's
-# `minimumReleaseAge` holds a new version for 8 hours (480 minutes), so the
-# cooldown is the longer wait and a Dependabot PR never proposes a version
-# pnpm would still refuse. First-party `@thomasfosterau/*` is exempt from
-# both.
 version: 2
 updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "daily"
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
@@ -90,8 +58,7 @@ updates:
       - "/"
       - "/.github/actions/setup"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "daily"
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
@@ -107,8 +74,7 @@ updates:
   - package-ecosystem: "devcontainers"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "daily"
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
