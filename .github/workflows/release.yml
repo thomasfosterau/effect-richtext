@@ -3,7 +3,8 @@ name: Release
 # Changesets, split so only publishing waits for approval: `select` picks the
 # mode, `version` opens the "chore: version packages" PR, and `publish` (the
 # only job in the protected `release` environment, and the only one with
-# `id-token: write`) publishes to npm by OIDC trusted publishing.
+# `id-token: write`) publishes to npm by OIDC trusted publishing. No job
+# restores a cache, so none reads what an unprivileged CI run could write.
 
 on:
   push:
@@ -35,7 +36,7 @@ jobs:
         with:
           version-file: pnpm-workspace.yaml
           node-version: lts
-          cache: true
+          cache: false
           run-install: |
             args: ['--frozen-lockfile', '--ignore-scripts']
       - name: Select mode
@@ -64,7 +65,7 @@ jobs:
         with:
           version-file: pnpm-workspace.yaml
           node-version: lts
-          cache: true
+          cache: false
           run-install: |
             args: ['--frozen-lockfile', '--ignore-scripts']
       - name: Create or update the version PR
@@ -100,7 +101,6 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      # No cache: a job holding `id-token: write` installs from the registry.
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@v1.22.0
         with:
