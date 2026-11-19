@@ -55,9 +55,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1.22.0
         with:
+          cache: true
           node-version: ${{ matrix.node }}
+          run-install: |
+            args: ['--frozen-lockfile']
       # Keyed per matrix leg: a result cached on one Node line must never be
       # replayed as a pass on the other.
       - name: Restore the Vite+ task cache
