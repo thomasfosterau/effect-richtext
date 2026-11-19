@@ -149,6 +149,7 @@ export default defineConfig({
       "effecttsgo/provide-layer-succeed-to-provide-service": "error",
       "effecttsgo/strict-effect-provide": "error",
       "typescript/no-unnecessary-type-parameters": "error",
+      // Covered by `effect/avoid-any` (an allowance above).
       "typescript/no-explicit-any": "off",
       "typescript/no-empty-object-type": "off",
       "typescript/ban-ts-comment": "off",
@@ -450,7 +451,7 @@ export default defineConfig({
         test: {
           name: "node",
           include: ["tests/**/*.test.ts"],
-          exclude: ["tests/view/**", "tests/browser/**", "tests/**/*.browser.test.ts"],
+          exclude: ["tests/view/**", "tests/**/*.browser.test.ts"],
           environment: "happy-dom",
           sequence: { concurrent: true }
         }
@@ -498,7 +499,7 @@ export default defineConfig({
         },
         test: {
           name: "browser",
-          include: ["tests/view/**/*.test.ts", "tests/browser/**/*.test.ts", "tests/**/*.browser.test.ts"],
+          include: ["tests/view/**/*.test.ts", "tests/**/*.browser.test.ts"],
           browser: {
             enabled: true,
             headless: true,
