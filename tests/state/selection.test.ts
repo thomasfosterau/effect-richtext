@@ -273,14 +273,20 @@ describe("Selection (Effect API)", () => {
     Effect.gen(function* () {
       const d = doc(p("foo"), hr())
       const codec = SelectionFromJSON(d)
-      for (const sel of [TextSelection.createUnsafe(d, 1, 3), NodeSelection.createUnsafe(d, 5), new AllSelection(d)]) {
-        const json = yield* Schema.encodeEffect(codec)(sel)
-        assert.deepStrictEqual(json, sel.toJSON())
-        const back = yield* Schema.decodeUnknownEffect(codec)(jsonRoundTrip(json))
-        ist(back.eq(sel))
-        const viaFromJSON = yield* Selection.fromJSON(d, json)
-        ist(viaFromJSON.eq(sel))
-      }
+      const selections = [TextSelection.createUnsafe(d, 1, 3), NodeSelection.createUnsafe(d, 5), new AllSelection(d)]
+      yield* Effect.forEach(
+        selections,
+        (sel) =>
+          Effect.gen(function* () {
+            const json = yield* Schema.encodeEffect(codec)(sel)
+            assert.deepStrictEqual(json, sel.toJSON())
+            const back = yield* Schema.decodeUnknownEffect(codec)(jsonRoundTrip(json))
+            ist(back.eq(sel))
+            const viaFromJSON = yield* Selection.fromJSON(d, json)
+            ist(viaFromJSON.eq(sel))
+          }),
+        { concurrency: 1 }
+      )
       const bad = yield* Effect.flip(Schema.decodeEffect(codec)({ type: "bogus" }))
       assert.match(bad.message, /No selection type bogus/)
       const err = yield* Effect.flip(Selection.fromJSON(d, { type: "text", anchor: 1 }))

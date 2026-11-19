@@ -455,14 +455,14 @@ export class Editor<T extends ExtensionTypes> {
       const tr = state.tr
       const chained = new ChainableState(state, tr)
       const dispatch: Dispatch<any> = (t) => Effect.sync(() => foldInto(tr, t))
-      let all = true
-      for (const command of queue) {
-        if (!(yield* command(chained, dispatch, this._view))) all = false
-      }
+      // Every command runs, in order, even after one fails to apply.
+      const results = yield* Effect.forEach(queue, (command) => command(chained, dispatch, this._view), {
+        concurrency: 1
+      })
       if (tr.docChanged || tr.selectionSet || tr.storedMarksSet || tr.scrolledIntoView || !tr.isGeneric) {
         yield* this.dispatch(tr)
       }
-      return all
+      return results.every(Boolean)
     })
     return chain as any
   }

@@ -9,7 +9,7 @@ import * as Exit from "effect/Exit"
 import * as Option from "effect/Option"
 import type { AnySchema, Mark, MarkJSON, ModelError, Node, NodeJSON } from "../model.ts"
 import { type SelectionError, StateError } from "./errors.ts"
-import type { AnyPlugin, MaybeEffect, Plugin, PluginErrors, PluginRequirements, StateField } from "./plugin.ts"
+import type { AnyPlugin, Plugin, PluginErrors, PluginRequirements, StateField } from "./plugin.ts"
 import { Selection, type SelectionJSON, type TextSelection } from "./selection.ts"
 import { Transaction } from "./transaction.ts"
 
@@ -65,9 +65,6 @@ interface FieldDesc {
   readonly init: StateField<any, any, any, any>["init"]
   readonly apply: StateField<any, any, any, any>["apply"]
 }
-
-// Narrow a field hook's result to its `Effect` case, keeping `E` and `R`.
-const isEffectOf = <A, E, R>(u: MaybeEffect<A, E, R>): u is Effect.Effect<A, E, R> => Effect.isEffect(u)
 
 const baseFields: ReadonlyArray<FieldDesc> = [
   {
@@ -147,54 +144,110 @@ export class Configuration<Sc extends AnySchema> {
 
 const isStateError = (u: unknown): u is StateError => u instanceof StateError
 
-// Create a state and run its fields' init hooks synchronously, stopping at
-// the first hook that returns an Effect. That Effect is left in the field's
-// slot for finishCreate, and its index returned (-1 when every hook ran).
-// Throws a StateError for an invalid configuration.
-function startCreate(config: EditorStateConfig<any, any>) {
-  const schema = config.doc ? config.doc.type.schema : config.schema
-  if (!schema) throw new StateError({ message: "Either `doc` or `schema` must be provided" })
-  const instance = new EditorState<any, any, any>(new Configuration(schema, config.plugins))
-  const pending = instance.config.fields.findIndex((field) =>
-    Effect.isEffect((instance.slots[field.name] = field.init.call(field.self, config, instance)))
-  )
-  return { instance, pending }
+// EditorState's algorithms (create, apply, filter, reconfigure, fromJSON) are
+// written once, as generators that yield a plugin hook's result when it is
+// an Effect and are resumed with its value; a plain result is used in place,
+// so an all-synchronous transaction costs no generator resumes per hook. A
+// yielded `Call` enters a nested algorithm and resumes with what it returns.
+// One generator serves both twins: `Run.advance` runs it synchronously, and
+// the first Effect hands the suspended run to `resume`, so the hooks that
+// already ran are not run again. A `yield` is typed `any` (Generator's
+// default TNext) because each resolves to its own hook's result type.
+type Steps<A> = Generator<unknown, A>
+
+// A hook's result is an Effect to yield. Its channels are left to the run
+// that resolves it (`Run`), so they are not tracked at the yield.
+const isHookEffect = (u: unknown): u is Effect.Effect<unknown> => Effect.isEffect(u)
+
+class Call {
+  constructor(readonly steps: Steps<unknown>) {}
 }
 
-// Run the pending init Effect (left in its slot) and the remaining hooks.
-// The hooks' requirements are the plugins' R, which create's and
-// createUnsafe's types carry; the continuation runs in that context.
-const finishCreate = <Sc extends AnySchema, P extends ReadonlyArray<AnyPlugin>>(
-  config: EditorStateConfig<Sc, P>,
-  instance: EditorState<any, any, any>,
-  pending: number
-): Effect.Effect<
-  EditorState<Sc, PluginRequirements<P>, PluginErrors<P>>,
-  PluginErrors<P> | StateError,
-  PluginRequirements<P>
-> =>
-  Effect.gen(function* () {
-    for (const [i, field] of instance.config.fields.entries()) {
-      if (i < pending) continue
-      const result =
-        i === pending ? instance.slots[field.name] : yield* trySync(() => field.init.call(field.self, config, instance))
-      instance.slots[field.name] = Effect.isEffect(result) ? yield* result as Effect.Effect<unknown, any, any> : result
-    }
-    return instance
-  }) as any
+// One run of an algorithm: the generator it started with, the nested ones it
+// has entered (innermost last), and the value to resume the innermost with.
+// `E` and `R` are the channels of the plugins whose hooks it runs.
+class Run<E, R> {
+  private readonly nested: Array<Steps<unknown>> = []
+  input: unknown = undefined
 
-/** Marker returned by the synchronous fast path when a hook returned an Effect. */
-const NeedsEffect: unique symbol = Symbol("effect-richtext/state/NeedsEffect")
+  constructor(private readonly root: Steps<unknown>) {}
 
-/** Lift a synchronous computation that may throw a `StateError` into an Effect. */
-const trySync = <A>(f: () => A): Effect.Effect<A, StateError> =>
-  Effect.suspend(() => {
-    try {
-      return Effect.succeed(f())
-    } catch (e) {
-      return isStateError(e) ? Effect.fail(e) : Effect.die(e)
+  // Run until the root algorithm returns, or a step yields an Effect.
+  // Throws what a step throws.
+  advance(): IteratorResult<Effect.Effect<unknown, E, R>, unknown> {
+    for (;;) {
+      const step = (this.nested[this.nested.length - 1] ?? this.root).next(this.input)
+      if (step.done) {
+        if (this.nested.pop() === undefined) return step
+        this.input = step.value
+      } else if (step.value instanceof Call) {
+        this.nested.push(step.value.steps)
+        this.input = undefined
+      } else if (this.isHookEffect(step.value)) {
+        return { done: false, value: step.value }
+      } else {
+        this.input = step.value
+      }
     }
+  }
+
+  // A yielded Effect is a plugin hook's result, so its channels are E and R.
+  private isHookEffect(u: unknown): u is Effect.Effect<unknown, E, R> {
+    return Effect.isEffect(u)
+  }
+}
+
+// Resume `run`, resolving each Effect it suspends on in turn. A thrown
+// `StateError` becomes a failure; anything else thrown is a defect.
+const resume = <E, R>(run: Run<E, R>): Effect.Effect<unknown, E | StateError, R> => {
+  let step: IteratorResult<Effect.Effect<unknown, E, R>, unknown>
+  try {
+    step = run.advance()
+  } catch (e) {
+    return isStateError(e) ? Effect.fail(e) : Effect.die(e)
+  }
+  if (step.done) return Effect.succeed(step.value)
+  return Effect.flatMap(step.value, (value) => {
+    run.input = value
+    return resume(run)
   })
+}
+
+// Run an algorithm as an Effect. `make` is called per run, so the Effect can
+// be run more than once.
+const runSteps = <A, E, R>(make: () => Steps<A>): Effect.Effect<A, E | StateError, R> =>
+  // SAFETY: the root generator is `make()`, so the run's result is its `A`.
+  Effect.suspend(() => resume(new Run<E, R>(make()))) as Effect.Effect<A, E | StateError, R>
+
+// Run an algorithm synchronously. From the first hook that returns an
+// Effect, the rest runs through runSyncUnsafe, which throws the failure, or
+// a defect when a hook is asynchronous; the `Unsafe` twins are only typed
+// for plugins that require no services. Failures are thrown, not typed,
+// hence `never` for the run's channels.
+const runStepsUnsafe = <A>(steps: Steps<A>): A => {
+  const run = new Run<never, never>(steps)
+  const step = run.advance()
+  const value = step.done
+    ? step.value
+    : runSyncUnsafe(
+        Effect.flatMap(step.value, (resolved) => {
+          run.input = resolved
+          return resume(run)
+        })
+      )
+  // SAFETY: the root generator is `steps`, so the run's result is its `A`.
+  return value as A
+}
+
+function* createSteps<Sc extends AnySchema, R, E>(config: EditorStateConfig<Sc>): Steps<EditorState<Sc, R, E>> {
+  const schema = config.doc ? config.doc.type.schema : config.schema
+  if (!schema) throw new StateError({ message: "Either `doc` or `schema` must be provided" })
+  const instance = new EditorState<Sc, R, E>(new Configuration(schema, config.plugins))
+  for (const field of instance.config.fields) {
+    instance.slots[field.name] = yield field.init.call(field.self, config, instance)
+  }
+  return instance
+}
 
 /**
  * Run an effect synchronously, throwing its (first) failure or defect.
@@ -324,22 +377,8 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
   }
 
   /** @internal */
-  filterTransaction(tr: Transaction<Sc>, ignore = -1): Effect.Effect<boolean, E, R> {
-    const plugins = this.config.plugins
-    const self = this
-    return Effect.gen(function* () {
-      for (let i = 0; i < plugins.length; i++) {
-        if (i === ignore) continue
-        const plugin = plugins[i]!,
-          filter = plugin.spec.filterTransaction
-        if (filter) {
-          const result = filter.call(plugin, tr, self)
-          const ok = Effect.isEffect(result) ? yield* result as Effect.Effect<boolean, E, R> : result
-          if (!ok) return false
-        }
-      }
-      return true
-    })
+  filterTransaction(tr: Transaction<Sc>, ignore = -1): Effect.Effect<boolean, E | StateError, R> {
+    return runSteps(() => filterSteps(this, tr, ignore))
   }
 
   /**
@@ -348,170 +387,12 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
    * hooks of plugins) along with the new state.
    */
   applyTransaction(rootTr: Transaction<Sc>): Effect.Effect<ApplyResult<Sc, R, E>, E | StateError, R> {
-    return Effect.suspend(() => {
-      // Fast path: when every plugin hook returns a plain value, apply
-      // synchronously without building an Effect pipeline. Hooks are
-      // expected to be pure, so falling back to the effectful path (which
-      // re-runs them) is safe.
-      let result: ApplyResult<Sc, R, E> | typeof NeedsEffect
-      try {
-        result = this.applyTransactionSync(rootTr)
-      } catch (e) {
-        return isStateError(e) ? Effect.fail(e) : Effect.die(e)
-      }
-      return result === NeedsEffect ? this.applyTransactionEffect(rootTr) : Effect.succeed(result)
-    })
-  }
-
-  /** @internal */
-  applyTransactionSync(rootTr: Transaction<Sc>): ApplyResult<Sc, R, E> | typeof NeedsEffect {
-    const filtered = this.filterTransactionSync(rootTr)
-    if (filtered === NeedsEffect) return NeedsEffect
-    if (!filtered) return { state: this, transactions: [] }
-    const trs: Array<Transaction<Sc>> = [rootTr]
-    let newState = this.applyInnerSync(rootTr)
-    if (newState === NeedsEffect) return NeedsEffect
-    let seen: Array<{ state: EditorState<Sc, R, E>; n: number }> | null = null
-    const plugins = this.config.plugins
-    for (;;) {
-      let haveNew = false
-      for (let i = 0; i < plugins.length; i++) {
-        const plugin = plugins[i]!,
-          append = plugin.spec.appendTransaction
-        if (append) {
-          const n = seen ? seen[i]!.n : 0,
-            oldState = seen ? seen[i]!.state : this
-          let tr: Transaction<Sc> | null | undefined | void = undefined
-          if (n < trs.length) {
-            const result = append.call(plugin, n ? trs.slice(n) : trs, oldState, newState)
-            if (Effect.isEffect(result)) return NeedsEffect
-            tr = result as Transaction<Sc> | null | undefined
-          }
-          if (tr) {
-            const ok = newState.filterTransactionSync(tr, i)
-            if (ok === NeedsEffect) return NeedsEffect
-            if (ok) {
-              tr.setMeta("appendedTransaction", rootTr)
-              if (!seen) {
-                seen = []
-                for (let j = 0; j < plugins.length; j++) {
-                  seen.push(j < i ? { state: newState, n: trs.length } : { state: this, n: 0 })
-                }
-              }
-              trs.push(tr)
-              const next: EditorState<Sc, R, E> | typeof NeedsEffect = newState.applyInnerSync(tr)
-              if (next === NeedsEffect) return NeedsEffect
-              newState = next
-              haveNew = true
-            }
-          }
-          if (seen) seen[i] = { state: newState, n: trs.length }
-        }
-      }
-      if (!haveNew) return { state: newState, transactions: trs }
-    }
-  }
-
-  /** @internal */
-  filterTransactionSync(tr: Transaction<Sc>, ignore = -1): boolean | typeof NeedsEffect {
-    const plugins = this.config.plugins
-    for (let i = 0; i < plugins.length; i++) {
-      if (i === ignore) continue
-      const plugin = plugins[i]!,
-        filter = plugin.spec.filterTransaction
-      if (filter) {
-        const result = filter.call(plugin, tr, this)
-        if (Effect.isEffect(result)) return NeedsEffect
-        if (!result) return false
-      }
-    }
-    return true
-  }
-
-  /** @internal */
-  applyInnerSync(tr: Transaction<Sc>): EditorState<Sc, R, E> | typeof NeedsEffect {
-    if (!tr.before.eq(this.doc)) throw new StateError({ message: "Applying a mismatched transaction" })
-    const newInstance = new EditorState<Sc, R, E>(this.config),
-      fields = this.config.fields
-    for (let i = 0; i < fields.length; i++) {
-      const field = fields[i]!
-      const result = field.apply.call(field.self, tr, this.slots[field.name], this, newInstance)
-      if (Effect.isEffect(result)) return NeedsEffect
-      newInstance.slots[field.name] = result
-    }
-    return newInstance
-  }
-
-  /** @internal */
-  applyTransactionEffect(rootTr: Transaction<Sc>): Effect.Effect<ApplyResult<Sc, R, E>, E | StateError, R> {
-    const self = this
-    return Effect.gen(function* () {
-      if (!(yield* self.filterTransaction(rootTr))) return { state: self, transactions: [] }
-
-      const trs: Array<Transaction<Sc>> = [rootTr]
-      let newState = yield* self.applyInner(rootTr)
-      let seen: Array<{ state: EditorState<Sc, R, E>; n: number }> | null = null
-      const plugins = self.config.plugins
-      // This loop repeatedly gives plugins a chance to respond to
-      // transactions as new transactions are added, making sure to only
-      // pass the transactions the plugin did not see before.
-      for (;;) {
-        let haveNew = false
-        for (let i = 0; i < plugins.length; i++) {
-          const plugin = plugins[i]!,
-            append = plugin.spec.appendTransaction
-          if (append) {
-            const n = seen ? seen[i]!.n : 0,
-              oldState = seen ? seen[i]!.state : self
-            let tr: Transaction<Sc> | null | undefined | void = undefined
-            if (n < trs.length) {
-              const result = append.call(plugin, n ? trs.slice(n) : trs, oldState, newState)
-              tr = Effect.isEffect(result)
-                ? yield* result as Effect.Effect<Transaction<Sc> | null | undefined, E, R>
-                : (result as Transaction<Sc> | null | undefined)
-            }
-            if (tr && (yield* newState.filterTransaction(tr, i))) {
-              tr.setMeta("appendedTransaction", rootTr)
-              if (!seen) {
-                seen = []
-                for (let j = 0; j < plugins.length; j++) {
-                  seen.push(j < i ? { state: newState, n: trs.length } : { state: self, n: 0 })
-                }
-              }
-              trs.push(tr)
-              newState = yield* newState.applyInner(tr)
-              haveNew = true
-            }
-            if (seen) seen[i] = { state: newState, n: trs.length }
-          }
-        }
-        if (!haveNew) return { state: newState, transactions: trs as ReadonlyArray<Transaction<Sc>> }
-      }
-    })
+    return runSteps(() => applySteps(this, rootTr))
   }
 
   /** Like `applyTransaction`, but runs synchronously (see `applyUnsafe`). */
   applyTransactionUnsafe(this: EditorState<Sc, never, E>, rootTr: Transaction<Sc>): ApplyResult<Sc, never, E> {
-    const result = this.applyTransactionSync(rootTr)
-    return result === NeedsEffect ? runSyncUnsafe(this.applyTransactionEffect(rootTr)) : result
-  }
-
-  /** @internal */
-  applyInner(tr: Transaction<Sc>): Effect.Effect<EditorState<Sc, R, E>, E | StateError, R> {
-    const self = this
-    return Effect.gen(function* () {
-      if (!tr.before.eq(self.doc)) {
-        return yield* new StateError({ message: "Applying a mismatched transaction" })
-      }
-      const newInstance = new EditorState<Sc, R, E>(self.config),
-        fields = self.config.fields
-      for (let i = 0; i < fields.length; i++) {
-        const field = fields[i]!
-        const result = field.apply.call(field.self, tr, self.slots[field.name], self, newInstance)
-        newInstance.slots[field.name] = isEffectOf<unknown, E, R>(result) ? yield* result : result
-      }
-      return newInstance
-    })
+    return runStepsUnsafe(applySteps(this, rootTr))
   }
 
   /**
@@ -528,30 +409,14 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
     PluginErrors<P> | StateError,
     PluginRequirements<P>
   > {
-    const self = this
-    return Effect.gen(function* () {
-      const $config = yield* trySync(() => new Configuration(self.schema, config.plugins))
-      const fields = $config.fields,
-        instance = new EditorState<Sc, PluginRequirements<P>, PluginErrors<P>>($config)
-      for (let i = 0; i < fields.length; i++) {
-        const field = fields[i]!,
-          name = field.name
-        if (Object.prototype.hasOwnProperty.call(self.slots, name)) {
-          instance.slots[name] = self.slots[name]
-        } else {
-          const result = field.init.call(field.self, config, instance)
-          instance.slots[name] = Effect.isEffect(result) ? yield* result as Effect.Effect<unknown, any, any> : result
-        }
-      }
-      return instance
-    }) as any
+    return runSteps(() => reconfigureSteps(this, config))
   }
 
   /** Like `reconfigure`, but runs synchronously (see `applyUnsafe`). */
   reconfigureUnsafe<const P extends ReadonlyArray<Plugin<any, any, any, never>> = readonly []>(config: {
     readonly plugins?: P | undefined
   }): EditorState<Sc, never, PluginErrors<P>> {
-    return runSyncUnsafe(this.reconfigure(config)) as any
+    return runStepsUnsafe(reconfigureSteps(this, config))
   }
 
   /**
@@ -586,10 +451,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
     PluginErrors<P> | StateError,
     PluginRequirements<P>
   > {
-    return Effect.flatMap(
-      trySync(() => startCreate(config)),
-      ({ instance, pending }) => (pending < 0 ? Effect.succeed(instance) : finishCreate(config, instance, pending))
-    )
+    return runSteps(() => createSteps(config))
   }
 
   /**
@@ -600,8 +462,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
     config: EditorStateConfig<Sc, P>
   ): EditorState<Sc, never, PluginErrors<P>> {
     // Synchronous unless a plugin's init hook returns an Effect.
-    const { instance, pending } = startCreate(config)
-    return (pending < 0 ? instance : runSyncUnsafe(finishCreate(config, instance, pending))) as any
+    return runStepsUnsafe(createSteps(config))
   }
 
   /**
@@ -620,25 +481,22 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
     PluginErrors<P> | StateError | SelectionError | ModelError,
     PluginRequirements<P>
   > {
-    return Effect.gen(function* () {
+    // The JSON decoders are Effects, yielded like the hooks.
+    return runSteps(function* () {
       const data = json as Record<string, any> | null | undefined
-      if (!data || typeof data !== "object") {
-        return yield* new StateError({ message: "Invalid input for EditorState.fromJSON" })
-      }
-      if (!config.schema) {
-        return yield* new StateError({ message: "Required config field 'schema' missing" })
-      }
-      const $config = yield* trySync(() => new Configuration(config.schema, config.plugins))
+      if (!data || typeof data !== "object") throw new StateError({ message: "Invalid input for EditorState.fromJSON" })
+      if (!config.schema) throw new StateError({ message: "Required config field 'schema' missing" })
+      const $config = new Configuration(config.schema, config.plugins)
       const instance = new EditorState<Sc, PluginRequirements<P>, PluginErrors<P>>($config)
       for (const field of $config.fields) {
         if (field.name === "doc") {
-          instance.slots.doc = yield* config.schema.nodeFromJSON(data.doc)
+          instance.slots.doc = yield config.schema.nodeFromJSON(data.doc)
         } else if (field.name === "selection") {
-          instance.slots.selection = yield* Selection.fromJSON(instance.doc, data.selection)
+          instance.slots.selection = yield Selection.fromJSON(instance.doc, data.selection)
         } else if (field.name === "storedMarks") {
           if (data.storedMarks) {
             const marks: Array<Mark<Sc>> = []
-            for (const m of data.storedMarks as Array<unknown>) marks.push(yield* config.schema.markFromJSON(m))
+            for (const m of data.storedMarks as Array<unknown>) marks.push(yield config.schema.markFromJSON(m))
             instance.slots.storedMarks = marks
           } else {
             instance.slots.storedMarks = null
@@ -656,25 +514,17 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
                 Object.prototype.hasOwnProperty.call(data, prop)
               ) {
                 // This field belongs to a plugin mapped to a JSON field, read it from there.
-                const result = state.fromJSON.call(plugin, config, data[prop], instance)
-                instance.slots[field.name] = Effect.isEffect(result)
-                  ? yield* result as Effect.Effect<unknown, any, any>
-                  : result
+                instance.slots[field.name] = yield state.fromJSON.call(plugin, config, data[prop], instance)
                 done = true
                 break
               }
             }
           }
-          if (!done) {
-            const result = field.init.call(field.self, config, instance)
-            instance.slots[field.name] = Effect.isEffect(result)
-              ? yield* result as Effect.Effect<unknown, any, any>
-              : result
-          }
+          if (!done) instance.slots[field.name] = yield field.init.call(field.self, config, instance)
         }
       }
       return instance
-    }) as any
+    })
   }
 
   /** Like `fromJSON`, but runs synchronously (see `createUnsafe`). */
@@ -686,6 +536,102 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
     json: unknown,
     pluginFields?: Record<string, AnyPlugin>
   ): EditorState<Sc, never, PluginErrors<P>> {
+    // Every run awaits the document's decode, an Effect, so there is no synchronous fast path to take.
     return runSyncUnsafe(EditorState.fromJSON(config, json, pluginFields)) as any
   }
+}
+
+// The plugins' `filterTransaction` hooks, but the `ignore`th: false as soon
+// as one rejects `tr`.
+function* filterSteps<Sc extends AnySchema>(
+  state: EditorState<Sc, any, any>,
+  tr: Transaction<Sc>,
+  ignore = -1
+): Steps<boolean> {
+  const plugins = state.config.plugins
+  for (let i = 0; i < plugins.length; i++) {
+    if (i === ignore) continue
+    const plugin = plugins[i]!,
+      filter = plugin.spec.filterTransaction
+    if (filter) {
+      const ok = filter.call(plugin, tr, state)
+      if (!(isHookEffect(ok) ? yield ok : ok)) return false
+    }
+  }
+  return true
+}
+
+// `applyTransaction`: filter and apply `rootTr`, then the transactions the
+// plugins append in response.
+function* applySteps<Sc extends AnySchema, R, E>(
+  state: EditorState<Sc, R, E>,
+  rootTr: Transaction<Sc>
+): Steps<ApplyResult<Sc, R, E>> {
+  if (!(yield new Call(filterSteps(state, rootTr)))) return { state, transactions: [] }
+
+  const trs: Array<Transaction<Sc>> = [rootTr]
+  let newState: EditorState<Sc, R, E> = yield new Call(applyInnerSteps(state, rootTr))
+  let seen: Array<{ state: EditorState<Sc, R, E>; n: number }> | null = null
+  const plugins = state.config.plugins
+  // This loop repeatedly gives plugins a chance to respond to
+  // transactions as new transactions are added, making sure to only
+  // pass the transactions the plugin did not see before.
+  for (;;) {
+    let haveNew = false
+    for (let i = 0; i < plugins.length; i++) {
+      const plugin = plugins[i]!,
+        append = plugin.spec.appendTransaction
+      if (append) {
+        const n = seen ? seen[i]!.n : 0,
+          oldState = seen ? seen[i]!.state : state
+        const appended = n < trs.length ? append.call(plugin, n ? trs.slice(n) : trs, oldState, newState) : undefined
+        const tr: Transaction<Sc> | null | undefined = isHookEffect(appended) ? yield appended : appended
+        if (tr && (yield new Call(filterSteps(newState, tr, i)))) {
+          tr.setMeta("appendedTransaction", rootTr)
+          if (!seen) {
+            seen = []
+            for (let j = 0; j < plugins.length; j++) {
+              seen.push(j < i ? { state: newState, n: trs.length } : { state, n: 0 })
+            }
+          }
+          trs.push(tr)
+          newState = yield new Call(applyInnerSteps(newState, tr))
+          haveNew = true
+        }
+        if (seen) seen[i] = { state: newState, n: trs.length }
+      }
+    }
+    if (!haveNew) return { state: newState, transactions: trs }
+  }
+}
+
+// Apply one transaction: every field's `apply` hook, in order.
+function* applyInnerSteps<Sc extends AnySchema, R, E>(
+  state: EditorState<Sc, R, E>,
+  tr: Transaction<Sc>
+): Steps<EditorState<Sc, R, E>> {
+  if (!tr.before.eq(state.doc)) throw new StateError({ message: "Applying a mismatched transaction" })
+  const newInstance = new EditorState<Sc, R, E>(state.config),
+    fields = state.config.fields
+  for (let i = 0; i < fields.length; i++) {
+    const field = fields[i]!
+    const value = field.apply.call(field.self, tr, state.slots[field.name], state, newInstance)
+    newInstance.slots[field.name] = isHookEffect(value) ? yield value : value
+  }
+  return newInstance
+}
+
+// `reconfigure`: keep the fields both plugin sets share, init the new ones.
+function* reconfigureSteps<Sc extends AnySchema, R, E>(
+  state: EditorState<Sc, any, any>,
+  config: { readonly plugins?: ReadonlyArray<AnyPlugin> | undefined }
+): Steps<EditorState<Sc, R, E>> {
+  const $config = new Configuration(state.schema, config.plugins)
+  const instance = new EditorState<Sc, R, E>($config)
+  for (const field of $config.fields) {
+    instance.slots[field.name] = Object.prototype.hasOwnProperty.call(state.slots, field.name)
+      ? state.slots[field.name]
+      : yield field.init.call(field.self, config, instance)
+  }
+  return instance
 }
