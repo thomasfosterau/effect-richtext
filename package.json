@@ -27,7 +27,7 @@
     "dist",
     "README.md",
     "CHANGELOG.md",
-    "LICENSE"
+    "LICENSE.md"
   ],
   "type": "module",
   "sideEffects": [
@@ -158,11 +158,8 @@
     "access": "public"
   },
   "scripts": {
-    "changeset": "changeset",
     "version": "changeset version && vp fmt && pnpm install --lockfile-only",
     "release": "vp run build && pnpm publish --access public --no-git-checks --ignore-scripts && changeset tag",
-    "fallow": "fallow --summary",
-    "fallow:audit": "fallow audit",
     "prepare": "vp config && effect-tsgo patch --typescript --oxlint"
   },
   "dependencies": {
@@ -204,9 +201,14 @@
   "peerDependencies": {
     "effect": "catalog:peers"
   },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "lts"
+    }
+  },
   "engines": {
-    "node": ">=22",
-    "pnpm": ">=11"
+    "node": ">=22"
   },
   "packageManager": "pnpm@11.18.0"
 }

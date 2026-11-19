@@ -1,18 +1,3 @@
-/**
- * The one Vite+ configuration for this single-package repository: the
- * format / lint / staged passes (read statically by `vp fmt` / `vp lint` /
- * `vp staged`), the task graph (`check`, `build`, `test:unit`,
- * `test:browser`, `test:coverage`, `docgen`), the `vp pack` (tsdown)
- * settings, and the two vitest projects (`node` under happy-dom, `browser` in
- * real Chromium).
- *
- * Shaped after the effect-web library's root config and `vite.package.ts`:
- * every comment that explains a load-bearing decision travels with the
- * config.
- *
- * @copyright Thomas Foster
- */
-
 import { recommended } from "@effect/tsgo/oxlint-presets"
 import effect from "@enfect/oxlint"
 import * as R from "effect/Record"
@@ -75,21 +60,13 @@ const maxWorkers =
 const chromium = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
 
 export default defineConfig({
-  // Staged-file checks run by `vp staged` (pre-commit): format with fixes,
-  // then lint WITHOUT `--fix`. A lint autofix would also apply the fixes of
-  // the type-aware rules sitting at `warn` below, and tsgolint's
-  // `no-unnecessary-type-assertion` / `-type-arguments` fixes break the
-  // `check` task's tsc on some sites (#19), so a commit could land code that
-  // no longer type-checks. Lint errors still fail the commit. CSS, JSON and
-  // Markdown are only formatted: Oxlint has nothing to lint in them, and a
-  // lint pass handed no lintable file fails ("No files found to lint"), which
-  // blocked every commit touching only those files (a changeset, say).
+  // Lint without `--fix`: tsgolint's type-assertion autofixes can break the
+  // `check` task's tsc. CSS, JSON and Markdown are only formatted (a lint pass
+  // with no lintable file fails).
   staged: {
     "*.{js,ts}": ["vp check --fix --no-lint", "vp check --no-fmt"],
     "*.{css,json,md}": "vp check --fix --no-lint"
   },
-  // The repo's own style, carried over from its dprint config: no
-  // semicolons, no trailing commas, 120 columns.
   fmt: {
     semi: false,
     trailingComma: "none",
@@ -108,9 +85,6 @@ export default defineConfig({
   lint: {
     ignorePatterns: ["**/dist/**", "**/docs/api/**", "**/coverage/**", "**/node_modules/**"],
     extends: [recommended, effect.configs.recommended],
-    // Oxlint's default plugins (`typescript`, `unicorn`, `oxc`) plus the ones
-    // that cover this repo's other surfaces: imports, promises, the vitest
-    // suites and the JSDoc that docgen renders.
     plugins: ["typescript", "unicorn", "oxc", "import", "promise", "vitest", "jsdoc"],
     categories: {
       correctness: "error",
@@ -128,27 +102,15 @@ export default defineConfig({
       "eslint/prefer-const": "warn",
       "eslint/no-console": "error",
       "typescript/consistent-type-imports": "error",
-      // `casting-awareness` is a prompt, not a defect rule: it fires on every
-      // `as`, including the narrowings the DOM types structurally require, so
-      // it cannot reach zero. Every cast is already covered by
-      // `effect/require-safety-comment-for-type-assertion` and
-      // `typescript/no-unsafe-type-assertion` (#18).
+      // Fires on every `as`, including the narrowings the DOM types require;
+      // casts are covered by the two assertion rules below.
       "effect/casting-awareness": "off",
-      // Hard-codes abbreviations (`Arr`, `P`, `R`, …) with no options, so it is
-      // unsatisfiable under the full-name convention (`import { Effect,
-      // Option } from "effect"`) this library shares with its consumers.
+      // Not adopted yet: the code imports Effect modules under their full names.
       "effect/prefer-namespace-imports": "off",
 
-      // ---- Effect preset: ported-code allowances ---------------------------
-      // src/ is a port of ProseMirror's synchronous, performance-sensitive
-      // algorithms (DESIGN.md) and tests/ ports its suites; both predate the
-      // Effect oxlint preset. The rules below sit at `warn` so the port stays
-      // committable while each site stays reported; a new site is a defect,
-      // not headroom. The trailing number is the rule's site count when this
-      // block was written; the remaining sites are tracked in
-      // thomasfosterau/effect-richtext#18. Lower the count as sites are
-      // fixed, and delete the line (back to the preset's `error`) when it
-      // reaches zero.
+      // ---- Allowances for the ported ProseMirror code ----------------------
+      // `warn`, with the site count when added: a new site is a defect, not
+      // headroom. Lower the count as sites go; delete the line at zero.
       "effect/avoid-non-null-assertion": "warn", // 1295
       "effect/require-safety-comment-for-type-assertion": "warn", // 1023
       "effect/prefer-option-over-null": "warn", // 989
@@ -165,19 +127,11 @@ export default defineConfig({
       "effect/no-chained-type-assertions": "warn", // 25
       "effect/use-clock-service": "warn", // 20
       "effect/no-unknown-returns": "warn", // 22
-      // The `suspicious` rules joined with the move to @enfect/oxlint: the
-      // ported suites shadow the test-builder's `doc` / `schema`, and src/
-      // keeps ProseMirror's local names. Tracked in
-      // thomasfosterau/effect-richtext#19.
+      // The ported suites shadow the test-builder's `doc` / `schema`.
       "eslint/no-shadow": "warn", // 314
-      // ---- Type-aware allowances (tsgolint, see `options` below) ------------
-      // Turned on with Vite+ 1.4; the same rules as above (a new site is a
-      // defect, lower the count as sites go, delete the line at zero), tracked
-      // in thomasfosterau/effect-richtext#19. The two assertion rules overlap
-      // `require-safety-comment-for-type-assertion` and `casting-awareness`:
-      // tsgolint's verdict on "unnecessary" differs from the `check` task's
-      // tsc on enough of them that the autofix breaks the type gate, so each
-      // site is removed by hand, against `vp run check`.
+      // ---- Type-aware allowances (same rules as above) ---------------------
+      // tsgolint's "unnecessary" verdict differs from the `check` task's tsc,
+      // so remove those sites by hand, against `vp run check`, never by autofix.
       "typescript/no-unsafe-type-assertion": "warn", // 875
       "typescript/no-unnecessary-type-assertion": "warn", // 687
       "typescript/no-unnecessary-type-arguments": "warn", // 54
@@ -185,9 +139,7 @@ export default defineConfig({
       "typescript/unbound-method": "warn", // 43
       "typescript/consistent-return": "warn", // 22
       "effecttsgo/unsafe-effect-type-assertion": "warn", // 1
-      // ---- Paid down -------------------------------------------------------
-      // `@effect/tsgo`'s preset reports these as warnings; they have no sites
-      // left, so they are errors here (#18).
+      // `@effect/tsgo`'s preset warns on these; they have no sites left.
       "effecttsgo/unnecessary-fail-yieldable-error": "error",
       "effecttsgo/lazy-effect": "error",
       "effecttsgo/flat-map-conditional-to-filter-or-fail": "error",
@@ -298,9 +250,7 @@ export default defineConfig({
       "jsdoc/check-tag-names": ["error", { definedTags: ["category"] }]
     },
     overrides: [
-      // Build/test configs are evaluated by Vite and Vitest in bare Node,
-      // before any Effect runtime exists — there is no `Config` provider to
-      // read from, so `process.env` is the only thing that works there.
+      // Evaluated by Vite in bare Node, before any Effect runtime exists.
       {
         files: ["vite.config.ts"],
         rules: {
@@ -371,12 +321,8 @@ export default defineConfig({
           "typescript/no-unnecessary-type-parameters": "off"
         }
       },
-      // Test fixtures are the seams under test, not domain code.
-      // `@effect/vitest` is the test API this repo mandates (AGENTS.md,
-      // "Tests import from `@effect/vitest`"), and Effect marks all of it
-      // unstable, as it does the `effect/unstable/process` modules the
-      // benchmark runner spawns its child processes with: every `it` in every
-      // suite is a site, and there is no stable API to move to.
+      // Effect marks all of `@effect/vitest` (the mandated test API) and
+      // `effect/process` unstable; there is no stable API to move to.
       {
         files: ["tests/**/*.ts"],
         rules: {
@@ -385,15 +331,8 @@ export default defineConfig({
         }
       }
     ],
-    // Type-aware linting through oxlint-tsgolint (Vite+ 1.4 bundles it; the
-    // `effect-tsgo patch --oxlint` in `prepare` patches it too, so the
-    // `effecttsgo/*` rules see Effect types). tsgolint resolves each file
-    // through its nearest tsconfig.json: tests/tsconfig.json extends
-    // tsconfig.test.json so the suites get its `paths` mapping (without it
-    // every test sees the package as error types). `typeCheck` also reports
-    // tsc's diagnostics from `vp check`; it found none the `check` task does
-    // not, and costs about 10 s, so the `check` task (native, Effect-patched
-    // tsc over both tsconfigs) stays the type gate of record.
+    // tsgolint reads each file's nearest tsconfig.json: tests/tsconfig.json
+    // gives the suites tsconfig.test.json's `paths`.
     options: {
       typeAware: true,
       typeCheck: true
@@ -407,44 +346,47 @@ export default defineConfig({
   },
   run: {
     tasks: {
-      // Every gate, in CI's order; the CI workflow runs exactly this, on each
-      // Node line of its matrix, so a local `vp run ci` is the same check. It
-      // stops at the first failing gate. Each `vp run` gate keeps its own
-      // cache; this task has none, so the uncached steps (format and lint,
-      // the audit) always run.
+      // Everything ci.yml runs. The gates run in a nested `vp run` so they can
+      // be limited to two at a time (the type gate and the suites together
+      // exhaust a CI runner's memory).
       ci: {
-        command:
-          "vp run node:released && vp check && vp run check && vp run test:unit && vp run browser:install && vp run test:browser && vp run build && vp run docgen && pnpm audit --audit-level high",
+        command: "vp run --concurrency-limit 2 ci:gates",
+        dependsOn: ["node:released", "lint"],
         cache: false
       },
-      // Prints the Node version and fails on a pre-release (a version with a
-      // `-`, such as `v27.0.0-alpha.0`): what the CI matrix's `latest` alias
-      // resolves to depends on the Vite+ version, so a green leg must itself
-      // prove it ran on a released Node.
+      "ci:gates": {
+        command: "echo 'ci: all gates green'",
+        dependsOn: ["check", "test:unit", "test:browser", "docgen", "ci:audit"],
+        cache: false
+      },
+      // Fails on a pre-release Node, which the matrix's `latest` must never be.
       "node:released": {
         command:
           "node -e \"console.log('Node ' + process.version); if (process.version.includes('-')) { console.error('pre-release Node ' + process.version); process.exit(1) }\"",
         cache: false
       },
-      // The Chromium the pinned `playwright` expects, for `test:browser`.
-      // Skipped when `PLAYWRIGHT_CHROMIUM_EXECUTABLE` names one already
-      // installed (agent containers); on CI it also installs the system
-      // libraries the browser needs (`--with-deps`, which uses sudo, so never
-      // on a developer's machine).
+      lint: { command: "vp check", cache: false },
+      "ci:audit": { command: "pnpm audit --audit-level high", cache: false },
+      // Skipped when `PLAYWRIGHT_CHROMIUM_EXECUTABLE` names an installed
+      // Chromium; `--with-deps` (sudo) only on CI.
       "browser:install": {
         command:
           "bash -c '[ -n \"${PLAYWRIGHT_CHROMIUM_EXECUTABLE:-}\" ] || playwright install ${CI:+--with-deps} chromium'",
         cache: false
       },
-      // The type gate: `src` under the native, Effect-patched `tsc`, then the
-      // tests (including the type-level `tests/*.types.ts`, whose
-      // expect-error directives are the assertions) under tsconfig.test.json,
-      // which resolves the package name to `src/` so no build is needed first.
+      fallow: { command: "vp exec fallow --summary", cache: false },
+      // The pre-commit gate: fails only on findings the change introduces. It
+      // reads the coverage map for its CRAP scores.
+      "fallow:audit": {
+        command: "vp exec fallow audit --base origin/trunk --quiet",
+        dependsOn: ["test:coverage"],
+        cache: false
+      },
+      // tsconfig.test.json also covers the type-level `tests/**/*.types.ts`.
       check: {
         command: "tsc -p tsconfig.json && tsc -p tsconfig.test.json",
         cache: { input: cacheInputs, output: [] }
       },
-      // The published artifact (`vp pack` → tsdown, see `pack` below).
       build: {
         command: "vp pack",
         cache: { input: cacheInputs, output: ["dist/**"] }
@@ -453,39 +395,24 @@ export default defineConfig({
         command: "vp test run --project node",
         cache: { env: testEnv, input: cacheInputs, output: [] }
       },
-      // prosemirror-view's suites, in headless Chromium through Playwright.
       "test:browser": {
         command: "vp test run --project browser",
+        dependsOn: ["browser:install"],
         cache: { env: testEnv, input: cacheInputs, output: [] }
       },
-      // Both projects under one Istanbul coverage map
-      // (`coverage/coverage-final.json`), which `fallow audit` reads for exact
-      // per-function CRAP scores (`health.coverage` in .fallowrc.json).
-      // Without it fallow estimates every function as uncovered, and any
-      // function with cyclomatic complexity ≥ 5 fails the gate on its own.
-      // Run this before `fallow audit`, which never refreshes the map (the
-      // Claude Code PreToolUse hook `.claude/hooks/fallow-gate.sh` runs this
-      // task itself when the map is missing or older than the sources).
+      // Both projects under one Istanbul map, coverage/coverage-final.json.
       "test:coverage": {
         command: "vp test run --coverage",
-        cache: false
+        dependsOn: ["browser:install"],
+        cache: { env: testEnv, input: cacheInputs, output: ["coverage/**"] }
       },
-      // The complex-workload benchmarks (tests/bench/run.ts): every workload on
-      // ProseMirror and on the built `dist/`, one process per library per
-      // round. tsconfig.base.json has no `paths`, so the package name
-      // resolves through `exports` to `dist/` (the product) rather than to
-      // `src/` as in the tests. Timings are never cached.
+      // Resolves the package through `exports` to the built `dist/`.
       bench: {
         command: "vpx --tsconfig tsconfig.base.json tests/bench/run.ts",
         dependsOn: ["build"],
         cache: false
       },
-      // Compiles AND RUNS every JSDoc `@example` (see docgen.json). Examples
-      // import the package by name exactly as a consumer would, which
-      // resolves through `exports` to `dist/` — hence the build edge.
-      // docgen only logs "No examples found." and exits 0 when no `@example`
-      // (or checked ```ts fence) exists, so a regression to zero would pass
-      // silently; the pipeline echoes docgen's output and fails on that line.
+      // Runs every JSDoc example against `dist/`; fails if docgen finds none.
       docgen: {
         command: "bash -o pipefail -c 'docgen 2>&1 | tee /dev/stderr | { ! grep -q \"No examples found\"; }'",
         dependsOn: ["build"],
@@ -493,11 +420,8 @@ export default defineConfig({
       }
     }
   },
-  // One output file per source module (`unbundle`), the layout the old
-  // `tsc -b` emit had: package.json's `sideEffects` list names the modules
-  // whose top-level statements register things (`Selection.jsonID`, the
-  // compat wrappers, the test-builder's `tag` getter), and that list only
-  // stays true if those statements stay in those files.
+  // One output file per source module: package.json's `sideEffects` list
+  // names the modules whose top-level statements register things.
   pack: {
     entry: R.fromEntries(entries.map((entry) => [entry, `src/${entry}.ts`])),
     unbundle: true,
@@ -508,18 +432,13 @@ export default defineConfig({
     clean: true
   },
   resolve: {
-    // Tests import the package by name, exactly as a consumer would (and as
-    // tsconfig.test.json's `paths` type-checks them), so the runner resolves
-    // that name to `src/` rather than to the built `dist/` that `exports`
-    // points at — a test run never needs a build first.
+    // Tests import the package by name; resolve it to `src/`, not `dist/`.
     alias: [{ find: /^@thomasfosterau\/effect-richtext\/(.+)$/, replacement: `${srcDir}$1.ts` }]
   },
   test: {
     ...maxWorkers,
     coverage: {
       provider: "istanbul",
-      // `json` writes coverage-final.json, the Istanbul map `fallow audit`
-      // reads.
       reporter: ["text-summary", "json-summary", "json"],
       reportsDirectory: "./coverage",
       include: ["src/**/*.ts"],
@@ -583,9 +502,6 @@ export default defineConfig({
           browser: {
             enabled: true,
             headless: true,
-            // `PLAYWRIGHT_CHROMIUM_EXECUTABLE` points the provider at a
-            // preinstalled Chromium (agent containers ship one under
-            // /opt/pw-browsers); unset, Playwright uses its own download.
             provider: playwright({
               launchOptions: chromium === undefined ? {} : { executablePath: chromium }
             }),

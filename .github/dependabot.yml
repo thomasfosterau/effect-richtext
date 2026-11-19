@@ -1,17 +1,4 @@
-# Dependabot version updates.
-#
-# Hand moves Dependabot cannot make (do them on the matching group's PR, then
-# `pnpm install` and commit the lockfile):
-# - the npm-alias catalog entries: `vite`
-#   (`npm:@voidzero-dev/vite-plus-core@<v>`, equal to `vite-plus`; or rerun
-#   `pnpm dlx --package=vite-plus@<v> vp migrate --no-interactive` and drop
-#   the `minimumReleaseAgeExclude` entries it adds), `typescript`
-#   (`npm:@typescript/typescript6@<v>`) and `@typescript/native`
-#   (`npm:typescript@<v>`, matching `@effect/tsgo`'s `components` table);
-# - `vitest` / `@vitest/*` when vite-plus moves its exact vitest pin;
-# - the `overrides` literals in pnpm-workspace.yaml (the `undici` security
-#   floor: drop it once its parents resolve the fixed version);
-# - `catalogs.peers` (the published `effect` range; raising it is breaking).
+# Lockstep sets are grouped; the by-hand follow-ups are in docs/CONTRIBUTING.md.
 version: 2
 updates:
   - package-ecosystem: "npm"
@@ -19,29 +6,25 @@ updates:
     schedule:
       interval: "daily"
     open-pull-requests-limit: 10
+    assignees:
+      - thomasfosterau
     labels:
       - "dependencies"
-    assignees:
-      - "thomasfosterau"
     commit-message:
       prefix: "chore"
-      prefix-development: "chore"
     cooldown:
       default-days: 1
       exclude:
         - "@thomasfosterau/*"
     groups:
-      # vite-plus pins vitest / @vitest/*; @effect/tsgo supports only the
-      # oxlint / tsgolint / TypeScript its components table lists.
       toolchain:
         applies-to: version-updates
         patterns:
           - "vite-plus"
+          - "@voidzero-dev/*"
           - "vitest"
           - "@vitest/*"
           - "@effect/tsgo"
-        update-types: ["major", "minor", "patch"]
-      # One release train: `effect`, `@effect/*` and `@effect/docgen`.
       effect:
         applies-to: version-updates
         patterns:
@@ -50,38 +33,29 @@ updates:
         exclude-patterns:
           - "@effect/tsgo"
           - "@effect/language-service"
-        update-types: ["major", "minor", "patch"]
-  # `/` covers .github/workflows; the composite action is its own directory
-  # (without it the actions it pins are never updated).
+
   - package-ecosystem: "github-actions"
-    directories:
-      - "/"
-      - "/.github/actions/setup"
+    directory: "/"
     schedule:
       interval: "daily"
-    open-pull-requests-limit: 5
+    assignees:
+      - thomasfosterau
     labels:
       - "dependencies"
-    assignees:
-      - "thomasfosterau"
     commit-message:
-      prefix: "ci"
-      include: "scope"
+      prefix: "chore"
     cooldown:
       default-days: 1
-    # No groups: each action updates in its own PR.
-  # The .devcontainer/ features (the image tag moves with vite-plus by hand).
+
   - package-ecosystem: "devcontainers"
     directory: "/"
     schedule:
       interval: "daily"
-    open-pull-requests-limit: 5
+    assignees:
+      - thomasfosterau
     labels:
       - "dependencies"
-    assignees:
-      - "thomasfosterau"
     commit-message:
       prefix: "chore"
-      include: "scope"
     cooldown:
       default-days: 1
