@@ -33,7 +33,7 @@ export const link = <F extends object>(facade: F, core: object): F => {
 }
 
 /** Create a facade for `core` without running the facade's constructor. @internal */
-export const adopt = <F extends object>(proto: object, core: object): F => link(Object.create(proto) as F, core)
+export const adopt = <F extends object>(proto: F, core: object): F => link(Object.create(proto) as F, core)
 
 /**
  * Register the facade factory for instances of a core class (and its

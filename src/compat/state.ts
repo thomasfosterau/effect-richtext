@@ -773,7 +773,7 @@ export class Plugin<PluginState = any> {
 }
 
 registerWrapper(S.Plugin, (core: S.Plugin<any, any, any, any>) => {
-  const plugin = adopt<Plugin>(Plugin.prototype, core)
+  const plugin = adopt(Plugin.prototype, core)
   ;(plugin as any).spec = core.spec
   ;(plugin as any).props = propsFromCore(core.props as any, core)
   return plugin

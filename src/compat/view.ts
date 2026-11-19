@@ -739,7 +739,7 @@ registerWrapper(V.EditorView, (core: V.EditorView<any, any, any>) => {
   if (facade && !(CORE in facade)) return facade
   // A view created through the core API: give it a facade whose props
   // are the core props.
-  const view = adopt<EditorView>(EditorView.prototype, core)
+  const view = adopt(EditorView.prototype, core)
   view._props = core.props as any
   ;(view as any).propsCache = new WeakMap()
   view.dispatch = view.dispatch.bind(view)

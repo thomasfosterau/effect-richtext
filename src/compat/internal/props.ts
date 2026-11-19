@@ -26,7 +26,7 @@ const wrapArgs = (args: ArrayLike<unknown>): Array<unknown> => {
 
 const unwrapResult = (result: unknown): unknown => (Array.isArray(result) ? unwrapArray(result) : unwrap(result))
 
-const cached = <A extends object, B>(cache: PropsCache | undefined, key: A, make: () => B): B => {
+const cached = <B>(cache: PropsCache | undefined, key: Parameters<PropsCache["get"]>[0], make: () => B): B => {
   if (!cache) return make()
   let found = cache.get(key)
   if (found === undefined) cache.set(key, (found = make()))

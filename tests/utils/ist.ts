@@ -25,16 +25,16 @@ const ops = HashMap.make<ReadonlyArray<readonly [string, (a: any, b: any) => boo
 
 const quote = Schema.encodeSync(Schema.fromJsonString(Schema.String))
 
-const show = <A>(u: A): string =>
+const show = (u: unknown): string =>
   Result.getOrElse(
     Result.try(() => (Predicate.isString(u) ? quote(u) : String(u))),
     () => Object.prototype.toString.call(u)
   )
 
-function ist<A>(value: A): void
+function ist(value: unknown): void
 function ist<A, B>(value: A, expected: B, cmp?: Cmp<A, B>): void
 function ist(value: any, expected: any, cmp: (a: any, b: any) => boolean): void
-function ist<A>(value: A, ...rest: Array<unknown>): void {
+function ist(value: unknown, ...rest: Array<unknown>): void {
   if (Arr.isArrayEmpty(rest)) {
     assert.ok(value, `Expected ${show(value)} to be truthy`)
     return
@@ -55,7 +55,7 @@ function ist<A>(value: A, ...rest: Array<unknown>): void {
   )
 }
 
-ist.throws = <A>(f: () => A, pattern?: RegExp | string | ((e: any) => boolean)): void => {
+ist.throws = (f: () => void, pattern?: RegExp | string | ((e: any) => boolean)): void => {
   const result = Result.try(f)
   assert.ok(Result.isFailure(result), "Expected function to throw")
   if (pattern !== undefined && Result.isFailure(result)) {

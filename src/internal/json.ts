@@ -13,7 +13,7 @@ const decodeJsonString = /* @__PURE__ */ Schema.decodeOption(JsonFromJsonString)
  *
  * @internal
  */
-export const stringifyJson = <A>(value: A): Option.Option<string> => encodeJsonString(value)
+export const stringifyJson = (value: unknown): Option.Option<string> => encodeJsonString(value)
 
 /**
  * Parse a JSON string, or `None` when it is not valid JSON.
@@ -28,4 +28,4 @@ export const parseJson = (text: string): Option.Option<Schema.Json> => decodeJso
  *
  * @internal
  */
-export const showJson = <A>(value: A): string => Option.getOrElse(stringifyJson(value), () => String(value))
+export const showJson = (value: unknown): string => Option.getOrElse(stringifyJson(value), () => String(value))

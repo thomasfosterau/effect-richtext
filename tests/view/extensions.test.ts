@@ -28,7 +28,7 @@ const keyDown = (dom: HTMLElement, key: string, keyCode: number, mods: KeyboardE
 }
 const mod: KeyboardEventInit = mac ? { metaKey: true } : { ctrlKey: true }
 
-const atEnd = <D extends Parameters<typeof TextSelection.atEnd>[0]>(doc: D) => TextSelection.atEnd(doc)
+const atEnd = (doc: Parameters<typeof TextSelection.atEnd>[0]) => TextSelection.atEnd(doc)
 
 class Tick extends Context.Service<Tick, { readonly by: number }>()("test/Tick") {}
 

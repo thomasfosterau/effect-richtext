@@ -1571,7 +1571,7 @@ function initSchema(schema: Schema, core: M.DocSchema, spec: any) {
 }
 
 registerWrapper(M.DocSchema, (core: M.DocSchema) => {
-  const schema = adopt<Schema>(Schema.prototype, core)
+  const schema = adopt(Schema.prototype, core)
   const nodes: Record<string, NodeSpec> = {},
     marks: Record<string, MarkSpec> = {}
   for (const name in core.spec.nodes) nodes[name] = originalSpec(core.spec.nodes[name])
@@ -1810,7 +1810,7 @@ function gatherToDOM(obj: { readonly [node: string]: NodeType | MarkType }) {
 }
 
 registerWrapper(M.DOMSerializer, (core: M.DOMSerializer) => {
-  const serializer = adopt<DOMSerializer>(DOMSerializer.prototype, core)
+  const serializer = adopt(DOMSerializer.prototype, core)
   const nodes: Record<string, (node: Node) => DOMOutputSpec> = {}
   for (const name in core.nodes) nodes[name] = (node) => core.nodes[name]!(node[CORE])
   const marks: Record<string, (mark: Mark, inline: boolean) => DOMOutputSpec> = {}
