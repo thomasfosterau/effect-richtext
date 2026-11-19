@@ -73,5 +73,5 @@ peerDependencyRules:
     vitest: "*"
     typescript: "*"
 
-# Hold newly published versions for 8 hours.
-minimumReleaseAge: 480
+# Hold newly published versions for 24 hours.
+minimumReleaseAge: 1440

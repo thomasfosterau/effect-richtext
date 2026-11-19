@@ -13,4 +13,4 @@ The package parses and renders HTML: the DOM parser (`/model`), clipboard handli
 - Publishing uses npm OIDC trusted publishing from a protected, manually approved `release` environment; only that job holds `id-token: write`.
 - Privileged release jobs install with `--frozen-lockfile --ignore-scripts`, restore no cache, and publish with `--ignore-scripts`.
 - Workflows default to `permissions: {}`, check out without persisted credentials, and pin actions by exact tag, locked to commits by `.github/workflows/actions.lock`.
-- Runtime dependencies are `markdown-it`, `rope-sequence` and `w3c-keyname`; `effect` is a peer. pnpm holds new versions for 8 hours, and CI runs `pnpm audit --audit-level high`.
+- Runtime dependencies are `markdown-it`, `rope-sequence` and `w3c-keyname`; `effect` is a peer. pnpm holds new versions for 24 hours, and CI runs `pnpm audit --audit-level high`.
