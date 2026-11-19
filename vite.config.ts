@@ -149,11 +149,11 @@ export default defineConfig({
       // thomasfosterau/effect-richtext#18. Lower the count as sites are
       // fixed, and delete the line (back to the preset's `error`) when it
       // reaches zero.
-      "effect/avoid-non-null-assertion": "warn", // 1303
-      "effect/require-safety-comment-for-type-assertion": "warn", // 1042
-      "effect/prefer-option-over-null": "warn", // 993
-      "effect/imperative-loops": "warn", // 607
-      "effect/avoid-any": "warn", // 444
+      "effect/avoid-non-null-assertion": "warn", // 1295
+      "effect/require-safety-comment-for-type-assertion": "warn", // 1023
+      "effect/prefer-option-over-null": "warn", // 989
+      "effect/imperative-loops": "warn", // 599
+      "effect/avoid-any": "warn", // 439
       "effect/no-runtime-typeof": "warn", // 77
       "effect/no-unsafe-dictionary-type": "warn", // 73
       "effect/no-unknown-parameters": "warn", // 59
@@ -161,11 +161,10 @@ export default defineConfig({
       "effect/avoid-object-type": "warn", // 33
       "effect/no-known-value-widening": "warn", // 36
       "effect/effect-run-in-body": "warn", // 34
-      "effect/avoid-try-catch": "warn", // 30
+      "effect/avoid-try-catch": "warn", // 28
       "effect/no-chained-type-assertions": "warn", // 25
       "effect/use-clock-service": "warn", // 20
       "effect/no-unknown-returns": "warn", // 22
-      "effect/yield-in-for-loop": "warn", // 18
       // The `suspicious` rules joined with the move to @enfect/oxlint: the
       // ported suites shadow the test-builder's `doc` / `schema`, and src/
       // keeps ProseMirror's local names. Tracked in
@@ -179,18 +178,13 @@ export default defineConfig({
       // tsgolint's verdict on "unnecessary" differs from the `check` task's
       // tsc on enough of them that the autofix breaks the type gate, so each
       // site is removed by hand, against `vp run check`.
-      "typescript/no-unsafe-type-assertion": "warn", // 887
-      "typescript/no-unnecessary-type-assertion": "warn", // 695
+      "typescript/no-unsafe-type-assertion": "warn", // 875
+      "typescript/no-unnecessary-type-assertion": "warn", // 687
       "typescript/no-unnecessary-type-arguments": "warn", // 54
-      "effecttsgo/any-unknown-in-error-context": "warn", // 54
+      "effecttsgo/any-unknown-in-error-context": "warn", // 51
       "typescript/unbound-method": "warn", // 43
       "typescript/consistent-return": "warn", // 22
       "effecttsgo/unsafe-effect-type-assertion": "warn", // 1
-      // The four left are EditorState's Effect twins of its synchronous
-      // transaction methods; with `this` in place of `self` their bodies
-      // become clones of the sync versions, so they wait on deduplicating
-      // the twins.
-      "typescript/no-this-alias": "warn", // 4
       // ---- Paid down -------------------------------------------------------
       // `@effect/tsgo`'s preset reports these as warnings; they have no sites
       // left, so they are errors here (#18).

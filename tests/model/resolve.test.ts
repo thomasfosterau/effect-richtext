@@ -76,12 +76,16 @@ describe("Node", () => {
 
     it.effect("fails with a PositionError for out-of-range positions", () =>
       Effect.gen(function* () {
-        for (const pos of [-1, 13, 100]) {
-          const err = yield* Effect.flip(testDoc.resolve(pos))
-          assert.strictEqual(err._tag, "PositionError")
-          assert.match(err.message, /out of range/)
-          ist.throws(() => testDoc.resolveUnsafe(pos), /out of range/)
-        }
+        yield* Effect.forEach(
+          [-1, 13, 100],
+          (pos) =>
+            Effect.map(Effect.flip(testDoc.resolve(pos)), (err) => {
+              assert.strictEqual(err._tag, "PositionError")
+              assert.match(err.message, /out of range/)
+              ist.throws(() => testDoc.resolveUnsafe(pos), /out of range/)
+            }),
+          { concurrency: 1 }
+        )
         const $pos = yield* testDoc.resolve(12)
         assert.strictEqual($pos.pos, 12)
       })

@@ -225,6 +225,26 @@ const strictPlugin = new Plugin({
     Option.isSome(tr.getMeta("reject")) ? Effect.fail(new Rejected({ reason: "rejected" })) : true
 })
 
+// applyUnsafe / apply run the hooks synchronously until one returns an
+// Effect, then continue from that hook: none runs twice.
+const onceHooks = (calls: Array<string>) => {
+  const sync = new Plugin({
+    state: { init: () => 0, apply: (_tr, v: number) => (calls.push("sync"), v + 1) },
+    filterTransaction: () => (calls.push("filter"), true)
+  })
+  const lazy = new Plugin({
+    state: { init: () => 0, apply: (_tr, v: number) => (calls.push("lazy"), Effect.succeed(v + 1)) }
+  })
+  const append = new Plugin({
+    appendTransaction: (trs, _old, state) => {
+      calls.push("append")
+      return trs.length === 1 ? state.tr.insertTextUnsafe("!") : undefined
+    }
+  })
+  return [sync, lazy, append] as const
+}
+const onceOrder = "filter,sync,lazy,append,filter,sync,lazy"
+
 describe("EditorState (Effect API)", () => {
   it.effect("runs plugins that require services", () =>
     Effect.gen(function* () {
@@ -286,6 +306,33 @@ describe("EditorState (Effect API)", () => {
     const next = state.applyUnsafe(state.tr.insertTextUnsafe("cd"))
     ist(count(docSizePlugin, next), 6)
   })
+
+  it("runs each apply hook once when a later one returns an Effect", () => {
+    const calls: Array<string> = []
+    const plugins = onceHooks(calls)
+    const state = EditorState.createUnsafe({ schema, plugins })
+    const { state: next, transactions } = state.applyTransactionUnsafe(state.tr.insertTextUnsafe("a"))
+    ist(calls.join(), onceOrder)
+    ist(transactions.length, 2)
+    ist(next.doc, doc(p("a!")), eq)
+    ist(getSome(plugins[0].getState(next)), 2)
+    ist(getSome(plugins[1].getState(next)), 2)
+  })
+
+  it.effect("runs each apply hook once through the Effect API, on every run", () =>
+    Effect.gen(function* () {
+      const calls: Array<string> = []
+      const state = yield* EditorState.create({ schema, plugins: onceHooks(calls) })
+      const apply = state.apply(state.tr.insertTextUnsafe("a"))
+      const first = yield* apply
+      ist(calls.join(), onceOrder)
+      // The Effect is a description: running it again re-runs the hooks.
+      const second = yield* apply
+      ist(calls.join(), onceOrder + "," + onceOrder)
+      ist(first.doc, doc(p("a!")), eq)
+      ist(second.doc, first.doc, eq)
+    })
+  )
 
   it.effect("propagates typed plugin errors", () =>
     Effect.gen(function* () {
