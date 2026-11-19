@@ -168,7 +168,7 @@ export function matchBindings<A>(map: Record<string, A>, event: KeyboardEvent): 
     ) {
       // Try falling back to the keyCode when there's a modifier
       // active, and our table produces a different name from the
-      // the keyCode. See #668, #1060, #1529.
+      // the keyCode.
       const fromCode = map[modifiers(baseName, event)]
       if (fromCode) candidates.push(fromCode)
     }

@@ -1,14 +1,9 @@
 # @thomasfosterau/effect-richtext
 
-A reimplementation of the core [ProseMirror](https://prosemirror.net) toolkit (`prosemirror-model`, `-transform`, `-state`, `-view`, `-keymap`, `-commands`) on top of [Effect](https://effect.website) 4, in a single package.
+The [ProseMirror](https://prosemirror.net) toolkit reimplemented on [Effect](https://effect.website) 4: typed schemas and documents, transforms, editor state and view, commands, history, Markdown/HTML serializers, typed extensions, and a ProseMirror-compatible facade. ProseMirror's own test suites are ported and pass.
 
-- **Strongly typed documents.** Node and mark names are literal types, attributes are described with Effect `Schema`s, and content expressions are typed combinators, so the schema knows which children each node accepts: `doc` built from a `text` node is a compile error, as are a node built without one of its required attributes and a spec that refers to a node or mark it does not define, and `node.is("heading")` narrows `node.attrs` to `{ level: number }`.
-- **Effect everywhere.** Every fallible operation returns an `Effect` with tagged errors (`PositionError`, `ReplaceError`, `StepError`, …). Each also has a synchronous `…Unsafe` twin for hot paths. Absent values are `Option`s.
-- **Typed plugin requirements.** Plugins, commands and view props may return Effects that need services; those requirements (`R`) and errors (`E`) are tracked through `EditorState` and `EditorView`, and provided with ordinary Effect layers. The view is created in a `Scope` and destroyed with it.
-- **Faithful port.** ProseMirror's own test suites are ported and pass (model, transform, state, commands, keymap, history, markdown, and all of prosemirror-view's browser tests in real Chromium).
-- **Nice-to-haves**, all additive and unopinionated: extensions with typed `editor.commands` / `editor.chain()` / `editor.can()`, input rules, gap and drop cursors, placeholders, undo history, reactive bindings (`SubscriptionRef`/`Stream`), HTML and Markdown serializers.
-
-> Status: experimental (0.x). APIs may change.
+> [!CAUTION]
+> Experimental and pre-1.0, largely written with Claude Code. The API may change between minor versions.
 
 ## Install
 
@@ -16,39 +11,13 @@ A reimplementation of the core [ProseMirror](https://prosemirror.net) toolkit (`
 pnpm add @thomasfosterau/effect-richtext effect
 ```
 
-`effect` (4.x) is a peer dependency: your application provides the single copy. The package is ESM-only and has no `.` entry; import the modules you use by subpath.
+`effect` (4.x) is a peer dependency. ESM only, with no `.` entry: import modules by subpath.
 
-## Modules
-
-| Module                                         | Ported from / purpose                                        |
-| ---------------------------------------------- | ------------------------------------------------------------ |
-| `@thomasfosterau/effect-richtext/model`        | prosemirror-model (incl. DOM parser/serializer, JSON codecs) |
-| `@thomasfosterau/effect-richtext/transform`    | prosemirror-transform                                        |
-| `@thomasfosterau/effect-richtext/state`        | prosemirror-state                                            |
-| `@thomasfosterau/effect-richtext/view`         | prosemirror-view                                             |
-| `@thomasfosterau/effect-richtext/view-css`     | prosemirror-view's stylesheet                                |
-| `@thomasfosterau/effect-richtext/keymap`       | prosemirror-keymap                                           |
-| `@thomasfosterau/effect-richtext/commands`     | prosemirror-commands                                         |
-| `@thomasfosterau/effect-richtext/history`      | prosemirror-history                                          |
-| `@thomasfosterau/effect-richtext/inputrules`   | prosemirror-inputrules                                       |
-| `@thomasfosterau/effect-richtext/gapcursor`    | prosemirror-gapcursor                                        |
-| `@thomasfosterau/effect-richtext/dropcursor`   | prosemirror-dropcursor                                       |
-| `@thomasfosterau/effect-richtext/schema-basic` | prosemirror-schema-basic                                     |
-| `@thomasfosterau/effect-richtext/schema-list`  | prosemirror-schema-list                                      |
-| `@thomasfosterau/effect-richtext/markdown`     | prosemirror-markdown                                         |
-| `@thomasfosterau/effect-richtext/test-builder` | prosemirror-test-builder                                     |
-| `@thomasfosterau/effect-richtext/html`         | HTML string helpers                                          |
-| `@thomasfosterau/effect-richtext/placeholder`  | placeholder decorations                                      |
-| `@thomasfosterau/effect-richtext/reactive`     | `SubscriptionRef`/`Stream` bindings                          |
-| `@thomasfosterau/effect-richtext/extensions`   | composable, typed extensions and chainable commands          |
-| `@thomasfosterau/effect-richtext/compat/*`     | ProseMirror-compatible facade API                            |
-
-## Example
+## Usage
 
 ```ts
-import { Effect, Schema } from "effect"
+import { Effect } from "effect"
 import { baseKeymap, toggleMark } from "@thomasfosterau/effect-richtext/commands"
-import { history, redo, undo } from "@thomasfosterau/effect-richtext/history"
 import { keymap } from "@thomasfosterau/effect-richtext/keymap"
 import { Content, DocSchema } from "@thomasfosterau/effect-richtext/model"
 import { EditorState } from "@thomasfosterau/effect-richtext/state"
@@ -56,42 +25,41 @@ import { EditorView } from "@thomasfosterau/effect-richtext/view"
 
 const schema = DocSchema.makeUnsafe({
   nodes: {
-    doc: { content: Content.oneOrMore("block") },
-    paragraph: { group: "block", content: Content.zeroOrMore("text"), toDOM: () => ["p", 0] },
-    heading: {
-      group: "block",
-      content: Content.zeroOrMore("text"),
-      attrs: { level: { schema: Schema.Literals([1, 2, 3]), default: 1 } },
-      toDOM: (node) => ["h" + node.attrs.level, 0]
-    },
+    doc: { content: Content.oneOrMore("paragraph") },
+    paragraph: { content: Content.zeroOrMore("text"), toDOM: () => ["p", 0] },
     text: {}
   },
   marks: { strong: { toDOM: () => ["strong", 0] } }
 })
 
-const mountEditor = Effect.fn("mountEditor")(function* (place: HTMLElement) {
+const mount = Effect.fn("mount")(function* (place: HTMLElement) {
   const state = yield* EditorState.create({
     schema,
-    plugins: [
-      history(),
-      keymap({ "Mod-z": undo, "Mod-y": redo, "Mod-b": toggleMark(schema.marks.strong) }),
-      keymap(baseKeymap)
-    ]
+    plugins: [keymap({ "Mod-b": toggleMark(schema.marks.strong) }), keymap(baseKeymap)]
   })
-  const view = yield* EditorView.make(place, { state })
-  yield* view.dispatch(view.state.tr.insertTextUnsafe("Hello"))
-  // ...the view is destroyed when the scope closes
+  yield* EditorView.make(place, { state }) // destroyed when the scope closes
 })
 
-Effect.runFork(Effect.scoped(Effect.andThen(mountEditor(document.body), Effect.never)))
+Effect.runFork(Effect.scoped(Effect.andThen(mount(document.body), Effect.never)))
 ```
+
+## Modules
+
+| Subpath | Ported from / purpose |
+| --- | --- |
+| `/model`, `/transform`, `/state`, `/view`, `/view-css` | prosemirror-model, -transform, -state, -view (and its stylesheet) |
+| `/keymap`, `/commands`, `/history`, `/inputrules` | the matching prosemirror-\* package |
+| `/gapcursor`, `/dropcursor`, `/placeholder` | cursors and placeholder decorations |
+| `/schema-basic`, `/schema-list`, `/test-builder` | the matching prosemirror-\* package |
+| `/markdown`, `/html` | prosemirror-markdown; HTML string helpers |
+| `/reactive` | `SubscriptionRef` / `Stream` bindings |
+| `/extensions` | typed extensions and chainable commands |
+| `/compat/*` | a ProseMirror-compatible facade |
 
 ## Documentation
 
-- [Guides](https://github.com/thomasfosterau/effect-richtext/tree/trunk/docs): [extensions](https://github.com/thomasfosterau/effect-richtext/blob/trunk/docs/extensions.md) (typed `editor.commands`, `editor.chain()` and `editor.can()`), and the [ProseMirror compatibility layer](https://github.com/thomasfosterau/effect-richtext/blob/trunk/docs/compat.md).
-- Every export has a doc comment; the main ones carry runnable examples.
-- [DESIGN.md](https://github.com/thomasfosterau/effect-richtext/blob/trunk/DESIGN.md) records the design decisions, and [CONTRIBUTING.md](https://github.com/thomasfosterau/effect-richtext/blob/trunk/CONTRIBUTING.md) the development setup.
+[Guides](https://github.com/thomasfosterau/effect-richtext/tree/trunk/docs) (extensions, compatibility, design); every export has a doc comment. Contributing: [docs/CONTRIBUTING.md](https://github.com/thomasfosterau/effect-richtext/blob/trunk/docs/CONTRIBUTING.md).
 
 ## License
 
-MIT. Portions are derived from ProseMirror, © Marijn Haverbeke and others (MIT); see [`LICENSE`](https://github.com/thomasfosterau/effect-richtext/blob/trunk/LICENSE).
+MIT; portions derived from ProseMirror, © Marijn Haverbeke and others. See [LICENSE.md](https://github.com/thomasfosterau/effect-richtext/blob/trunk/LICENSE.md).

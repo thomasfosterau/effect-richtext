@@ -58,4 +58,4 @@ import { schema } from "@thomasfosterau/effect-richtext/compat/schema-basic"
 const coreSchema = toCore(schema) // a core `DocSchema`
 ```
 
-The design of the facade is described in [DESIGN.md](../DESIGN.md).
+The design of the facade is described in [DESIGN.md](DESIGN.md).

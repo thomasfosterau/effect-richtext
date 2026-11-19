@@ -57,9 +57,9 @@ function selectHorizontally(view: AnyView, dir: number, mods: string) {
         return apply(view, new NodeSelection(dir < 0 ? view.state.doc.resolveUnsafe($head.pos - node.nodeSize) : $head))
       } else {
         // Chrome and Safari will introduce extra pointless cursor
-        // positions around inline uneditable nodes (#937), and
+        // positions around inline uneditable nodes, and
         // Firefox will sometimes just plain refuse to move across
-        // them (#1592), so in this situation we move the cursor
+        // them, so in this situation we move the cursor
         // ourselves (prosemirror-view 1.42.6).
         return apply(view, new TextSelection(view.state.doc.resolveUnsafe(dir < 0 ? nodePos : nodePos + node.nodeSize)))
       }
@@ -105,7 +105,7 @@ function skipIgnoredNodesBefore(view: AnyView) {
     force = false
   // Gecko will do odd things when the selection is directly in front
   // of a non-editable node, so in that case, move it into the next
-  // node if possible. Issue prosemirror/prosemirror#832.
+  // node if possible.
   if (browser.gecko && node.nodeType == 1 && offset < nodeLen(node) && isIgnorable(node.childNodes[offset]!, -1)) {
     force = true
   }
@@ -327,7 +327,7 @@ function switchEditable(view: AnyView, node: HTMLElement, state: string) {
   view.domObserver.start()
 }
 
-// Issue #867 / #1090 / https://bugs.chromium.org/p/chromium/issues/detail?id=903821
+// https://bugs.chromium.org/p/chromium/issues/detail?id=903821
 // In which Safari (and at some point in the past, Chrome) does really
 // wrong things when the down arrow is pressed when the cursor is
 // directly at the start of a textblock and has an uneditable node

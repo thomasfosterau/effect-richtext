@@ -28,7 +28,7 @@ const geckoKeySelection = (
     : undefined
 
 // Firefox will jump across scrollable wrapper nodes on keyboard cursor
-// motion (#1594). Detect a cursor that landed past such a wrapper and put
+// motion. Detect a cursor that landed past such a wrapper and put
 // it at the start of the node it skipped (prosemirror-view 1.42.6).
 function skippedScrollWrapper(view: AnyView, domSel: DOMSelectionRange, head: number, nearestDesc: ViewDesc) {
   const to = view.state.selection.to

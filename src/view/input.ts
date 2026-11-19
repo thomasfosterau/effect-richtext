@@ -631,7 +631,7 @@ function inOrNearComposition(view: AnyView, _event: Event) {
 const timeoutComposition = browser.android ? 5000 : -1
 
 // Whether composition at an empty text cursor must wrap the cursor in
-// mark nodes different from the ones in the DOM context (#1500).
+// mark nodes different from the ones in the DOM context.
 function needsMarkCursor(view: AnyView): boolean {
   const { state } = view,
     $pos = state.selection.$to
@@ -651,7 +651,6 @@ editHandlers.compositionstart = editHandlers.compositionupdate = (view) => {
     const { state } = view,
       $pos = state.selection.$to
     if (needsMarkCursor(view)) {
-      // Issue #1500
       // Need to wrap the cursor in mark nodes different from the ones in the DOM context
       view.markCursor = view.state.storedMarksOrNull || $pos.marks()
       endComposition(view, true)
@@ -915,7 +914,7 @@ handlers.dragstart = (view, _event) => {
   }
   const draggedSlice = (node || view.state.selection).content()
   const { dom, slice, text } = serializeForClipboard(view, draggedSlice)
-  // Pre-120 Chrome versions clear files when calling `clearData` (#1472)
+  // Pre-120 Chrome versions clear files when calling `clearData`
   if (!event.dataTransfer.files.length || !browser.chrome || browser.chrome_version > 120) {
     event.dataTransfer.clearData()
   }

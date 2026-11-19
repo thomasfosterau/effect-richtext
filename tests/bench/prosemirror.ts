@@ -1,8 +1,6 @@
 /**
  * The `Lib` adapter over ProseMirror itself, the reference the core is
  * measured and checked against.
- *
- * @copyright Thomas Foster
  */
 import * as Option from "effect/Option"
 import {

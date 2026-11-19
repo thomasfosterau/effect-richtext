@@ -179,17 +179,14 @@ describe("markdown", () => {
       doc(p(a({ href: "https://example.com/_file/#~anchor" }, "text")))
     ))
 
-  // Issue #65
   it("ensure no escapes in autolinks", () =>
     same(
       "<https://example.com/_file/#~anchor>",
       doc(p(a({ href: "https://example.com/_file/#~anchor" }, "https://example.com/_file/#~anchor")))
     ))
 
-  // Issue #73
   it("escape ! in front of links", () => serialize(doc(p("!", a("text"))), "\\![text](foo)"))
 
-  // Issue #78
   it("escape of URL in links and images", () => {
     serialize(doc(p(a({ href: "foo):" }, "link"))), "[link](foo\\):)")
     serialize(doc(p(a({ href: "(foo" }, "link"))), "[link](\\(foo)")
@@ -219,7 +216,6 @@ describe("markdown", () => {
     same("1.2kg", doc(p("1.2kg")))
   })
 
-  // Issue #105
   it("escapes ATX heading markers with space after them", () => {
     same("\\### text", doc(p("### text")))
   })
@@ -247,7 +243,6 @@ describe("markdown", () => {
     same("+++", doc(p("+++")))
   })
 
-  // Issue #88
   it("code block fence adjusts to content", () => {
     same("````\n```\ncode\n```\n````", doc(pre("```\ncode\n```")))
   })

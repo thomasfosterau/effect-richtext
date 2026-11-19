@@ -32,14 +32,8 @@
     "src/compat/view.ts",
     "tests/**/*.test.ts",
     "tests/**/*.types.ts",
+    "tests/bench/run.ts",
     "vite.config.ts"
-  ],
-  "framework": [
-    {
-      "name": "bench",
-      "entryPoints": ["tests/bench/run.ts"],
-      "entryPointRole": "support"
-    }
   ],
   "ignorePatterns": ["dist/**", "docs/api/**", "coverage/**"],
   "ignoreDependencies": [
