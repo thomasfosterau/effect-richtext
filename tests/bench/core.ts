@@ -2,8 +2,6 @@
  * The `Lib` adapter over @thomasfosterau/effect-richtext's core, through the synchronous
  * `…Unsafe` twins an editor's hot path uses (docs/DESIGN.md, "Fallible
  * operations").
- *
- * @copyright Thomas Foster
  */
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"

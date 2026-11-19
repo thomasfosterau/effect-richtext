@@ -387,7 +387,7 @@ export function posAtCoords(
   if (node) {
     if (browser.gecko && node.nodeType == 1) {
       // Firefox will sometimes return offsets into <input> nodes, which
-      // have no actual children, from caretPositionFromPoint (#953)
+      // have no actual children, from caretPositionFromPoint
       offset = Math.min(offset, node.childNodes.length)
       // It'll also move the returned position before image nodes,
       // even if those are behind it.

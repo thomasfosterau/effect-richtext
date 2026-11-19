@@ -576,14 +576,13 @@ export class ViewDesc {
 
     let brKludge = false
     // On Firefox, using Selection.collapse to put the cursor after a
-    // BR node for some reason doesn't always work (#1073). On Safari,
+    // BR node for some reason doesn't always work. On Safari,
     // the cursor sometimes inexplicable visually lags behind its
-    // reported position in such situations (#1092).
+    // reported position in such situations.
     if ((browser.gecko || browser.safari) && anchor == head) {
       const { node, offset } = anchorDOM
       if (node.nodeType == 3) {
         brKludge = !!(offset && node.nodeValue![offset - 1] == "\n")
-        // Issue #1128
         if (brKludge && offset == node.nodeValue!.length) {
           for (let scan: DOMNode | null = node, after; scan; scan = scan.parentNode) {
             if ((after = scan.nextSibling)) {
@@ -602,7 +601,7 @@ export class ViewDesc {
       }
     }
     // Firefox can act strangely when the selection is in front of an
-    // uneditable node. See #1163 and https://bugzilla.mozilla.org/show_bug.cgi?id=1709536
+    // uneditable node. See https://bugzilla.mozilla.org/show_bug.cgi?id=1709536
     if (browser.gecko && selRange.focusNode && selRange.focusNode != headDOM.node && selRange.focusNode.nodeType == 1) {
       const after = selRange.focusNode.childNodes[selRange.focusOffset]
       if (after && (after as HTMLElement).contentEditable == "false") force = true
@@ -1856,7 +1855,7 @@ class ViewTreeUpdater {
       textOf(lastChild.node).endsWith("\n") ||
       (this.view.requiresGeckoHackNode && /\s$/.test(textOf(lastChild.node)))
     ) {
-      // Avoid bugs in Safari's cursor drawing (#1165) and Chrome's mouse selection (#1152)
+      // Avoid bugs in Safari's cursor drawing and Chrome's mouse selection
       if (
         (browser.safari || browser.chrome) &&
         lastChild &&

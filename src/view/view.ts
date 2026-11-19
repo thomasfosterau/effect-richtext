@@ -819,8 +819,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
       // Work around an issue in Chrome, IE, and Edge where changing
       // the DOM around an active selection puts it into a broken
       // state where the thing the user sees differs from the
-      // selection reported by the Selection object (#710, #973,
-      // #1011, #1013, #1035).
+      // selection reported by the Selection object.
       let forceSelUpdate =
         updateDoc &&
         (browser.ie || browser.chrome) &&

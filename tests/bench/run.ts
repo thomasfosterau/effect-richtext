@@ -3,10 +3,8 @@
  * built `dist/`, each library and workload in a fresh Node process.
  *
  * Fresh processes keep the comparison fair: in one process the shared
- * workload code sees both libraries' objects, its call sites go
- * polymorphic, and whichever library runs second pays for it (in-process
- * runs put the core 2.4× behind on deep lists, against 1.7× in isolation). Each round
- * alternates which library goes first, and the table reports the median
+ * workload code's call sites go polymorphic and the second library pays.
+ * Each round alternates which goes first; the table reports the median
  * over rounds of each process's median sample.
  *
  * Configuration (environment): `BENCH_ROUNDS` (default 3) and
@@ -14,8 +12,6 @@
  * Workers discard stderr (ProseMirror warns there about the selections the
  * deep-list workload creates); to see a failing worker's output, run it
  * directly: `vpx --tsconfig tsconfig.base.json tests/bench/run.ts core 6`.
- *
- * @copyright Thomas Foster
  */
 import { NodeRuntime, NodeServices } from "@effect/platform-node"
 import * as Arr from "effect/Array"

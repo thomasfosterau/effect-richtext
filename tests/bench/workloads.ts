@@ -4,8 +4,6 @@
  * and returns the final document, so the same workload on two libraries
  * must return equal documents (workloads.test.ts) and can be
  * timed against each other (`run.ts`).
- *
- * @copyright Thomas Foster
  */
 import * as Arr from "effect/Array"
 import * as Option from "effect/Option"

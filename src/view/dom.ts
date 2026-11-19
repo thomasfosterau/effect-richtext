@@ -197,7 +197,7 @@ export function deepActiveElement(doc: Document): Element | null {
 export function caretFromPoint(doc: Document, x: number, y: number): { node: DOMNode; offset: number } | undefined {
   if ((doc as any).caretPositionFromPoint) {
     try {
-      // Firefox throws for this call in hard-to-predict circumstances (#994)
+      // Firefox throws for this call in hard-to-predict circumstances
       const pos = (doc as any).caretPositionFromPoint(x, y)
       // Clip the offset, because Chrome will return a text offset
       // into <input> nodes, which can't be treated as a regular DOM

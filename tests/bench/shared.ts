@@ -2,8 +2,6 @@
  * The adapter members that read the same on both libraries (the core keeps
  * ProseMirror's names where an operation cannot fail), typed by the
  * structure they use, so `core.ts` and `prosemirror.ts` spread one copy.
- *
- * @copyright Thomas Foster
  */
 import * as Option from "effect/Option"
 import type { NodeJSON } from "@thomasfosterau/effect-richtext/model"

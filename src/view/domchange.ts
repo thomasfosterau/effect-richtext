@@ -45,7 +45,7 @@ function parseBetween(view: AnyView, from_: number, to_: number, addedNodes: Rea
     }
   }
   // Work around issue in Chrome where backspacing sometimes replaces
-  // the deleted content with a random BR node (issues #799, #831)
+  // the deleted content with a random BR node
   if (browser.chrome && view.input.lastKeyCode === 8) {
     for (let off = toOffset; off > fromOffset; off--) {
       const node = parent.childNodes[off - 1]!,
@@ -93,7 +93,7 @@ const ruleFromNode =
     } else if (dom.nodeName == "BR" && dom.parentNode) {
       // Safari replaces the list item or table cell with a BR
       // directly in the list node (?!) if you delete the last
-      // character in a list item or table cell (#708, #862)
+      // character in a list item or table cell
       if (browser.safari && /^(ul|ol)$/i.test(dom.parentNode.nodeName)) {
         const skip = document.createElement("div")
         skip.appendChild(document.createElement("li"))
@@ -263,7 +263,7 @@ export function readDOMChange(
       : looksLikeBlockJoin(doc, change.start, change.endA, $from, $to)) &&
     dispatchKey(view, "Backspace")
   ) {
-    if (browser.android && browser.chrome) view.domObserver.suppressSelectionUpdates() // #820
+    if (browser.android && browser.chrome) view.domObserver.suppressSelectionUpdates()
     return
   }
 
@@ -275,8 +275,7 @@ export function readDOMChange(
   }
 
   // This tries to detect Android virtual keyboard
-  // enter-and-pick-suggestion action. That sometimes (see issue
-  // #1059) first fires a DOM mutation, before moving the selection to
+  // enter-and-pick-suggestion action. That sometimes first fires a DOM mutation, before moving the selection to
   // the newly created block. And then, because ProseMirror cleans up
   // the DOM selection, it gives up moving the selection entirely,
   // leaving the cursor in the wrong place. When that happens, we drop

@@ -1,8 +1,6 @@
 {
   "$schema": "./node_modules/@effect/tsgo/schema.json",
   "compilerOptions": {
-    // The family's shared options (effect-web's tsconfig.base.json), plus this
-    // repo's stricter unused-parameter and switch-fallthrough checks.
     "module": "preserve",
     "moduleResolution": "bundler",
     "target": "es2022",

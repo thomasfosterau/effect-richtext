@@ -88,7 +88,7 @@ export class DOMObserver {
           // IE11 will sometimes (on backspacing out a single character
           // text node after a BR node) call the observer callback
           // before actually updating the DOM, which will cause
-          // ProseMirror to miss the change (see #930)
+          // ProseMirror to miss the change
           this.flushSoon()
         } else if (
           browser.safari &&
@@ -261,7 +261,7 @@ export class DOMObserver {
           mutations.some((m) => m.type == "childList" && m.removedNodes.length)))
     ) {
       // Browsers sometimes insert a bogus break node if you
-      // backspace out the last bit of text before an inline-flex node (#1552)
+      // backspace out the last bit of text before an inline-flex node
       for (const node of added) {
         if (node.nodeName == "BR" && node.parentNode) {
           let after = node.nextSibling
@@ -455,8 +455,7 @@ function blockParent(view: AnyView, node: DOMNode): DOMNode | null {
 
 // Kludge for a Safari bug where, on ending a composition in an
 // otherwise empty table cell, it randomly moves the composed text
-// into the table row around that cell, greatly confusing everything
-// (#188).
+// into the table row around that cell, greatly confusing everything.
 function fixUpBadSafariComposition(view: AnyView, addedNodes: ReadonlyArray<DOMNode>) {
   const { focusNode, focusOffset } = view.domSelectionRange()
   for (const node of addedNodes) {
