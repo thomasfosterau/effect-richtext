@@ -30,14 +30,14 @@ catalog:
   # of the 6/7 split. `effect-tsgo patch` overwrites the native `tsc` binary
   # with an Effect-patched build matched by gitHead, so this pins in lockstep
   # with `@typescript/native` below and with the `oxlint` / `oxlint-tsgolint`
-  # that `vite-plus` pulls in: 0.67.3 supports typescript 7.0.2, oxlint
-  # 1.88.0 – 1.91.0 and tsgolint 7.0.2004 / 7.0.2005; vite-plus 1.5.0 carries
-  # oxlint 1.91.0 and tsgolint 7.0.2005.
+  # that `vite-plus` pulls in: 0.69.0 supports typescript 7.0.2, oxlint
+  # 1.91.0 – 1.93.0 and tsgolint 7.0.2005 – 7.0.2007; vite-plus 1.6.0 carries
+  # oxlint 1.93.0 and tsgolint 7.0.2006.
   # Each @effect/tsgo release hard-errors (UnsupportedTargetPackageVersionError)
   # on any other component version, failing `pnpm install` itself. Read the
   # `components` table in node_modules/@effect/tsgo/dist/effect-tsgo.cjs
   # before bumping any of the three.
-  "@effect/tsgo": 0.67.5
+  "@effect/tsgo": 0.69.0
   # `it.effect` / `layer` helpers on top of the vitest singleton below.
   "@effect/vitest": 4.1.4
   # The Effect lint rules (`effect/*`, the anti-slop set included) that
@@ -90,16 +90,16 @@ catalog:
   "@typescript/native": "npm:typescript@7.0.2"
   # vite-plus pins `oxlint`, `oxfmt` and `vitest` to exact versions, so this
   # entry decides the oxlint version `effect-tsgo patch --oxlint` has to
-  # support (see the @effect/tsgo note above): 1.5.0 carries oxlint 1.91.0,
-  # oxfmt 0.76.0, oxlint-tsgolint 7.0.2005 and vitest 5.1.0. `vite` is the
+  # support (see the @effect/tsgo note above): 1.6.0 carries oxlint 1.93.0,
+  # oxfmt 0.78.0, oxlint-tsgolint 7.0.2006 and vitest 5.1.0. `vite` is the
   # same release under its aliased core package, and `vitest` must match
   # vite-plus's exact pin because the `vitest@*: "catalog:"` override forces
   # every resolution to the singleton. Neither alias is one Dependabot can
   # bump: move `vite` by hand with `vite-plus` (or rerun
   # `pnpm dlx --package=vite-plus@<v> vp migrate --no-interactive`, then drop
   # the `minimumReleaseAgeExclude` entries it adds).
-  vite-plus: 1.5.0
-  vite: npm:@voidzero-dev/vite-plus-core@1.5.0
+  vite-plus: 1.6.0
+  vite: npm:@voidzero-dev/vite-plus-core@1.6.0
   vitest: 5.1.0
   w3c-keyname: ^2.2.8
 
