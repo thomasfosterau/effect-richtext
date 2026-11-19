@@ -1,120 +1,14 @@
 # AGENTS.md
 
-Project conventions live here, for every contributor and coding agent; personal style preferences live in user memory. Guidance that only applies to Claude Code sessions (its hooks and worktrees) is in [.claude/CLAUDE.md](.claude/CLAUDE.md), which imports this file.
+Read [README.md](README.md) and [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) first; [docs/DESIGN.md](docs/DESIGN.md) before changing a module.
 
-This repo publishes `@thomasfosterau/effect-richtext`, a reimplementation of the core ProseMirror toolkit (`prosemirror-model`, `-transform`, `-state`, `-view`, `-keymap`, `-commands` and the common extras) on Effect 4, as ONE package at the repository root whose parts are subpath entries. ProseMirror's own test suites are the behavioural spec: they are ported under `tests/` and must keep passing. [DESIGN.md](DESIGN.md) is the design note (decisions, the `x` / `xUnsafe` convention, typing, the view, extensions, the compat layer); read it before changing a module.
+- You may open PRs in this repo. Out-of-scope work you spot goes in an issue; then move on. Use the GitHub MCP tools or `gh`.
+- Use Effect idioms and Effect v4's own modules; adapt non-Effect APIs at the edge.
 
-| Entry | Source | Ported from / purpose |
-| --- | --- | --- |
-| `@thomasfosterau/effect-richtext/model` | `src/model.ts`, `src/model/` | prosemirror-model (DOM parser / serializer, JSON codecs) |
-| `@thomasfosterau/effect-richtext/transform` | `src/transform.ts`, `src/transform/` | prosemirror-transform |
-| `@thomasfosterau/effect-richtext/state` | `src/state.ts`, `src/state/` | prosemirror-state |
-| `@thomasfosterau/effect-richtext/view`, `/view-css` | `src/view.ts`, `src/view/`, `src/view-css.ts` | prosemirror-view and its stylesheet |
-| `@thomasfosterau/effect-richtext/keymap`, `/commands`, `/history`, `/inputrules` | `src/<name>.ts` (+ `src/<name>/`) | the matching prosemirror-\* package |
-| `@thomasfosterau/effect-richtext/gapcursor`, `/dropcursor`, `/placeholder` | `src/<name>.ts` | cursors and placeholder decorations |
-| `@thomasfosterau/effect-richtext/schema-basic`, `/schema-list`, `/test-builder` | `src/<name>.ts` (+ `src/<name>/`) | the matching prosemirror-\* package |
-| `@thomasfosterau/effect-richtext/markdown`, `/html` | `src/markdown.ts`, `src/markdown/`, `src/html.ts` | prosemirror-markdown; HTML string helpers |
-| `@thomasfosterau/effect-richtext/reactive` | `src/reactive.ts`, `src/reactive/` | `SubscriptionRef` / `Stream` bindings |
-| `@thomasfosterau/effect-richtext/extensions` | `src/extensions.ts`, `src/extensions/` | typed extensions and chainable commands |
-| `@thomasfosterau/effect-richtext/compat/*` | `src/compat/` | a ProseMirror-compatible facade over the core |
+## Pitfalls
 
-A new entry is added to `entries` in `vite.config.ts`, to `exports` in `package.json`, to `entry` in `.fallowrc.json` (plus a zone and rule when it is a new layer), and to the tables here and in `README.md`. `src/internal/` and `src/compat/internal/` are never exported.
-
-## Common pitfalls
-
-- **Never edit a version in `package.json`.** Versions live in the `pnpm-workspace.yaml` catalog (`catalogMode: strict` rejects anything else). After editing it, run `pnpm install` and commit `pnpm-lock.yaml`, or CI fails with `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`. `@effect/tsgo`, `@typescript/native` and `vite-plus` move together (the tsgo patch hard-errors at install on an unsupported `tsc` or `oxlint`); read their catalog comments first. Dependabot (`.github/dependabot.yml`) groups only the lockstep sets (`toolchain`; `effect`, which includes `@effect/docgen` because it depends on `effect` at its own version); everything else, `@enfect/oxlint`, `tsx`, `fallow`, `@changesets/*`, the `prosemirror-*` bench reference and each GitHub Action, updates in its own PR; the npm aliases (`vite`, `typescript`, `@typescript/native`), the `overrides` literals and `catalogs.peers` are hand moves listed in its header. `minimumReleaseAge` holds new versions for 8 hours (480 minutes); Dependabot's cooldown is 1 day, its smallest unit.
-- **`dist/` is the product.** `vp pack` (tsdown) emits one file per source module (`unbundle`) and `exports` points only at `dist/`. Tests import the package by name; `vite.config.ts`'s `resolve.alias` and `tsconfig.test.json`'s `paths` map that name to `src/`, so tests never need a build, and docgen examples (which do) go through `dist/`.
-- **`sideEffects` is a list, and it is load-bearing.** `gapcursor` (registers its selection's JSON id), `test-builder` (the `tag` getter) and every `compat/*` module (wrapper registration) run top-level statements; everything else must stay pure declarations so a consumer's bundler can drop it. A new top-level statement means a new entry in `package.json`'s `sideEffects`.
-- **Hot paths are synchronous on purpose.** Model, transform and view algorithms run per keystroke: library internals call the `Unsafe` twins or `@internal …OrNull` helpers, and only the public surface is wrapped in `Effect` (DESIGN.md, "Fallible operations"). Do not route an inner loop through `Effect` or a Schema decode.
-- **The compat facade mirrors ProseMirror's API exactly.** `src/compat/*` exists so ProseMirror code runs unchanged; its exported names and signatures follow ProseMirror's, not this repo's conventions. ProseMirror's own suites run against it (`tests/compat/`, `tests/view/compat-*`).
-- **The compat layer is the ProseMirror-parity guarantee; the core is not bound to it.** The core may adopt faster or more idiomatic code (richer error messages, Effect-native shapes, skipped redundant work) wherever that isn't observable through `compat/*`. Behaviour compat delegates to the core (documents, steps, positions, the view's DOM) must still match ProseMirror, or compat must adapt it. When porting an upstream release, take its fixes, not its incidental choices.
-- **`effect` is a peer, never a dependency.** Two copies break `Context` / `Layer` / `Schema` identity; the consuming app owns the singleton.
-- **`vp run docgen` executes your examples.** `@effect/docgen` compiles every JSDoc `@example` and runs it (`"runExamples": true`), importing the package by name through `dist/`. An example must be complete (import everything it uses), must not use `declare const`, and must not throw. Assert results with `node:assert`. A plain ` ```ts ` fence in a description is checked and run like an `@example`; ` ```ts skip-type-checking ` is skipped (only for DOM-bound sketches). The task fails when docgen logs `No examples found`.
-
-## Conventions
-
-- **Effect-first, as DESIGN.md records.** Every fallible public operation `x` returns an `Effect` with tagged errors and has a synchronous `xUnsafe` twin that throws the same error value; absent values are `Option`; errors are `Schema.TaggedError` classes with a `message`, one family per layer (`model/errors.ts`, `transform/errors.ts`, …).
-- **Optional props and fields are declared `T | undefined`**, never bare `x?: T` where a caller may forward an optional of its own: the repo compiles with `exactOptionalPropertyTypes`.
-- **Relative imports carry their `.ts` extension** (`rewriteRelativeImportExtensions`). Modules import each other through relative paths (`../model.ts`); Effect is imported per module (`import * as Option from "effect/Option"`), never from the `"effect"` barrel.
-- **Formatting is Oxfmt with this repo's style**: no semicolons, no trailing commas, 120 columns (`fmt` in `vite.config.ts`). The pre-commit hook and the PostToolUse hook apply it.
-- **Tests import from `@effect/vitest`** (`it.effect`, `assert`) or `vite-plus/test`, never `vitest`. `tests/<module>/*.test.ts` mirrors the module it covers; ported ProseMirror suites stay as close to the originals as possible (`tests/utils/ist.ts`; `getSome` in `tests/utils/option.ts` unwraps an `Option` or fails the test). `tests/**/*.types.ts` hold compile-time assertions (`Expect<Equals<…>>` and expect-error directives), type-checked by `vp run check`, never executed; a negative type assertion never lives in a runtime test file.
-- **Every export has a doc comment** whose first sentence stands alone in a hover, plus `@since` and `@category`; it documents defaults, units, the error channel and the reason for any non-obvious choice.
-- **Lint**: the Effect preset (`@enfect/oxlint`'s `recommended` + `@effect/tsgo/oxlint-presets`) is on, with Oxlint's `correctness`, `suspicious` and `perf` categories over the `typescript`, `unicorn`, `oxc`, `import`, `promise`, `vitest` and `jsdoc` plugins and `vite-plus/prefer-vite-plus-imports`, type-aware through oxlint-tsgolint (`tests/tsconfig.json` gives the suites tsconfig.test.json's `paths`). The "ported-code allowances" in `vite.config.ts` sit at `warn` with a site count; a new site is a defect, and a rule goes back to `error` when its count reaches zero. Fix findings by changing the code, never with disable comments.
-
-### Module boundaries
-
-`.fallowrc.json` encodes the layering and `fallow` enforces it: `model` imports only `internal`; `transform` adds `model`; `state` and `view` import each other (commands and plugin props take the view) plus the layers below; `commands`, `keymap`, `history`, `schema-list` and the extras (`inputrules`, `gapcursor`, `dropcursor`, `placeholder`, `reactive`) sit on top; `extensions` may use any core module; nothing but `compat` imports `compat`, and nothing in the core imports `extensions`. `vp exec fallow guard <files>` shows the rules for a file before you change it. `.fallow-baselines/` records the complexity and duplication the port inherited from ProseMirror (and the compat facade's mirror of the core), so the audit holds new code to the thresholds in `.fallowrc.json` without failing on that inheritance. Re-save a baseline (`vp exec fallow health --save-baseline .fallow-baselines/health.json`, `vp exec fallow dupes --save-baseline .fallow-baselines/dupes.json`) only to shrink it, never to admit a new finding.
-
-## Commands
-
-- `pnpm install` — dependencies plus the Vite+ git hooks (pre-commit runs `vp staged`: format + lint on staged files) and the `prepare` step that patches the native `tsc` / `oxlint` with `@effect/tsgo`. No pre-push hook: run the gates yourself.
-- `vp check` — format + lint (Oxfmt + Oxlint, type-aware through oxlint-tsgolint with `typeCheck` on). `vp run check` — the type gate: `src` under `tsconfig.json`, then the tests (including `tests/**/*.types.ts`) under `tsconfig.test.json`. They are different commands.
-- `vp run ci` — every CI gate in order (a released-Node check, format and lint, the type gate, unit and browser tests, build, docgen, `pnpm audit`), stopping at the first failure; it is the one command CI runs. A new gate is added to this task in `vite.config.ts`, never as a workflow step.
-- `vp run test:unit` — the `node` test project (happy-dom).
-- `vp run test:browser` — the `browser` project: prosemirror-view's suites in headless Chromium via Playwright. Needs a Chromium: `vp exec playwright install chromium`, or point `PLAYWRIGHT_CHROMIUM_EXECUTABLE` at an installed one (agent containers: `/opt/pw-browsers/chromium`).
-- `vp run build` — `vp pack` → `dist/`.
-- `vp run docgen` — builds, then compiles and runs every `@example` against `dist/` and writes the (git-ignored) API reference under `docs/api/`.
-- `vp run bench` — builds, then times the complex workloads in `tests/bench/workloads.ts` on ProseMirror and on `dist/`, one Node process per library per round (`BENCH_ROUNDS`, `BENCH_FILTER`). Not a gate; `tests/bench/workloads.test.ts` checks the same workloads give ProseMirror's documents.
-- `vp run test:coverage` — both test projects under one Istanbul map at `coverage/coverage-final.json`, which `fallow audit` reads for exact per-function CRAP scores. Without the map fallow scores every function as uncovered, and any function with cyclomatic complexity ≥ 5 fails the gate on its own.
-- `pnpm changeset` — add a changeset.
-
-Invoke everything through `vp` (`vp exec` for a dependency's binary; `vp run <task>` instead of bare `pnpm`). Node and pnpm only: no npm, npx, yarn or bun. The sanctioned non-`vp` invocations: `pnpm install` (and `pnpm install --frozen-lockfile` in CI), `pnpm audit`, `pnpm changeset` / `pnpm publish` on the release path. Single-check variants are in [CONTRIBUTING.md](CONTRIBUTING.md#running-individual-checks).
-
-## Verification
-
-Before you report work as done, run the gates below in order and quote each command with its final pass/fail. If a gate can't run here, say which and why in the PR body; never imply it ran.
-
-1. From a clean install, which is what CI sees: `rm -rf node_modules dist && pnpm install --frozen-lockfile`.
-2. `vp check`
-3. `vp run check`
-4. `vp run test:unit`
-5. `vp run test:browser` (needs a Chromium; see Commands)
-6. `vp run build`
-7. `vp run docgen`
-8. `pnpm audit --audit-level high` (network)
-9. `vp run test:coverage`, then `vp exec fallow audit --format json --quiet --explain --gate-marker agent` (the fallow gate below; not a CI step). `fallow audit` reads `coverage/coverage-final.json` and never refreshes it, so run `test:coverage` first (the PreToolUse gate refreshes a missing or stale map itself).
-
-Steps 2–8 are the `ci` task (`vp run ci`), in its order; CI runs exactly that task on a Node matrix (newest LTS and newest release); its checks, the ones a ruleset requires, are `ci (node lts)` and `ci (node latest)` ([ci.yml](.github/workflows/ci.yml)). `CONTRIBUTING.md` and the PR template link here rather than restating the list.
-
-## Branches and pull requests
-
-- Branch off `trunk`; PR against `trunk`; squash-merge with a conventional prefix (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`). Rebase onto `origin/trunk` before opening or updating a PR; never merge `trunk` into your branch (GitHub's Update-branch button merges).
-- Every change to the published package's behaviour carries a changeset (`pnpm changeset`). Changes to doc comments that reach the emitted `.d.ts` take a `patch` changeset; other docs-only changes (READMEs, guidance), CI and tooling need none. Never publish or version by hand: the Release workflow opens the version PR (`chore: version packages`) and the owner merges it. Publishing is npm trusted publishing (OIDC) from the protected `release` environment; there is no `NPM_TOKEN` ([PUBLISHING.md](PUBLISHING.md)).
-- Push your branch when a commit is ready. This repo grants no standing approval to open pull requests: open one only when the owner asks for it in the current session.
-- GitHub writes go to `thomasfosterau/effect-richtext` only — never to ProseMirror, the consuming applications or the owner's other libraries without the owner's explicit approval for that action in the current session. Pass `-R thomasfosterau/effect-richtext` whenever the cwd might be another checkout. If another repo needs something, say so in the PR body.
-
-## Work tracker
-
-- Issues in `thomasfosterau/effect-richtext` are the backlog: when you find work you can't do now, file an issue rather than leaving a TODO. There is no in-repo backlog file.
-- The issue is the spec — read its comments; later comments override the body. Re-verify the issue's code claims against current `trunk` before editing.
-- Record decisions and findings as comments on the issue they were found working.
-- Stop-and-report is a valid outcome: on a blocker outside the issue's scope, comment the evidence on the issue and stop.
-- Scope cut mid-PR becomes a linked issue before merge.
-
-## Effect
-
-Read the installed package before writing Effect code: `node_modules/effect/dist/*.d.ts` (and `node_modules/effect/src`, plus `node_modules/effect/AGENTS.md` / `ai-docs/` where shipped). Never guess at an Effect API.
-
-- The pinned version is the `effect` entry in `pnpm-workspace.yaml`'s catalog; the published peer range is under `catalogs.peers`. The `effect` peer is `^4.0.0`: raise it only when a dependency requires it (or the package needs an unstable module first shipped in a later minor), naming the dependency or module in the catalog comment, and prove the floor by re-running the gates with the catalog pin at that version. Raising the floor is a breaking change.
-- Tagged errors are `Schema.TaggedError<Self>()(tag, fields)` classes.
-- Plugins, commands and view props may return Effects; their requirements (`R`) and errors (`E`) are tracked through `EditorState` / `EditorView` types (DESIGN.md, "Commands and plugins"). Keep that inference intact: a change that widens a command's `R` to `any` or drops an `E` is a type regression even when every test passes, and `tests/**/*.types.ts` is where it gets pinned.
-
-## Documentation surfaces
-
-`README.md` is the short landing page consumers read on npm: what the package is, the install line, one example and the entry-point table (it ships in the tarball, so its links are absolute); `docs/*.md` are the committed guides (extensions, the compat layer), and detail about an export goes in its doc comment; [DESIGN.md](DESIGN.md) is the design note (not published); `CONTRIBUTING.md` carries human setup, hooks and single-check commands; `PUBLISHING.md` the release pipeline and its one-time owner setup; `SECURITY.md` the reporting channel and supply-chain posture. `docs/api/` is docgen output and never committed; decisions go in issue comments.
-
----
-
-## Fallow local gate
-
-Before any `git commit` or `git push`, run `fallow audit --format json --quiet --explain --gate-marker agent`. If the verdict is `fail`, fix the reported findings before retrying. Treat JSON runtime errors like `{ "error": true, ... }` as non-blocking. Audit defaults to `gate=new-only`: only findings introduced by the current changeset affect the verdict.
-
-## Fallow task map
-
-| When the agent is about to...                                     | Run                                          |
-| ----------------------------------------------------------------- | -------------------------------------------- |
-| delete an "unused" export or file                                 | `fallow dead-code --trace <file>:<export>`   |
-| delete an "unused" dependency                                     | `fallow dead-code --trace-dependency <name>` |
-| commit or open a PR                                               | `fallow audit --base <ref>`                  |
-| check which architecture rules apply to a file before changing it | `fallow guard <files>`                       |
-| understand a finding                                              | `fallow explain <issue-type>`                |
+- **ProseMirror's ported suites are the spec.** The `compat/*` facade mirrors ProseMirror's API exactly (names, `null`, exceptions), not this repo's conventions. The core may diverge where `compat/*` can't observe it.
+- **Hot paths stay synchronous.** Don't route model, transform or view inner loops through `Effect` or a Schema decode.
+- **Type inference is API.** Widening a command's `R` to `any` or dropping an `E` is a regression even when tests pass; pin it in `tests/**/*.types.ts`.
+- **Never bulk-autofix** `typescript/no-unnecessary-type-assertion` / `-type-arguments`: tsgolint disagrees with the `check` task's tsc. Fix by hand against `vp run check`.
+- **Browser tests** need Chromium; in agent containers set `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/opt/pw-browsers/chromium`.

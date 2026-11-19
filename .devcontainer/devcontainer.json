@@ -1,6 +1,6 @@
 {
   "name": "effect-richtext",
-  "image": "ghcr.io/voidzero-dev/vite-plus:latest",
+  "image": "ghcr.io/voidzero-dev/vite-plus:1.6.0",
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers-extra/features/ripgrep:1.0.15": {},

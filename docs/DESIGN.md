@@ -2,7 +2,7 @@
 
 `@thomasfosterau/effect-richtext` reimplements the core of the ProseMirror ecosystem (`prosemirror-model`, `-transform`, `-state`, `-view`, `-keymap`, `-commands`) on top of [Effect](https://effect.website) 4. It is a single package; the parts of the toolkit are exposed as subpath modules.
 
-This document records the design decisions agreed for the project and the conventions every module follows.
+This document records the design decisions and the conventions every module follows.
 
 ## Decisions
 
@@ -14,7 +14,7 @@ This document records the design decisions agreed for the project and the conven
 | Document typing | Schemas are fully typed. Node/mark names are literal unions, attributes are described with Effect `Schema`s, and **content expressions are typed combinators** (`Content.seq`, `Content.oneOrMore`, …) so the allowed children of every node type are known statically. |
 | Plugin requirements | Plugins and commands carry their Effect requirements (`R`) in their types; editor state/view accumulate them. |
 | Packaging | **One package**, everything (core, extras, ProseMirror compatibility layer) exposed as subpath modules. |
-| Tooling | The family's Vite+ toolchain on pnpm 11: `vp check` (Oxfmt + Oxlint with the Effect preset), native `tsc` 7 patched by `@effect/tsgo`, Vitest via `vite-plus/test` + `@effect/vitest` (happy-dom; browser mode with Playwright for view tests), `vp pack` (tsdown), docgen, fallow, Changesets. Commands and gates live in [AGENTS.md](./AGENTS.md). |
+| Tooling | Vite+ on pnpm: Oxfmt + Oxlint with the Effect preset, native `tsc` 7 patched by `@effect/tsgo`, Vitest + `@effect/vitest` (happy-dom; Chromium for view tests), `vp pack`, docgen, fallow, Changesets. See [CONTRIBUTING.md](CONTRIBUTING.md). |
 | Extras (after core) | Extensions + chainable commands; editing essentials (history, input rules, basic/list schemas, gap/drop cursor, placeholder); reactive bindings (SubscriptionRef/Stream); HTML + Markdown serializers. |
 
 ## Module layout
@@ -194,4 +194,4 @@ yield * editor.mount(place) // EditorView.make: needs Scope | R
 - View tests run in Chromium via Vitest browser mode (`tests/view/**`, the `browser` project).
 - Type-level tests live in `tests/**/*.types.ts`: never executed, type-checked by `vp run check`. An `Expect<Equals<A, B>>` alias asserts a type, and each `@ts-expect-error` directive asserts that the statement below it must not compile. A failing call's Effect is discarded with `void` so the Effect language service's floating-Effect diagnostic stays quiet.
 
-ProseMirror is MIT licensed, copyright Marijn Haverbeke and others; ported code and tests retain that notice (see `LICENSE`).
+ProseMirror is MIT licensed, copyright Marijn Haverbeke and others; ported code and tests retain that notice (see [LICENSE.md](../LICENSE.md)).
