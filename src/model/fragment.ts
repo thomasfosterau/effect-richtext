@@ -119,7 +119,7 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
       to,
       (node, pos) => {
         const nodeText = node.isText
-          ? (node as unknown as TextNode<Sc>).text.slice(Math.max(from, pos) - pos, to - pos)
+          ? (node as TextNode<Sc>).text.slice(Math.max(from, pos) - pos, to - pos)
           : !node.isLeaf
             ? ""
             : leafText
@@ -149,9 +149,8 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     const content: Array<Node<Sc, N | N2>> = this.content.slice()
     let i = 0
     if (last.isText && last.sameMarkup(first)) {
-      content[content.length - 1] = (last as unknown as TextNode<Sc>).withText(
-        (last as unknown as TextNode<Sc>).text + (first as unknown as TextNode<Sc>).text
-      ) as any
+      const lastText: Node<Sc> = last
+      content[content.length - 1] = (lastText as TextNode<Sc>).withText(lastText.textContent + first.textContent) as any
       i = 1
     }
     for (; i < other.content.length; i++) content.push(other.content[i]!)
@@ -170,10 +169,7 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
         if (end > from) {
           if (pos < from || end > to) {
             if (child.isText) {
-              child = child.cut(
-                Math.max(0, from - pos),
-                Math.min((child as unknown as TextNode<Sc>).text.length, to - pos)
-              )
+              child = child.cut(Math.max(0, from - pos), Math.min(child.nodeSize, to - pos))
             } else {
               child = child.cut(Math.max(0, from - pos - 1), Math.min(child.content.size, to - pos - 1))
             }
@@ -346,8 +342,9 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
       size += node.nodeSize
       if (i && node.isText && array[i - 1]!.sameMarkup(node)) {
         if (!joined) joined = array.slice(0, i)
-        joined[joined.length - 1] = (node as unknown as TextNode<Sc>).withText(
-          (joined[joined.length - 1] as unknown as TextNode<Sc>).text + (node as unknown as TextNode<Sc>).text
+        const text: Node<Sc> = node
+        joined[joined.length - 1] = (text as TextNode<Sc>).withText(
+          joined[joined.length - 1].textContent + text.textContent
         ) as any
       } else if (joined) {
         joined.push(node)

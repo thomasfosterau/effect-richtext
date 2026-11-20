@@ -62,7 +62,7 @@ export function nodeFromJSON<Sc extends AnySchema>(schema: Sc, json: any): Node<
   if (json.type === "text") {
     if (typeof json.text !== "string") fail("Invalid text node in JSON")
     if (!json.text) fail("Empty text nodes are not allowed")
-    return schema.textUnsafe(json.text, marks) as unknown as Node<Sc>
+    return schema.textUnsafe(json.text, marks)
   }
   const content = fragmentFromJSON(schema, json.content)
   const type = schema.nodes[json.type]

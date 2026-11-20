@@ -198,9 +198,10 @@ export interface ParseSpec<Sc extends AnySchema = AnySchema> {
 
 function attrs(spec: ParseSpec<any>, token: Token, tokens: Array<Token>, i: number): Attrs | null {
   if (spec.getAttrs) return spec.getAttrs(token, tokens, i)
+  const specAttrs: unknown = spec.attrs
   // For backwards compatibility when `attrs` is a Function
-  else if (Predicate.isFunction(spec.attrs as unknown)) return (spec.attrs as unknown as (t: Token) => Attrs)(token)
-  else return spec.attrs ?? null
+  if (Predicate.isFunction(specAttrs)) return specAttrs(token)
+  return spec.attrs ?? null
 }
 
 // Code content is represented as a single token with a `content`

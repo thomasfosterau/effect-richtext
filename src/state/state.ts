@@ -429,7 +429,12 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
    * a plugin is mapped to the reserved `doc` or `selection` fields.
    */
   toJSON(pluginFields?: Record<string, AnyPlugin> | string | number): EditorStateJSON {
-    const result: Record<string, unknown> = { doc: this.doc.toJSON(), selection: this.selection.toJSON() }
+    const result: {
+      doc: NodeJSON
+      selection: SelectionJSON
+      storedMarks?: ReadonlyArray<MarkJSON>
+      [field: string]: unknown
+    } = { doc: this.doc.toJSON(), selection: this.selection.toJSON() }
     if (this.storedMarksOrNull) result.storedMarks = this.storedMarksOrNull.map((m) => m.toJSON())
     if (pluginFields && typeof pluginFields === "object") {
       for (const prop in pluginFields) {
@@ -441,7 +446,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
         if (state && state.toJSON) result[prop] = state.toJSON.call(plugin, this.slots[plugin.key])
       }
     }
-    return result as unknown as EditorStateJSON
+    return result
   }
 
   /** Create a new state. */
