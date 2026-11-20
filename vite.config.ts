@@ -122,7 +122,6 @@ export default defineConfig({
       "effect/prefer-effect-is": "warn", // 50
       "effect/avoid-object-type": "warn", // 33
       "effect/no-known-value-widening": "warn", // 36
-      "effect/effect-run-in-body": "warn", // 34
       "effect/no-chained-type-assertions": "warn", // 9
       "effect/use-clock-service": "warn", // 20
       "effect/no-unknown-returns": "warn", // 22
@@ -348,6 +347,26 @@ export default defineConfig({
         ],
         rules: {
           "effect/avoid-try-catch": "off"
+        }
+      },
+      // Synchronous adapters between Effect commands and the ported
+      // ProseMirror suites, which call commands and read their results
+      // inline; and the README example's program entry point.
+      {
+        files: [
+          "tests/commands/apply.ts",
+          "tests/commands/commands.test.ts",
+          "tests/compat/bridge.test.ts",
+          "tests/history/history.test.ts",
+          "tests/inputrules/inputrules.test.ts",
+          "tests/keymap/keymap.test.ts",
+          "tests/model/dom.test.ts",
+          "tests/state/state.ts",
+          "tests/view/inputrules.test.ts",
+          "tests/readme-example.types.ts"
+        ],
+        rules: {
+          "effect/effect-run-in-body": "off"
         }
       },
       // `new StepMap([])` returns the shared `StepMap.empty`, as in

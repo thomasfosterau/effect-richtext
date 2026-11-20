@@ -413,15 +413,17 @@ const insertX: Command<AnySchema> = (state, dispatch) =>
   })
 
 describe("Command", () => {
-  it("runs commands with a dispatch function", () => {
-    const state = new TestState({ doc: doc(p("a<a>b")) })
-    ist(state.command(insertX), true)
-    ist(state.doc, doc(p("axb")), eq)
-    ist(Effect.runSync(insertX(state.state)), true)
-    ist(state.doc, doc(p("axb")), eq)
-    state.textSel(1, 3)
-    ist(state.command(insertX), false)
-  })
+  it.effect("runs commands with a dispatch function", () =>
+    Effect.gen(function* () {
+      const state = new TestState({ doc: doc(p("a<a>b")) })
+      ist(state.command(insertX), true)
+      ist(state.doc, doc(p("axb")), eq)
+      ist(yield* insertX(state.state), true)
+      ist(state.doc, doc(p("axb")), eq)
+      state.textSel(1, 3)
+      ist(state.command(insertX), false)
+    })
+  )
 
   it.effect("supports commands that require services", () => {
     const insertStep: Command<AnySchema, never, Counter> = (state, dispatch) =>
