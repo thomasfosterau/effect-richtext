@@ -834,7 +834,7 @@ export const setBlockType = <Sc extends AnySchema, N extends NodeNames<Sc>>(
       } = ranges[i]!
       state.doc.nodesBetween(from, to, (node, pos) => {
         if (applicable) return false
-        if (!node.isTextblock || node.hasMarkup(nodeType, attrs)) return
+        if (!node.isTextblock || node.hasMarkup(nodeType, attrs)) return true
         if (node.type === nodeType) {
           applicable = true
         } else {
@@ -842,6 +842,7 @@ export const setBlockType = <Sc extends AnySchema, N extends NodeNames<Sc>>(
             index = $pos.index()
           applicable = $pos.parent.canReplaceWith(index, index + 1, nodeType)
         }
+        return true
       })
     }
     if (!applicable) return false
@@ -871,6 +872,7 @@ function markApplies(
       if (can || (!enterAtoms && node.isAtom && node.isInline && pos >= $from.pos && pos + node.nodeSize <= $to.pos))
         return false
       can = node.inlineContent && node.type.allowsMarkType(type)
+      return true
     })
     if (can) return true
   }
@@ -888,6 +890,7 @@ function removeInlineAtoms(ranges: ReadonlyArray<SelectionRange<any>>): Readonly
         $from = $from.doc.resolveUnsafe(pos + 1 + node.content.size)
         return false
       }
+      return true
     })
     if ($from.pos < $to.pos) result.push(new SelectionRange($from, $to))
   }
@@ -994,6 +997,7 @@ export const toggleMark = <Sc extends AnySchema, M extends MarkNames<Sc>>(
               node.isText &&
               /^\s*$/.test(node.textBetween(Math.max(0, r.$from.pos - pos), Math.min(node.nodeSize, r.$to.pos - pos)))
             )
+          return true
         })
         return !missing
       })

@@ -187,7 +187,10 @@ function normalizeSiblings(fragment: Fragment<any, any>, $context: ResolvedPos<a
       if (!result) return
       const wrap = match.findWrappingOrNull(node.type)
       let inLast
-      if (!wrap) return (result = null)
+      if (!wrap) {
+        result = null
+        return
+      }
       if (
         (inLast =
           result.length && lastWrap!.length && addToSibling(wrap, lastWrap!, node, result[result.length - 1]!, 0))
@@ -200,7 +203,6 @@ function normalizeSiblings(fragment: Fragment<any, any>, $context: ResolvedPos<a
         match = match.matchTypeOrNull(wrapped.type)!
         lastWrap = wrap
       }
-      return undefined
     })
     if (result) return Fragment.from(result as Array<Node<any, any>>)
   }

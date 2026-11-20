@@ -195,6 +195,7 @@ export const splitListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(
         tr.doc.nodesBetween(start, tr.doc.content.size, (node, pos) => {
           if (sel > -1) return false
           if (node.isTextblock && node.content.size === 0) sel = pos + 1
+          return true
         })
         if (sel > -1) tr.setSelectionUnsafe(Selection.near(tr.doc.resolveUnsafe(sel)))
         return tr.scrollIntoView()
