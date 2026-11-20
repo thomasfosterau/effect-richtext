@@ -8,9 +8,11 @@ import * as Cause from "effect/Cause"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
+import type * as Fiber from "effect/Fiber"
+import * as FiberSet from "effect/FiberSet"
 import * as Option from "effect/Option"
 import { PreventSchedulerYield } from "effect/Scheduler"
-import type * as Scope from "effect/Scope"
+import * as Scope from "effect/Scope"
 import type {
   AnySchema,
   DOMParser,
@@ -626,6 +628,10 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
    */
   readonly context: Context.Context<any>
   private readonly runContext: Context.Context<any>
+  // Owns the effects still running in the background; `destroy` closes
+  // it, which interrupts them.
+  private readonly scope = Scope.makeUnsafe()
+  private readonly running: FiberSet.FiberSet
 
   /** The view's current state. */
   state: EditorState<Sc, R, E>
@@ -634,6 +640,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
   constructor(place: ViewPlace, props: DirectEditorProps<Sc, R, E>, context: Context.Context<R>) {
     this.context = context
     this.runContext = Context.add(context, PreventSchedulerYield, true)
+    this.running = Effect.runSyncWith(this.context)(Scope.provide(FiberSet.make(), this.scope))
     this._props = props
     this.state = props.state
     this.directPlugins = props.plugins || []
@@ -1057,10 +1064,17 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
       if (Exit.isFailure(exit)) this.reportError(exit.cause)
       return exit
     }
-    fiber.addObserver((exit) => {
-      if (Exit.isFailure(exit)) this.reportError(exit.cause)
-    })
+    this.track(fiber)
     return undefined
+  }
+
+  // Keep a background fiber until it ends, reporting its failure; one
+  // interrupted by `destroy` is not reported.
+  private track(fiber: Fiber.Fiber<unknown, unknown>): void {
+    FiberSet.addUnsafe(this.running, fiber)
+    fiber.addObserver((exit) => {
+      if (Exit.isFailure(exit) && !Cause.hasInterruptsOnly(exit.cause)) this.reportError(exit.cause)
+    })
   }
 
   /** @internal */
@@ -1239,9 +1253,15 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     return serializeForClipboard(this, slice)
   }
 
-  /** Removes the editor from the DOM and destroys all node views. */
+  /**
+   * Removes the editor from the DOM and destroys all node views.
+   * Handler and dispatch effects still running in the background are
+   * interrupted.
+   */
   destroy(): void {
     if (!this.docView) return
+    const closing = Scope.closeUnsafe(this.scope, Exit.void)
+    if (closing) Effect.runForkWith(this.context)(closing)
     destroyInput(this)
     this.destroyPluginViews()
     if (this.mounted) {
@@ -1326,9 +1346,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
       if (Exit.isFailure(exit)) throw Cause.squash(exit.cause)
       return
     }
-    fiber.addObserver((exit) => {
-      if (Exit.isFailure(exit)) this.reportError(exit.cause)
-    })
+    this.track(fiber)
   }
 
   /**
