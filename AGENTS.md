@@ -12,3 +12,7 @@ Read [README.md](README.md) and [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) fir
 - **Type inference is API.** Widening a command's `R` to `any` or dropping an `E` is a regression even when tests pass; pin it in `tests/**/*.types.ts`.
 - **Never bulk-autofix** `typescript/no-unnecessary-type-assertion` / `-type-arguments`: tsgolint disagrees with the `check` task's tsc. Fix by hand against `vp run check`.
 - **Browser tests** need Chromium; in agent containers set `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/opt/pw-browsers/chromium`.
+
+## Fallow
+
+- `vp install` links the `fallow` skill into `.claude/skills/fallow` from the installed package (approved under `permissions` in `pnpm-workspace.yaml`); the repository's own fallow rules are in [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
