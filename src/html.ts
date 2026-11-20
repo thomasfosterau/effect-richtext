@@ -242,14 +242,13 @@ export class HtmlEnvironment extends Context.Service<
  * @since 0.1.0
  * @category serialization
  */
-export const serialize = <Sc extends AnySchema>(
+export const serialize = Effect.fn("html.serialize")(function* <Sc extends AnySchema>(
   content: Node<Sc, any> | Fragment<Sc, any>,
   options: Omit<ToHTMLOptions<Sc>, "document"> = {}
-): Effect.Effect<string, never, HtmlEnvironment> =>
-  Effect.gen(function* () {
-    const { document } = yield* HtmlEnvironment
-    return yield* Effect.sync(() => toHTML(content, { ...options, document }))
-  })
+): Effect.fn.Return<string, never, HtmlEnvironment> {
+  const { document } = yield* HtmlEnvironment
+  return yield* Effect.sync(() => toHTML(content, { ...options, document }))
+})
 
 /**
  * Parse an HTML string into a document (see `fromHTML`), using the
@@ -258,15 +257,14 @@ export const serialize = <Sc extends AnySchema>(
  * @since 0.1.0
  * @category parsing
  */
-export const parse = <Sc extends AnySchema>(
+export const parse = Effect.fn("html.parse")(function* <Sc extends AnySchema>(
   schema: Sc,
   html: string,
   options: Omit<FromHTMLOptions<Sc>, "document"> = {}
-): Effect.Effect<Node<Sc>, ModelError, HtmlEnvironment> =>
-  Effect.gen(function* () {
-    const { document } = yield* HtmlEnvironment
-    return yield* fromHTML(schema, html, { ...options, document })
-  })
+): Effect.fn.Return<Node<Sc>, ModelError, HtmlEnvironment> {
+  const { document } = yield* HtmlEnvironment
+  return yield* fromHTML(schema, html, { ...options, document })
+})
 
 /**
  * Parse an HTML string into an open slice (see `sliceFromHTML`), using
@@ -275,12 +273,11 @@ export const parse = <Sc extends AnySchema>(
  * @since 0.1.0
  * @category parsing
  */
-export const parseSlice = <Sc extends AnySchema>(
+export const parseSlice = Effect.fn("html.parseSlice")(function* <Sc extends AnySchema>(
   schema: Sc,
   html: string,
   options: Omit<FromHTMLOptions<Sc>, "document"> = {}
-): Effect.Effect<Slice<Sc>, ModelError, HtmlEnvironment> =>
-  Effect.gen(function* () {
-    const { document } = yield* HtmlEnvironment
-    return yield* sliceFromHTML(schema, html, { ...options, document })
-  })
+): Effect.fn.Return<Slice<Sc>, ModelError, HtmlEnvironment> {
+  const { document } = yield* HtmlEnvironment
+  return yield* sliceFromHTML(schema, html, { ...options, document })
+})
