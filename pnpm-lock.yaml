@@ -243,8 +243,8 @@ catalogs:
       specifier: ^1.12.6
       version: 1.12.6
     prosemirror-view:
-      specifier: ^1.42.9
-      version: 1.42.9
+      specifier: ^1.43.0
+      version: 1.43.0
     rope-sequence:
       specifier: ^1.3.4
       version: 1.3.4
@@ -354,7 +354,7 @@ importers:
         version: 1.12.6
       prosemirror-view:
         specifier: 'catalog:'
-        version: 1.42.9
+        version: 1.43.0
       tsx:
         specifier: 'catalog:'
         version: 4.23.15
@@ -2208,8 +2208,8 @@ packages:
   prosemirror-transform@1.12.6:
     resolution: {integrity: sha512-Npot0uIQTDObbDLCiw3TUc08EIT1jNcqbuadG+y5T4jT+4NN8f46AP5h/x+6wE++q7NcW8++oBvc1M0wXvFD/g==}
 
-  prosemirror-view@1.42.9:
-    resolution: {integrity: sha512-bKbfzeKZOu2H2JQU2TaJmYu6EBcor3VnGIR4jR31cbEt1ztUnfUB6bKGV1+fJzOJdrVWR+tRU0208zM3oQx4wA==}
+  prosemirror-view@1.43.0:
+    resolution: {integrity: sha512-MZOUuhD+Gv7Cp7UlgvyhptUfb920NkLBgymhyhaM8xp+JXQyLhkssS2EXZvMI3ZU3vRoz5z7mRC32udVgNYHqg==}
 
   punycode.js@2.3.1:
     resolution: {integrity: sha512-uxFIHU0YlHYhDQtV4R9J6a52SLx28BCjT+4ieh7IGbgwVJWO+km431c4yRlREUAsAmt/uMjQUyQHNEPf0M39CA==}
@@ -3935,7 +3935,7 @@ snapshots:
     dependencies:
       prosemirror-state: 1.4.4
       prosemirror-transform: 1.12.6
-      prosemirror-view: 1.42.9
+      prosemirror-view: 1.43.0
       rope-sequence: 1.3.4
 
   prosemirror-model@1.25.13:
@@ -3956,7 +3956,7 @@ snapshots:
     dependencies:
       prosemirror-model: 1.25.13
       prosemirror-transform: 1.12.6
-      prosemirror-view: 1.42.9
+      prosemirror-view: 1.43.0
 
   prosemirror-test-builder@1.1.1:
     dependencies:
@@ -3968,7 +3968,7 @@ snapshots:
     dependencies:
       prosemirror-model: 1.25.13
 
-  prosemirror-view@1.42.9:
+  prosemirror-view@1.43.0:
     dependencies:
       prosemirror-model: 1.25.13
       prosemirror-state: 1.4.4
