@@ -112,10 +112,10 @@ export default defineConfig({
       // `warn`, with the site count when added: a new site is a defect, not
       // headroom. Lower the count as sites go; delete the line at zero.
       "effect/avoid-non-null-assertion": "warn", // 1295
-      "effect/require-safety-comment-for-type-assertion": "warn", // 1023
+      "effect/require-safety-comment-for-type-assertion": "warn", // 992
       "effect/prefer-option-over-null": "warn", // 989
       "effect/imperative-loops": "warn", // 599
-      "effect/avoid-any": "warn", // 439
+      "effect/avoid-any": "warn", // 423
       "effect/no-runtime-typeof": "warn", // 77
       "effect/no-unsafe-dictionary-type": "warn", // 73
       "effect/no-unknown-parameters": "warn", // 59
@@ -124,7 +124,7 @@ export default defineConfig({
       "effect/no-known-value-widening": "warn", // 36
       "effect/effect-run-in-body": "warn", // 34
       "effect/avoid-try-catch": "warn", // 28
-      "effect/no-chained-type-assertions": "warn", // 25
+      "effect/no-chained-type-assertions": "warn", // 9
       "effect/use-clock-service": "warn", // 20
       "effect/no-unknown-returns": "warn", // 22
       // The ported suites shadow the test-builder's `doc` / `schema`.
@@ -132,8 +132,8 @@ export default defineConfig({
       // ---- Type-aware allowances (same rules as above) ---------------------
       // tsgolint's "unnecessary" verdict differs from the `check` task's tsc,
       // so remove those sites by hand, against `vp run check`, never by autofix.
-      "typescript/no-unsafe-type-assertion": "warn", // 875
-      "typescript/no-unnecessary-type-assertion": "warn", // 687
+      "typescript/no-unsafe-type-assertion": "warn", // 862
+      "typescript/no-unnecessary-type-assertion": "warn", // 686
       "typescript/no-unnecessary-type-arguments": "warn", // 54
       "effecttsgo/any-unknown-in-error-context": "warn", // 51
       "typescript/unbound-method": "warn", // 43

@@ -1373,7 +1373,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
    * Create a text node in the schema. Fails for empty strings, since
    * empty text nodes are not allowed.
    */
-  text(text: string, marks?: MarksInput<DocSchema<N, M>>): Effect.Effect<TextNode<DocSchema<N, M>>, ContentError> {
+  text(text: string, marks?: MarksInput<DocSchema<N, M>>): Effect.Effect<TextNode<this>, ContentError> {
     return attempt(
       () => this.textUnsafe(text, marks),
       (u): u is ContentError => u instanceof ContentError
@@ -1381,7 +1381,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
   }
 
   /** Like `text`, but throws a `ContentError` for empty strings. */
-  textUnsafe(text: string, marks?: ReadonlyArray<Mark<DocSchema<N, M>>> | null): TextNode<DocSchema<N, M>> {
+  textUnsafe(text: string, marks?: ReadonlyArray<Mark<DocSchema<N, M>>> | null): TextNode<this> {
     const type = this.nodes.text as NodeType<any, any>
     return new TextNode(type, type.defaultAttrs!, text, Mark.setFrom(marks)) as any
   }

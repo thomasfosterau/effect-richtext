@@ -133,7 +133,7 @@ function flatten<Sc extends AnySchema>(
       }
       out += child.slice(at)
       pos += child.length - at
-      if (out) result.push(f(schema.textUnsafe(out) as unknown as Node<Sc>))
+      if (out) result.push(f(schema.textUnsafe(out)))
     } else if (isFlat(child)) {
       const childTag = child.tag ?? noTag
       if (childTag !== noTag) {

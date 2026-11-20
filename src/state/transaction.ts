@@ -233,7 +233,7 @@ export class Transaction<Sc extends AnySchema = AnySchema> extends Transform<Sc>
     const schema = this.doc.type.schema
     if (from == null) {
       if (!text) return this.deleteSelection()
-      return this.replaceSelectionWith(schema.textUnsafe(text) as unknown as Node<Sc>, true)
+      return this.replaceSelectionWith(schema.textUnsafe(text), true)
     } else {
       if (to == null) to = from
       if (!text) return this.deleteRangeUnsafe(from, to)
@@ -242,7 +242,7 @@ export class Transaction<Sc extends AnySchema = AnySchema> extends Transform<Sc>
         const $from = this.doc.resolveUnsafe(from)
         marks = to === from ? $from.marks() : $from.marksAcrossOrNull(this.doc.resolveUnsafe(to))
       }
-      this.replaceRangeWithUnsafe(from, to, schema.textUnsafe(text, marks) as unknown as Node<Sc>)
+      this.replaceRangeWithUnsafe(from, to, schema.textUnsafe(text, marks))
       if (!this.selection.empty && this.selection.to === from + text.length) {
         this.setSelectionUnsafe(Selection.near(this.selection.$to))
       }
