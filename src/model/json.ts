@@ -82,7 +82,30 @@ export function sliceFromJSON<Sc extends AnySchema>(schema: Sc, value: any): Sli
   return Slice.fromJSONUnsafe(schema, value)
 }
 
-const NodeJSONSchema: S.Codec<NodeJSON> = S.suspend(() =>
+/**
+ * An Effect `Schema` for the JSON shape of a node, as `Node.toJSON`
+ * produces and `Node.fromJSON` reads (ProseMirror's format). It checks
+ * the structure only; `NodeFromJSON` / `DocFromJSON` also check the node
+ * types, content and attributes against a document schema. Derive a JSON
+ * Schema from it for stores and APIs that hold documents.
+ *
+ * @example
+ * ```ts
+ * import * as assert from "node:assert"
+ * import * as Schema from "effect/Schema"
+ * import { NodeJSONSchema } from "@thomasfosterau/effect-richtext/model"
+ *
+ * assert.ok(Schema.is(NodeJSONSchema)({ type: "paragraph", content: [{ type: "text", text: "Hi" }] }))
+ * assert.ok(!Schema.is(NodeJSONSchema)({ content: [] }))
+ *
+ * const document = Schema.toJsonSchemaDocument(NodeJSONSchema)
+ * assert.ok("NodeJSON" in document.definitions)
+ * ```
+ *
+ * @since 0.2.2
+ * @category schemas
+ */
+export const NodeJSONSchema: S.Codec<NodeJSON> = S.suspend(() =>
   S.Struct({
     type: S.String,
     attrs: S.optionalKey(S.Record(S.String, S.Unknown)),
@@ -96,7 +119,7 @@ const NodeJSONSchema: S.Codec<NodeJSON> = S.suspend(() =>
       )
     ),
     text: S.optionalKey(S.String)
-  })
+  }).annotate({ identifier: "NodeJSON" })
 ) as any
 
 const wrap = <A>(f: () => A): Effect.Effect<A, SchemaIssue.Issue> =>
