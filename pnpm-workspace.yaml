@@ -21,7 +21,7 @@ catalog:
   "@vitest/browser-playwright": 5.1.0
   "@vitest/coverage-istanbul": 5.1.0
   effect: 4.1.4
-  fallow: 3.43.2
+  fallow: 3.44.0
   happy-dom: ^21.0.4
   markdown-it: ^15.0.3
   playwright: ^1.65.1
