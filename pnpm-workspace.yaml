@@ -28,7 +28,7 @@ catalog:
   # The reference implementation, for the benchmarks and their parity test
   # only; never imported from `src/`.
   prosemirror-commands: ^1.7.2
-  prosemirror-history: ^1.5.1
+  prosemirror-history: ^1.5.2
   prosemirror-model: ^1.25.13
   prosemirror-schema-list: ^1.6.0
   prosemirror-state: ^1.4.4
