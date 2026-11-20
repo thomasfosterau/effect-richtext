@@ -426,13 +426,13 @@ export default defineConfig({
       // it and creates the GitHub release. Uncached, so it sees the full
       // environment; a failed publish stops before tagging.
       release: {
-        command: ["vp pm publish --access public --no-git-checks -- --ignore-scripts", "changeset git-tag"],
+        command: ["vp pm publish -r --access public --no-git-checks -- --ignore-scripts", "changeset git-tag"],
         dependsOn: ["build"],
         cache: false
       },
       // What `release` would publish, without publishing or tagging.
       "release:dry-run": {
-        command: "vp pm publish --access public --dry-run --no-git-checks -- --ignore-scripts",
+        command: "vp pm publish -r --access public --dry-run --no-git-checks -- --ignore-scripts",
         dependsOn: ["build"],
         cache: false
       }
