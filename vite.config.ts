@@ -61,7 +61,7 @@ const maxWorkers =
 const chromium = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
 
 export default defineConfig({
-  // Lint without `--fix`: tsgolint's type-assertion autofixes can break the
+  // Lint without `--fix`: tsrs's type-assertion autofixes can break the
   // `check` task's tsc. CSS, JSON and Markdown are only formatted (a lint pass
   // with no lintable file fails).
   staged: {
@@ -129,10 +129,10 @@ export default defineConfig({
       // The ported suites shadow the test-builder's `doc` / `schema`.
       "eslint/no-shadow": "warn", // 312
       // ---- Type-aware allowances (same rules as above) ---------------------
-      // tsgolint's "unnecessary" verdict differs from the `check` task's tsc,
+      // tsrs's "unnecessary" verdict differs from the `check` task's tsc,
       // so remove those sites by hand, against `vp run check`, never by autofix.
-      "typescript/no-unsafe-type-assertion": "warn", // 858
-      "typescript/no-unnecessary-type-assertion": "warn", // 685
+      "typescript/no-unsafe-type-assertion": "warn", // 861
+      "typescript/no-unnecessary-type-assertion": "warn", // 672
       "typescript/no-unnecessary-type-arguments": "warn", // 54
       "effecttsgo/any-unknown-in-error-context": "warn", // 51
       "typescript/unbound-method": "warn", // 43
@@ -390,7 +390,7 @@ export default defineConfig({
         }
       }
     ],
-    // tsgolint reads each file's nearest tsconfig.json: tests/tsconfig.json
+    // tsrs reads each file's nearest tsconfig.json: tests/tsconfig.json
     // gives the suites tsconfig.test.json's `paths`.
     options: {
       typeAware: true,
@@ -499,6 +499,12 @@ export default defineConfig({
   // One output file per source module: package.json's `sideEffects` list
   // names the modules whose top-level statements register things.
   pack: {
+    deps: {
+      // tsdown <0.23 compatibility: resolve external dependency subpaths.
+      // Remove to preserve subpath imports as written (the new default).
+      // https://tsdown.dev/options/dependencies#deps-resolvedepsubpath
+      resolveDepSubpath: true
+    },
     entry: R.fromEntries(entries.map((entry) => [entry, `src/${entry}.ts`])),
     unbundle: true,
     format: "esm",

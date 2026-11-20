@@ -10,7 +10,7 @@ Read [README.md](README.md) and [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) fir
 - **ProseMirror's ported suites are the spec.** The `compat/*` facade mirrors ProseMirror's API exactly (names, `null`, exceptions), not this repo's conventions. The core may diverge where `compat/*` can't observe it.
 - **Hot paths stay synchronous.** Don't route model, transform or view inner loops through `Effect` or a Schema decode.
 - **Type inference is API.** Widening a command's `R` to `any` or dropping an `E` is a regression even when tests pass; pin it in `tests/**/*.types.ts`.
-- **Never bulk-autofix** `typescript/no-unnecessary-type-assertion` / `-type-arguments`: tsgolint disagrees with the `check` task's tsc. Fix by hand against `vp run check`.
+- **Never bulk-autofix** `typescript/no-unnecessary-type-assertion` / `-type-arguments`: tsrs disagrees with the `check` task's tsc. Fix by hand against `vp run check`.
 - **Browser tests** need Chromium; in agent containers set `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/opt/pw-browsers/chromium`.
 
 ## Fallow

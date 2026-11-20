@@ -67,7 +67,12 @@ export function nodeFromJSON<Sc extends AnySchema>(schema: Sc, json: any): Node<
   const content = fragmentFromJSON(schema, json.content)
   const type = schema.nodes[json.type]
   if (!type) return fail("Unknown node type: " + json.type)
-  return type.createDecodedUnsafe(decodeAttrsOrFail(type.attrs, json.attrs, "node", json.type), content, marks)
+  // SAFETY: `type` was looked up in `schema`, so the node belongs to `Sc`.
+  return type.createDecodedUnsafe(
+    decodeAttrsOrFail(type.attrs, json.attrs, "node", json.type),
+    content,
+    marks
+  ) as Node<Sc>
 }
 
 /** @internal */
