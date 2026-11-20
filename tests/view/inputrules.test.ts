@@ -91,6 +91,26 @@ describe("inputRules", () => {
     ist(view.state.doc, doc(p("foo—")), eq)
   })
 
+  it.live("runs the rules again when a composition ends", () =>
+    Effect.gen(function* () {
+      const view = editor(doc(p("foo--<a>")))
+      view.dom.dispatchEvent(new CompositionEvent("compositionend"))
+      ist(view.state.doc, doc(p("foo--")), eq)
+      yield* Effect.sleep("10 millis")
+      ist(view.state.doc, doc(p("foo—")), eq)
+    })
+  )
+
+  it.live("drops the composition check when the view is destroyed first", () =>
+    Effect.gen(function* () {
+      const view = editor(doc(p("foo--<a>")))
+      view.dom.dispatchEvent(new CompositionEvent("compositionend"))
+      view.destroy()
+      yield* Effect.sleep("10 millis")
+      ist(view.state.doc, doc(p("foo--")), eq)
+    })
+  )
+
   it("converts three dots to an ellipsis", () => {
     const view = editor(doc(p("<a>")))
     type(view, "wait...")
