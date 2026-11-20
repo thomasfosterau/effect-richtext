@@ -159,7 +159,6 @@
   },
   "scripts": {
     "version": "changeset version && vp fmt && pnpm install --lockfile-only",
-    "release": "vp run build && pnpm publish --access public --no-git-checks --ignore-scripts && changeset tag",
     "prepare": "vp config && effect-tsgo patch --typescript --oxlint"
   },
   "dependencies": {
@@ -210,5 +209,5 @@
   "engines": {
     "node": ">=22"
   },
-  "packageManager": "pnpm@11.18.0"
+  "packageManager": "pnpm@12.21.0"
 }

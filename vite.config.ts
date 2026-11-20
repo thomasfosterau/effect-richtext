@@ -456,6 +456,23 @@ export default defineConfig({
         command: "bash -o pipefail -c 'docgen 2>&1 | tee /dev/stderr | { ! grep -q \"No examples found\"; }'",
         dependsOn: ["build"],
         cache: { input: cacheInputs, output: ["docs/api/**"] }
+      },
+      // The release job's publish script (.github/workflows/release.yml):
+      // pnpm publishes the version unless npm already has it, under OIDC
+      // trusted publishing; then `changeset git-tag` tags it and reports the
+      // tag to `changesets/action` through `CHANGESETS_OUTPUT`, which pushes
+      // it and creates the GitHub release. Uncached, so it sees the full
+      // environment; a failed publish stops before tagging.
+      release: {
+        command: ["vp pm publish -r --access public --no-git-checks -- --ignore-scripts", "changeset git-tag"],
+        dependsOn: ["build"],
+        cache: false
+      },
+      // What `release` would publish, without publishing or tagging.
+      "release:dry-run": {
+        command: "vp pm publish -r --access public --dry-run --no-git-checks -- --ignore-scripts",
+        dependsOn: ["build"],
+        cache: false
       }
     }
   },
