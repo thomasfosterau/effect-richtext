@@ -13,8 +13,8 @@ import {
   Priority,
   union,
   withPriority
-} from "@thomasfosterau/effect-richtext/extensions"
-import { type Command, Plugin, TextSelection, type Transaction } from "@thomasfosterau/effect-richtext/state"
+} from "@thomasfosterau/effect-richtext/Extensions"
+import { type Command, Plugin, TextSelection, type Transaction } from "@thomasfosterau/effect-richtext/State"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 import { workspace } from "./helpers.ts"

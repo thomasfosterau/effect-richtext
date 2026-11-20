@@ -1,13 +1,13 @@
 // Ported from prosemirror-schema-list/test/test-commands.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
-import { Content, DocSchema } from "@thomasfosterau/effect-richtext/model"
+import { Content, DocSchema } from "@thomasfosterau/effect-richtext/Model"
 import {
   liftListItem,
   sinkListItem,
   splitListItem,
   splitListItemKeepMarks,
   wrapInList
-} from "@thomasfosterau/effect-richtext/schema-list"
+} from "@thomasfosterau/effect-richtext/SchemaList"
 import {
   blockquote,
   builders,
@@ -19,7 +19,7 @@ import {
   schema,
   strong,
   ul
-} from "@thomasfosterau/effect-richtext/test-builder"
+} from "@thomasfosterau/effect-richtext/TestBuilder"
 import { apply, mkState, run } from "../commands/apply.ts"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"

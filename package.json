@@ -31,87 +31,91 @@
   ],
   "type": "module",
   "sideEffects": [
-    "./dist/test-builder.js",
-    "./dist/gapcursor.js",
+    "./dist/TestBuilder.js",
+    "./dist/GapCursor.js",
     "./dist/compat/*.js"
   ],
   "exports": {
     "./package.json": "./package.json",
-    "./model": {
-      "types": "./dist/model.d.ts",
-      "default": "./dist/model.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     },
-    "./transform": {
-      "types": "./dist/transform.d.ts",
-      "default": "./dist/transform.js"
+    "./Commands": {
+      "types": "./dist/Commands.d.ts",
+      "default": "./dist/Commands.js"
     },
-    "./state": {
-      "types": "./dist/state.d.ts",
-      "default": "./dist/state.js"
+    "./DropCursor": {
+      "types": "./dist/DropCursor.d.ts",
+      "default": "./dist/DropCursor.js"
     },
-    "./view": {
-      "types": "./dist/view.d.ts",
-      "default": "./dist/view.js"
+    "./Extensions": {
+      "types": "./dist/Extensions.d.ts",
+      "default": "./dist/Extensions.js"
     },
-    "./view-css": {
-      "types": "./dist/view-css.d.ts",
-      "default": "./dist/view-css.js"
+    "./GapCursor": {
+      "types": "./dist/GapCursor.d.ts",
+      "default": "./dist/GapCursor.js"
     },
-    "./keymap": {
-      "types": "./dist/keymap.d.ts",
-      "default": "./dist/keymap.js"
+    "./History": {
+      "types": "./dist/History.d.ts",
+      "default": "./dist/History.js"
     },
-    "./commands": {
-      "types": "./dist/commands.d.ts",
-      "default": "./dist/commands.js"
+    "./Html": {
+      "types": "./dist/Html.d.ts",
+      "default": "./dist/Html.js"
     },
-    "./history": {
-      "types": "./dist/history.d.ts",
-      "default": "./dist/history.js"
+    "./InputRules": {
+      "types": "./dist/InputRules.d.ts",
+      "default": "./dist/InputRules.js"
     },
-    "./inputrules": {
-      "types": "./dist/inputrules.d.ts",
-      "default": "./dist/inputrules.js"
+    "./Keymap": {
+      "types": "./dist/Keymap.d.ts",
+      "default": "./dist/Keymap.js"
     },
-    "./gapcursor": {
-      "types": "./dist/gapcursor.d.ts",
-      "default": "./dist/gapcursor.js"
+    "./Markdown": {
+      "types": "./dist/Markdown.d.ts",
+      "default": "./dist/Markdown.js"
     },
-    "./dropcursor": {
-      "types": "./dist/dropcursor.d.ts",
-      "default": "./dist/dropcursor.js"
+    "./Model": {
+      "types": "./dist/Model.d.ts",
+      "default": "./dist/Model.js"
     },
-    "./schema-basic": {
-      "types": "./dist/schema-basic.d.ts",
-      "default": "./dist/schema-basic.js"
+    "./Placeholder": {
+      "types": "./dist/Placeholder.d.ts",
+      "default": "./dist/Placeholder.js"
     },
-    "./schema-list": {
-      "types": "./dist/schema-list.d.ts",
-      "default": "./dist/schema-list.js"
+    "./Reactive": {
+      "types": "./dist/Reactive.d.ts",
+      "default": "./dist/Reactive.js"
     },
-    "./markdown": {
-      "types": "./dist/markdown.d.ts",
-      "default": "./dist/markdown.js"
+    "./SchemaBasic": {
+      "types": "./dist/SchemaBasic.d.ts",
+      "default": "./dist/SchemaBasic.js"
     },
-    "./test-builder": {
-      "types": "./dist/test-builder.d.ts",
-      "default": "./dist/test-builder.js"
+    "./SchemaList": {
+      "types": "./dist/SchemaList.d.ts",
+      "default": "./dist/SchemaList.js"
     },
-    "./html": {
-      "types": "./dist/html.d.ts",
-      "default": "./dist/html.js"
+    "./State": {
+      "types": "./dist/State.d.ts",
+      "default": "./dist/State.js"
     },
-    "./placeholder": {
-      "types": "./dist/placeholder.d.ts",
-      "default": "./dist/placeholder.js"
+    "./TestBuilder": {
+      "types": "./dist/TestBuilder.d.ts",
+      "default": "./dist/TestBuilder.js"
     },
-    "./reactive": {
-      "types": "./dist/reactive.d.ts",
-      "default": "./dist/reactive.js"
+    "./Transform": {
+      "types": "./dist/Transform.d.ts",
+      "default": "./dist/Transform.js"
     },
-    "./extensions": {
-      "types": "./dist/extensions.d.ts",
-      "default": "./dist/extensions.js"
+    "./View": {
+      "types": "./dist/View.d.ts",
+      "default": "./dist/View.js"
+    },
+    "./ViewCss": {
+      "types": "./dist/ViewCss.d.ts",
+      "default": "./dist/ViewCss.js"
     },
     "./compat/model": {
       "types": "./dist/compat/model.d.ts",
@@ -152,6 +156,82 @@
     "./compat/orderedmap": {
       "types": "./dist/compat/orderedmap.d.ts",
       "default": "./dist/compat/orderedmap.js"
+    },
+    "./commands": {
+      "types": "./dist/Commands.d.ts",
+      "default": "./dist/Commands.js"
+    },
+    "./dropcursor": {
+      "types": "./dist/DropCursor.d.ts",
+      "default": "./dist/DropCursor.js"
+    },
+    "./extensions": {
+      "types": "./dist/Extensions.d.ts",
+      "default": "./dist/Extensions.js"
+    },
+    "./gapcursor": {
+      "types": "./dist/GapCursor.d.ts",
+      "default": "./dist/GapCursor.js"
+    },
+    "./history": {
+      "types": "./dist/History.d.ts",
+      "default": "./dist/History.js"
+    },
+    "./html": {
+      "types": "./dist/Html.d.ts",
+      "default": "./dist/Html.js"
+    },
+    "./inputrules": {
+      "types": "./dist/InputRules.d.ts",
+      "default": "./dist/InputRules.js"
+    },
+    "./keymap": {
+      "types": "./dist/Keymap.d.ts",
+      "default": "./dist/Keymap.js"
+    },
+    "./markdown": {
+      "types": "./dist/Markdown.d.ts",
+      "default": "./dist/Markdown.js"
+    },
+    "./model": {
+      "types": "./dist/Model.d.ts",
+      "default": "./dist/Model.js"
+    },
+    "./placeholder": {
+      "types": "./dist/Placeholder.d.ts",
+      "default": "./dist/Placeholder.js"
+    },
+    "./reactive": {
+      "types": "./dist/Reactive.d.ts",
+      "default": "./dist/Reactive.js"
+    },
+    "./schema-basic": {
+      "types": "./dist/SchemaBasic.d.ts",
+      "default": "./dist/SchemaBasic.js"
+    },
+    "./schema-list": {
+      "types": "./dist/SchemaList.d.ts",
+      "default": "./dist/SchemaList.js"
+    },
+    "./state": {
+      "types": "./dist/State.d.ts",
+      "default": "./dist/State.js"
+    },
+    "./test-builder": {
+      "types": "./dist/TestBuilder.d.ts",
+      "default": "./dist/TestBuilder.js"
+    },
+    "./transform": {
+      "types": "./dist/Transform.d.ts",
+      "default": "./dist/Transform.js"
+    },
+    "./view": {
+      "types": "./dist/View.d.ts",
+      "default": "./dist/View.js"
+    },
+    "./view-css": {
+      "types": "./dist/ViewCss.d.ts",
+      "default": "./dist/ViewCss.js"
     }
   },
   "publishConfig": {

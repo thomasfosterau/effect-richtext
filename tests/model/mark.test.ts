@@ -5,8 +5,8 @@ import * as Equal from "effect/Equal"
 import * as Hash from "effect/Hash"
 import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
-import { Content, DocSchema, Mark, type Node } from "@thomasfosterau/effect-richtext/model"
-import { a, doc, em, p, schema, tagsOf } from "@thomasfosterau/effect-richtext/test-builder"
+import { Content, DocSchema, Mark, type Node } from "@thomasfosterau/effect-richtext/Model"
+import { a, doc, em, p, schema, tagsOf } from "@thomasfosterau/effect-richtext/TestBuilder"
 import ist from "../utils/ist.ts"
 
 const em_ = schema.markUnsafe("em")

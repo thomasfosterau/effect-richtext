@@ -5,7 +5,7 @@
  *
  * @internal
  */
-import { AllSelection, type EditorState, NodeSelection, Selection, TextSelection } from "../state.ts"
+import { AllSelection, type EditorState, NodeSelection, Selection, TextSelection } from "../State.ts"
 import * as browser from "./browser.ts"
 import * as Arr from "effect/Array"
 import * as Option from "effect/Option"

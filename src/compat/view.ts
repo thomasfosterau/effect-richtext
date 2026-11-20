@@ -1,5 +1,5 @@
 /**
- * A `prosemirror-view`-compatible facade over `@thomasfosterau/effect-richtext/view`.
+ * A `prosemirror-view`-compatible facade over `@thomasfosterau/effect-richtext/View`.
  *
  * `new EditorView(place, props)` creates a core view with
  * `EditorView.makeUnsafe`, translating the ProseMirror-style props
@@ -11,7 +11,7 @@
  * @since 0.1.0
  */
 import * as Option from "effect/Option"
-import * as V from "../view.ts"
+import * as V from "../View.ts"
 import { DecorationGroup as CoreDecorationGroup } from "../view/decoration.ts"
 import { adopt, CORE, guard, link, registerWrapper, unwrap, unwrapArray, wrap, wrapArray } from "./internal/core.ts"
 import { type PropsCache, propsToCore } from "./internal/props.ts"

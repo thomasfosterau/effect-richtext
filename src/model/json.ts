@@ -93,7 +93,7 @@ export function sliceFromJSON<Sc extends AnySchema>(schema: Sc, value: any): Sli
  * ```ts
  * import * as assert from "node:assert"
  * import * as Schema from "effect/Schema"
- * import { NodeJSONSchema } from "@thomasfosterau/effect-richtext/model"
+ * import { NodeJSONSchema } from "@thomasfosterau/effect-richtext/Model"
  *
  * assert.ok(Schema.is(NodeJSONSchema)({ type: "paragraph", content: [{ type: "text", text: "Hi" }] }))
  * assert.ok(!Schema.is(NodeJSONSchema)({ content: [] }))
@@ -139,8 +139,8 @@ const wrap = <A>(f: () => A): Effect.Effect<A, SchemaIssue.Issue> =>
  * import * as assert from "node:assert"
  * import * as Effect from "effect/Effect"
  * import * as Schema from "effect/Schema"
- * import { NodeFromJSON } from "@thomasfosterau/effect-richtext/model"
- * import { schema } from "@thomasfosterau/effect-richtext/schema-basic"
+ * import { NodeFromJSON } from "@thomasfosterau/effect-richtext/Model"
+ * import { schema } from "@thomasfosterau/effect-richtext/SchemaBasic"
  *
  * const codec = NodeFromJSON(schema)
  * const json = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Hi" }] }] }

@@ -9,7 +9,7 @@ import * as Arr from "effect/Array"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import RopeSequence from "rope-sequence"
-import type { AnySchema } from "./model.ts"
+import type { AnySchema } from "./Model.ts"
 import {
   type Dispatch,
   type EditorState,
@@ -18,8 +18,8 @@ import {
   PluginKey,
   type SelectionBookmark,
   type Transaction
-} from "./state.ts"
-import { Mapping, type Step, type StepMap, type Transform } from "./transform.ts"
+} from "./State.ts"
+import { Mapping, type Step, type StepMap, type Transform } from "./Transform.ts"
 
 // ProseMirror's history isn't simply a way to roll back to a previous
 // state, because ProseMirror supports applying changes without adding
@@ -572,9 +572,9 @@ export type HistoryCommand = <Sc extends AnySchema>(
  * ```ts
  * import * as assert from "node:assert"
  * import * as Effect from "effect/Effect"
- * import { history, redo, undo } from "@thomasfosterau/effect-richtext/history"
- * import { EditorState, type Transaction } from "@thomasfosterau/effect-richtext/state"
- * import { doc, p, schema } from "@thomasfosterau/effect-richtext/test-builder"
+ * import { history, redo, undo } from "@thomasfosterau/effect-richtext/History"
+ * import { EditorState, type Transaction } from "@thomasfosterau/effect-richtext/State"
+ * import { doc, p, schema } from "@thomasfosterau/effect-richtext/TestBuilder"
  *
  * let state = EditorState.createUnsafe({ schema, doc: doc(p("")), plugins: [history()] })
  * const dispatch = (tr: Transaction<typeof schema>) =>

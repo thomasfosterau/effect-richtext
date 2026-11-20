@@ -8,7 +8,7 @@ import * as Effect from "effect/Effect"
 import * as Predicate from "effect/Predicate"
 import * as Option from "effect/Option"
 import type * as Scope from "effect/Scope"
-import { fromHTMLUnsafe } from "../html.ts"
+import { fromHTMLUnsafe } from "../Html.ts"
 import { attempt } from "../internal/attempt.ts"
 import {
   type Attrs,
@@ -29,7 +29,7 @@ import {
   type NodeSpecOf,
   type SchemaDefinitionError,
   type TextNode
-} from "../model.ts"
+} from "../Model.ts"
 import {
   type AnyPlugin,
   type Command,
@@ -41,9 +41,9 @@ import {
   StateError,
   type StateFailure,
   type Transaction
-} from "../state.ts"
+} from "../State.ts"
 import { runSyncUnsafe } from "../state/state.ts"
-import { type DirectEditorProps, EditorView, type ViewPlace } from "../view.ts"
+import { type DirectEditorProps, EditorView, type ViewPlace } from "../View.ts"
 import {
   type CommandCreator,
   type CommandSignature,

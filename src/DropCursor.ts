@@ -8,9 +8,9 @@
 // Ported from prosemirror-dropcursor (MIT, Marijn Haverbeke and others)
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
-import { type EditorState, Plugin, type PluginView } from "./state.ts"
-import { dropPoint } from "./transform.ts"
-import type { EditorView, PosAtCoords } from "./view.ts"
+import { type EditorState, Plugin, type PluginView } from "./State.ts"
+import { dropPoint } from "./Transform.ts"
+import type { EditorView, PosAtCoords } from "./View.ts"
 
 /**
  * Options for `dropCursor`.

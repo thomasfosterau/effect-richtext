@@ -23,7 +23,7 @@ import {
   type NodeType,
   type PositionError,
   Slice
-} from "../model.ts"
+} from "../Model.ts"
 import { AttrStep, DocAttrStep } from "./attr_step.ts"
 import { isTransformOrModelError, type StepError, TransformError } from "./errors.ts"
 import { Mapping } from "./map.ts"
@@ -79,8 +79,8 @@ export type StructureFailure = TransformError | StepError | PositionError | Attr
  * @example
  * ```ts
  * import * as assert from "node:assert"
- * import { ReplaceStep, Transform } from "@thomasfosterau/effect-richtext/transform"
- * import { doc, p, schema, strong } from "@thomasfosterau/effect-richtext/test-builder"
+ * import { ReplaceStep, Transform } from "@thomasfosterau/effect-richtext/Transform"
+ * import { doc, p, schema, strong } from "@thomasfosterau/effect-richtext/TestBuilder"
  *
  * const tr = new Transform(doc(p("Hello world")))
  * tr.insertUnsafe(6, schema.textUnsafe(","))

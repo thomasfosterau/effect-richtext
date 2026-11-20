@@ -26,7 +26,7 @@ import {
   type Node,
   type ParseOptions,
   type Slice
-} from "./model.ts"
+} from "./Model.ts"
 
 /**
  * Raised (as a defect) when no DOM `document` is available: neither one
@@ -107,8 +107,8 @@ const resolveDocument = (document: Document | undefined): Document => {
  * ```ts
  * import * as assert from "node:assert"
  * import { Window } from "happy-dom"
- * import { fromHTMLUnsafe, toHTML } from "@thomasfosterau/effect-richtext/html"
- * import { doc, p, schema, strong } from "@thomasfosterau/effect-richtext/test-builder"
+ * import { fromHTMLUnsafe, toHTML } from "@thomasfosterau/effect-richtext/Html"
+ * import { doc, p, schema, strong } from "@thomasfosterau/effect-richtext/TestBuilder"
  *
  * // Outside a browser, pass a DOM `document` (here from happy-dom).
  * const document = new Window().document as unknown as Document

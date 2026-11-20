@@ -14,7 +14,7 @@ import {
   type NodeType,
   type ResolvedPos,
   Slice
-} from "../model.ts"
+} from "../Model.ts"
 import { ReplaceAroundStep, ReplaceStep } from "./replace_step.ts"
 import type { Step } from "./step.ts"
 import { insertPointOrNull } from "./structure.ts"

@@ -11,7 +11,7 @@ import * as S from "effect/Schema"
 import * as SchemaGetter from "effect/SchemaGetter"
 import * as SchemaIssue from "effect/SchemaIssue"
 import { attempt } from "../internal/attempt.ts"
-import { type AnySchema, isModelError, JSONError, type ModelError, type Node, type Slice } from "../model.ts"
+import { type AnySchema, isModelError, JSONError, type ModelError, type Node, type Slice } from "../Model.ts"
 import { StepError, TransformError } from "./errors.ts"
 import { type Mappable, StepMap } from "./map.ts"
 

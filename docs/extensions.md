@@ -1,6 +1,6 @@
 # Extensions
 
-`@thomasfosterau/effect-richtext/extensions` is a composition layer on top of the core, in the style of ProseKit and TipTap. It is additive (no core module imports it) and unopinionated: no UI, no styling, no required node set.
+`@thomasfosterau/effect-richtext/Extensions` is a composition layer on top of the core, in the style of ProseKit and TipTap. It is additive (no core module imports it) and unopinionated: no UI, no styling, no required node set.
 
 An extension is an immutable tree of facets: nodes, marks, plugins, keymaps and commands. `union` merges extensions, and `createEditor` turns one into an editor whose commands, node builders and requirements are all typed from what the extension declares.
 
@@ -8,7 +8,7 @@ An extension is an immutable tree of facets: nodes, marks, plugins, keymaps and 
 
 ```ts
 import { Effect } from "effect"
-import { createEditor, defineBasicExtension } from "@thomasfosterau/effect-richtext/extensions"
+import { createEditor, defineBasicExtension } from "@thomasfosterau/effect-richtext/Extensions"
 
 const mountBasicEditor = Effect.fn("mountBasicEditor")(function* (place: HTMLElement) {
   const editor = yield* createEditor(defineBasicExtension())
@@ -25,8 +25,8 @@ const mountBasicEditor = Effect.fn("mountBasicEditor")(function* (place: HTMLEle
 
 ```ts
 import { Effect } from "effect"
-import { createEditor, defineBasicExtension, defineCommands, union } from "@thomasfosterau/effect-richtext/extensions"
-import type { Command } from "@thomasfosterau/effect-richtext/state"
+import { createEditor, defineBasicExtension, defineCommands, union } from "@thomasfosterau/effect-richtext/Extensions"
+import type { Command } from "@thomasfosterau/effect-richtext/State"
 
 const extension = union(
   defineBasicExtension(),

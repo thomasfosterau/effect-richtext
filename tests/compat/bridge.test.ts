@@ -35,9 +35,9 @@ import {
   Transform,
   TransformError
 } from "@thomasfosterau/effect-richtext/compat/transform"
-import * as CoreModel from "@thomasfosterau/effect-richtext/model"
-import * as CoreState from "@thomasfosterau/effect-richtext/state"
-import * as CoreTransform from "@thomasfosterau/effect-richtext/transform"
+import * as CoreModel from "@thomasfosterau/effect-richtext/Model"
+import * as CoreState from "@thomasfosterau/effect-richtext/State"
+import * as CoreTransform from "@thomasfosterau/effect-richtext/Transform"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 

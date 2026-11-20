@@ -9,7 +9,7 @@
  * @since 0.1.0
  */
 import * as S from "effect/Schema"
-import { Content, DocSchema, type DOMOutputSpec, markSpec, nodeSpec } from "./model.ts"
+import { Content, DocSchema, type DOMOutputSpec, markSpec, nodeSpec } from "./Model.ts"
 
 const pDOM: DOMOutputSpec = ["p", 0],
   blockquoteDOM: DOMOutputSpec = ["blockquote", 0],
@@ -228,7 +228,7 @@ export const marks = {
  * @example
  * ```ts
  * import * as assert from "node:assert"
- * import { schema } from "@thomasfosterau/effect-richtext/schema-basic"
+ * import { schema } from "@thomasfosterau/effect-richtext/SchemaBasic"
  *
  * const heading = schema.nodeUnsafe("heading", { level: 3 }, [schema.textUnsafe("Title", [schema.markUnsafe("em")])])
  * const doc = schema.nodeUnsafe("doc", null, [heading])

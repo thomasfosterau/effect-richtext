@@ -4,7 +4,7 @@
  * @internal
  */
 import * as Option from "effect/Option"
-import { type ContentMatch, Fragment, type Mark, MarkType, type NodeType, Slice, type TextNode } from "../model.ts"
+import { type ContentMatch, Fragment, type Mark, MarkType, type NodeType, Slice, type TextNode } from "../Model.ts"
 import { pushMarkStep } from "./mark_set_step.ts"
 import { AddMarkStep, RemoveMarkStep } from "./mark_step.ts"
 import { ReplaceStep } from "./replace_step.ts"

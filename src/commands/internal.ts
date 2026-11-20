@@ -4,8 +4,8 @@
  * @internal
  */
 import * as Effect from "effect/Effect"
-import type { AnySchema } from "../model.ts"
-import type { Command, Dispatch, EditorState, EditorViewLike, Transaction } from "../state.ts"
+import type { AnySchema } from "../Model.ts"
+import type { Command, Dispatch, EditorState, EditorViewLike, Transaction } from "../State.ts"
 
 /** @internal */
 export const succeedTrue: Effect.Effect<boolean> = Effect.succeed(true)

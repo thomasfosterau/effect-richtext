@@ -2,7 +2,7 @@
 import { assert, describe, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
-import { blockquote, doc, em, p } from "@thomasfosterau/effect-richtext/test-builder"
+import { blockquote, doc, em, p } from "@thomasfosterau/effect-richtext/TestBuilder"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 

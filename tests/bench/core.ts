@@ -15,10 +15,10 @@ import {
   splitBlock,
   toggleMark,
   wrapIn
-} from "@thomasfosterau/effect-richtext/commands"
-import { history, redo, undo } from "@thomasfosterau/effect-richtext/history"
-import type { Mark, Node } from "@thomasfosterau/effect-richtext/model"
-import { liftListItem, sinkListItem } from "@thomasfosterau/effect-richtext/schema-list"
+} from "@thomasfosterau/effect-richtext/Commands"
+import { history, redo, undo } from "@thomasfosterau/effect-richtext/History"
+import type { Mark, Node } from "@thomasfosterau/effect-richtext/Model"
+import { liftListItem, sinkListItem } from "@thomasfosterau/effect-richtext/SchemaList"
 import {
   type Command,
   EditorState,
@@ -26,10 +26,10 @@ import {
   type PluginSpec,
   TextSelection,
   type Transaction
-} from "@thomasfosterau/effect-richtext/state"
-import { schema } from "@thomasfosterau/effect-richtext/test-builder"
-import { Mapping, type Step, Transform } from "@thomasfosterau/effect-richtext/transform"
-import { Decoration, DecorationSet } from "@thomasfosterau/effect-richtext/view"
+} from "@thomasfosterau/effect-richtext/State"
+import { schema } from "@thomasfosterau/effect-richtext/TestBuilder"
+import { Mapping, type Step, Transform } from "@thomasfosterau/effect-richtext/Transform"
+import { Decoration, DecorationSet } from "@thomasfosterau/effect-richtext/View"
 import type { Lib, StatePluginSpec, Types } from "./lib.ts"
 import { shared } from "./shared.ts"
 

@@ -8,7 +8,7 @@ import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
 import * as Option from "effect/Option"
 import * as Result from "effect/Result"
-import type { AnySchema, Mark, MarkJSON, ModelError, Node, NodeJSON } from "../model.ts"
+import type { AnySchema, Mark, MarkJSON, ModelError, Node, NodeJSON } from "../Model.ts"
 import { type SelectionError, StateError } from "./errors.ts"
 import type { AnyPlugin, Plugin, PluginErrors, PluginRequirements, StateField } from "./plugin.ts"
 import { Selection, type SelectionJSON, type TextSelection } from "./selection.ts"
@@ -291,8 +291,8 @@ export type EditorStateTypeId = typeof EditorStateTypeId
  * ```ts
  * import * as assert from "node:assert"
  * import * as Effect from "effect/Effect"
- * import { EditorState } from "@thomasfosterau/effect-richtext/state"
- * import { doc, p, schema } from "@thomasfosterau/effect-richtext/test-builder"
+ * import { EditorState } from "@thomasfosterau/effect-richtext/State"
+ * import { doc, p, schema } from "@thomasfosterau/effect-richtext/TestBuilder"
  *
  * const program = Effect.gen(function* () {
  *   const state = yield* EditorState.create({ schema, doc: doc(p("Hello")) })

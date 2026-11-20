@@ -9,7 +9,7 @@
  */
 import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
-import { type AnySchema, JSONError, type Mark, type Node } from "../model.ts"
+import { type AnySchema, JSONError, type Mark, type Node } from "../Model.ts"
 import type { Mappable } from "./map.ts"
 import type { AddMarkStep, RemoveMarkStep } from "./mark_step.ts"
 import { Step, type StepJSON, StepResult } from "./step.ts"

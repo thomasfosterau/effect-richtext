@@ -4,7 +4,7 @@
  * structure they use, so `core.ts` and `prosemirror.ts` spread one copy.
  */
 import * as Option from "effect/Option"
-import type { NodeJSON } from "@thomasfosterau/effect-richtext/model"
+import type { NodeJSON } from "@thomasfosterau/effect-richtext/Model"
 
 interface Sized {
   readonly content: { readonly size: number }

@@ -13,7 +13,7 @@ import {
   type Node,
   NodeFromJSON,
   type NodeSpecs
-} from "@thomasfosterau/effect-richtext/model"
+} from "@thomasfosterau/effect-richtext/Model"
 import {
   a,
   blockquote,
@@ -30,7 +30,7 @@ import {
   strong,
   tagsOf,
   ul
-} from "@thomasfosterau/effect-richtext/test-builder"
+} from "@thomasfosterau/effect-richtext/TestBuilder"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 import { jsonRoundTrip, showJson } from "../utils/json.ts"

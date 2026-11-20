@@ -4,7 +4,7 @@
  * @since 0.1.0
  */
 import * as Predicate from "effect/Predicate"
-import type { Command } from "../state.ts"
+import type { Command } from "../State.ts"
 import {
   chainCommands,
   createParagraphNear,
@@ -24,7 +24,7 @@ import {
 
 /**
  * A keymap: commands keyed by key name (`"Mod-b"`, `"Enter"`), as the base
- * keymaps below and `keymap(...)` from `@thomasfosterau/effect-richtext/keymap` use them.
+ * keymaps below and `keymap(...)` from `@thomasfosterau/effect-richtext/Keymap` use them.
  *
  * @since 0.1.0
  * @category models

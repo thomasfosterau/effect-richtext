@@ -5,7 +5,7 @@
  */
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
-import { type AnySchema, Fragment, JSONError, Mark, type Node, Slice } from "../model.ts"
+import { type AnySchema, Fragment, JSONError, Mark, type Node, Slice } from "../Model.ts"
 import type { Mappable } from "./map.ts"
 import { markStepGroup, pushMarkStep } from "./mark_set_step.ts"
 import { Step, type StepJSON, StepResult } from "./step.ts"

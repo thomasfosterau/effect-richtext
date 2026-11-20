@@ -9,8 +9,8 @@ import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
 import type * as Scope from "effect/Scope"
 import * as Semaphore from "effect/Semaphore"
-import type { AnySchema } from "../model.ts"
-import type { Command, Dispatch, EditorState, StateFailure, Transaction } from "../state.ts"
+import type { AnySchema } from "../Model.ts"
+import type { Command, Dispatch, EditorState, StateFailure, Transaction } from "../State.ts"
 import { type EditorStreams, acquireSource, streamsOf, publishTransactions, setState } from "./streams.ts"
 
 /**

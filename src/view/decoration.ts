@@ -6,9 +6,9 @@
  */
 import * as Arr from "effect/Array"
 import type * as Order from "effect/Order"
-import type { Fragment, Mark, Node } from "../model.ts"
-import type { EditorState } from "../state.ts"
-import type { Mappable, Mapping } from "../transform.ts"
+import type { Fragment, Mark, Node } from "../Model.ts"
+import type { EditorState } from "../State.ts"
+import type { Mappable, Mapping } from "../Transform.ts"
 import type { DOMNode } from "./dom.ts"
 import type { EditorView } from "./view.ts"
 

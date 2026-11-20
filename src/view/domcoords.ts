@@ -4,7 +4,7 @@
  *
  * @internal
  */
-import type { EditorState } from "../state.ts"
+import type { EditorState } from "../State.ts"
 import * as browser from "./browser.ts"
 import { caretFromPoint, type DOMNode, nodeSize, parentNode, textRange } from "./dom.ts"
 import type { EditorView } from "./view.ts"

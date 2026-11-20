@@ -24,9 +24,9 @@ import {
   splitBlockKeepMarks,
   toggleMark,
   wrapIn
-} from "@thomasfosterau/effect-richtext/commands"
-import { Content, DocSchema, type Node } from "@thomasfosterau/effect-richtext/model"
-import { EditorState, Selection } from "@thomasfosterau/effect-richtext/state"
+} from "@thomasfosterau/effect-richtext/Commands"
+import { Content, DocSchema, type Node } from "@thomasfosterau/effect-richtext/Model"
+import { EditorState, Selection } from "@thomasfosterau/effect-richtext/State"
 import {
   blockquote,
   builders,
@@ -42,7 +42,7 @@ import {
   schema,
   strong,
   ul
-} from "@thomasfosterau/effect-richtext/test-builder"
+} from "@thomasfosterau/effect-richtext/TestBuilder"
 import ist from "../utils/ist.ts"
 import { apply, mkState, run } from "./apply.ts"
 import { getSome } from "../utils/option.ts"

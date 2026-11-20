@@ -5,8 +5,8 @@
  * @internal
  */
 import * as Option from "effect/Option"
-import type { ResolvedPos } from "../model.ts"
-import { NodeSelection, Selection, TextSelection } from "../state.ts"
+import type { ResolvedPos } from "../Model.ts"
+import { NodeSelection, Selection, TextSelection } from "../State.ts"
 import * as browser from "./browser.ts"
 import { domIndex, type DOMSelectionRange, isElt, isEquivalentPosition, isOnEdge, selectionCollapsed } from "./dom.ts"
 import type { EditorView } from "./view.ts"

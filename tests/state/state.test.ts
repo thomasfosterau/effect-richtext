@@ -5,7 +5,7 @@ import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
 import * as Str from "effect/String"
-import type { AnySchema } from "@thomasfosterau/effect-richtext/model"
+import type { AnySchema } from "@thomasfosterau/effect-richtext/Model"
 import {
   type Command,
   EditorState,
@@ -14,8 +14,8 @@ import {
   type StateError,
   TextSelection,
   type Transaction
-} from "@thomasfosterau/effect-richtext/state"
-import { doc, eq, p, schema } from "@thomasfosterau/effect-richtext/test-builder"
+} from "@thomasfosterau/effect-richtext/State"
+import { doc, eq, p, schema } from "@thomasfosterau/effect-richtext/TestBuilder"
 import ist from "../utils/ist.ts"
 import { TestState } from "./state.ts"
 import { getSome } from "../utils/option.ts"

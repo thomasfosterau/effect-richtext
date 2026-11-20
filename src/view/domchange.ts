@@ -14,8 +14,8 @@ import {
   type Node,
   type ResolvedPos,
   type TagParseRule
-} from "../model.ts"
-import { type Selection, TextSelection, type Transaction } from "../state.ts"
+} from "../Model.ts"
+import { type Selection, TextSelection, type Transaction } from "../State.ts"
 import * as browser from "./browser.ts"
 import { type DOMNode, selectionCollapsed } from "./dom.ts"
 import { dispatchKey } from "./input.ts"

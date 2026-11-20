@@ -24,10 +24,10 @@ import {
   Priority,
   union,
   withPriority
-} from "@thomasfosterau/effect-richtext/extensions"
-import { undoDepth } from "@thomasfosterau/effect-richtext/history"
-import { Content } from "@thomasfosterau/effect-richtext/model"
-import { type Command, Plugin, TextSelection, Transaction } from "@thomasfosterau/effect-richtext/state"
+} from "@thomasfosterau/effect-richtext/Extensions"
+import { undoDepth } from "@thomasfosterau/effect-richtext/History"
+import { Content } from "@thomasfosterau/effect-richtext/Model"
+import { type Command, Plugin, TextSelection, Transaction } from "@thomasfosterau/effect-richtext/State"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 

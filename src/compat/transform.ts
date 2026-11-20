@@ -1,6 +1,6 @@
 /**
  * A `prosemirror-transform`-compatible facade over
- * `@thomasfosterau/effect-richtext/transform`.
+ * `@thomasfosterau/effect-richtext/Transform`.
  *
  * `Step` can be subclassed exactly like ProseMirror's: a subclass of
  * the facade `Step` is adapted into a core step (see `toCore`), so
@@ -13,10 +13,10 @@
  * @since 0.1.0
  */
 import * as Option from "effect/Option"
-import type * as M from "../model.ts"
-import { isModelError } from "../model.ts"
-import * as T from "../transform.ts"
-import { type Mappable, MapResult, StepMap } from "../transform.ts"
+import type * as M from "../Model.ts"
+import { isModelError } from "../Model.ts"
+import * as T from "../Transform.ts"
+import { type Mappable, MapResult, StepMap } from "../Transform.ts"
 import { MarkSetStep as CoreMarkSetStep } from "../transform/mark_set_step.ts"
 import {
   adopt,

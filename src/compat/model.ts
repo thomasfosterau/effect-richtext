@@ -1,5 +1,5 @@
 /**
- * A `prosemirror-model`-compatible facade over `@thomasfosterau/effect-richtext/model`.
+ * A `prosemirror-model`-compatible facade over `@thomasfosterau/effect-richtext/Model`.
  *
  * The classes exported here have the API of their ProseMirror
  * counterparts (nullable results instead of `Option`, exceptions
@@ -14,7 +14,7 @@
  * @since 0.1.0
  */
 import * as Option from "effect/Option"
-import * as M from "../model.ts"
+import * as M from "../Model.ts"
 import {
   adopt,
   CORE,

@@ -16,8 +16,8 @@ import {
   type NodeNames,
   type TagParseRule,
   type TextNode
-} from "../model.ts"
-import { TextSelection } from "../state.ts"
+} from "../Model.ts"
+import { TextSelection } from "../State.ts"
 import * as browser from "./browser.ts"
 import type { Decoration, DecorationSource, NodeType, WidgetConstructor, WidgetType } from "./decoration.ts"
 import { domIndex, type DOMNode, isElt, isEquivalentPosition } from "./dom.ts"

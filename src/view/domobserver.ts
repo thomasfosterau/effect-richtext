@@ -4,7 +4,7 @@
  *
  * @internal
  */
-import { Selection } from "../state.ts"
+import { Selection } from "../State.ts"
 import * as browser from "./browser.ts"
 import {
   domIndex,

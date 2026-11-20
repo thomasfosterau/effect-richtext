@@ -9,7 +9,7 @@
  *
  * ```ts
  * import * as assert from "node:assert"
- * import { Content } from "@thomasfosterau/effect-richtext/model"
+ * import { Content } from "@thomasfosterau/effect-richtext/Model"
  *
  * // A `ContentExpr<"heading" | "block">`
  * const expr = Content.seq("heading", Content.zeroOrMore("block"))
@@ -21,7 +21,7 @@
  *
  * ```ts
  * import * as assert from "node:assert"
- * import { Content } from "@thomasfosterau/effect-richtext/model"
+ * import { Content } from "@thomasfosterau/effect-richtext/Model"
  *
  * assert.strictEqual(Content.format(Content.parse("paragraph+")), "paragraph+")
  * ```

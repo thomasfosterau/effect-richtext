@@ -1,4 +1,4 @@
-// Tests for @thomasfosterau/effect-richtext/reactive with a real view, and for the
+// Tests for @thomasfosterau/effect-richtext/Reactive with a real view, and for the
 // view's `subscribe` listener hook.
 import { assert, describe, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
@@ -6,19 +6,19 @@ import * as Exit from "effect/Exit"
 import * as Fiber from "effect/Fiber"
 import * as Option from "effect/Option"
 import * as Scope from "effect/Scope"
-import { baseKeymap } from "@thomasfosterau/effect-richtext/commands"
-import { keymap } from "@thomasfosterau/effect-richtext/keymap"
-import type { AnySchema } from "@thomasfosterau/effect-richtext/model"
-import { EditorObserver, observe } from "@thomasfosterau/effect-richtext/reactive"
+import { baseKeymap } from "@thomasfosterau/effect-richtext/Commands"
+import { keymap } from "@thomasfosterau/effect-richtext/Keymap"
+import type { AnySchema } from "@thomasfosterau/effect-richtext/Model"
+import { EditorObserver, observe } from "@thomasfosterau/effect-richtext/Reactive"
 import {
   type Command,
   EditorState,
   Plugin,
   TextSelection,
   type Transaction
-} from "@thomasfosterau/effect-richtext/state"
-import { doc, eq, p, strong } from "@thomasfosterau/effect-richtext/test-builder"
-import { EditorView, type ViewUpdate } from "@thomasfosterau/effect-richtext/view"
+} from "@thomasfosterau/effect-richtext/State"
+import { doc, eq, p, strong } from "@thomasfosterau/effect-richtext/TestBuilder"
+import { EditorView, type ViewUpdate } from "@thomasfosterau/effect-richtext/View"
 import { collect, settle } from "../reactive/helpers.ts"
 import ist from "../utils/ist.ts"
 import { selFor, workspace } from "./helpers.ts"

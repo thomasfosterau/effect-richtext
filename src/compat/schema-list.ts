@@ -1,13 +1,13 @@
 /**
  * A `prosemirror-schema-list`-compatible module: list node specs,
  * `addListNodes`, and the list commands (bridged to the core
- * `@thomasfosterau/effect-richtext/schema-list` commands).
+ * `@thomasfosterau/effect-richtext/SchemaList` commands).
  *
  * Ported from prosemirror-schema-list (MIT, Marijn Haverbeke and others).
  *
  * @since 0.1.0
  */
-import * as SL from "../schema-list.ts"
+import * as SL from "../SchemaList.ts"
 import { fromCoreCommand } from "./commands.ts"
 import { CORE } from "./internal/core.ts"
 import { type Attrs, type DOMOutputSpec, type NodeRange, type NodeSpec, NodeType } from "./model.ts"

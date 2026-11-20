@@ -69,7 +69,7 @@ export interface ChildInfo<Sc extends AnySchema, N extends NodeNames<Sc>> {
  * @example
  * ```ts
  * import * as assert from "node:assert"
- * import { schema } from "@thomasfosterau/effect-richtext/schema-basic"
+ * import { schema } from "@thomasfosterau/effect-richtext/SchemaBasic"
  *
  * const doc = schema.nodeUnsafe("doc", null, [
  *   schema.nodeUnsafe("paragraph", null, [schema.textUnsafe("Hello ")]),

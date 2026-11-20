@@ -1,8 +1,8 @@
 import { assert, describe, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
-import * as Html from "@thomasfosterau/effect-richtext/html"
-import { DOMSerializer, Fragment } from "@thomasfosterau/effect-richtext/model"
-import { blockquote, doc, em, eq, img, p, schema, strong } from "@thomasfosterau/effect-richtext/test-builder"
+import * as Html from "@thomasfosterau/effect-richtext/Html"
+import { DOMSerializer, Fragment } from "@thomasfosterau/effect-richtext/Model"
+import { blockquote, doc, em, eq, img, p, schema, strong } from "@thomasfosterau/effect-richtext/TestBuilder"
 import { Window } from "happy-dom"
 import ist from "../utils/ist.ts"
 
