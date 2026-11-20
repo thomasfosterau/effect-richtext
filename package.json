@@ -239,7 +239,7 @@
   },
   "scripts": {
     "version": "changeset version && vp fmt && pnpm install --lockfile-only",
-    "prepare": "vp config && effect-tsgo patch --typescript --oxlint"
+    "prepare": "vp config && effect-tsgo patch --typescript --oxlint --tsrs"
   },
   "dependencies": {
     "markdown-it": "catalog:",
