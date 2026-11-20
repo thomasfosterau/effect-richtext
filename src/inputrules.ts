@@ -433,7 +433,7 @@ export const undoInputRule: InputRuleCommand = (state, dispatch) =>
       for (let j = toUndo.steps.length - 1; j >= 0; j--) tr.stepUnsafe(toUndo.steps[j]!.invert(toUndo.docs[j]!))
       if (undoable.text) {
         const marks = tr.doc.resolveUnsafe(undoable.from).marks()
-        tr.replaceWithUnsafe(undoable.from, undoable.to, state.schema.textUnsafe(undoable.text, marks) as Node<any>)
+        tr.replaceWithUnsafe(undoable.from, undoable.to, state.schema.textUnsafe(undoable.text, marks))
       } else {
         tr.deleteUnsafe(undoable.from, undoable.to)
       }

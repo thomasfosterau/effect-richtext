@@ -9,7 +9,7 @@ import { attempt } from "../internal/attempt.ts"
 import { DOMSpecError } from "./errors.ts"
 import type { Fragment } from "./fragment.ts"
 import type { Mark } from "./mark.ts"
-import type { Node, TextNode } from "./node.ts"
+import type { Node } from "./node.ts"
 import type { AnySchema, Attrs, MarkType, NodeType } from "./schema.ts"
 
 /**
@@ -160,7 +160,7 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
 
   /** @internal */
   serializeNodeInner(node: Node<Sc, any>, options: SerializeOptions): globalThis.Node {
-    if (node.isText) return doc(options).createTextNode((node as unknown as TextNode).text)
+    if (node.isText) return doc(options).createTextNode(node.textContent)
     const toDOM = this.nodes[node.type.name]
     if (!toDOM) throw new DOMSpecError({ message: `No serializer for node type ${node.type.name}` })
     const { contentDOM, dom } = renderSpecInner(doc(options), toDOM(node), null, node.attrs)
@@ -258,7 +258,7 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
    */
   static nodesFromSchema<Sc extends AnySchema>(schema: Sc): { [node: string]: NodeSerializer<Sc> } {
     const result = gatherToDOM(schema.nodes) as { [node: string]: NodeSerializer<Sc> }
-    if (!result.text) result.text = (node) => (node as unknown as TextNode).text as unknown as DOMOutputSpec
+    if (!result.text) result.text = (node) => node.textContent as unknown as DOMOutputSpec
     return result
   }
 
