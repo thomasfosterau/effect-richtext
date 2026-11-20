@@ -7,6 +7,7 @@ import * as Cause from "effect/Cause"
 import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
 import * as Option from "effect/Option"
+import * as Result from "effect/Result"
 import type { AnySchema, Mark, MarkJSON, ModelError, Node, NodeJSON } from "../model.ts"
 import { type SelectionError, StateError } from "./errors.ts"
 import type { AnyPlugin, Plugin, PluginErrors, PluginRequirements, StateField } from "./plugin.ts"
@@ -200,12 +201,12 @@ class Run<E, R> {
 // Resume `run`, resolving each Effect it suspends on in turn. A thrown
 // `StateError` becomes a failure; anything else thrown is a defect.
 const resume = <E, R>(run: Run<E, R>): Effect.Effect<unknown, E | StateError, R> => {
-  let step: IteratorResult<Effect.Effect<unknown, E, R>, unknown>
-  try {
-    step = run.advance()
-  } catch (e) {
+  const advanced = Result.try(() => run.advance())
+  if (Result.isFailure(advanced)) {
+    const e = advanced.failure
     return isStateError(e) ? Effect.fail(e) : Effect.die(e)
   }
+  const step = advanced.success
   if (step.done) return Effect.succeed(step.value)
   return Effect.flatMap(step.value, (value) => {
     run.input = value

@@ -112,7 +112,7 @@ export default defineConfig({
       // `warn`, with the site count when added: a new site is a defect, not
       // headroom. Lower the count as sites go; delete the line at zero.
       "effect/avoid-non-null-assertion": "warn", // 1295
-      "effect/require-safety-comment-for-type-assertion": "warn", // 1023
+      "effect/require-safety-comment-for-type-assertion": "warn", // 1022
       "effect/prefer-option-over-null": "warn", // 989
       "effect/imperative-loops": "warn", // 599
       "effect/avoid-any": "warn", // 439
@@ -123,7 +123,6 @@ export default defineConfig({
       "effect/avoid-object-type": "warn", // 33
       "effect/no-known-value-widening": "warn", // 36
       "effect/effect-run-in-body": "warn", // 34
-      "effect/avoid-try-catch": "warn", // 28
       "effect/no-chained-type-assertions": "warn", // 25
       "effect/use-clock-service": "warn", // 20
       "effect/no-unknown-returns": "warn", // 22
@@ -132,8 +131,8 @@ export default defineConfig({
       // ---- Type-aware allowances (same rules as above) ---------------------
       // tsgolint's "unnecessary" verdict differs from the `check` task's tsc,
       // so remove those sites by hand, against `vp run check`, never by autofix.
-      "typescript/no-unsafe-type-assertion": "warn", // 875
-      "typescript/no-unnecessary-type-assertion": "warn", // 687
+      "typescript/no-unsafe-type-assertion": "warn", // 874
+      "typescript/no-unnecessary-type-assertion": "warn", // 686
       "typescript/no-unnecessary-type-arguments": "warn", // 54
       "effecttsgo/any-unknown-in-error-context": "warn", // 51
       "typescript/unbound-method": "warn", // 43
@@ -320,6 +319,36 @@ export default defineConfig({
         files: ["tests/utils/types.ts"],
         rules: {
           "typescript/no-unnecessary-type-parameters": "off"
+        }
+      },
+      // Synchronous code at a non-Effect edge, where `try` is the only tool:
+      // the view guards browser APIs that throw unpredictably and restores
+      // DOM or view state in `finally` (per keystroke, ported); the compat
+      // facade turns core errors into ProseMirror's exceptions; and these
+      // ported suites restore patched globals or injected CSS in `finally`.
+      {
+        files: [
+          "src/view/clipboard.ts",
+          "src/view/dom.ts",
+          "src/view/domcoords.ts",
+          "src/view/selection.ts",
+          "src/view/view.ts",
+          "src/view/viewdesc.ts",
+          "src/compat/internal/core.ts",
+          "src/compat/state.ts",
+          "src/compat/test-builder.ts",
+          "src/compat/transform.ts",
+          "src/compat/view.ts",
+          "tests/view/compat-bridge.test.ts",
+          "tests/view/compat-selection.test.ts",
+          "tests/view/dropcursor.test.ts",
+          "tests/view/gapcursor.test.ts",
+          "tests/view/inputrules.test.ts",
+          "tests/view/placeholder.test.ts",
+          "tests/view/selection.test.ts"
+        ],
+        rules: {
+          "effect/avoid-try-catch": "off"
         }
       },
       // Effect marks all of `@effect/vitest` (the mandated test API) and

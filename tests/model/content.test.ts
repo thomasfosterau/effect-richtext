@@ -2,6 +2,8 @@
 import { assert, describe, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
+import * as Result from "effect/Result"
 import {
   Content,
   type ContentExpr,
@@ -298,12 +300,8 @@ describe("Content combinators", () => {
     })
 
     it("tags syntax errors as SchemaDefinitionError", () => {
-      try {
-        Content.parse("(paragraph")
-        assert.fail("expected a throw")
-      } catch (e) {
-        assert.strictEqual((e as { _tag: string })._tag, "SchemaDefinitionError")
-      }
+      const parsed = Result.try(() => Content.parse("(paragraph"))
+      assert.isTrue(Result.isFailure(parsed) && Predicate.isTagged(parsed.failure, "SchemaDefinitionError"))
     })
 
     it.effect("fails schema creation for unknown names", () =>
