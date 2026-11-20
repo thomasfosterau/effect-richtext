@@ -128,9 +128,11 @@ jobs:
           registry-url: https://registry.npmjs.org
           run-install: |
             args: ['--frozen-lockfile', '--ignore-scripts']
+      # `vp run release` (vite.config.ts): builds, publishes the version with
+      # `vp pm publish` unless npm has it (pnpm exchanges the OIDC token
+      # itself), then `changeset git-tag` reports the new tag through
+      # CHANGESETS_OUTPUT, and the action pushes it and creates the release.
       - name: Publish to npm
         uses: changesets/action/publish@v2.1.2
         with:
-          script: pnpm run release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          script: vp run release
