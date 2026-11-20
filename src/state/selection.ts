@@ -714,17 +714,13 @@ export const SelectionFromJSON = <Sc extends AnySchema>(doc: Node<Sc>): S.Codec<
   return SelectionJSONSchema.pipe(
     S.decodeTo(target, {
       decode: SchemaGetter.transformEffect((json: SelectionJSON) =>
-        Effect.suspend(() => {
-          try {
-            return Effect.succeed(Selection.fromJSONUnsafe(doc, json))
-          } catch (e) {
-            return Effect.fail(
-              new SchemaIssue.InvalidValue(
-                { message: Predicate.hasProperty(e, "message") ? String(e.message) : String(e) },
-                json
-              )
+        Effect.try({
+          try: () => Selection.fromJSONUnsafe(doc, json),
+          catch: (e) =>
+            new SchemaIssue.InvalidValue(
+              { message: Predicate.hasProperty(e, "message") ? String(e.message) : String(e) },
+              json
             )
-          }
         })
       ),
       encode: SchemaGetter.transform((selection: Selection<Sc>) => selection.toJSON())

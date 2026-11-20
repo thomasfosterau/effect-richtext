@@ -10,6 +10,7 @@
  *
  * @since 0.1.0
  */
+import * as Result from "effect/Result"
 import {
   type AnySchema,
   type Attrs,
@@ -179,11 +180,9 @@ function block<Sc extends AnySchema, N extends NodeNames<Sc>>(
     return withTag(type.createUnsafe(myAttrs as any, nodes as any), tag)
   }
   if (type.isLeaf) {
-    try {
-      ;(result as any).flat = [type.createUnsafe(attrs as any)]
-    } catch {
-      // Leaf types with required attributes have no default instance.
-    }
+    // Leaf types with required attributes have no default instance.
+    const leaf = Result.try(() => type.createUnsafe(attrs as any))
+    if (Result.isSuccess(leaf)) (result as any).flat = [leaf.success]
   }
   return result as NodeBuilder<Sc, N>
 }

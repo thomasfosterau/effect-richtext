@@ -7,6 +7,7 @@
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
+import * as Result from "effect/Result"
 import * as S from "effect/Schema"
 import * as SchemaGetter from "effect/SchemaGetter"
 import * as SchemaIssue from "effect/SchemaIssue"
@@ -33,14 +34,13 @@ const decodeAttrsOrFail = (
 ): Option.Option<Attrs> => {
   if (attrs == null) return Option.none()
   if (typeof attrs !== "object" || Array.isArray(attrs)) return fail(`Invalid attributes for ${kind} ${name}`)
-  try {
-    return Option.some(decodeAttrs(defs, attrs as Attrs))
-  } catch (e) {
-    if (isModelError(e)) throw e
-    return fail(
-      `Invalid attributes for ${kind} ${name}: ${Predicate.hasProperty(e, "message") ? String(e.message) : String(e)}`
-    )
-  }
+  const decoded = Result.try(() => decodeAttrs(defs, attrs as Attrs))
+  if (Result.isSuccess(decoded)) return Option.some(decoded.success)
+  const e = decoded.failure
+  if (isModelError(e)) throw e
+  return fail(
+    `Invalid attributes for ${kind} ${name}: ${Predicate.hasProperty(e, "message") ? String(e.message) : String(e)}`
+  )
 }
 
 /** @internal */
@@ -100,14 +100,10 @@ const NodeJSONSchema: S.Codec<NodeJSON> = S.suspend(() =>
 ) as any
 
 const wrap = <A>(f: () => A): Effect.Effect<A, SchemaIssue.Issue> =>
-  Effect.suspend(() => {
-    try {
-      return Effect.succeed(f())
-    } catch (e) {
-      return Effect.fail(
-        new SchemaIssue.InvalidValue({ message: Predicate.hasProperty(e, "message") ? String(e.message) : String(e) })
-      )
-    }
+  Effect.try({
+    try: f,
+    catch: (e) =>
+      new SchemaIssue.InvalidValue({ message: Predicate.hasProperty(e, "message") ? String(e.message) : String(e) })
   })
 
 /**
