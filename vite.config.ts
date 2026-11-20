@@ -137,7 +137,6 @@ export default defineConfig({
       "typescript/no-unnecessary-type-arguments": "warn", // 54
       "effecttsgo/any-unknown-in-error-context": "warn", // 51
       "typescript/unbound-method": "warn", // 43
-      "typescript/consistent-return": "warn", // 22
       "effecttsgo/unsafe-effect-type-assertion": "warn", // 1
       // `@effect/tsgo`'s preset warns on these; they have no sites left.
       "effecttsgo/unnecessary-fail-yieldable-error": "error",
@@ -320,6 +319,16 @@ export default defineConfig({
         files: ["tests/utils/types.ts"],
         rules: {
           "typescript/no-unnecessary-type-parameters": "off"
+        }
+      },
+      // `new StepMap([])` returns the shared `StepMap.empty`, as in
+      // ProseMirror: a constructor that returns an object on one path and
+      // nothing on the other is how JavaScript does that, and the compat
+      // facade can observe the identity.
+      {
+        files: ["src/transform/map.ts"],
+        rules: {
+          "typescript/consistent-return": "off"
         }
       },
       // Effect marks all of `@effect/vitest` (the mandated test API) and

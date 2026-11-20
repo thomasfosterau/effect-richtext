@@ -104,6 +104,7 @@ describe("DOM change", () => {
       doc: doc(blockquote(p("foo"), p("<a>"))),
       handleKeyDown: (_view, event) => {
         if (event.keyCode == 13) return (enterPressed = true)
+        return false
       }
     })
     const bq = view.dom.querySelector("blockquote")!
@@ -118,6 +119,7 @@ describe("DOM change", () => {
       doc: doc(h1("<a>")),
       handleKeyDown: (_view, event) => {
         if (event.keyCode == 13) return (enterPressed = true)
+        return false
       }
     })
     const h2 = view.dom.appendChild(document.createElement("h2"))
@@ -132,6 +134,7 @@ describe("DOM change", () => {
       doc: doc(p("foo"), p("<a>bar")),
       handleKeyDown: (_view, event) => {
         if (event.keyCode == 8) return (backspacePressed = true)
+        return false
       }
     })
     view.dom.removeChild(view.dom.lastChild!)
@@ -146,6 +149,7 @@ describe("DOM change", () => {
       doc: doc(blockquote(blockquote(p("foo")), p("<a>", br(), "bar"))),
       handleKeyDown: (_view, event) => {
         if (event.keyCode == 8) return (backspacePressed = true)
+        return false
       }
     })
     const bq = view.dom.firstChild!
@@ -161,6 +165,7 @@ describe("DOM change", () => {
       doc: doc(p("foo<a>"), p("bar")),
       handleKeyDown: (_view, event) => {
         if (event.keyCode == 8) return (backspacePressed = true)
+        return false
       }
     })
     view.dom.removeChild(view.dom.lastChild!)

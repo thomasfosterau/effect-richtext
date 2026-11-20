@@ -53,6 +53,7 @@ export function findTextNode(node: Node, text: string): Text | undefined {
       if (found) return found
     }
   }
+  return undefined
 }
 
 export function requireFocus(pm: EditorView) {

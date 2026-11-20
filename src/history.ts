@@ -88,7 +88,7 @@ export class Branch {
           }
           mapFrom!--
           addBefore.push(item)
-          return
+          return true
         }
 
         if (remap) {
@@ -114,7 +114,7 @@ export class Branch {
           )
           return false
         }
-        return undefined
+        return true
       },
       this.items.length,
       0
