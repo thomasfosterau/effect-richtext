@@ -9,7 +9,7 @@ import {
   Selection,
   SelectionFromJSON,
   TextSelection
-} from "@thomasfosterau/effect-richtext/state"
+} from "@thomasfosterau/effect-richtext/State"
 import {
   a,
   blockquote,
@@ -24,7 +24,7 @@ import {
   pre,
   schema,
   ul
-} from "@thomasfosterau/effect-richtext/test-builder"
+} from "@thomasfosterau/effect-richtext/TestBuilder"
 import ist from "../utils/ist.ts"
 import { TestState } from "./state.ts"
 import { getSome } from "../utils/option.ts"

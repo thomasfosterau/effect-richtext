@@ -20,8 +20,8 @@ import {
   type PositionError,
   type ResolvedPos,
   Slice
-} from "../model.ts"
-import { type Mappable, ReplaceAroundStep, ReplaceStep } from "../transform.ts"
+} from "../Model.ts"
+import { type Mappable, ReplaceAroundStep, ReplaceStep } from "../Transform.ts"
 import { isStateFailure, SelectionError } from "./errors.ts"
 import type { Transaction } from "./transaction.ts"
 

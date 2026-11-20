@@ -5,7 +5,7 @@ import { toCore as modelToCore } from "@thomasfosterau/effect-richtext/compat/mo
 import { EditorState, Plugin, toCore as stateToCore } from "@thomasfosterau/effect-richtext/compat/state"
 import { doc, p, schema } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import { Decoration, DecorationSet, EditorView, fromCore, toCore } from "@thomasfosterau/effect-richtext/compat/view"
-import * as CoreView from "@thomasfosterau/effect-richtext/view"
+import * as CoreView from "@thomasfosterau/effect-richtext/View"
 import ist from "../utils/ist.ts"
 import { workspace } from "./helpers.ts"
 

@@ -15,10 +15,10 @@ import {
   selectNodeBackward,
   selectNodeForward,
   type TextblockBoundaryView
-} from "@thomasfosterau/effect-richtext/commands"
-import type { AnySchema } from "@thomasfosterau/effect-richtext/model"
-import type { Command, EditorState, Transaction } from "@thomasfosterau/effect-richtext/state"
-import { blockquote, doc, eq, p } from "@thomasfosterau/effect-richtext/test-builder"
+} from "@thomasfosterau/effect-richtext/Commands"
+import type { AnySchema } from "@thomasfosterau/effect-richtext/Model"
+import type { Command, EditorState, Transaction } from "@thomasfosterau/effect-richtext/State"
+import { blockquote, doc, eq, p } from "@thomasfosterau/effect-richtext/TestBuilder"
 import ist from "../utils/ist.ts"
 import { apply, mkState } from "./apply.ts"
 

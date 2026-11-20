@@ -1,25 +1,26 @@
 {
   "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
   "entry": [
-    "src/commands.ts",
-    "src/dropcursor.ts",
-    "src/extensions.ts",
-    "src/gapcursor.ts",
-    "src/history.ts",
-    "src/html.ts",
-    "src/inputrules.ts",
-    "src/keymap.ts",
-    "src/markdown.ts",
-    "src/model.ts",
-    "src/placeholder.ts",
-    "src/reactive.ts",
-    "src/schema-basic.ts",
-    "src/schema-list.ts",
-    "src/state.ts",
-    "src/test-builder.ts",
-    "src/transform.ts",
-    "src/view.ts",
-    "src/view-css.ts",
+    "src/index.ts",
+    "src/Commands.ts",
+    "src/DropCursor.ts",
+    "src/Extensions.ts",
+    "src/GapCursor.ts",
+    "src/History.ts",
+    "src/Html.ts",
+    "src/InputRules.ts",
+    "src/Keymap.ts",
+    "src/Markdown.ts",
+    "src/Model.ts",
+    "src/Placeholder.ts",
+    "src/Reactive.ts",
+    "src/SchemaBasic.ts",
+    "src/SchemaList.ts",
+    "src/State.ts",
+    "src/TestBuilder.ts",
+    "src/Transform.ts",
+    "src/View.ts",
+    "src/ViewCss.ts",
     "src/compat/commands.ts",
     "src/compat/keymap.ts",
     "src/compat/model.ts",
@@ -85,79 +86,79 @@
       },
       {
         "name": "model",
-        "patterns": ["src/model.ts", "src/model/**"]
+        "patterns": ["src/Model.ts", "src/model/**"]
       },
       {
         "name": "transform",
-        "patterns": ["src/transform.ts", "src/transform/**"]
+        "patterns": ["src/Transform.ts", "src/transform/**"]
       },
       {
         "name": "state",
-        "patterns": ["src/state.ts", "src/state/**"]
+        "patterns": ["src/State.ts", "src/state/**"]
       },
       {
         "name": "view",
-        "patterns": ["src/view.ts", "src/view/**"]
+        "patterns": ["src/View.ts", "src/view/**"]
       },
       {
         "name": "commands",
-        "patterns": ["src/commands.ts", "src/commands/**"]
+        "patterns": ["src/Commands.ts", "src/commands/**"]
       },
       {
         "name": "keymap",
-        "patterns": ["src/keymap.ts", "src/keymap/**"]
+        "patterns": ["src/Keymap.ts", "src/keymap/**"]
       },
       {
         "name": "history",
-        "patterns": ["src/history.ts", "src/history/**"]
+        "patterns": ["src/History.ts", "src/history/**"]
       },
       {
         "name": "schema-basic",
-        "patterns": ["src/schema-basic.ts", "src/schema-basic/**"]
+        "patterns": ["src/SchemaBasic.ts", "src/schema-basic/**"]
       },
       {
         "name": "schema-list",
-        "patterns": ["src/schema-list.ts", "src/schema-list/**"]
+        "patterns": ["src/SchemaList.ts", "src/schema-list/**"]
       },
       {
         "name": "markdown",
-        "patterns": ["src/markdown.ts", "src/markdown/**"]
+        "patterns": ["src/Markdown.ts", "src/markdown/**"]
       },
       {
         "name": "html",
-        "patterns": ["src/html.ts", "src/html/**"]
+        "patterns": ["src/Html.ts", "src/html/**"]
       },
       {
         "name": "inputrules",
-        "patterns": ["src/inputrules.ts", "src/inputrules/**"]
+        "patterns": ["src/InputRules.ts", "src/inputrules/**"]
       },
       {
         "name": "gapcursor",
-        "patterns": ["src/gapcursor.ts", "src/gapcursor/**"]
+        "patterns": ["src/GapCursor.ts", "src/gapcursor/**"]
       },
       {
         "name": "dropcursor",
-        "patterns": ["src/dropcursor.ts", "src/dropcursor/**"]
+        "patterns": ["src/DropCursor.ts", "src/dropcursor/**"]
       },
       {
         "name": "placeholder",
-        "patterns": ["src/placeholder.ts", "src/placeholder/**"]
+        "patterns": ["src/Placeholder.ts", "src/placeholder/**"]
       },
       {
         "name": "reactive",
-        "patterns": ["src/reactive.ts", "src/reactive/**"]
+        "patterns": ["src/Reactive.ts", "src/reactive/**"]
       },
       {
         "name": "view-css",
-        "patterns": ["src/view-css.ts", "src/view-css/**"]
+        "patterns": ["src/ViewCss.ts", "src/view-css/**"]
       },
       {
         "name": "test-builder",
-        "patterns": ["src/test-builder.ts", "src/test-builder/**"]
+        "patterns": ["src/TestBuilder.ts", "src/test-builder/**"]
       },
       {
         "name": "extensions",
-        "patterns": ["src/extensions.ts", "src/extensions/**"]
+        "patterns": ["src/Extensions.ts", "src/extensions/**"]
       },
       {
         "name": "compat",

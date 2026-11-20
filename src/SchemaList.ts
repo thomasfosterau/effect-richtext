@@ -6,7 +6,7 @@
  */
 import * as Predicate from "effect/Predicate"
 import * as S from "effect/Schema"
-import { Content, type ContentExpr, type ContentInput, type DOMOutputSpec, type NodeSpec, nodeSpec } from "./model.ts"
+import { Content, type ContentExpr, type ContentInput, type DOMOutputSpec, type NodeSpec, nodeSpec } from "./Model.ts"
 
 /** @since 0.1.0 */
 export * from "./schema-list/commands.ts"
@@ -99,10 +99,10 @@ export type ListNodes<ItemRefs extends string, Group extends string | undefined>
  * ```ts
  * import * as assert from "node:assert"
  * import * as Effect from "effect/Effect"
- * import { Content, DocSchema } from "@thomasfosterau/effect-richtext/model"
- * import { marks, nodes } from "@thomasfosterau/effect-richtext/schema-basic"
- * import { addListNodes, wrapInList } from "@thomasfosterau/effect-richtext/schema-list"
- * import { EditorState, TextSelection } from "@thomasfosterau/effect-richtext/state"
+ * import { Content, DocSchema } from "@thomasfosterau/effect-richtext/Model"
+ * import { marks, nodes } from "@thomasfosterau/effect-richtext/SchemaBasic"
+ * import { addListNodes, wrapInList } from "@thomasfosterau/effect-richtext/SchemaList"
+ * import { EditorState, TextSelection } from "@thomasfosterau/effect-richtext/State"
  *
  * const schema = DocSchema.makeUnsafe({
  *   nodes: addListNodes(nodes, Content.seq("paragraph", Content.zeroOrMore("block")), "block"),

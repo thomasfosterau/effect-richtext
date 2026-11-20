@@ -16,9 +16,9 @@ import {
   NodeRange,
   type NodeType,
   Slice
-} from "../model.ts"
-import { type Command, type EditorState, Selection, type Transaction } from "../state.ts"
-import { canJoin, canSplit, type NodeTypeWithAttrs, ReplaceAroundStep } from "../transform.ts"
+} from "../Model.ts"
+import { type Command, type EditorState, Selection, type Transaction } from "../State.ts"
+import { canJoin, canSplit, type NodeTypeWithAttrs, ReplaceAroundStep } from "../Transform.ts"
 import { findWrappingOrNull, liftTargetOrNull } from "../transform/structure.ts"
 
 /**

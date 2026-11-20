@@ -11,8 +11,8 @@ import * as Effect from "effect/Effect"
 import * as Predicate from "effect/Predicate"
 import * as Schema from "effect/Schema"
 import { base, keyName } from "w3c-keyname"
-import type { AnySchema } from "../model.ts"
-import { type Command, Plugin } from "../state.ts"
+import type { AnySchema } from "../Model.ts"
+import { type Command, Plugin } from "../State.ts"
 import type { EditorView } from "../view/view.ts"
 
 const mac = !Predicate.isUndefined(globalThis.navigator) && /Mac|iP(hone|[oa]d)/.test(navigator.platform)
@@ -214,10 +214,10 @@ const succeedTrue: Effect.Effect<boolean> = Effect.succeed(true)
  * @example
  * ```ts
  * import * as assert from "node:assert"
- * import { toggleMark } from "@thomasfosterau/effect-richtext/commands"
- * import { keymap } from "@thomasfosterau/effect-richtext/keymap"
- * import { EditorState } from "@thomasfosterau/effect-richtext/state"
- * import { doc, p, schema } from "@thomasfosterau/effect-richtext/test-builder"
+ * import { toggleMark } from "@thomasfosterau/effect-richtext/Commands"
+ * import { keymap } from "@thomasfosterau/effect-richtext/Keymap"
+ * import { EditorState } from "@thomasfosterau/effect-richtext/State"
+ * import { doc, p, schema } from "@thomasfosterau/effect-richtext/TestBuilder"
  *
  * // Bind keys to commands and add the plugin to a state; the view calls it on keydown.
  * const plugin = keymap({ "Mod-b": toggleMark(schema.marks.strong) })

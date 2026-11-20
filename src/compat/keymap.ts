@@ -7,7 +7,7 @@
  *
  * @since 0.1.0
  */
-import { matchBindings, normalizeBindings } from "../keymap.ts"
+import { matchBindings, normalizeBindings } from "../Keymap.ts"
 import { guard } from "./internal/core.ts"
 import { type Command, Plugin } from "./state.ts"
 import type { EditorView } from "./view.ts"

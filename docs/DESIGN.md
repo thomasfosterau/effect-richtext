@@ -13,7 +13,7 @@ This document records the design decisions and the conventions every module foll
 | Absent values | Accessors that may not produce a value return **`Option<A>`** (`node.firstChild`, `$pos.nodeAfter`, `match.matchType(t)`, …). |
 | Document typing | Schemas are fully typed. Node/mark names are literal unions, attributes are described with Effect `Schema`s, and **content expressions are typed combinators** (`Content.seq`, `Content.oneOrMore`, …) so the allowed children of every node type are known statically. |
 | Plugin requirements | Plugins and commands carry their Effect requirements (`R`) in their types; editor state/view accumulate them. |
-| Packaging | **One package**, everything (core, extras, ProseMirror compatibility layer) exposed as subpath modules. |
+| Packaging | **One package**, everything (core, extras, ProseMirror compatibility layer) exposed as PascalCase subpath modules and as namespaces of the root entry. |
 | Tooling | Vite+ on pnpm: Oxfmt + Oxlint with the Effect preset, native `tsc` 7 patched by `@effect/tsgo`, Vitest + `@effect/vitest` (happy-dom; Chromium for view tests), `vp pack`, docgen, fallow, Changesets. See [CONTRIBUTING.md](CONTRIBUTING.md). |
 | Extras (after core) | Extensions + chainable commands; editing essentials (history, input rules, basic/list schemas, gap/drop cursor, placeholder); reactive bindings (SubscriptionRef/Stream); HTML + Markdown serializers. |
 
@@ -21,31 +21,32 @@ This document records the design decisions and the conventions every module foll
 
 ```
 src/
-  model.ts          barrel for @thomasfosterau/effect-richtext/model
+  index.ts          @thomasfosterau/effect-richtext: every module below as a namespace
+  Model.ts          barrel for @thomasfosterau/effect-richtext/Model
   model/*.ts        implementation
-  transform.ts      @thomasfosterau/effect-richtext/transform
-  state.ts          @thomasfosterau/effect-richtext/state
-  view.ts           @thomasfosterau/effect-richtext/view
-  keymap.ts         @thomasfosterau/effect-richtext/keymap
-  commands.ts       @thomasfosterau/effect-richtext/commands
-  schema-basic.ts   @thomasfosterau/effect-richtext/schema-basic
-  schema-list.ts    @thomasfosterau/effect-richtext/schema-list
-  test-builder.ts   @thomasfosterau/effect-richtext/test-builder
-  history.ts        @thomasfosterau/effect-richtext/history   (undo/redo, uses rope-sequence)
-  html.ts           @thomasfosterau/effect-richtext/html      (HTML string helpers, HtmlEnvironment)
-  markdown.ts       @thomasfosterau/effect-richtext/markdown  (markdown-it parser + serializer)
-  reactive.ts       @thomasfosterau/effect-richtext/reactive  (SubscriptionRef/Stream bindings)
-  inputrules.ts     @thomasfosterau/effect-richtext/inputrules  (input rules; handlers may return Option/Effect)
-  gapcursor.ts      @thomasfosterau/effect-richtext/gapcursor   (GapCursor selection + plugin, gapCursorCSS)
-  dropcursor.ts     @thomasfosterau/effect-richtext/dropcursor  (drop cursor plugin)
-  placeholder.ts    @thomasfosterau/effect-richtext/placeholder (placeholder decorations, placeholderCSS)
-  view-css.ts       @thomasfosterau/effect-richtext/view-css    (prosemirror-view's stylesheet as viewCSS, injectCSS helpers)
-  extensions.ts     @thomasfosterau/effect-richtext/extensions (typed extensions, Editor, chainable commands)
+  Transform.ts      @thomasfosterau/effect-richtext/Transform
+  State.ts          @thomasfosterau/effect-richtext/State
+  View.ts           @thomasfosterau/effect-richtext/View
+  Keymap.ts         @thomasfosterau/effect-richtext/Keymap
+  Commands.ts       @thomasfosterau/effect-richtext/Commands
+  SchemaBasic.ts    @thomasfosterau/effect-richtext/SchemaBasic
+  SchemaList.ts     @thomasfosterau/effect-richtext/SchemaList
+  TestBuilder.ts    @thomasfosterau/effect-richtext/TestBuilder
+  History.ts        @thomasfosterau/effect-richtext/History   (undo/redo, uses rope-sequence)
+  Html.ts           @thomasfosterau/effect-richtext/Html      (HTML string helpers, HtmlEnvironment)
+  Markdown.ts       @thomasfosterau/effect-richtext/Markdown  (markdown-it parser + serializer)
+  Reactive.ts       @thomasfosterau/effect-richtext/Reactive  (SubscriptionRef/Stream bindings)
+  InputRules.ts     @thomasfosterau/effect-richtext/InputRules  (input rules; handlers may return Option/Effect)
+  GapCursor.ts      @thomasfosterau/effect-richtext/GapCursor   (GapCursor selection + plugin, gapCursorCSS)
+  DropCursor.ts     @thomasfosterau/effect-richtext/DropCursor  (drop cursor plugin)
+  Placeholder.ts    @thomasfosterau/effect-richtext/Placeholder (placeholder decorations, placeholderCSS)
+  ViewCss.ts        @thomasfosterau/effect-richtext/ViewCss    (prosemirror-view's stylesheet as viewCSS, injectCSS helpers)
+  Extensions.ts     @thomasfosterau/effect-richtext/Extensions (typed extensions, Editor, chainable commands)
   compat/*.ts       @thomasfosterau/effect-richtext/compat/*  (ProseMirror-compatible facades)
   internal/*.ts     not exported
 ```
 
-Each public module `src/<name>.ts` re-exports its implementation from `src/<name>/*.ts`. Modules import each other through relative paths (`../model.ts`).
+Each public module `src/<Name>.ts` (PascalCase, as in Effect) re-exports its implementation from `src/<name>/*.ts`. Modules import each other through relative paths (`../Model.ts`). `index.ts` re-exports each module as a namespace, except `GapCursor` and `TestBuilder`, which register state on import.
 
 ## Conventions
 
@@ -139,7 +140,7 @@ view.dispatchUnsafe(tr) // synchronous, throws failures
 
 ### Reactive bindings
 
-`@thomasfosterau/effect-richtext/reactive` exposes editor states as `SubscriptionRef`s and `Stream`s, without depending on a UI framework:
+`@thomasfosterau/effect-richtext/Reactive` exposes editor states as `SubscriptionRef`s and `Stream`s, without depending on a UI framework:
 
 ```ts
 // Headless: a state in a SubscriptionRef, updated by dispatching to it.
@@ -155,7 +156,7 @@ Both share `EditorStreams`: `state` (a read-only ref: `get`, `getUnsafe`, `chang
 
 The observer uses `view.subscribe(listener)`, a minimal listener hook on `EditorView`: listeners are called after every state update (after the DOM and plugin views) with a `ViewUpdate` (`state`, `prevState`, and the `transactions` of the dispatch that caused it: the dispatched transaction plus appended ones, only the dispatched one with a custom `dispatchTransaction`, none for direct `updateState`/`setProps` calls).
 
-### Extensions (`@thomasfosterau/effect-richtext/extensions`)
+### Extensions (`@thomasfosterau/effect-richtext/Extensions`)
 
 A ProseKit-style composition layer on top of the core. It is purely additive (no core module imports it) and unopinionated: no UI, no styling, no required node set.
 
@@ -189,7 +190,7 @@ yield * editor.mount(place) // EditorView.make: needs Scope | R
 
 ### Tests
 
-- Tests live in `tests/<module>/*.test.ts` and use `@effect/vitest` (`it.effect` for Effect tests, `assert` rather than `expect`). They import the package by name (`@thomasfosterau/effect-richtext/model`), which `vite.config.ts` and `tsconfig.test.json` resolve to `src/`.
+- Tests live in `tests/<module>/*.test.ts` and use `@effect/vitest` (`it.effect` for Effect tests, `assert` rather than `expect`). They import the package by name (`@thomasfosterau/effect-richtext/Model`), which `vite.config.ts` and `tsconfig.test.json` resolve to `src/`.
 - ProseMirror's test suites are ported as faithfully as possible; `tests/utils/ist.ts` reproduces the `ist` helper so ported tests stay close to the originals.
 - View tests run in Chromium via Vitest browser mode (`tests/view/**`, the `browser` project).
 - Type-level tests live in `tests/**/*.types.ts`: never executed, type-checked by `vp run check`. An `Expect<Equals<A, B>>` alias asserts a type, and each `@ts-expect-error` directive asserts that the statement below it must not compile. A failing call's Effect is discarded with `void` so the Effect language service's floating-Effect diagnostic stays quiet.

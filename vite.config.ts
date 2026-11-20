@@ -12,25 +12,26 @@ const srcDir = new URL("./src/", import.meta.url).pathname
  * .fallowrc.json.
  */
 const entries = [
-  "commands",
-  "dropcursor",
-  "extensions",
-  "gapcursor",
-  "history",
-  "html",
-  "inputrules",
-  "keymap",
-  "markdown",
-  "model",
-  "placeholder",
-  "reactive",
-  "schema-basic",
-  "schema-list",
-  "state",
-  "test-builder",
-  "transform",
-  "view",
-  "view-css",
+  "index",
+  "Commands",
+  "DropCursor",
+  "Extensions",
+  "GapCursor",
+  "History",
+  "Html",
+  "InputRules",
+  "Keymap",
+  "Markdown",
+  "Model",
+  "Placeholder",
+  "Reactive",
+  "SchemaBasic",
+  "SchemaList",
+  "State",
+  "TestBuilder",
+  "Transform",
+  "View",
+  "ViewCss",
   "compat/commands",
   "compat/keymap",
   "compat/model",
@@ -508,7 +509,10 @@ export default defineConfig({
   },
   resolve: {
     // Tests import the package by name; resolve it to `src/`, not `dist/`.
-    alias: [{ find: /^@thomasfosterau\/effect-richtext\/(.+)$/, replacement: `${srcDir}$1.ts` }]
+    alias: [
+      { find: /^@thomasfosterau\/effect-richtext$/, replacement: `${srcDir}index.ts` },
+      { find: /^@thomasfosterau\/effect-richtext\/(.+)$/, replacement: `${srcDir}$1.ts` }
+    ]
   },
   test: {
     ...maxWorkers,

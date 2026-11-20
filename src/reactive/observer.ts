@@ -7,8 +7,8 @@ import * as Effect from "effect/Effect"
 import type * as Scope from "effect/Scope"
 import type * as Stream from "effect/Stream"
 import * as SubscriptionRef from "effect/SubscriptionRef"
-import type { AnySchema } from "../model.ts"
-import type { EditorView } from "../view.ts"
+import type { AnySchema } from "../Model.ts"
+import type { EditorView } from "../View.ts"
 import {
   type EditorStreams,
   acquireRef,

@@ -6,7 +6,7 @@
 // Ported from prosemirror-markdown (MIT, Marijn Haverbeke and others)
 import * as Arr from "effect/Array"
 import * as Order from "effect/Order"
-import { type AnySchema, type Attrs, Mark, type Node, type TextNode } from "../model.ts"
+import { type AnySchema, type Attrs, Mark, type Node, type TextNode } from "../Model.ts"
 import { MarkdownError } from "./errors.ts"
 
 /**
@@ -186,7 +186,7 @@ function isPlainURL(link: Mark<any, any>, parent: Node<any, any>, index: number)
  * ```ts
  * import * as assert from "node:assert"
  * import * as Effect from "effect/Effect"
- * import { defaultMarkdownParser, defaultMarkdownSerializer } from "@thomasfosterau/effect-richtext/markdown"
+ * import { defaultMarkdownParser, defaultMarkdownSerializer } from "@thomasfosterau/effect-richtext/Markdown"
  *
  * const source = "# Hello *world*\n\nSome `code`."
  * const doc = Effect.runSync(defaultMarkdownParser.parse(source))

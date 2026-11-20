@@ -21,7 +21,7 @@ import {
   type NodeNames,
   type NodeType,
   type TextNode
-} from "../model.ts"
+} from "../Model.ts"
 import { isMarkdownError, MarkdownError } from "./errors.ts"
 import { schema } from "./schema.ts"
 
@@ -355,7 +355,7 @@ const attrString = (value: string | number | null): string | null => (value == n
  * ```ts
  * import * as assert from "node:assert"
  * import * as Effect from "effect/Effect"
- * import { defaultMarkdownParser } from "@thomasfosterau/effect-richtext/markdown"
+ * import { defaultMarkdownParser } from "@thomasfosterau/effect-richtext/Markdown"
  *
  * const doc = Effect.runSync(defaultMarkdownParser.parse("# Hello *world*\n\nSome `code`."))
  * assert.strictEqual(doc.toString(), 'doc(heading("Hello ", em("world")), paragraph("Some ", code("code"), "."))')

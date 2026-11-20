@@ -18,7 +18,7 @@ import {
   type NodeType,
   Slice,
   type TextNode
-} from "../model.ts"
+} from "../Model.ts"
 import { TransformError } from "./errors.ts"
 import { clearIncompatible } from "./mark.ts"
 import { ReplaceAroundStep, ReplaceStep } from "./replace_step.ts"

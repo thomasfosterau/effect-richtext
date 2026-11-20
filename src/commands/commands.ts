@@ -24,7 +24,7 @@ import {
   type ResolvedPos,
   Slice,
   type TextNode
-} from "../model.ts"
+} from "../Model.ts"
 import {
   AllSelection,
   type Command,
@@ -36,8 +36,8 @@ import {
   SelectionRange,
   TextSelection,
   type Transaction
-} from "../state.ts"
-import { canJoin, canSplit, joinPoint, type NodeTypeWithAttrs, ReplaceAroundStep, ReplaceStep } from "../transform.ts"
+} from "../State.ts"
+import { canJoin, canSplit, joinPoint, type NodeTypeWithAttrs, ReplaceAroundStep, ReplaceStep } from "../Transform.ts"
 import { replaceStepOrNull } from "../transform/replace.ts"
 import { findWrappingOrNull, liftTargetOrNull } from "../transform/structure.ts"
 import { done, keepMarks, succeedFalse, succeedTrue, syncCommand, type SyncResult } from "./internal.ts"
@@ -935,9 +935,9 @@ export interface ToggleMarkOptions {
  * ```ts
  * import * as assert from "node:assert"
  * import * as Effect from "effect/Effect"
- * import { toggleMark } from "@thomasfosterau/effect-richtext/commands"
- * import { EditorState, TextSelection } from "@thomasfosterau/effect-richtext/state"
- * import { doc, p, schema, strong } from "@thomasfosterau/effect-richtext/test-builder"
+ * import { toggleMark } from "@thomasfosterau/effect-richtext/Commands"
+ * import { EditorState, TextSelection } from "@thomasfosterau/effect-richtext/State"
+ * import { doc, p, schema, strong } from "@thomasfosterau/effect-richtext/TestBuilder"
  *
  * const start = doc(p("Hello world"))
  * let state = EditorState.createUnsafe({ doc: start, selection: TextSelection.createUnsafe(start, 1, 6) })

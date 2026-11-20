@@ -13,9 +13,9 @@
  * @since 0.1.0
  */
 import * as Predicate from "effect/Predicate"
-import type { AnySchema, Node } from "./model.ts"
-import { type EditorState, Plugin } from "./state.ts"
-import { Decoration, DecorationSet } from "./view.ts"
+import type { AnySchema, Node } from "./Model.ts"
+import { type EditorState, Plugin } from "./State.ts"
+import { Decoration, DecorationSet } from "./View.ts"
 
 /**
  * Where to show the placeholder:

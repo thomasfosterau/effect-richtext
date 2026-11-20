@@ -20,8 +20,8 @@ import {
   toggleMark,
   type ToggleMarkOptions,
   wrapIn
-} from "../commands.ts"
-import { history, type HistoryOptions, redo, undo } from "../history.ts"
+} from "../Commands.ts"
+import { history, type HistoryOptions, redo, undo } from "../History.ts"
 import {
   type AttrsOptional,
   Content,
@@ -32,10 +32,10 @@ import {
   type NodeNames,
   type NodeSpecOf,
   type NodeType
-} from "../model.ts"
-import { marks as basicMarks, nodes as basicNodes } from "../schema-basic.ts"
-import { addListNodes, liftListItem, sinkListItem, splitListItem, wrapInList } from "../schema-list.ts"
-import type { Command } from "../state.ts"
+} from "../Model.ts"
+import { marks as basicMarks, nodes as basicNodes } from "../SchemaBasic.ts"
+import { addListNodes, liftListItem, sinkListItem, splitListItem, wrapInList } from "../SchemaList.ts"
+import type { Command } from "../State.ts"
 import {
   type CommandsExtension,
   type CommandSignature,
@@ -292,7 +292,7 @@ export const defineBaseCommands = (): CommandsExtension<BaseCommands> =>
   }) as any
 
 /**
- * The platform's base keymap (`baseKeymap` from `@thomasfosterau/effect-richtext/commands`:
+ * The platform's base keymap (`baseKeymap` from `@thomasfosterau/effect-richtext/Commands`:
  * Enter, Backspace, Delete, Mod-a, …), at low priority so that other
  * keymaps take precedence.
  *
@@ -374,7 +374,7 @@ export const defineList = () =>
 // -----------------------------------------------------------------------------
 
 /**
- * Everything above: the nodes and marks of `@thomasfosterau/effect-richtext/schema-basic`,
+ * Everything above: the nodes and marks of `@thomasfosterau/effect-richtext/SchemaBasic`,
  * lists, base commands, the base keymap and history.
  *
  * @since 0.1.0

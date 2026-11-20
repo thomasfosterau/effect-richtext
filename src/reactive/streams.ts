@@ -9,8 +9,8 @@ import * as PubSub from "effect/PubSub"
 import type * as Scope from "effect/Scope"
 import * as Stream from "effect/Stream"
 import * as SubscriptionRef from "effect/SubscriptionRef"
-import type { AnySchema, Attrs, MarkNames, MarkType, Node, NodeNames, NodeType } from "../model.ts"
-import type { Command, EditorState, EditorViewLike, Selection, Transaction } from "../state.ts"
+import type { AnySchema, Attrs, MarkNames, MarkType, Node, NodeNames, NodeType } from "../Model.ts"
+import type { Command, EditorState, EditorViewLike, Selection, Transaction } from "../State.ts"
 import * as selectors from "./selectors.ts"
 
 /**

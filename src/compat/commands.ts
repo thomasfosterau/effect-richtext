@@ -1,14 +1,14 @@
 /**
  * A `prosemirror-commands`-compatible module: the core editing commands
- * (`@thomasfosterau/effect-richtext/commands`), bridged to ProseMirror-style
+ * (`@thomasfosterau/effect-richtext/Commands`), bridged to ProseMirror-style
  * `(state, dispatch?, view?) => boolean` commands.
  *
  * Ported API surface from prosemirror-commands (MIT, Marijn Haverbeke and others).
  *
  * @since 0.1.0
  */
-import * as C from "../commands.ts"
-import type * as S from "../state.ts"
+import * as C from "../Commands.ts"
+import type * as S from "../State.ts"
 import { CORE, wrap } from "./internal/core.ts"
 import type { Attrs, MarkType, Node, NodeType, ResolvedPos } from "./model.ts"
 import { type Command, fromCoreCommand, toCoreCommand } from "./state.ts"

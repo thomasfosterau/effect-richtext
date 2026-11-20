@@ -41,8 +41,8 @@ export type NodeVisitor<Sc extends AnySchema = AnySchema> = (
  * @example
  * ```ts
  * import * as assert from "node:assert"
- * import { Fragment } from "@thomasfosterau/effect-richtext/model"
- * import { schema } from "@thomasfosterau/effect-richtext/schema-basic"
+ * import { Fragment } from "@thomasfosterau/effect-richtext/Model"
+ * import { schema } from "@thomasfosterau/effect-richtext/SchemaBasic"
  *
  * const paragraph = schema.nodeUnsafe("paragraph", null, [schema.textUnsafe("Hi")])
  * const fragment = Fragment.from([paragraph, paragraph])

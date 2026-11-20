@@ -7,9 +7,9 @@
 import * as Arr from "effect/Array"
 import type * as Effect from "effect/Effect"
 import * as Order from "effect/Order"
-import { type Bindings, type BindingsError, type BindingsRequirements, keymap } from "../keymap.ts"
-import type { AnySchema, MarkSpec, MarkSpecs, NodeSpec, NodeSpecs } from "../model.ts"
-import type { AnyPlugin, Command, Plugin } from "../state.ts"
+import { type Bindings, type BindingsError, type BindingsRequirements, keymap } from "../Keymap.ts"
+import type { AnySchema, MarkSpec, MarkSpecs, NodeSpec, NodeSpecs } from "../Model.ts"
+import type { AnyPlugin, Command, Plugin } from "../State.ts"
 
 // -----------------------------------------------------------------------------
 // Priority

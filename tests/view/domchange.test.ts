@@ -1,6 +1,6 @@
 // Ported from prosemirror-view/test/webtest-domchange.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
-import { EditorState, TextSelection } from "@thomasfosterau/effect-richtext/state"
+import { EditorState, TextSelection } from "@thomasfosterau/effect-richtext/State"
 import {
   a,
   blockquote,
@@ -13,8 +13,8 @@ import {
   p,
   pre,
   strong
-} from "@thomasfosterau/effect-richtext/test-builder"
-import type { Step } from "@thomasfosterau/effect-richtext/transform"
+} from "@thomasfosterau/effect-richtext/TestBuilder"
+import type { Step } from "@thomasfosterau/effect-richtext/Transform"
 import ist from "../utils/ist.ts"
 import { findTextNode, flush, tempEditor } from "./helpers.ts"
 

@@ -16,7 +16,7 @@ import {
   type ParseOptions,
   type ParseRule,
   Slice
-} from "@thomasfosterau/effect-richtext/model"
+} from "@thomasfosterau/effect-richtext/Model"
 import {
   a,
   blockquote,
@@ -37,7 +37,7 @@ import {
   schema,
   strong,
   ul
-} from "@thomasfosterau/effect-richtext/test-builder"
+} from "@thomasfosterau/effect-richtext/TestBuilder"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 

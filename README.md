@@ -11,17 +11,17 @@ The [ProseMirror](https://prosemirror.net) toolkit reimplemented on [Effect](htt
 pnpm add @thomasfosterau/effect-richtext effect
 ```
 
-`effect` (4.x) is a peer dependency. ESM only, with no `.` entry: import modules by subpath.
+`effect` (4.x) is a peer dependency. ESM only. As in Effect, each module has a PascalCase subpath (`@thomasfosterau/effect-richtext/Model`) and is re-exported as a namespace from the root (`import { Model } from "@thomasfosterau/effect-richtext"`), except `GapCursor` and `TestBuilder`, which register state on import. The lowercase subpaths of 0.2 (`/model`, `/schema-basic`, …) still resolve, but are deprecated and will be removed in the next breaking release.
 
 ## Usage
 
 ```ts
 import { Effect } from "effect"
-import { baseKeymap, toggleMark } from "@thomasfosterau/effect-richtext/commands"
-import { keymap } from "@thomasfosterau/effect-richtext/keymap"
-import { Content, DocSchema } from "@thomasfosterau/effect-richtext/model"
-import { EditorState } from "@thomasfosterau/effect-richtext/state"
-import { EditorView } from "@thomasfosterau/effect-richtext/view"
+import { baseKeymap, toggleMark } from "@thomasfosterau/effect-richtext/Commands"
+import { keymap } from "@thomasfosterau/effect-richtext/Keymap"
+import { Content, DocSchema } from "@thomasfosterau/effect-richtext/Model"
+import { EditorState } from "@thomasfosterau/effect-richtext/State"
+import { EditorView } from "@thomasfosterau/effect-richtext/View"
 
 const schema = DocSchema.makeUnsafe({
   nodes: {
@@ -47,14 +47,14 @@ Effect.runFork(Effect.scoped(Effect.andThen(mount(document.body), Effect.never))
 
 | Subpath | Ported from / purpose |
 | --- | --- |
-| `/model`, `/transform`, `/state`, `/view`, `/view-css` | prosemirror-model, -transform, -state, -view (and its stylesheet) |
-| `/keymap`, `/commands`, `/history`, `/inputrules` | the matching prosemirror-\* package |
-| `/gapcursor`, `/dropcursor`, `/placeholder` | cursors and placeholder decorations |
-| `/schema-basic`, `/schema-list`, `/test-builder` | the matching prosemirror-\* package |
-| `/markdown`, `/html` | prosemirror-markdown; HTML string helpers |
-| `/reactive` | `SubscriptionRef` / `Stream` bindings |
-| `/extensions` | typed extensions and chainable commands |
-| `/compat/*` | a ProseMirror-compatible facade |
+| `/Model`, `/Transform`, `/State`, `/View`, `/ViewCss` | prosemirror-model, -transform, -state, -view (and its stylesheet) |
+| `/Keymap`, `/Commands`, `/History`, `/InputRules` | the matching prosemirror-\* package |
+| `/GapCursor`, `/DropCursor`, `/Placeholder` | cursors and placeholder decorations |
+| `/SchemaBasic`, `/SchemaList`, `/TestBuilder` | the matching prosemirror-\* package |
+| `/Markdown`, `/Html` | prosemirror-markdown; HTML string helpers |
+| `/Reactive` | `SubscriptionRef` / `Stream` bindings |
+| `/Extensions` | typed extensions and chainable commands |
+| `/compat/*` | a ProseMirror-compatible facade (lowercase, like ProseMirror's packages) |
 
 ## Documentation
 

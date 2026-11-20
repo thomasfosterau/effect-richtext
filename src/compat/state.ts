@@ -1,5 +1,5 @@
 /**
- * A `prosemirror-state`-compatible facade over `@thomasfosterau/effect-richtext/state`.
+ * A `prosemirror-state`-compatible facade over `@thomasfosterau/effect-richtext/State`.
  *
  * `Selection` can be subclassed like ProseMirror's: a subclass of the
  * facade `Selection` is adapted into a core selection that calls back
@@ -16,8 +16,8 @@
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
-import type * as M from "../model.ts"
-import * as S from "../state.ts"
+import type * as M from "../Model.ts"
+import * as S from "../State.ts"
 import {
   adopt,
   BASE,

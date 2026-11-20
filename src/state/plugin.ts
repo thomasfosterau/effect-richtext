@@ -6,7 +6,7 @@
 import type * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
-import type { AnySchema } from "../model.ts"
+import type { AnySchema } from "../Model.ts"
 import type { EditorProps, EditorView } from "../view/view.ts"
 import type { EditorState, EditorStateConfig } from "./state.ts"
 import type { Transaction } from "./transaction.ts"
@@ -229,8 +229,8 @@ export type PluginTypeId = typeof PluginTypeId
  * import * as Clock from "effect/Clock"
  * import * as Effect from "effect/Effect"
  * import * as Option from "effect/Option"
- * import { schema } from "@thomasfosterau/effect-richtext/schema-basic"
- * import { EditorState, Plugin } from "@thomasfosterau/effect-richtext/state"
+ * import { schema } from "@thomasfosterau/effect-richtext/SchemaBasic"
+ * import { EditorState, Plugin } from "@thomasfosterau/effect-richtext/State"
  *
  * // A `Plugin<number, AnySchema, never, never>`: the state hook may use services.
  * const counter = new Plugin({

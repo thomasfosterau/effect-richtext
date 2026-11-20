@@ -20,7 +20,7 @@
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
-import type { AnySchema, Node, NodeAttrsInput, NodeNames, NodeType, ResolvedPos } from "./model.ts"
+import type { AnySchema, Node, NodeAttrsInput, NodeNames, NodeType, ResolvedPos } from "./Model.ts"
 import {
   type Dispatch,
   type EditorState,
@@ -28,10 +28,10 @@ import {
   Plugin,
   TextSelection,
   type Transaction
-} from "./state.ts"
-import { canJoin } from "./transform.ts"
+} from "./State.ts"
+import { canJoin } from "./Transform.ts"
 import { findWrappingOrNull } from "./transform/structure.ts"
-import type { EditorView, HandlerResult } from "./view.ts"
+import type { EditorView, HandlerResult } from "./View.ts"
 
 // Resumes after a `setTimeout(0)`; interrupting it clears the timer.
 const nextMacrotask: Effect.Effect<void> = Effect.callback<void>((resume) => {

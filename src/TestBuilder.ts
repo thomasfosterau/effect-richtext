@@ -22,9 +22,9 @@ import {
   Node,
   type NodeNames,
   type NodeType
-} from "./model.ts"
-import { marks as basicMarks, nodes as basicNodes } from "./schema-basic.ts"
-import { addListNodes } from "./schema-list.ts"
+} from "./Model.ts"
+import { marks as basicMarks, nodes as basicNodes } from "./SchemaBasic.ts"
+import { addListNodes } from "./SchemaList.ts"
 
 /**
  * Positions recorded from `<name>` markers.
@@ -221,8 +221,8 @@ export type Builders<Sc extends AnySchema, Extra extends Record<string, Attrs> =
  * @example
  * ```ts
  * import * as assert from "node:assert"
- * import { schema } from "@thomasfosterau/effect-richtext/schema-basic"
- * import { builders } from "@thomasfosterau/effect-richtext/test-builder"
+ * import { schema } from "@thomasfosterau/effect-richtext/SchemaBasic"
+ * import { builders } from "@thomasfosterau/effect-richtext/TestBuilder"
  *
  * const { doc, paragraph, h1, em } = builders(schema, { h1: { nodeType: "heading", level: 1 } })
  *

@@ -1,12 +1,12 @@
 // Kept in sync with the README example and docs/extensions.md's first
 // example so they stay type-correct.
 import * as Effect from "effect/Effect"
-import { baseKeymap, toggleMark } from "@thomasfosterau/effect-richtext/commands"
-import { keymap } from "@thomasfosterau/effect-richtext/keymap"
-import { Content, DocSchema } from "@thomasfosterau/effect-richtext/model"
-import { EditorState } from "@thomasfosterau/effect-richtext/state"
-import { EditorView } from "@thomasfosterau/effect-richtext/view"
-import { createEditor, defineBasicExtension } from "@thomasfosterau/effect-richtext/extensions"
+import { baseKeymap, toggleMark } from "@thomasfosterau/effect-richtext/Commands"
+import { keymap } from "@thomasfosterau/effect-richtext/Keymap"
+import { Content, DocSchema } from "@thomasfosterau/effect-richtext/Model"
+import { EditorState } from "@thomasfosterau/effect-richtext/State"
+import { EditorView } from "@thomasfosterau/effect-richtext/View"
+import { createEditor, defineBasicExtension } from "@thomasfosterau/effect-richtext/Extensions"
 
 const schema = DocSchema.makeUnsafe({
   nodes: {

@@ -22,7 +22,7 @@
         "count": 1
       }
     },
-    "src/dropcursor.ts": {
+    "src/DropCursor.ts": {
       "complexity_high": {
         "count": 1
       }
@@ -32,7 +32,7 @@
         "count": 1
       }
     },
-    "src/gapcursor.ts": {
+    "src/GapCursor.ts": {
       "complexity_high": {
         "count": 1
       },
@@ -43,12 +43,12 @@
         "count": 2
       }
     },
-    "src/history.ts": {
+    "src/History.ts": {
       "complexity_moderate": {
         "count": 2
       }
     },
-    "src/inputrules.ts": {
+    "src/InputRules.ts": {
       "complexity_moderate": {
         "count": 1
       }
@@ -139,7 +139,7 @@
         "count": 1
       }
     },
-    "src/test-builder.ts": {
+    "src/TestBuilder.ts": {
       "complexity_critical": {
         "count": 1
       }
@@ -342,12 +342,12 @@
     "src/model/to_dom.ts:complexity",
     "src/view/viewdesc.ts:high impact",
     "src/view/input.ts:complexity",
-    "src/gapcursor.ts:complexity",
+    "src/GapCursor.ts:complexity",
     "src/view/domcoords.ts:complexity",
     "src/model/schema.ts:complexity",
     "src/view/domchange.ts:complexity",
     "src/transform/map.ts:complexity",
-    "src/test-builder.ts:complexity",
+    "src/TestBuilder.ts:complexity",
     "src/view/domobserver.ts:complexity",
     "tests/utils/ist.ts:high impact",
     "src/model/from_dom.ts:complexity",
@@ -355,7 +355,7 @@
     "src/view/decoration.ts:complexity",
     "src/commands/commands.ts:complexity",
     "src/compat/test-builder.ts:complexity",
-    "src/dropcursor.ts:complexity",
+    "src/DropCursor.ts:complexity",
     "src/state/state.ts:complexity",
     "src/transform/replace.ts:high impact",
     "src/markdown/to_markdown.ts:complexity"

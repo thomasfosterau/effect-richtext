@@ -5,7 +5,7 @@
  */
 // Ported from prosemirror-markdown (MIT, Marijn Haverbeke and others)
 import * as S from "effect/Schema"
-import { Content, DocSchema, markSpec, nodeSpec } from "../model.ts"
+import { Content, DocSchema, markSpec, nodeSpec } from "../Model.ts"
 
 /**
  * The node specs of the Markdown schema.

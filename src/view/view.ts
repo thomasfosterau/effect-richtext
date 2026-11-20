@@ -23,7 +23,7 @@ import type {
   NodeNames,
   ResolvedPos,
   Slice
-} from "../model.ts"
+} from "../Model.ts"
 import {
   type EditorState,
   NodeSelection,
@@ -32,7 +32,7 @@ import {
   type Selection,
   type StateFailure,
   type Transaction
-} from "../state.ts"
+} from "../State.ts"
 import * as browser from "./browser.ts"
 import { parseFromClipboard, serializeForClipboard } from "./clipboard.ts"
 import { Decoration, type DecorationSource, viewDecorations } from "./decoration.ts"

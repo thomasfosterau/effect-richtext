@@ -11,11 +11,11 @@ import {
   redoDepth,
   undo,
   undoDepth
-} from "@thomasfosterau/effect-richtext/history"
-import { Fragment, type Node, Slice } from "@thomasfosterau/effect-richtext/model"
-import { EditorState, Plugin, TextSelection } from "@thomasfosterau/effect-richtext/state"
-import { doc, eq, p, schema } from "@thomasfosterau/effect-richtext/test-builder"
-import { ReplaceStep } from "@thomasfosterau/effect-richtext/transform"
+} from "@thomasfosterau/effect-richtext/History"
+import { Fragment, type Node, Slice } from "@thomasfosterau/effect-richtext/Model"
+import { EditorState, Plugin, TextSelection } from "@thomasfosterau/effect-richtext/State"
+import { doc, eq, p, schema } from "@thomasfosterau/effect-richtext/TestBuilder"
+import { ReplaceStep } from "@thomasfosterau/effect-richtext/Transform"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 

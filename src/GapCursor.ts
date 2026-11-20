@@ -13,8 +13,8 @@
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
-import { keydownHandler } from "./keymap.ts"
-import { type AnySchema, Fragment, JSONError, type Node, type NodeType, type ResolvedPos, Slice } from "./model.ts"
+import { keydownHandler } from "./Keymap.ts"
+import { type AnySchema, Fragment, JSONError, type Node, type NodeType, type ResolvedPos, Slice } from "./Model.ts"
 import {
   type Command,
   type EditorState,
@@ -24,9 +24,9 @@ import {
   type SelectionBookmark,
   type SelectionJSON,
   TextSelection
-} from "./state.ts"
-import type { Mappable } from "./transform.ts"
-import { Decoration, DecorationSet, type EditorView } from "./view.ts"
+} from "./State.ts"
+import type { Mappable } from "./Transform.ts"
+import { Decoration, DecorationSet, type EditorView } from "./View.ts"
 
 const child = (node: Node<any>, index: number): Node<any> => node.content.content[index]!
 
@@ -306,7 +306,7 @@ function drawGapCursor(state: EditorState<any>): DecorationSet | null {
 /**
  * The gap cursor's stylesheet (from `prosemirror-gapcursor`'s
  * `style/gapcursor.css`). Add it to the page (for example with
- * `injectCSS` from `@thomasfosterau/effect-richtext/view-css`) or provide your own
+ * `injectCSS` from `@thomasfosterau/effect-richtext/ViewCss`) or provide your own
  * styles for `.ProseMirror-gapcursor`.
  *
  * @since 0.1.0

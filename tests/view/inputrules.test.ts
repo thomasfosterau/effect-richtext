@@ -1,4 +1,4 @@
-// Tests for @thomasfosterau/effect-richtext/inputrules (prosemirror-inputrules has no
+// Tests for @thomasfosterau/effect-richtext/InputRules (prosemirror-inputrules has no
 // test suite of its own).
 import { assert, describe, it } from "@effect/vitest"
 import * as Cause from "effect/Cause"
@@ -18,9 +18,9 @@ import {
   textblockTypeInputRule,
   undoInputRule,
   wrappingInputRule
-} from "@thomasfosterau/effect-richtext/inputrules"
-import type { AnySchema } from "@thomasfosterau/effect-richtext/model"
-import { EditorState, type Plugin, TextSelection } from "@thomasfosterau/effect-richtext/state"
+} from "@thomasfosterau/effect-richtext/InputRules"
+import type { AnySchema } from "@thomasfosterau/effect-richtext/Model"
+import { EditorState, type Plugin, TextSelection } from "@thomasfosterau/effect-richtext/State"
 import {
   blockquote,
   code,
@@ -35,8 +35,8 @@ import {
   schema,
   strong,
   ul
-} from "@thomasfosterau/effect-richtext/test-builder"
-import { EditorView } from "@thomasfosterau/effect-richtext/view"
+} from "@thomasfosterau/effect-richtext/TestBuilder"
+import { EditorView } from "@thomasfosterau/effect-richtext/View"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 import { findTextNode, flush, selFor, tempEditor, workspace } from "./helpers.ts"

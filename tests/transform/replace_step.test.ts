@@ -1,8 +1,8 @@
 // Ported from prosemirror-transform/test/test-replace_step.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
-import { Fragment, type Node, Slice } from "@thomasfosterau/effect-richtext/model"
-import { blockquote, doc, eq, li, p, schema, ul } from "@thomasfosterau/effect-richtext/test-builder"
-import { ReplaceAroundStep, Transform } from "@thomasfosterau/effect-richtext/transform"
+import { Fragment, type Node, Slice } from "@thomasfosterau/effect-richtext/Model"
+import { blockquote, doc, eq, li, p, schema, ul } from "@thomasfosterau/effect-richtext/TestBuilder"
+import { ReplaceAroundStep, Transform } from "@thomasfosterau/effect-richtext/Transform"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 

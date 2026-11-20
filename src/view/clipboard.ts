@@ -6,7 +6,7 @@
  */
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
-import { DOMParser, DOMSerializer, Fragment, type Node, type NodeType, type ResolvedPos, Slice } from "../model.ts"
+import { DOMParser, DOMSerializer, Fragment, type Node, type NodeType, type ResolvedPos, Slice } from "../Model.ts"
 import { parseJson, stringifyJson } from "../internal/json.ts"
 import * as browser from "./browser.ts"
 import type { EditorView } from "./view.ts"

@@ -7,9 +7,9 @@ import {
   MarkdownParser,
   MarkdownSerializer,
   schema
-} from "@thomasfosterau/effect-richtext/markdown"
-import { DocSchema } from "@thomasfosterau/effect-richtext/model"
-import * as TB from "@thomasfosterau/effect-richtext/test-builder"
+} from "@thomasfosterau/effect-richtext/Markdown"
+import { DocSchema } from "@thomasfosterau/effect-richtext/Model"
+import * as TB from "@thomasfosterau/effect-richtext/TestBuilder"
 import MarkdownIt from "markdown-it"
 import ist from "../utils/ist.ts"
 import { doc, em, h1, p } from "./build.ts"

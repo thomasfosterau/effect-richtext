@@ -1192,7 +1192,7 @@ type MarkTypes<Sc extends AnySchema, M extends MarkSpecs> = {
  * import * as assert from "node:assert"
  * import * as Effect from "effect/Effect"
  * import * as Schema from "effect/Schema"
- * import { Content, DocSchema } from "@thomasfosterau/effect-richtext/model"
+ * import { Content, DocSchema } from "@thomasfosterau/effect-richtext/Model"
  *
  * const schema = Effect.runSync(
  *   DocSchema.make({

@@ -6,7 +6,7 @@
  */
 import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
-import type { NodeJSON } from "@thomasfosterau/effect-richtext/model"
+import type { NodeJSON } from "@thomasfosterau/effect-richtext/Model"
 
 /**
  * The library's own types behind an adapter.
