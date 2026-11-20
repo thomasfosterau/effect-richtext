@@ -40,6 +40,7 @@ const transactionPlugin = new Plugin({
   appendTransaction(trs, _, state) {
     const last = trs[trs.length - 1]
     if (last && last.getMeta("append")) return state.tr.insertText("A")
+    return null
   }
 })
 
