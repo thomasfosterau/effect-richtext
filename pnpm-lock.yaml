@@ -231,8 +231,8 @@ catalogs:
       specifier: ^1.25.13
       version: 1.25.13
     prosemirror-schema-list:
-      specifier: ^1.6.0
-      version: 1.6.0
+      specifier: ^1.6.1
+      version: 1.6.1
     prosemirror-state:
       specifier: ^1.4.4
       version: 1.4.4
@@ -342,7 +342,7 @@ importers:
         version: 1.25.13
       prosemirror-schema-list:
         specifier: 'catalog:'
-        version: 1.6.0
+        version: 1.6.1
       prosemirror-state:
         specifier: 'catalog:'
         version: 1.4.4
@@ -1726,7 +1726,6 @@ packages:
 
   concat-stream@1.6.2:
     resolution: {integrity: sha512-27HBghJxjiZtIk3Ycvn/4kbJk/1uZuJFfuPEns6LaEvpvG1f0hTea8lilrouyo9mVc2GWdcEZ8OLoGmSADlrCw==}
-    engines: {'0': node >= 0.8}
 
   concat-with-sourcemaps@1.1.0:
     resolution: {integrity: sha512-4gEjHJFT9e+2W/77h/DS5SGUgwDaOwprX8L/gl5+3ixnzkVJJsZWDSelmN3Oilw3LNDZjZV0yqH1hLG3k6nghg==}
@@ -2197,8 +2196,8 @@ packages:
   prosemirror-schema-basic@1.2.5:
     resolution: {integrity: sha512-McBWhfgOfThyu3Nltbs8SOUbM4t/h0pxteibaaHd1QR4S+F1t0u7M1ETaCE6/cveFoF+2fowTIBNkJOyeZQjNg==}
 
-  prosemirror-schema-list@1.6.0:
-    resolution: {integrity: sha512-G1srDtan+VqWn+qpmWFj/6j0YsZ5zMU+ZIlGVIW41a5JF2jAI3jzfMRWmSABmEH2Qoq1PmAG/o2mucMMdLOsLg==}
+  prosemirror-schema-list@1.6.1:
+    resolution: {integrity: sha512-QiL/QjgCWr+3Mhukm48E5d3XCC8lVEIanixGkXbWKUyxCUGy4ntVffFapmMwQ4vxhZw+8i7117W2N6FSyqyWfA==}
 
   prosemirror-state@1.4.4:
     resolution: {integrity: sha512-6jiYHH2CIGbCfnxdHbXZ12gySFY/fz/ulZE333G6bPqIZ4F+TXo9ifiR86nAHpWnfoNjOb3o5ESi7J8Uz1jXHw==}
@@ -3947,7 +3946,7 @@ snapshots:
     dependencies:
       prosemirror-model: 1.25.13
 
-  prosemirror-schema-list@1.6.0:
+  prosemirror-schema-list@1.6.1:
     dependencies:
       prosemirror-model: 1.25.13
       prosemirror-state: 1.4.4
@@ -3963,7 +3962,7 @@ snapshots:
     dependencies:
       prosemirror-model: 1.25.13
       prosemirror-schema-basic: 1.2.5
-      prosemirror-schema-list: 1.6.0
+      prosemirror-schema-list: 1.6.1
 
   prosemirror-transform@1.12.6:
     dependencies:

@@ -30,7 +30,7 @@ catalog:
   prosemirror-commands: ^1.7.2
   prosemirror-history: ^1.5.1
   prosemirror-model: ^1.25.13
-  prosemirror-schema-list: ^1.6.0
+  prosemirror-schema-list: ^1.6.1
   prosemirror-state: ^1.4.4
   prosemirror-test-builder: ^1.1.1
   prosemirror-transform: ^1.12.6
