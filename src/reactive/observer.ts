@@ -67,47 +67,46 @@ export interface EditorObserver<Sc extends AnySchema = AnySchema, R = never, E =
  * @since 0.1.0
  * @category constructors
  */
-export const make = <Sc extends AnySchema, R, E>(
+export const make = Effect.fn("EditorObserver.make")(function* <Sc extends AnySchema, R, E>(
   view: EditorView<Sc, R, E>
-): Effect.Effect<EditorObserver<Sc, R, E>, never, Scope.Scope> =>
-  Effect.gen(function* () {
-    const source = yield* acquireSource(view.state)
-    const focused = yield* acquireRef(view.hasFocus())
+): Effect.fn.Return<EditorObserver<Sc, R, E>, never, Scope.Scope> {
+  const source = yield* acquireSource(view.state)
+  const focused = yield* acquireRef(view.hasFocus())
 
-    yield* Effect.acquireRelease(
-      Effect.sync(() =>
-        view.subscribe((update) => {
-          // Use the view's current state rather than `update.state`: a
-          // nested update (from a plugin view) may already have replaced it.
-          setState(source, view.state)
-          publishTransactions(source, update.transactions, update.state, update.prevState)
-        })
-      ),
-      (unsubscribe) => Effect.sync(unsubscribe)
-    )
+  yield* Effect.acquireRelease(
+    Effect.sync(() =>
+      view.subscribe((update) => {
+        // Use the view's current state rather than `update.state`: a
+        // nested update (from a plugin view) may already have replaced it.
+        setState(source, view.state)
+        publishTransactions(source, update.transactions, update.state, update.prevState)
+      })
+    ),
+    (unsubscribe) => Effect.sync(unsubscribe)
+  )
 
-    // Written synchronously from DOM event handlers.
-    const setFocus = (value: boolean) => setRefUnsafe(focused, value)
-    const onFocusIn = () => setFocus(true)
-    const onFocusOut = (event: FocusEvent) =>
-      setFocus(!!event.relatedTarget && view.dom.contains(event.relatedTarget as globalThis.Node))
-    yield* Effect.acquireRelease(
+  // Written synchronously from DOM event handlers.
+  const setFocus = (value: boolean) => setRefUnsafe(focused, value)
+  const onFocusIn = () => setFocus(true)
+  const onFocusOut = (event: FocusEvent) =>
+    setFocus(!!event.relatedTarget && view.dom.contains(event.relatedTarget as globalThis.Node))
+  yield* Effect.acquireRelease(
+    Effect.sync(() => {
+      view.dom.addEventListener("focusin", onFocusIn)
+      view.dom.addEventListener("focusout", onFocusOut)
+    }),
+    () =>
       Effect.sync(() => {
-        view.dom.addEventListener("focusin", onFocusIn)
-        view.dom.addEventListener("focusout", onFocusOut)
-      }),
-      () =>
-        Effect.sync(() => {
-          view.dom.removeEventListener("focusin", onFocusIn)
-          view.dom.removeEventListener("focusout", onFocusOut)
-        })
-    )
+        view.dom.removeEventListener("focusin", onFocusIn)
+        view.dom.removeEventListener("focusout", onFocusOut)
+      })
+  )
 
-    const observer: EditorObserver<Sc, R, E> = {
-      [EditorObserverTypeId]: EditorObserverTypeId,
-      ...streamsOf(source, view),
-      view,
-      focus: SubscriptionRef.changes(focused)
-    }
-    return observer
-  })
+  const observer: EditorObserver<Sc, R, E> = {
+    [EditorObserverTypeId]: EditorObserverTypeId,
+    ...streamsOf(source, view),
+    view,
+    focus: SubscriptionRef.changes(focused)
+  }
+  return observer
+})

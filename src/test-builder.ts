@@ -10,6 +10,7 @@
  *
  * @since 0.1.0
  */
+import * as Predicate from "effect/Predicate"
 import * as Result from "effect/Result"
 import {
   type AnySchema,
@@ -106,8 +107,7 @@ Object.defineProperty(Node.prototype, "tag", {
 
 // Node builders for leaf types (such as `br`) carry a `flat` array too,
 // so they can be passed as children without being called.
-const isFlat = (u: unknown): u is Flat<any> =>
-  (typeof u === "object" || typeof u === "function") && u !== null && Array.isArray((u as Flat<any>).flat)
+const isFlat = (u: unknown): u is Flat<any> => Predicate.hasProperty(u, "flat") && Array.isArray(u.flat)
 
 function flatten<Sc extends AnySchema>(
   schema: Sc,
@@ -163,7 +163,7 @@ function flatten<Sc extends AnySchema>(
 
 function takeAttrs(attrs: Attrs | null, args: Array<unknown>): Attrs | null {
   const a0 = args[0]
-  if (!args.length || (a0 && (typeof a0 === "string" || a0 instanceof Node || isFlat(a0)))) return attrs
+  if (!args.length || (a0 && (Predicate.isString(a0) || a0 instanceof Node || isFlat(a0)))) return attrs
   args.shift()
   if (!attrs) return a0 as Attrs
   if (!a0) return attrs

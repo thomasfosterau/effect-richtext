@@ -33,6 +33,12 @@ import { canJoin } from "./transform.ts"
 import { findWrappingOrNull } from "./transform/structure.ts"
 import type { EditorView, HandlerResult } from "./view.ts"
 
+// Resumes after a `setTimeout(0)`; interrupting it clears the timer.
+const nextMacrotask: Effect.Effect<void> = Effect.callback<void>((resume) => {
+  const timer = setTimeout(() => resume(Effect.void))
+  return Effect.sync(() => clearTimeout(timer))
+})
+
 // -----------------------------------------------------------------------------
 // InputRule
 // -----------------------------------------------------------------------------
@@ -278,12 +284,18 @@ export const inputRules = <const Rules extends ReadonlyArray<InputRule<any, any,
       },
       handleDOMEvents: {
         compositionend: (view) => {
-          setTimeout(() => {
-            if (view.isDestroyed) return
-            const sel = view.state.selection
-            const $cursor = sel instanceof TextSelection ? sel.$cursorOrNull : null
-            if ($cursor) view.runHandler(run(view, $cursor.pos, $cursor.pos, "", rules, plugin, undefined))
-          })
+          // On the next macrotask, as the composition's DOM change is read
+          // first; the view interrupts this if it is destroyed meanwhile.
+          view.runEffect(
+            Effect.andThen(
+              nextMacrotask,
+              Effect.sync(() => {
+                const sel = view.state.selection
+                const $cursor = sel instanceof TextSelection ? sel.$cursorOrNull : null
+                if ($cursor) view.runHandler(run(view, $cursor.pos, $cursor.pos, "", rules, plugin, undefined))
+              })
+            )
+          )
           return false
         }
       }

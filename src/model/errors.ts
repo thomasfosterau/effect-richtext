@@ -8,8 +8,6 @@
  *
  * @since 0.1.0
  */
-import * as HashSet from "effect/HashSet"
-import * as Predicate from "effect/Predicate"
 import * as Schema from "effect/Schema"
 
 /**
@@ -103,19 +101,18 @@ export type ModelError =
   | JSONError
   | DOMSpecError
 
-const modelErrorTags: HashSet.HashSet<string> = HashSet.make(
-  "PositionError",
-  "ReplaceError",
-  "ContentError",
-  "AttributeError",
-  "SchemaDefinitionError",
-  "JSONError",
-  "DOMSpecError"
-)
+const AnyModelError = Schema.Union([
+  PositionError,
+  ReplaceError,
+  ContentError,
+  AttributeError,
+  SchemaDefinitionError,
+  JSONError,
+  DOMSpecError
+])
 
 /**
  * @since 0.1.0
  * @category guards
  */
-export const isModelError = (u: unknown): u is ModelError =>
-  Predicate.isObjectOrArray(u) && HashSet.has(modelErrorTags, (u as { _tag?: unknown })._tag as string)
+export const isModelError: (u: unknown) => u is ModelError = Schema.is(AnyModelError)

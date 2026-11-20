@@ -5,6 +5,7 @@
  * @since 0.1.0
  */
 import * as Effect from "effect/Effect"
+import * as Predicate from "effect/Predicate"
 import * as Option from "effect/Option"
 import type * as Scope from "effect/Scope"
 import { fromHTMLUnsafe } from "../html.ts"
@@ -272,7 +273,8 @@ const foldInto = (target: Transaction<any>, tr: Transaction<any>): void => {
 }
 
 const isPlainObject = (u: unknown): u is Attrs => {
-  if (u === null || typeof u !== "object" || Array.isArray(u)) return false
+  if (!Predicate.isObject(u)) return false
+  // Only literals: a node, mark or other class instance is not attributes.
   const proto = Object.getPrototypeOf(u)
   return proto === Object.prototype || proto === null
 }

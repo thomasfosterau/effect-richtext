@@ -132,6 +132,31 @@ describe("EditorView (Effect API)", () => {
     }).pipe(Effect.scoped)
   )
 
+  it.live("interrupts background handler effects when the view is destroyed", () =>
+    Effect.gen(function* () {
+      const d = startDoc()
+      const state = EditorState.createUnsafe({ doc: d, selection: selFor(d) })
+      const started = yield* Deferred.make<void>()
+      const interrupted = yield* Deferred.make<void>()
+      const errors: Array<unknown> = []
+      const view = EditorView.makeUnsafe(workspace(), {
+        state,
+        onError: (cause) => errors.push(cause),
+        handleKeyDown: () =>
+          Effect.gen(function* () {
+            yield* Deferred.succeed(started, undefined)
+            return yield* Effect.never
+          }).pipe(Effect.onInterrupt(() => Deferred.succeed(interrupted, undefined)))
+      })
+      keyDown(view, "a", 65)
+      yield* Deferred.await(started)
+      view.destroy()
+      yield* Deferred.await(interrupted)
+      // The interruption is the view's own doing, not a handler failure.
+      ist(errors.length, 0)
+    })
+  )
+
   it.effect("reports failing handlers and dispatches to onError", () =>
     Effect.gen(function* () {
       const d = startDoc()
