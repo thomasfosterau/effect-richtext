@@ -13,13 +13,13 @@ catalog:
   # tsgolint versions in the `components` table of
   # node_modules/@effect/tsgo/dist/effect-tsgo.cjs, and fails `pnpm install`
   # on any other: move it with `@typescript/native` and `vite-plus`.
-  "@effect/tsgo": 0.69.0
+  "@effect/tsgo": 0.70.0
   "@effect/vitest": 4.1.4
   "@enfect/oxlint": 0.10.0
   "@types/node": ^26.6.6
   # Both peer on the exact `vitest` version.
-  "@vitest/browser-playwright": 5.1.0
-  "@vitest/coverage-istanbul": 5.1.0
+  "@vitest/browser-playwright": 5.1.1
+  "@vitest/coverage-istanbul": 5.1.1
   effect: 4.1.4
   fallow: 3.44.0
   happy-dom: ^21.0.4
@@ -43,9 +43,9 @@ catalog:
   typescript: "npm:@typescript/typescript6@6.0.2"
   "@typescript/native": "npm:typescript@7.0.2"
   # `vite` equals `vite-plus`, and `vitest` its exact vitest pin.
-  vite-plus: 1.6.0
+  vite-plus: 1.7.0
   vite: npm:@voidzero-dev/vite-plus-core@1.6.0
-  vitest: 5.1.0
+  vitest: 5.1.1
   w3c-keyname: ^2.2.8
 
 # The ranges the published package declares; raising a floor is breaking.
