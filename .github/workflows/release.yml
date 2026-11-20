@@ -12,7 +12,7 @@ on:
 
 permissions: {}
 
-# pnpm 11 re-installs WITH lifecycle scripts before `pnpm run` when a manifest
+# pnpm re-installs WITH lifecycle scripts before `pnpm run` when a manifest
 # looks newer than node_modules, which would undo `--ignore-scripts` below.
 env:
   pnpm_config_verify_deps_before_run: "false"

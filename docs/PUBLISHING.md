@@ -6,7 +6,7 @@ Releases use [Changesets](https://github.com/changesets/changesets) and npm [tru
 
 1. A change that affects the published package carries a changeset (`vp exec changeset`).
 2. On `trunk`, the [Release](../.github/workflows/release.yml) workflow opens or updates a "chore: version packages" PR (`pnpm run version`: `changeset version`, `vp fmt`, lockfile refresh; `"format": false` in `.changeset/config.json` because Changesets' own formatter detection picks Vite+'s IDE-only `oxfmt` shim).
-3. Merging that PR runs `pnpm run release` in the protected `release` environment: build, `pnpm publish --ignore-scripts`, `changeset tag`. pnpm attaches provenance only once the repository and package are public.
+3. Merging that PR runs `pnpm run release` in the protected `release` environment: build, `pnpm publish --recursive --ignore-scripts` (a no-op when npm already has the version; pnpm does the OIDC exchange itself), `changeset tag`. pnpm attaches provenance only once the repository and package are public.
 
 ## One-time setup
 
