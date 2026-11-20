@@ -111,7 +111,7 @@ describe("union and priorities", () => {
     ist(editor.schema.marks.color.spec.spanning, false)
   })
 
-  it("lets higher-priority commands win", () =>
+  it.effect("lets higher-priority commands win", () =>
     Effect.gen(function* () {
       const log: Array<string> = []
       const cmd = (name: string) => (): Command => () => Effect.sync(() => (log.push(name), true))
@@ -124,15 +124,17 @@ describe("union and priorities", () => {
       )
       yield* editor.commands.hello()
       assert.deepStrictEqual(log, ["high"])
-    }).pipe(Effect.runSync))
+    })
+  )
 
-  it("fails with a SchemaDefinitionError for invalid schemas", () =>
+  it.effect("fails with a SchemaDefinitionError for invalid schemas", () =>
     Effect.gen(function* () {
       const exit = yield* Effect.exit(createEditor(union(defineDoc(), defineParagraph())))
       ist(Exit.isFailure(exit))
       const error = Exit.findErrorOption(exit).pipe(getSome)
       ist(error._tag, "SchemaDefinitionError")
-    }).pipe(Effect.runSync))
+    })
+  )
 })
 
 describe("Editor", () => {
@@ -154,7 +156,7 @@ describe("Editor", () => {
     ist.throws(() => (marks.link as any)(), "No value supplied")
   })
 
-  it("accepts initial content as a node, JSON or HTML", () =>
+  it.effect("accepts initial content as a node, JSON or HTML", () =>
     Effect.gen(function* () {
       const ext = defineBasicExtension()
       const fromHTML = yield* createEditor(ext, { doc: "<h2>Hi</h2><p>there</p>" })
@@ -171,9 +173,10 @@ describe("Editor", () => {
       ist(fromNode.state.doc.type.schema, fromNode.schema)
       const bad = yield* Effect.exit(createEditor(ext, { doc: { type: "nope" } }))
       ist(Exit.isFailure(bad))
-    }).pipe(Effect.runSync))
+    })
+  )
 
-  it("runs commands against the current state", () =>
+  it.effect("runs commands against the current state", () =>
     Effect.gen(function* () {
       const editor = createEditorUnsafe(defineBasicExtension(), { doc: "<p>hello</p>" })
       ist(yield* editor.commands.insertText("!", 6))
@@ -196,9 +199,10 @@ describe("Editor", () => {
       const untyped = editor.commands as unknown as Record<string, (name: string) => Effect.Effect<boolean>>
       ist(!(yield* untyped.toggleMark!("underline")))
       ist(!(yield* untyped.setBlockType!("table")))
-    }).pipe(Effect.runSync))
+    })
+  )
 
-  it("checks commands with can() without dispatching", () =>
+  it.effect("checks commands with can() without dispatching", () =>
     Effect.gen(function* () {
       const editor = createEditorUnsafe(defineBasicExtension(), { doc: "<p>hello</p>" })
       const before = editor.state
@@ -209,9 +213,10 @@ describe("Editor", () => {
       ist(editor.state, before)
       yield* editor.commands.insertText("x", 1)
       ist(yield* editor.can().undo())
-    }).pipe(Effect.runSync))
+    })
+  )
 
-  it("applies chained commands as one transaction", () =>
+  it.effect("applies chained commands as one transaction", () =>
     Effect.gen(function* () {
       const editor = createEditorUnsafe(defineBasicExtension(), { doc: "<p>hello</p>" })
       const before = editor.state
@@ -226,9 +231,10 @@ describe("Editor", () => {
       ist(undoDepth(editor.state), 1)
       ist(yield* editor.commands.undo())
       ist(editor.state.doc.eq(before.doc))
-    }).pipe(Effect.runSync))
+    })
+  )
 
-  it("lets chained commands see earlier steps and reports failing ones", () =>
+  it.effect("lets chained commands see earlier steps and reports failing ones", () =>
     Effect.gen(function* () {
       const seen: Array<string> = []
       const editor = createEditorUnsafe(
@@ -265,18 +271,20 @@ describe("Editor", () => {
       assert.deepStrictEqual(seen, ["ab@3", "abc@4", "abcd@5"])
       ist(editor.state.doc.toString(), `doc(paragraph("abcd"))`)
       ist(undoDepth(editor.state), 1)
-    }).pipe(Effect.runSync))
+    })
+  )
 
-  it("doesn't dispatch empty chains", () =>
+  it.effect("doesn't dispatch empty chains", () =>
     Effect.gen(function* () {
       const editor = createEditorUnsafe(defineBasicExtension())
       const before = editor.state
       ist(!(yield* editor.chain().joinUp().run))
       ist(editor.state, before)
       ist(yield* editor.chain().run)
-    }).pipe(Effect.runSync))
+    })
+  )
 
-  it("replaces content with setContent, undoably", () =>
+  it.effect("replaces content with setContent, undoably", () =>
     Effect.gen(function* () {
       const editor = createEditorUnsafe(defineBasicExtension(), { doc: "<p>one</p>" })
       yield* editor.setContent("<h1>two</h1>")
@@ -296,7 +304,8 @@ describe("Editor", () => {
       ist(editor.state.doc.toString(), `doc(paragraph("one"))`)
       const exit = yield* Effect.exit(editor.setContent({ type: "doc", content: [{ type: "table" }] }))
       ist(Exit.isFailure(exit))
-    }).pipe(Effect.runSync))
+    })
+  )
 })
 
 class Step extends Context.Service<Step, { readonly size: number }>()("test/Step") {}
@@ -310,15 +319,16 @@ describe("Effect requirements and errors", () => {
     }
   })
 
-  it("collects plugin requirements and provides them to commands", () =>
+  it.effect("collects plugin requirements and provides them to commands", () =>
     Effect.gen(function* () {
       const editor = yield* createEditor(union(defineBasicExtension(), definePlugin(counter)))
       yield* editor.commands.insertText("a")
       yield* editor.chain().insertText("b").insertText("c").run
       ist(getSome(counter.getState(editor.state)), 4)
-    }).pipe(Effect.provideService(Step, { size: 2 }), Effect.runSync))
+    }).pipe(Effect.provideService(Step, { size: 2 }))
+  )
 
-  it("propagates plugin and command failures", () =>
+  it.effect("propagates plugin and command failures", () =>
     Effect.gen(function* () {
       const editor = createEditorUnsafe(
         union(
@@ -343,7 +353,8 @@ describe("Effect requirements and errors", () => {
       const viaChain = yield* Effect.exit(editor.chain().insertText("a").insertText("!").run)
       ist(Exit.isFailure(viaChain))
       ist(editor.state.doc.textContent, "")
-    }).pipe(Effect.runSync))
+    })
+  )
 
   it("supports keymaps with the base keymap at low priority", () => {
     const editor = createEditorUnsafe(
@@ -353,19 +364,21 @@ describe("Effect requirements and errors", () => {
     ist(editor.state.plugins.filter((p) => p.props.handleKeyDown).length, 4)
   })
 
-  it("rejects including the history twice", () =>
+  it.effect("rejects including the history twice", () =>
     Effect.gen(function* () {
       const exit = yield* Effect.exit(createEditor(union(minimal(), defineHistory(), defineHistory())))
       ist(Exit.isFailure(exit))
       ist(Exit.findErrorOption(exit).pipe(getSome)._tag, "StateError")
-    }).pipe(Effect.runSync))
+    })
+  )
 
-  it("works with only the base commands", () =>
+  it.effect("works with only the base commands", () =>
     Effect.gen(function* () {
       const editor = createEditorUnsafe(union(minimal(), defineMarkSpec("bold", {}), defineBaseCommands()))
       yield* editor.commands.insertText("x")
       yield* select(editor, 1, 2)
       ist(yield* editor.commands.toggleMark("bold"))
       ist(editor.state.doc.toString(), `doc(paragraph(bold("x")))`)
-    }).pipe(Effect.runSync))
+    })
+  )
 })

@@ -84,18 +84,22 @@ describe("GapCursor", () => {
     ist(Option.isNone(GapCursor.findGapCursorFrom(d.resolveUnsafe(between), 1, true)))
   })
 
-  it("roundtrips through JSON", () => {
-    const sel = new GapCursor(d.resolveUnsafe(between))
-    const json = sel.toJSON()
-    ist(json.type, "gapcursor")
-    const back = Effect.runSync(Selection.fromJSON(d, json))
-    ist(back instanceof GapCursor)
-    ist(back.eq(sel))
-  })
+  it.effect("roundtrips through JSON", () =>
+    Effect.gen(function* () {
+      const sel = new GapCursor(d.resolveUnsafe(between))
+      const json = sel.toJSON()
+      ist(json.type, "gapcursor")
+      const back = yield* Selection.fromJSON(d, json)
+      ist(back instanceof GapCursor)
+      ist(back.eq(sel))
+    })
+  )
 
-  it("rejects invalid JSON", () => {
-    ist(Effect.runSync(Effect.exit(Selection.fromJSON(d, { type: "gapcursor" })))._tag, "Failure")
-  })
+  it.effect("rejects invalid JSON", () =>
+    Effect.gen(function* () {
+      ist((yield* Effect.exit(Selection.fromJSON(d, { type: "gapcursor" })))._tag, "Failure")
+    })
+  )
 
   it("maps through changes", () => {
     const sel = new GapCursor(d.resolveUnsafe(between))
