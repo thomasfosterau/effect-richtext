@@ -1,5 +1,40 @@
 # @thomasfosterau/effect-richtext
 
+## 0.3.0
+
+### Minor Changes
+
+- [#103](https://github.com/thomasfosterau/effect-richtext/pull/103) [`58e8c66`](https://github.com/thomasfosterau/effect-richtext/commit/58e8c663074c13b42b3f9c0699e015e83c1faa79) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - Adopt Effect's module layout. Each module now has a PascalCase subpath, and the package root re-exports each one as a namespace:
+  
+  ```ts
+  import { EditorState } from "@thomasfosterau/effect-richtext/State"
+  // or
+  import { State } from "@thomasfosterau/effect-richtext"
+  State.EditorState.create({ schema })
+  ```
+  
+  | 0.2 subpath                                            | New subpath                                           |
+  | ------------------------------------------------------ | ----------------------------------------------------- |
+  | `/model`, `/transform`, `/state`, `/view`, `/view-css` | `/Model`, `/Transform`, `/State`, `/View`, `/ViewCss` |
+  | `/keymap`, `/commands`, `/history`, `/inputrules`      | `/Keymap`, `/Commands`, `/History`, `/InputRules`     |
+  | `/gapcursor`, `/dropcursor`, `/placeholder`            | `/GapCursor`, `/DropCursor`, `/Placeholder`           |
+  | `/schema-basic`, `/schema-list`, `/test-builder`       | `/SchemaBasic`, `/SchemaList`, `/TestBuilder`         |
+  | `/markdown`, `/html`, `/reactive`, `/extensions`       | `/Markdown`, `/Html`, `/Reactive`, `/Extensions`      |
+  
+  Migration: replace each lowercase subpath in your imports with its PascalCase name. The lowercase subpaths still resolve to the same files in this release, but are deprecated and will be removed in the next breaking release. `GapCursor` and `TestBuilder` register state when imported, so they are only on their own subpaths, not on the root. `compat/*` is unchanged.
+
+### Patch Changes
+
+- [#98](https://github.com/thomasfosterau/effect-richtext/pull/98) [`f080d3f`](https://github.com/thomasfosterau/effect-richtext/commit/f080d3fff280d0ef218fdd4d749eac48a735562b) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - `html.serialize`, `html.parse`, `html.parseSlice`, `StateRef.make` and `EditorObserver.make` are now `Effect.fn` functions, so each run opens a tracing span named after the function and adds it to stack traces. Signatures are unchanged.
+
+- [#98](https://github.com/thomasfosterau/effect-richtext/pull/98) [`2e7f120`](https://github.com/thomasfosterau/effect-richtext/commit/2e7f1204f2f9fdc3bca989d435c11411a49013cd) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - `isModelError` is now `Schema.is` of the union of the model error classes, so it recognises instances of those classes only. Before, any object whose `_tag` named a model error passed.
+
+- [#98](https://github.com/thomasfosterau/effect-richtext/pull/98) [`354a4c7`](https://github.com/thomasfosterau/effect-richtext/commit/354a4c7758b2bd3bc2469dd0e68c945fc7e4c815) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - Export `NodeJSONSchema` from `/model`: the Effect `Schema` for a node's JSON shape, annotated with the `NodeJSON` identifier so `Schema.toJsonSchemaDocument` can derive a JSON Schema for stored documents.
+
+- [#95](https://github.com/thomasfosterau/effect-richtext/pull/95) [`aeef354`](https://github.com/thomasfosterau/effect-richtext/commit/aeef354faad52b6ff0004011900ac53f2281f9d2) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - `DocSchema.text` / `textUnsafe` now return a `TextNode` typed by the schema they are called on (`TextNode<this>`), so generic code holding a schema `Sc` gets a `Node<Sc>` without a cast. Concrete schemas see the same type as before.
+
+- [#98](https://github.com/thomasfosterau/effect-richtext/pull/98) [`b61cef9`](https://github.com/thomasfosterau/effect-richtext/commit/b61cef979433c9f1c9671d313620a27da5216b0c) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - `EditorView.destroy` (and closing the scope of `EditorView.make`) now interrupts handler and dispatch effects that are still running in the background, instead of letting them run against the destroyed view. An effect interrupted this way is not reported to `onError`.
+
 ## 0.2.1
 
 ### Patch Changes
