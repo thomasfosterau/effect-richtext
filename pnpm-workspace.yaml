@@ -18,8 +18,8 @@ catalog:
   "@enfect/oxlint": 0.10.0
   "@types/node": ^26.6.6
   # Both peer on the exact `vitest` version.
-  "@vitest/browser-playwright": 5.1.0
-  "@vitest/coverage-istanbul": 5.1.0
+  "@vitest/browser-playwright": 5.1.1
+  "@vitest/coverage-istanbul": 5.1.1
   effect: 4.1.4
   fallow: 3.44.0
   happy-dom: ^21.0.4
@@ -46,7 +46,7 @@ catalog:
   # (`npm view vite-plus@<v> dependencies`); `vite` no longer equals vite-plus.
   vite-plus: 1.7.0
   vite: npm:@voidzero-dev/vite-plus-core@8.3.8000
-  vitest: 5.1.0
+  vitest: 5.1.1
   w3c-keyname: ^2.2.8
 
 # The ranges the published package declares; raising a floor is breaking.
