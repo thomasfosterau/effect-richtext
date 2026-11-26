@@ -396,10 +396,14 @@ handlers.mousedown = (view, _event) => {
 // release on the view's root until done.
 abstract class MouseDown {
   mightDrag: { node: Node<any, any>; pos: number; addAttr: boolean; setUneditable: boolean } | null = null
+  // SAFETY: these listen for `mouseup` and `mousemove`, which are mouse events.
+  private readonly onUp = (event: Event) => this.up(event as MouseEvent)
+  // SAFETY: as above.
+  private readonly onMove = (event: Event) => this.move(event as MouseEvent)
 
   constructor(readonly view: AnyView) {
-    view.root.addEventListener("mouseup", (this.up = this.up.bind(this) as any))
-    view.root.addEventListener("mousemove", (this.move = this.move.bind(this) as any))
+    view.root.addEventListener("mouseup", this.onUp)
+    view.root.addEventListener("mousemove", this.onMove)
   }
 
   up(_event: MouseEvent): void {
@@ -411,8 +415,8 @@ abstract class MouseDown {
   }
 
   done(): void {
-    this.view.root.removeEventListener("mouseup", this.up as any)
-    this.view.root.removeEventListener("mousemove", this.move as any)
+    this.view.root.removeEventListener("mouseup", this.onUp)
+    this.view.root.removeEventListener("mousemove", this.onMove)
     if (this.view.input.mouseDown == this) this.view.input.mouseDown = null
   }
 

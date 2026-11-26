@@ -36,6 +36,8 @@ export function keydownHandler(bindings: {
   return function (view, event) {
     const candidates = matchBindings(map, event)
     for (let i = 0; i < candidates.length; i++) {
+      // ProseMirror passes `view.dispatch` itself, which the view binds.
+      // oxlint-disable-next-line typescript/unbound-method
       if (candidates[i]!(view.state, view.dispatch, view)) return true
     }
     return false
