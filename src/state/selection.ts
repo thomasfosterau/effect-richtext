@@ -640,7 +640,7 @@ export class AllSelection<Sc extends AnySchema = AnySchema> extends Selection<Sc
   }
 
   override getBookmark(): SelectionBookmark<Sc> {
-    return AllBookmark as SelectionBookmark<Sc>
+    return AllBookmark
   }
 }
 

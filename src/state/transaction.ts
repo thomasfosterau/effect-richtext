@@ -260,6 +260,7 @@ export class Transaction<Sc extends AnySchema = AnySchema> extends Transform<Sc>
   /** Retrieve a metadata property for a given name or plugin, if it was set. */
   getMeta<A = unknown>(key: MetaKey): Option.Option<A> {
     const name = Predicate.isString(key) ? key : key.key
+    // SAFETY: callers name the type of the metadata stored under `key`.
     return name in this.meta ? Option.some(this.meta[name] as A) : Option.none()
   }
 

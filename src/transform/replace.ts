@@ -51,6 +51,7 @@ export function replaceStepOrNull<Sc extends AnySchema>(
     $to = doc.resolveUnsafe(to)
   // Optimization -- avoid work if it's obvious that it's not needed.
   if (fitsTrivially($from, $to, slice)) return new ReplaceStep(from, to, slice)
+  // SAFETY: the fitted step replaces content of `$from`'s document, from schema `Sc`.
   return new Fitter($from, $to, slice).fit() as Step<Sc> | null
 }
 

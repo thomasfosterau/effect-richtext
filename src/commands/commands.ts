@@ -22,8 +22,7 @@ import {
   type NodeNames,
   type NodeType,
   type ResolvedPos,
-  Slice,
-  type TextNode
+  Slice
 } from "../Model.ts"
 import {
   AllSelection,
@@ -80,10 +79,13 @@ export interface TextblockBoundaryView {
  * @category guards
  */
 export const isTextblockBoundaryView = (view: unknown): view is TextblockBoundaryView =>
-  Predicate.isObjectOrArray(view) && Predicate.isFunction((view as { endOfTextblock?: unknown }).endOfTextblock)
+  Predicate.isObjectOrArray(view) &&
+  Predicate.hasProperty(view, "endOfTextblock") &&
+  Predicate.isFunction(view.endOfTextblock)
 
 /** `isTextblockBoundaryView`, typed on the views commands receive. */
 const isBoundaryView = (view: EditorViewLike): view is Extract<EditorViewLike, TextblockBoundaryView> =>
+  // SAFETY: read only to check that it is a function.
   Predicate.isObjectOrArray(view) && Predicate.isFunction((view as { endOfTextblock?: unknown }).endOfTextblock)
 
 // -----------------------------------------------------------------------------
@@ -149,6 +151,7 @@ function textblockAt(node: Node<any>, side: "start" | "end", only = false): bool
 }
 
 function isDeletingStep(step: unknown): step is ReplaceStep<any> {
+  // SAFETY: callers pass the step of a deletion, a `ReplaceStep`.
   const s = step as ReplaceStep<any>
   return s.slice.size < s.to - s.from
 }
@@ -182,6 +185,7 @@ function joinTextblocksAround(state: EditorState<any, any, any>, $cut: ResolvedP
     if (!child) return false
     afterText = child
   }
+  // SAFETY: a replace or replace-around step; both have `from`, and `slice` is read after an `instanceof` check.
   const step = replaceStepOrNull(state.doc, beforePos, afterPos, Slice.empty) as ReplaceStep<any> | null
   if (!step || step.from !== beforePos || (step instanceof ReplaceStep && step.slice.size >= afterPos - beforePos))
     return false
@@ -1031,8 +1035,8 @@ export const toggleMark = <Sc extends AnySchema, M extends MarkNames<Sc>>(
           to = $to.pos
         const start = $from.nodeAfterOrNull,
           end = $to.nodeBeforeOrNull
-        const spaceStart = dropSpace && start && start.isText ? leadingSpace((start as TextNode<Sc>).text) : 0
-        const spaceEnd = dropSpace && end && end.isText ? trailingSpace((end as TextNode<Sc>).text) : 0
+        const spaceStart = dropSpace && start && start.isTextNode() ? leadingSpace(start.text) : 0
+        const spaceEnd = dropSpace && end && end.isTextNode() ? trailingSpace(end.text) : 0
         if (from + spaceStart < to) {
           from += spaceStart
           to -= spaceEnd
@@ -1101,9 +1105,9 @@ export const autoJoin = <Sc extends AnySchema, E, R>(
   command: Command<Sc, E, R>,
   isJoinable: ((before: Node<Sc>, after: Node<Sc>) => boolean) | ReadonlyArray<string>
 ): Command<Sc, E, R> => {
-  const canJoinNodes = Array.isArray(isJoinable)
-    ? (node: Node<Sc>) => (isJoinable as ReadonlyArray<string>).indexOf(node.type.name) > -1
-    : (isJoinable as (a: Node<Sc>, b: Node<Sc>) => boolean)
+  const canJoinNodes = Predicate.isFunction(isJoinable)
+    ? isJoinable
+    : (node: Node<Sc>) => isJoinable.indexOf(node.type.name) > -1
   return (state, dispatch, view) => command(state, dispatch && wrapDispatchForJoin(dispatch, canJoinNodes), view)
 }
 

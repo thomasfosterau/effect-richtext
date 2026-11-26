@@ -9,14 +9,13 @@ import { done, keepMarks, syncCommand, type SyncResult } from "../commands/inter
 import {
   type AnySchema,
   Fragment,
-  type Node,
   type NodeAttrsInput,
   type NodeNames,
   NodeRange,
   type NodeType,
   Slice
 } from "../Model.ts"
-import { type Command, type EditorState, Selection, type Transaction } from "../State.ts"
+import { type Command, type EditorState, NodeSelection, Selection, type Transaction } from "../State.ts"
 import { canJoin, canSplit, type NodeTypeWithAttrs, ReplaceAroundStep } from "../Transform.ts"
 import { findWrappingOrNull, liftTargetOrNull } from "../transform/structure.ts"
 
@@ -158,7 +157,7 @@ export const splitListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(
   syncCommand<Sc>((state, dispatching) => {
     const sel = state.selection,
       { $from, $to } = sel
-    const node = (sel as { node?: Node<any> }).node
+    const node = sel instanceof NodeSelection ? sel.node : undefined
     if ((node && node.isBlock) || $from.depth < 2 || !$from.sameParent($to)) return false
     const grandParent = $from.node(-1)
     if (!isItem(itemType, grandParent.type)) return false
@@ -346,7 +345,9 @@ export const sinkListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(item
       const lastBefore = nodeBefore.content.content[nodeBefore.childCount - 1]
       const nestedBefore = !!lastBefore && lastBefore.type === parent.type
       const nestedItem = nestedBefore ? lastBefore.content.content[lastBefore.childCount - 1] : undefined
+      // SAFETY: the nested item's type is a node type of this schema.
       const inner = Fragment.from(nestedItem ? (nestedItem.type as NodeType<any, any>).createUnsafe() : null)
+      // SAFETY: the item's type is a node type of this schema.
       const slice = new Slice(
         Fragment.from(
           (nodeBefore.type as NodeType<any, any>).createUnsafe(

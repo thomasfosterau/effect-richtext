@@ -130,6 +130,7 @@ export class Transform<Sc extends AnySchema = AnySchema> {
    * a `StepError` when the step can't be applied.
    */
   step(step: Step<Sc>): Effect.Effect<this, StepError> {
+    // SAFETY: `stepUnsafe` throws only step errors.
     return attempt(() => this.stepUnsafe(step), isTransformOrModelError as (u: unknown) => u is StepError)
   }
 
@@ -193,6 +194,7 @@ export class Transform<Sc extends AnySchema = AnySchema> {
         f()
         return this
       },
+      // SAFETY: callers name the errors `f` throws as `E`.
       isTransformOrModelError as (u: unknown) => u is E
     )
   }
@@ -374,6 +376,7 @@ export class Transform<Sc extends AnySchema = AnySchema> {
     type: NodeType<Sc, N>,
     attrs?: NodeAttrsInput<Sc, N> | null | ((oldNode: Node<Sc>) => NodeAttrsInput<Sc, N>)
   ): this {
+    // SAFETY: attributes typed for `N` are attributes.
     setBlockType(this, from, to ?? from, type, attrs as Attrs | null | undefined | ((n: Node<any>) => Attrs))
     return this
   }

@@ -186,7 +186,10 @@ function bindProps(
   for (const prop in obj) {
     let val = obj[prop]
     if (Predicate.isFunction(val)) val = val.bind(self)
-    else if (prop === "handleDOMEvents") val = bindProps(val as { readonly [prop: string]: unknown }, self, {})
+    else if (prop === "handleDOMEvents") {
+      // SAFETY: `handleDOMEvents` is an object of event handlers.
+      val = bindProps(val as { readonly [prop: string]: unknown }, self, {})
+    }
     target[prop] = val
   }
   return target
@@ -270,9 +273,10 @@ export class Plugin<PState = any, Sc extends AnySchema = AnySchema, E = never, R
     /** The plugin's spec object. */
     readonly spec: PluginSpec<PState, Sc, E, R>
   ) {
-    // SAFETY: props are a plain object of handlers.
-    if (spec.props)
+    if (spec.props) {
+      // SAFETY: props are a plain object of handlers.
       bindProps(spec.props as { readonly [prop: string]: unknown }, this, this.props as Record<string, unknown>)
+    }
     this.key = spec.key ? spec.key.key : createKey("plugin")
   }
 
@@ -316,6 +320,7 @@ export type PluginRequirements<P extends ReadonlyArray<AnyPlugin>> = P[number] e
 
 /** @internal */
 export const getField = <A>(state: EditorState<any, any, any>, key: string): Option.Option<A> =>
+  // SAFETY: callers name the type of the field stored under `key`.
   Object.prototype.hasOwnProperty.call(state.slots, key) ? Option.some(state.slots[key] as A) : Option.none()
 
 /**

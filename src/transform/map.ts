@@ -137,14 +137,17 @@ export class StepMap implements Mappable {
   }
 
   mapResult(pos: number, assoc = 1): MapResult {
-    return this._map(pos, assoc, false) as MapResult
+    return this._map(pos, assoc, false)
   }
 
   map(pos: number, assoc = 1): number {
-    return this._map(pos, assoc, true) as number
+    return this._map(pos, assoc, true)
   }
 
   /** @internal */
+  _map(pos: number, assoc: number, simple: true): number
+  /** @internal */
+  _map(pos: number, assoc: number, simple: false): MapResult
   _map(pos: number, assoc: number, simple: boolean): number | MapResult {
     let diff = 0
     const oldIndex = this.inverted ? 2 : 1,
@@ -262,6 +265,7 @@ export class Mapping implements Mappable {
     /** The end position in the `maps` array. */
     public to = maps ? maps.length : 0
   ) {
+    // SAFETY: a mapping given its maps owns them only when `mirror` is also absent, and copies them before writing.
     this._maps = (maps as Array<StepMap>) || []
     this.ownData = !(maps || mirror)
   }
@@ -341,17 +345,20 @@ export class Mapping implements Mappable {
 
   /** Map a position through this mapping. */
   map(pos: number, assoc = 1): number {
-    if (this.mirror) return this._map(pos, assoc, true) as number
+    if (this.mirror) return this._map(pos, assoc, true)
     for (let i = this.from; i < this.to; i++) pos = this._maps[i].map(pos, assoc)
     return pos
   }
 
   /** Map a position through this mapping, returning a mapping result. */
   mapResult(pos: number, assoc = 1): MapResult {
-    return this._map(pos, assoc, false) as MapResult
+    return this._map(pos, assoc, false)
   }
 
   /** @internal */
+  _map(pos: number, assoc: number, simple: true): number
+  /** @internal */
+  _map(pos: number, assoc: number, simple: false): MapResult
   _map(pos: number, assoc: number, simple: boolean): number | MapResult {
     let delInfo = 0
     for (let i = this.from; i < this.to; i++) {

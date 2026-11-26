@@ -9,6 +9,7 @@ import { type EditorState, NodeSelection } from "../State.ts"
 
 const markTypeOf = (state: EditorState<any, any, any>, type: MarkType<any, any> | string): MarkType<any, any> => {
   if (!Predicate.isString(type)) return type
+  // SAFETY: the schema may not have a mark type of this name.
   const markType = state.schema.marks[type] as MarkType<any, any> | undefined
   if (!markType) throw new AttributeError({ message: "Unknown mark type " + type })
   return markType
@@ -16,6 +17,7 @@ const markTypeOf = (state: EditorState<any, any, any>, type: MarkType<any, any> 
 
 const nodeTypeOf = (state: EditorState<any, any, any>, type: NodeType<any, any> | string): NodeType<any, any> => {
   if (!Predicate.isString(type)) return type
+  // SAFETY: the schema may not have a node type of this name.
   const nodeType = state.schema.nodes[type] as NodeType<any, any> | undefined
   if (!nodeType) throw new ContentError({ message: "Unknown node type " + type })
   return nodeType

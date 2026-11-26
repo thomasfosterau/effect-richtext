@@ -139,7 +139,7 @@ export abstract class Step<Sc extends AnySchema = AnySchema> {
     if (id in stepsByID) throw new TransformError({ message: "Duplicate use of step JSON ID " + id })
     stepsByID[id] = stepClass
     const proto: unknown = "prototype" in stepClass ? stepClass.prototype : undefined
-    if (proto) (proto as { jsonID?: string }).jsonID = id
+    if (Predicate.isObject(proto)) Reflect.set(proto, "jsonID", id)
     return stepClass
   }
 }

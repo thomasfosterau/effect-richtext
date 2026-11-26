@@ -584,8 +584,7 @@ export const flatten = (extension: AnyExtension): Flattened => {
 export const resolvePlugins = (inputs: ReadonlyArray<PluginInput>, schema: AnySchema): Array<AnyPlugin> => {
   const result: Array<AnyPlugin> = []
   const add = (input: AnyPlugin | ReadonlyArray<AnyPlugin>) => {
-    if (Array.isArray(input)) result.push(...input)
-    else result.push(input as AnyPlugin)
+    result.push(...Arr.ensure(input))
   }
   for (const input of inputs) add(Predicate.isFunction(input) ? input(schema) : input)
   return result
