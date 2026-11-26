@@ -31,6 +31,7 @@ import {
 } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
 import { present } from "../../utils/present.ts"
+import { tagsOf } from "../../utils/tags.ts"
 
 import {
   autoJoin,
@@ -57,8 +58,8 @@ import {
   wrapIn
 } from "@thomasfosterau/effect-richtext/compat/commands"
 
-function t(node: Node): { [name: string]: number } {
-  return (node as any).tag
+function t(node: Node): { readonly [name: string]: number } {
+  return tagsOf(node)
 }
 
 function selFor(doc: Node) {
@@ -390,7 +391,7 @@ describe("splitBlock", () => {
   })
   function hDoc(a: number) {
     const hDoc = hSchema.node("doc", null, [hSchema.node("heading", { level: 1 }, hSchema.text("foobar"))])
-    ;(hDoc as any).tag = { a }
+    Reflect.set(hDoc, "tag", { a })
     return hDoc
   }
 
@@ -418,7 +419,7 @@ describe("splitBlock", () => {
     const d = hSchema.node("doc", null, [
       hSchema.node("heading", { level: 1 }, [hSchema.node("span", null, hSchema.text("abcd"))])
     ])
-    ;(d as any).tag = { a: 4 }
+    Reflect.set(d, "tag", { a: 4 })
     apply(
       d,
       splitBlock,
@@ -449,7 +450,7 @@ describe("splitBlock", () => {
       }
     })
     const doc = s.node("doc", null, [s.node("para", null, [s.text("hello")])])
-    ;(doc as any).tag = { a: 3 }
+    Reflect.set(doc, "tag", { a: 3 })
     apply(
       doc,
       splitBlock,

@@ -40,7 +40,7 @@ import * as CoreModel from "@thomasfosterau/effect-richtext/Model"
 import * as CoreState from "@thomasfosterau/effect-richtext/State"
 import * as CoreTransform from "@thomasfosterau/effect-richtext/Transform"
 import ist from "../utils/ist.ts"
-import { present } from "../utils/present.ts"
+import { instanceOf, present } from "../utils/present.ts"
 import { getSome } from "../utils/option.ts"
 
 // A custom step, written exactly as for ProseMirror: it sets (or
@@ -193,8 +193,7 @@ describe("compat bridge", () => {
     ist(inverted.apply(tr.doc).doc, d, eq)
     const json = tr.steps[0].toJSON()
     const back = Step.fromJSON(schema, json)
-    ist(back instanceof CounterStep)
-    ist((back as CounterStep).text, "baz")
+    ist(instanceOf(CounterStep, back).text, "baz")
     const coreBack = CoreTransform.Step.fromJSONUnsafe(modelToCore(schema), json)
     ist(coreBack.toJSON().text, "baz")
     const mapped = getSome(coreStep.map(new CoreTransform.Mapping([StepMap.offset(2)])))
@@ -213,7 +212,7 @@ describe("compat bridge", () => {
     const step = new LoggingStep(1, 2, Slice.empty)
     const core = transformToCore(step)
     ist(core instanceof CoreTransform.ReplaceStep)
-    ist((step.map(new StepMap([0, 0, 1])) as ReplaceStep).from, 2)
+    ist(instanceOf(ReplaceStep, step.map(new StepMap([0, 0, 1]))).from, 2)
     getSome(core.map(StepMap.offset(1)))
     ist(mapped, 2)
     ist(new Transform(d).step(step).doc, doc(p("oo")), eq)
@@ -299,6 +298,7 @@ describe("compat bridge", () => {
     const corePlugin = new CoreState.Plugin({ props: { editable: () => false } })
     const wrapped = stateFromCore(corePlugin)
     ist(wrapped instanceof Plugin)
+    // SAFETY: the core plugin's `editable` prop, wrapped for compat views, takes a state.
     ist((wrapped.props.editable as any)(state), false)
     const state2 = EditorState.create({ schema, plugins: [wrapped] })
     ist(state2.plugins[0], wrapped)

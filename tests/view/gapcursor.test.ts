@@ -10,6 +10,7 @@ import { doc, eq, hr, p } from "@thomasfosterau/effect-richtext/TestBuilder"
 import { StepMap } from "@thomasfosterau/effect-richtext/Transform"
 import { injectCSSUnsafe } from "@thomasfosterau/effect-richtext/ViewCss"
 import ist from "../utils/ist.ts"
+import { instanceOf } from "../utils/present.ts"
 import { getSome } from "../utils/option.ts"
 import { tempEditor } from "./helpers.ts"
 
@@ -26,6 +27,7 @@ const schema = DocSchema.makeUnsafe({
 })
 
 function docWith(...content: Array<Node<any>>) {
+  // SAFETY: the builders' nodes are nodes of `schema`; `nodeUnsafe` checks the content.
   return schema.nodeUnsafe("doc", null, content as any)
 }
 
@@ -148,7 +150,7 @@ describe("gapCursor plugin", () => {
       const view = tempEditor({ doc: doc(p("foo"), hr(), hr()), plugins: [gapCursor()] })
       ist(view.dom.querySelector(".ProseMirror-gapcursor"), null)
       view.dispatchUnsafe(view.state.tr.setSelectionUnsafe(new GapCursor(view.state.doc.resolveUnsafe(6))))
-      const cursor = view.dom.querySelector(".ProseMirror-gapcursor") as HTMLElement
+      const cursor = instanceOf(HTMLElement, view.dom.querySelector(".ProseMirror-gapcursor"))
       ist(cursor)
       ist(getComputedStyle(cursor).position, "absolute")
       view.dispatchUnsafe(view.state.tr.setSelectionUnsafe(TextSelection.createUnsafe(view.state.doc, 1)))

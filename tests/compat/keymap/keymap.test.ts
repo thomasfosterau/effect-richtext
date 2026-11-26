@@ -16,7 +16,9 @@ function dispatch(map: Plugin, key: string, props?: { [name: string]: any }) {
     for (const prop in props) event[prop] = props[prop]
   }
   event.key = key
-  ;(map.props.handleKeyDown as any)(fakeView as any, event)
+  // SAFETY: a keymap's key handler; the keymaps under test only dispatch, which `fakeView` provides.
+  const handleKeyDown = map.props.handleKeyDown as any
+  handleKeyDown(fakeView, event)
 }
 
 function counter() {
@@ -27,6 +29,7 @@ function counter() {
     },
     { count: 0 }
   )
+  // SAFETY: a function that returns `true` is a command.
   return result as Command & { count: number }
 }
 

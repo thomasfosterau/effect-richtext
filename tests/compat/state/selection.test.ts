@@ -3,7 +3,7 @@
 // ../../utils/ist.ts, mocha describe/it -> @effect/vitest; type-only imports
 // marked as such) and dprint formatting.
 import { describe, it } from "@effect/vitest"
-import { TextSelection } from "@thomasfosterau/effect-richtext/compat/state"
+import { NodeSelection, TextSelection } from "@thomasfosterau/effect-richtext/compat/state"
 
 import {
   a,
@@ -21,7 +21,7 @@ import {
   ul
 } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
-import { present } from "../../utils/present.ts"
+import { instanceOf, present } from "../../utils/present.ts"
 import { tagsOf } from "../../utils/tags.ts"
 import { TestState } from "./state.ts"
 
@@ -220,7 +220,7 @@ describe("TextSelection.between", () => {
   it("will fall back to a node selection", () => {
     const d = doc(hr, "<a>")
     const s = TextSelection.between(d.resolve(tagsOf(d).a), d.resolve(tagsOf(d).a))
-    ist((s as any).node, d.firstChild)
+    ist(instanceOf(NodeSelection, s).node, d.firstChild)
   })
 
   it("will collapse towards the other argument", () => {

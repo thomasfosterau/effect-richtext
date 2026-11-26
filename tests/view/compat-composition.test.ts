@@ -9,7 +9,7 @@ import { code, doc, em, eq, p, schema, strong } from "@thomasfosterau/effect-ric
 import type { EditorView } from "@thomasfosterau/effect-richtext/compat/view"
 import { __endComposition, Decoration, DecorationSet } from "@thomasfosterau/effect-richtext/compat/view"
 import ist from "../utils/ist.ts"
-import { present } from "../utils/present.ts"
+import { instanceOf, present } from "../utils/present.ts"
 import { findTextNode, flush, requireFocus, tempEditor } from "./compat-view.ts"
 
 function event(pm: EditorView, type: string) {
@@ -328,7 +328,7 @@ describe("EditorView composition", () => {
   it("can handle cross-paragraph compositions", () => {
     const pm = requireFocus(tempEditor({ doc: doc(p("one <a>two"), p("three"), p("four<b> five")) }))
     compose(pm, () => {
-      const target = present(pm.dom.firstChild).firstChild as Text
+      const target = instanceOf(Text, present(pm.dom.firstChild).firstChild)
       target.nodeValue = "one A five"
       present(document.getSelection()).collapse(target, 5)
       return target

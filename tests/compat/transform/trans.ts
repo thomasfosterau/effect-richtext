@@ -7,6 +7,7 @@ import type { Node } from "@thomasfosterau/effect-richtext/compat/model"
 import { eq } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import { Mapping, Step, Transform } from "@thomasfosterau/effect-richtext/compat/transform"
 import ist from "../../utils/ist.ts"
+import { tagsOf } from "../../utils/tags.ts"
 
 function invert(transform: Transform) {
   const out = new Transform(transform.doc)
@@ -39,7 +40,7 @@ export function testTransform(tr: Transform, expect: Node) {
 
   testStepJSON(tr)
 
-  for (const tag in (expect as any).tag) {
-    testMapping(tr.mapping, (tr.before as any).tag[tag], (expect as any).tag[tag])
+  for (const tag in tagsOf(expect)) {
+    testMapping(tr.mapping, tagsOf(tr.before)[tag], tagsOf(expect)[tag])
   }
 }

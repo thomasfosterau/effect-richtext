@@ -30,6 +30,7 @@ const marks = {
 }
 const schema = new Schema({ nodes, marks })
 
+// SAFETY: the tests call each builder as the node or mark builder it is.
 const { doc, p, a } = builders(schema) as any
 
 describe("Multiple marks", () => {

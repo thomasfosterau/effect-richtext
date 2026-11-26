@@ -242,6 +242,7 @@ describe("Node", () => {
       // The test schema describes `src` with `Schema.String` rather than a
       // `validate: "string"` spec, so the message differs from ProseMirror's.
       ist.throws(
+        // SAFETY: deliberately ill-typed, to check the runtime error.
         () => schema.nodes.image.createUnsafe({ src: true as any }).checkUnsafe(),
         /Invalid value for attribute src on node of type image: true/
       )
@@ -275,6 +276,7 @@ describe("Node", () => {
         assert.match(markErr.message, /Invalid collection of marks/)
 
         // Attributes are validated on creation (prosemirror-model 1.25.12).
+        // SAFETY: deliberately ill-typed, to check the runtime error.
         const attrErr = yield* Effect.flip(schema.nodes.image.create({ src: true as any }))
         assert.strictEqual(attrErr._tag, "AttributeError")
 
@@ -409,6 +411,7 @@ describe("Node", () => {
   describe("create", () => {
     it.effect("fails with an AttributeError for missing required attributes", () =>
       Effect.gen(function* () {
+        // SAFETY: deliberately ill-typed, to check the runtime error.
         const err = yield* Effect.flip(customSchema.nodes.contact.create({ name: "x" } as any))
         assert.strictEqual(err._tag, "AttributeError")
         assert.match(err.message, /No value supplied for attribute email/)
@@ -417,8 +420,10 @@ describe("Node", () => {
 
     it.effect("createChecked fails with a ContentError for invalid content", () =>
       Effect.gen(function* () {
+        // SAFETY: deliberately ill-typed, to check the runtime error.
         const err = yield* Effect.flip(schema.nodes.doc.createChecked(null, [schema.textUnsafe("x") as any]))
         assert.strictEqual(err._tag, "ContentError")
+        // SAFETY: deliberately ill-typed, to check the runtime error.
         ist.throws(() => schema.nodeUnsafe("doc", null, [schema.textUnsafe("x") as any]), /Invalid content/)
       })
     )
@@ -427,6 +432,7 @@ describe("Node", () => {
       Effect.gen(function* () {
         const filled = yield* schema.nodes.doc.createAndFill()
         ist(filled, doc(p()), eq)
+        // SAFETY: deliberately ill-typed, to check the runtime error.
         const err = yield* Effect.flip(schema.nodes.paragraph.createAndFill(null, [p() as any]))
         assert.strictEqual(err._tag, "ContentError")
       })

@@ -127,11 +127,10 @@ export default defineConfig({
       // ---- Allowances for the ported ProseMirror code ----------------------
       // `warn`, with the site count when added: a new site is a defect, not
       // headroom. Lower the count as sites go; delete the line at zero.
-      "effect/require-safety-comment-for-type-assertion": "warn", // 148
       "effect/prefer-option-over-null": "warn", // 972
-      "effect/imperative-loops": "warn", // 587
+      "effect/imperative-loops": "warn", // 586
       // ---- Type-aware allowances (same rules as above) ---------------------
-      "typescript/no-unsafe-type-assertion": "warn", // 317
+      "typescript/no-unsafe-type-assertion": "warn", // 231
       // `@effect/tsgo`'s preset warns on these; they have no sites left.
       "effecttsgo/any-unknown-in-error-context": "error",
       "effecttsgo/unnecessary-fail-yieldable-error": "error",

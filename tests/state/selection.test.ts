@@ -26,6 +26,7 @@ import {
   ul
 } from "@thomasfosterau/effect-richtext/TestBuilder"
 import ist from "../utils/ist.ts"
+import { instanceOf } from "../utils/present.ts"
 import { TestState } from "./state.ts"
 import { getSome } from "../utils/option.ts"
 import { jsonRoundTrip } from "../utils/json.ts"
@@ -225,7 +226,7 @@ describe("TextSelection.between", () => {
   it("will fall back to a node selection", () => {
     const d = doc(hr, "<a>")
     const s = TextSelection.between(d.resolveUnsafe(d.tag.a), d.resolveUnsafe(d.tag.a))
-    ist((s as NodeSelection).node, getSome(d.firstChild))
+    ist(instanceOf(NodeSelection, s).node, getSome(d.firstChild))
   })
 
   it("will collapse towards the other argument", () => {

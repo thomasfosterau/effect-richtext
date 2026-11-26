@@ -10,6 +10,7 @@ import { schema } from "@thomasfosterau/effect-richtext/TestBuilder"
 import ist from "../utils/ist.ts"
 
 const fakeViewProps: Partial<KeymapView> = { dispatch: () => Effect.void }
+// SAFETY: the keymaps under test only dispatch.
 const fakeView = fakeViewProps as KeymapView
 
 // The maps `dispatch` drives bind commands that never fail.
@@ -21,6 +22,7 @@ function dispatch(map: Plugin<any, any, any>, key: string, props?: { [name: stri
     for (const prop in props) event[prop] = props[prop]
   }
   event.key = key
+  // SAFETY: a keymap's key handler, whose bindings here never fail.
   return Effect.runSync((map.props.handleKeyDown as Handler)(fakeView, event))
 }
 
@@ -162,7 +164,7 @@ describe("keymap (Effect API)", () => {
     Effect.gen(function* () {
       const copied: Array<string> = []
       const handler = keydownHandler({ "Ctrl-c": copy })
-      const handled = yield* handler(fakeView, { key: "c", ctrlKey: true } as KeyboardEvent).pipe(
+      const handled = yield* handler(fakeView, new KeyboardEvent("keydown", { key: "c", ctrlKey: true })).pipe(
         Effect.provideService(Clipboard, { copied })
       )
       ist(handled)
@@ -173,7 +175,7 @@ describe("keymap (Effect API)", () => {
   it.effect("propagates typed command errors", () =>
     Effect.gen(function* () {
       const handler = keydownHandler({ Enter: refuse })
-      const error = yield* Effect.flip(handler(fakeView, { key: "Enter" } as KeyboardEvent))
+      const error = yield* Effect.flip(handler(fakeView, new KeyboardEvent("keydown", { key: "Enter" })))
       assert.strictEqual(error._tag, "ReadOnly")
       assert.strictEqual(error.key, "Enter")
     })

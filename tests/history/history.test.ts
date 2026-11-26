@@ -40,6 +40,7 @@ function command(state: State, command: HistoryCommand): State {
 function compress(state: State) {
   // NOTE: This is mutating stuff that shouldn't be mutated. Not safe
   // to do outside of these tests.
+  // SAFETY: `done` is read-only in the history state's type.
   const hist = getSome(plugin.getState(state)) as any
   hist.done = hist.done.compress()
 }

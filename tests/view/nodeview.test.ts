@@ -6,7 +6,7 @@ import { Plugin } from "@thomasfosterau/effect-richtext/State"
 import { blockquote, br, doc, p } from "@thomasfosterau/effect-richtext/TestBuilder"
 import { Decoration, DecorationSet, type ViewMutationRecord } from "@thomasfosterau/effect-richtext/View"
 import ist from "../utils/ist.ts"
-import { present } from "../utils/present.ts"
+import { instanceOf, present } from "../utils/present.ts"
 import { flush, tempEditor } from "./helpers.ts"
 
 describe("nodeViews prop", () => {
@@ -130,7 +130,7 @@ describe("nodeViews prop", () => {
     present(view.dom.querySelector("x-info")).textContent = "info"
     flush(view)
     ist(mutation)
-    ist((present(mutation).target as HTMLElement).tagName, "X-INFO")
+    ist(instanceOf(HTMLElement, present(mutation).target).tagName, "X-INFO")
   })
 
   it("has its destroy method called", () => {
@@ -219,7 +219,7 @@ describe("nodeViews prop", () => {
         paragraph(_node, _v, _pos, _outer, innerDeco) {
           const dom = document.createElement("p")
           ist(
-            (innerDeco as DecorationSet)
+            instanceOf(DecorationSet, innerDeco)
               .find()
               .map((d) => `${d.from}-${d.to}`)
               .join(),
@@ -250,7 +250,9 @@ describe("nodeViews prop", () => {
             dom,
             contentDOM: dom,
             update(node_, _, innerDecoSet) {
-              innerDecos = (innerDecoSet as DecorationSet).find().map((d) => `${d.from}-${d.to}`)
+              innerDecos = instanceOf(DecorationSet, innerDecoSet)
+                .find()
+                .map((d) => `${d.from}-${d.to}`)
               return node.sameMarkup(node_)
             }
           }

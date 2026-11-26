@@ -1,7 +1,7 @@
 // Ported from prosemirror-view/test/webtest-endOfTextblock.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
 import { TextSelection } from "@thomasfosterau/effect-richtext/State"
-import { a, doc, p, schema } from "@thomasfosterau/effect-richtext/TestBuilder"
+import { a, doc, p, schema, tagsOf } from "@thomasfosterau/effect-richtext/TestBuilder"
 import { Decoration, DecorationSet } from "@thomasfosterau/effect-richtext/View"
 import ist from "../utils/ist.ts"
 import { tempEditor } from "./helpers.ts"
@@ -72,18 +72,19 @@ describe("EditorView.endOfTextblock", () => {
     ist(view.endOfTextblock("up"))
     ist(!view.endOfTextblock("down"))
     view.dispatchUnsafe(
-      view.state.tr.setSelectionUnsafe(TextSelection.createUnsafe(view.state.doc, (view.state.doc as any).tag.b))
+      view.state.tr.setSelectionUnsafe(TextSelection.createUnsafe(view.state.doc, tagsOf(view.state.doc).b))
     )
     ist(!view.endOfTextblock("up"))
     ist(!view.endOfTextblock("down"))
     view.dispatchUnsafe(
-      view.state.tr.setSelectionUnsafe(TextSelection.createUnsafe(view.state.doc, (view.state.doc as any).tag.c))
+      view.state.tr.setSelectionUnsafe(TextSelection.createUnsafe(view.state.doc, tagsOf(view.state.doc).c))
     )
     ist(!view.endOfTextblock("up"))
     ist(view.endOfTextblock("down"))
   })
 
   // Bidi functionality only works when the browser has Selection.modify
+  // SAFETY: `modify` is missing from some browsers' selections, though the DOM types declare it.
   if (!(getSelection() as any).modify) return
 
   it("works at the start of an RTL block", () => {

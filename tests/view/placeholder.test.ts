@@ -6,6 +6,7 @@ import { blockquote, doc, h1, p } from "@thomasfosterau/effect-richtext/TestBuil
 import type { EditorView } from "@thomasfosterau/effect-richtext/View"
 import { injectCSSUnsafe } from "@thomasfosterau/effect-richtext/ViewCss"
 import ist from "../utils/ist.ts"
+import { instanceOf } from "../utils/present.ts"
 import { tempEditor } from "./helpers.ts"
 
 const decorated = (view: EditorView<any, any, any>) => Array.from(view.dom.querySelectorAll("[data-placeholder]"))
@@ -24,7 +25,7 @@ describe("placeholder", () => {
     const view = tempEditor({ doc: doc(p()), plugins: [placeholder({ placeholder: "Write…" })] })
     view.dispatchUnsafe(view.state.tr.insertTextUnsafe("x"))
     ist(decorated(view).length, 0)
-    ist(!(view.dom.firstChild as HTMLElement).classList.contains("is-empty"))
+    ist(!instanceOf(HTMLElement, view.dom.firstChild).classList.contains("is-empty"))
     view.dispatchUnsafe(view.state.tr.deleteUnsafe(1, 2))
     ist(decorated(view).length, 1)
   })
@@ -89,7 +90,7 @@ describe("placeholder", () => {
     const remove = injectCSSUnsafe(document, placeholderCSS)
     try {
       const view = tempEditor({ doc: doc(p()), plugins: [placeholder({ placeholder: "Write…" })] })
-      const style = getComputedStyle(view.dom.firstChild as HTMLElement, "::before")
+      const style = getComputedStyle(instanceOf(HTMLElement, view.dom.firstChild), "::before")
       ist(style.content, '"Write…"')
     } finally {
       remove()

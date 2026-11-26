@@ -63,6 +63,7 @@ const orderedListRule = wrappingInputRule(
   /^(\d+)\.\s$/,
   nodes.ordered_list,
   (match) => ({ order: +match[1] }),
+  // SAFETY: the rule only joins ordered lists, which have an `order` attribute.
   (match, node) => node.childCount + (node.attrs as { order: number }).order === +match[1]
 )
 const bulletListRule = wrappingInputRule(/^\s*([-+*])\s$/, nodes.bullet_list)
@@ -264,6 +265,7 @@ describe("inputRules", () => {
     const view = tempEditor({ doc: doc(p("a<a>")), plugins: [plugin] })
     ist(Option.isNone(Option.flatten(plugin.getState(view.state))))
     type(view, "--")
+    // SAFETY: an input-rules plugin's state is the rule it last applied.
     const applied = getSome(Option.flatten(plugin.getState(view.state))) as AppliedInputRule
     ist(applied.text, "-")
     ist(applied.from, 3)
@@ -297,11 +299,11 @@ describe("inputRules", () => {
 
   it("doesn't fire during composition", () => {
     const view = editor(doc(p("foo<a>")))
-    ;(view as any).input.composing = true
+    view.input.composing = true
     try {
       ist(!view.someHandler("handleTextInput", (f) => f(view, 4, 4, "-", () => view.state.tr)))
     } finally {
-      ;(view as any).input.composing = false
+      view.input.composing = false
     }
   })
 })

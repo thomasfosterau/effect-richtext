@@ -8,6 +8,7 @@ import { EditorState } from "@thomasfosterau/effect-richtext/State"
 import { doc, hr, p } from "@thomasfosterau/effect-richtext/TestBuilder"
 import { EditorView } from "@thomasfosterau/effect-richtext/View"
 import ist from "../utils/ist.ts"
+import { instanceOf } from "../utils/present.ts"
 import { tempEditor, workspace } from "./helpers.ts"
 
 const cursors = () => document.querySelectorAll(".test-dropcursor")
@@ -38,7 +39,7 @@ describe("dropCursor", () => {
     ist(cursors().length, 0)
     drag(view, "dragover", 3)
     ist(cursors().length, 1)
-    const cursor = cursors()[0] as HTMLElement
+    const cursor = instanceOf(HTMLElement, cursors()[0])
     ist(cursor.classList.contains("prosemirror-dropcursor-inline"))
     ist(cursor.style.backgroundColor, "red")
     ist(cursor.style.width, "2px")
@@ -50,12 +51,12 @@ describe("dropCursor", () => {
   it("draws a block cursor between block nodes", () => {
     const view = tempEditor({ doc: doc(p("a"), hr(), hr()), plugins: [dropCursor({ class: "test-dropcursor" })] })
     // The middle of the first horizontal rule resolves to a position between blocks.
-    const hrDOM = view.dom.children[1] as HTMLElement
+    const hrDOM = instanceOf(HTMLElement, view.dom.children[1])
     const rect = hrDOM.getBoundingClientRect()
     view.dom.dispatchEvent(
       new DragEvent("dragover", { clientX: rect.left + 5, clientY: rect.bottom - 1, bubbles: true, cancelable: true })
     )
-    const cursor = cursors()[0] as HTMLElement
+    const cursor = instanceOf(HTMLElement, cursors()[0])
     ist(cursor)
     ist(cursor.classList.contains("prosemirror-dropcursor-block"))
   })
