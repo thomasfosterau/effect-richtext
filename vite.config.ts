@@ -590,7 +590,8 @@ export default defineConfig({
       },
       // Runs every JSDoc example against `dist/`; fails if docgen finds none.
       docgen: {
-        command: "bash -o pipefail -c 'docgen 2>&1 | tee /dev/stderr | { ! grep -q \"No examples found\"; }'",
+        command:
+          'bash -o pipefail -c \'PATH="$(cd scripts/bin && pwd):$PATH" docgen 2>&1 | tee /dev/stderr | { ! grep -q "No examples found"; }\'',
         dependsOn: ["build"],
         cache: { input: cacheInputs, output: ["docs/api/**"] }
       },
