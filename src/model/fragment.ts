@@ -7,6 +7,7 @@ import type * as Effect from "effect/Effect"
 import * as Equal from "effect/Equal"
 import * as Hash from "effect/Hash"
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import { attempt } from "../internal/attempt.ts"
 import { findDiffEnd, findDiffStart } from "./diff.ts"
 import { PositionError } from "./errors.ts"
@@ -123,7 +124,7 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
           : !node.isLeaf
             ? ""
             : leafText
-              ? typeof leafText === "function"
+              ? Predicate.isFunction(leafText)
                 ? leafText(node)
                 : leafText
               : node.type.spec.leafText

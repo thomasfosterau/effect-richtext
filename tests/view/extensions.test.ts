@@ -4,6 +4,7 @@ import { assert, describe, it } from "@effect/vitest"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import {
   createEditor,
   createEditorUnsafe,
@@ -19,7 +20,7 @@ import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 import { workspace } from "./helpers.ts"
 
-const mac = typeof navigator !== "undefined" && /Mac|iP(hone|[oa]d)/.test(navigator.platform)
+const mac = Predicate.isNotUndefined(globalThis.navigator) && /Mac|iP(hone|[oa]d)/.test(navigator.platform)
 
 const keyDown = (dom: HTMLElement, key: string, keyCode: number, mods: KeyboardEventInit = {}) => {
   const event = new KeyboardEvent("keydown", { key, keyCode, bubbles: true, cancelable: true, ...mods })

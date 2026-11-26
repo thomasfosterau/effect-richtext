@@ -33,8 +33,8 @@ const decodeAttrsOrFail = (
   name: string
 ): Option.Option<Attrs> => {
   if (attrs == null) return Option.none()
-  if (typeof attrs !== "object" || Array.isArray(attrs)) return fail(`Invalid attributes for ${kind} ${name}`)
-  const decoded = Result.try(() => decodeAttrs(defs, attrs as Attrs))
+  if (!Predicate.isObject(attrs)) return fail(`Invalid attributes for ${kind} ${name}`)
+  const decoded = Result.try(() => decodeAttrs(defs, attrs))
   if (Result.isSuccess(decoded)) return Option.some(decoded.success)
   const e = decoded.failure
   if (isModelError(e)) throw e
@@ -45,7 +45,7 @@ const decodeAttrsOrFail = (
 
 /** @internal */
 export function markFromJSON<Sc extends AnySchema>(schema: Sc, json: any): Mark<Sc> {
-  if (!json || typeof json !== "object") fail("Invalid input for Mark.fromJSON")
+  if (!Predicate.isObjectOrArray(json)) fail("Invalid input for Mark.fromJSON")
   const type = schema.marks[json.type]
   if (!type) return fail(`There is no mark type ${json.type} in this schema`)
   // Decoded attributes skip the Schema guard (the decode validated them).
@@ -54,13 +54,13 @@ export function markFromJSON<Sc extends AnySchema>(schema: Sc, json: any): Mark<
 
 /** @internal */
 export function nodeFromJSON<Sc extends AnySchema>(schema: Sc, json: any): Node<Sc> {
-  if (!json || typeof json !== "object") fail("Invalid input for Node.fromJSON")
+  if (!Predicate.isObjectOrArray(json)) fail("Invalid input for Node.fromJSON")
   if (json.marks && !Array.isArray(json.marks)) fail("Invalid mark data for Node.fromJSON")
   const marks: ReadonlyArray<Mark<Sc>> = json.marks
     ? json.marks.map((m: unknown) => markFromJSON(schema, m))
     : Mark.none
   if (json.type === "text") {
-    if (typeof json.text !== "string") fail("Invalid text node in JSON")
+    if (!Predicate.isString(json.text)) fail("Invalid text node in JSON")
     if (!json.text) fail("Empty text nodes are not allowed")
     return schema.textUnsafe(json.text, marks)
   }

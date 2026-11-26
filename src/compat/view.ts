@@ -11,6 +11,7 @@
  * @since 0.1.0
  */
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import * as V from "../View.ts"
 import { DecorationGroup as CoreDecorationGroup } from "../view/decoration.ts"
 import { adopt, CORE, guard, link, registerWrapper, unwrap, unwrapArray, wrap, wrapArray } from "./internal/core.ts"
@@ -65,7 +66,7 @@ export type DecorationAttrs = {
 const widgetConstructors = new WeakMap<object, V.WidgetConstructor>()
 
 const widgetToCore = (toDOM: any): V.WidgetConstructor => {
-  if (typeof toDOM !== "function") return toDOM
+  if (!Predicate.isFunction(toDOM)) return toDOM
   let found = widgetConstructors.get(toDOM)
   if (!found) {
     found = (view, getPos) => toDOM(wrap(view), getPos)

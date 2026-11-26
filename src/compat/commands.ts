@@ -7,6 +7,7 @@
  *
  * @since 0.1.0
  */
+import * as Predicate from "effect/Predicate"
 import * as C from "../Commands.ts"
 import type * as S from "../State.ts"
 import { CORE, wrap } from "./internal/core.ts"
@@ -281,7 +282,7 @@ export function autoJoin(
   return fromCoreCommand(
     C.autoJoin(
       toCoreCommand(command),
-      typeof isJoinable === "function" ? (a, b) => isJoinable(wrap(a), wrap(b)) : isJoinable
+      Predicate.isFunction(isJoinable) ? (a, b) => isJoinable(wrap(a), wrap(b)) : isJoinable
     )
   )
 }

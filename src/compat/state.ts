@@ -494,7 +494,7 @@ registerWrapper(S.AllSelection, (core) => adopt(AllSelection.prototype, core))
  */
 export type Command = (state: EditorState, dispatch?: (tr: Transaction) => void, view?: EditorView) => boolean
 
-const metaKey = (key: string | Plugin | PluginKey): string => (typeof key === "string" ? key : key.key)
+const metaKey = (key: string | Plugin | PluginKey): string => (Predicate.isString(key) ? key : key.key)
 
 /**
  * An editor state transaction, which can be applied to a state to
@@ -1014,8 +1014,8 @@ export function toCore(key: PluginKey): S.PluginKey
 export function toCore(bookmark: SelectionBookmark): S.SelectionBookmark
 export function toCore(command: Command): S.Command<any>
 export function toCore(value: unknown): unknown {
-  if (typeof value === "function") return toCoreCommand(value as Command)
-  if (value instanceof BookmarkFacade || (value && !isFacade(value) && typeof (value as any).resolve === "function")) {
+  if (Predicate.isFunction(value)) return toCoreCommand(value as Command)
+  if (value instanceof BookmarkFacade || (value && !isFacade(value) && Predicate.isFunction((value as any).resolve))) {
     return bookmarkToCore(value as SelectionBookmark)
   }
   return unwrap(value)
@@ -1038,6 +1038,6 @@ export function fromCore(plugin: S.Plugin<any, any, any, any>): Plugin
 export function fromCore(key: S.PluginKey<any>): PluginKey
 export function fromCore(command: S.Command<any, any, never>): Command
 export function fromCore(value: unknown): unknown {
-  if (typeof value === "function") return fromCoreCommand(value as S.Command<any, any, never>)
+  if (Predicate.isFunction(value)) return fromCoreCommand(value as S.Command<any, any, never>)
   return wrap(value)
 }

@@ -8,6 +8,7 @@ import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
 import * as Option from "effect/Option"
 import * as Result from "effect/Result"
+import * as Predicate from "effect/Predicate"
 import type { AnySchema, Mark, MarkJSON, ModelError, Node, NodeJSON } from "../Model.ts"
 import { type SelectionError, StateError } from "./errors.ts"
 import type { AnyPlugin, Plugin, PluginErrors, PluginRequirements, StateField } from "./plugin.ts"
@@ -436,7 +437,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
       [field: string]: unknown
     } = { doc: this.doc.toJSON(), selection: this.selection.toJSON() }
     if (this.storedMarksOrNull) result.storedMarks = this.storedMarksOrNull.map((m) => m.toJSON())
-    if (pluginFields && typeof pluginFields === "object") {
+    if (Predicate.isObjectOrArray(pluginFields)) {
       for (const prop in pluginFields) {
         if (prop === "doc" || prop === "selection") {
           throw new StateError({ message: "The JSON fields `doc` and `selection` are reserved" })
@@ -490,7 +491,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
     // The JSON decoders are Effects, yielded like the hooks.
     return runSteps(function* () {
       const data = json as Record<string, any> | null | undefined
-      if (!data || typeof data !== "object") throw new StateError({ message: "Invalid input for EditorState.fromJSON" })
+      if (!Predicate.isObject(data)) throw new StateError({ message: "Invalid input for EditorState.fromJSON" })
       if (!config.schema) throw new StateError({ message: "Required config field 'schema' missing" })
       const $config = new Configuration(config.schema, config.plugins)
       const instance = new EditorState<Sc, PluginRequirements<P>, PluginErrors<P>>($config)

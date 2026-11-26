@@ -7,6 +7,7 @@
 import * as Arr from "effect/Array"
 import type * as Effect from "effect/Effect"
 import * as Order from "effect/Order"
+import * as Predicate from "effect/Predicate"
 import { type Bindings, type BindingsError, type BindingsRequirements, keymap } from "../Keymap.ts"
 import type { AnySchema, MarkSpec, MarkSpecs, NodeSpec, NodeSpecs } from "../Model.ts"
 import type { AnyPlugin, Command, Plugin } from "../State.ts"
@@ -576,6 +577,6 @@ export const resolvePlugins = (inputs: ReadonlyArray<PluginInput>, schema: AnySc
     if (Array.isArray(input)) result.push(...input)
     else result.push(input as AnyPlugin)
   }
-  for (const input of inputs) add(typeof input === "function" ? input(schema) : input)
+  for (const input of inputs) add(Predicate.isFunction(input) ? input(schema) : input)
   return result
 }

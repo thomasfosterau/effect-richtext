@@ -243,14 +243,14 @@ export const liftListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(item
     if (!dispatching) return true
     if (isItem(itemType, $from.node(range.depth - 1).type)) {
       // Inside a parent list
-      return liftToOuterList(state, range) as SyncResult<Sc>
+      return liftToOuterList(state, range)
     } else {
       // Outer list node
-      return liftOutOfList(state, range) as SyncResult<Sc>
+      return liftOutOfList(state, range)
     }
   })
 
-function liftToOuterList(state: EditorState<any, any, any>, range: NodeRange<any>): SyncResult {
+function liftToOuterList<Sc extends AnySchema>(state: EditorState<Sc, any, any>, range: NodeRange<Sc>): SyncResult<Sc> {
   const tr = state.tr,
     end = range.end,
     endOfList = range.$to.end(range.depth)
@@ -281,7 +281,7 @@ function liftToOuterList(state: EditorState<any, any, any>, range: NodeRange<any
   return tr.scrollIntoView()
 }
 
-function liftOutOfList(state: EditorState<any, any, any>, range: NodeRange<any>): SyncResult {
+function liftOutOfList<Sc extends AnySchema>(state: EditorState<Sc, any, any>, range: NodeRange<Sc>): SyncResult<Sc> {
   const tr = state.tr,
     list = range.parent
   // Merge the list items into a single big item

@@ -294,7 +294,7 @@ export abstract class Selection<Sc extends AnySchema = AnySchema> {
 
   /** Like `fromJSON`, but throws on invalid input. */
   static fromJSONUnsafe<Sc extends AnySchema>(doc: Node<Sc>, json: any): Selection<Sc> {
-    if (!json || typeof json !== "object" || !json.type) {
+    if (!Predicate.isString(json?.type) || !json.type) {
       throw new JSONError({ message: "Invalid input for Selection.fromJSON" })
     }
     const cls = classesById[json.type]
@@ -432,7 +432,7 @@ export class TextSelection<Sc extends AnySchema = AnySchema> extends Selection<S
 
   /** @internal */
   static override fromJSONUnsafe<Sc extends AnySchema>(doc: Node<Sc>, json: any): TextSelection<Sc> {
-    if (typeof json.anchor !== "number" || typeof json.head !== "number") {
+    if (!Predicate.isNumber(json.anchor) || !Predicate.isNumber(json.head)) {
       throw new JSONError({ message: "Invalid input for TextSelection.fromJSON" })
     }
     return new TextSelection(doc.resolveUnsafe(json.anchor), doc.resolveUnsafe(json.head))
@@ -554,7 +554,7 @@ export class NodeSelection<Sc extends AnySchema = AnySchema> extends Selection<S
 
   /** @internal */
   static override fromJSONUnsafe<Sc extends AnySchema>(doc: Node<Sc>, json: any): NodeSelection<Sc> {
-    if (typeof json.anchor !== "number") throw new JSONError({ message: "Invalid input for NodeSelection.fromJSON" })
+    if (!Predicate.isNumber(json.anchor)) throw new JSONError({ message: "Invalid input for NodeSelection.fromJSON" })
     return new NodeSelection(doc.resolveUnsafe(json.anchor))
   }
 
@@ -694,8 +694,7 @@ function selectionToInsertionEnd(tr: Transaction<any>, startLen: number, bias: n
 }
 
 const SelectionJSONSchema = S.declare(
-  (u: unknown): u is SelectionJSON =>
-    typeof u === "object" && u !== null && typeof (u as { type?: unknown }).type === "string",
+  (u: unknown): u is SelectionJSON => Predicate.isObjectOrArray(u) && "type" in u && Predicate.isString(u.type),
   { title: "SelectionJSON" }
 )
 

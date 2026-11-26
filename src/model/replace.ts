@@ -5,6 +5,7 @@
  */
 import * as Equal from "effect/Equal"
 import * as Hash from "effect/Hash"
+import * as Predicate from "effect/Predicate"
 import { JSONError, PositionError, ReplaceError } from "./errors.ts"
 import { Fragment } from "./fragment.ts"
 import type { Node, NodeJSON, TextNode } from "./node.ts"
@@ -108,7 +109,7 @@ export class Slice<Sc extends AnySchema = AnySchema> implements Equal.Equal {
     if (!json) return Slice.empty
     const openStart = json.openStart || 0,
       openEnd = json.openEnd || 0
-    if (typeof openStart !== "number" || typeof openEnd !== "number") {
+    if (!Predicate.isNumber(openStart) || !Predicate.isNumber(openEnd)) {
       throw new JSONError({ message: "Invalid input for Slice.fromJSON" })
     }
     if (json.content != null && !Array.isArray(json.content)) {

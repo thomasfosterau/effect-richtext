@@ -5,6 +5,7 @@
  */
 import type * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import { attempt } from "../internal/attempt.ts"
 import { type AnySchema, Mark, type MarkType, type Node, type Slice } from "../Model.ts"
 import { isTransformOrModelError, type ReplaceFailure, type Step, Transform } from "../Transform.ts"
@@ -252,13 +253,13 @@ export class Transaction<Sc extends AnySchema = AnySchema> extends Transform<Sc>
 
   /** Store a metadata property in this transaction, keyed either by name or by plugin. */
   setMeta(key: MetaKey, value: unknown): this {
-    this.meta[typeof key === "string" ? key : key.key] = value
+    this.meta[Predicate.isString(key) ? key : key.key] = value
     return this
   }
 
   /** Retrieve a metadata property for a given name or plugin, if it was set. */
   getMeta<A = unknown>(key: MetaKey): Option.Option<A> {
-    const name = typeof key === "string" ? key : key.key
+    const name = Predicate.isString(key) ? key : key.key
     return name in this.meta ? Option.some(this.meta[name] as A) : Option.none()
   }
 

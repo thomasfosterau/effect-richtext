@@ -120,7 +120,7 @@ function flatten<Sc extends AnySchema>(
 
   for (let i = 0; i < children.length; i++) {
     const child = children[i]!
-    if (typeof child === "string") {
+    if (Predicate.isString(child)) {
       const re = /<(\w+)>/g
       let m: RegExpExecArray | null
       let at = 0,
