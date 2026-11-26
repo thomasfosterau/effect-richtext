@@ -35,9 +35,12 @@ import {
  * @since 0.1.0
  * @category errors
  */
-export class MissingDocumentError extends Schema.TaggedError<MissingDocumentError>()("MissingDocumentError", {
-  message: Schema.String
-}) {}
+export class MissingDocumentError extends Schema.TaggedError<MissingDocumentError, { readonly brand: unique symbol }>()(
+  "MissingDocumentError",
+  {
+    message: Schema.String
+  }
+) {}
 
 /**
  * Something that can parse an HTML string into a document, like the

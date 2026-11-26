@@ -193,7 +193,9 @@ describe("Plugin", () => {
 
 class Counter extends Context.Service<Counter, { readonly step: number }>()("test/Counter") {}
 
-class Rejected extends Schema.TaggedError<Rejected>()("Rejected", { reason: Schema.String }) {}
+class Rejected extends Schema.TaggedError<Rejected, { readonly brand: unique symbol }>()("Rejected", {
+  reason: Schema.String
+}) {}
 
 // A plugin whose state hooks require a service.
 const stepCountPlugin = new Plugin({

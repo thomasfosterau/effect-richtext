@@ -25,7 +25,7 @@ const windows = !Predicate.isUndefined(globalThis.navigator) && /Win/.test(navig
  * @since 0.1.0
  * @category errors
  */
-export class KeymapError extends Schema.TaggedError<KeymapError>()("KeymapError", {
+export class KeymapError extends Schema.TaggedError<KeymapError, { readonly brand: unique symbol }>()("KeymapError", {
   message: Schema.String
 }) {}
 

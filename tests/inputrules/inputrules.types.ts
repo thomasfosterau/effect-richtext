@@ -11,7 +11,7 @@ import type { AnySchema } from "@thomasfosterau/effect-richtext/Model"
 import type { Plugin } from "@thomasfosterau/effect-richtext/State"
 
 class Counter extends Context.Service<Counter, { readonly step: number }>()("typetest/Counter") {}
-class Boom extends Schema.TaggedError<Boom>()("Boom", { message: Schema.String }) {}
+class Boom extends Schema.TaggedError<Boom, { readonly brand: unique symbol }>()("Boom", { message: Schema.String }) {}
 
 const counterRule = new InputRule(/\+\+$/, (state, _match, start, end) =>
   Effect.gen(function* () {

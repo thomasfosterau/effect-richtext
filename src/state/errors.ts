@@ -14,7 +14,7 @@ import * as Schema from "effect/Schema"
  * @since 0.1.0
  * @category errors
  */
-export class StateError extends Schema.TaggedError<StateError>()("StateError", {
+export class StateError extends Schema.TaggedError<StateError, { readonly brand: unique symbol }>()("StateError", {
   message: Schema.String
 }) {}
 
@@ -26,9 +26,12 @@ export class StateError extends Schema.TaggedError<StateError>()("StateError", {
  * @since 0.1.0
  * @category errors
  */
-export class SelectionError extends Schema.TaggedError<SelectionError>()("SelectionError", {
-  message: Schema.String
-}) {}
+export class SelectionError extends Schema.TaggedError<SelectionError, { readonly brand: unique symbol }>()(
+  "SelectionError",
+  {
+    message: Schema.String
+  }
+) {}
 
 /**
  * Union of the errors defined by the state layer.

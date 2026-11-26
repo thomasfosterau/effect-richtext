@@ -30,7 +30,7 @@ import { type Command, Plugin, type Transaction } from "@thomasfosterau/effect-r
 import type { Equals, Expect } from "./utils/types.ts"
 
 class Svc extends Context.Service<Svc, { readonly n: number }>()("typetest/Svc") {}
-class Boom extends Schema.TaggedError<Boom>()("Boom", {}) {}
+class Boom extends Schema.TaggedError<Boom, { readonly brand: unique symbol }>()("Boom", {}) {}
 
 const basic = defineBasicExtension()
 const editor = createEditorUnsafe(basic)

@@ -10,8 +10,10 @@ import type { AnySchema } from "@thomasfosterau/effect-richtext/Model"
 import type { Command } from "@thomasfosterau/effect-richtext/State"
 
 class Log extends Context.Service<Log, { readonly entries: Array<string> }>()("typetest/Log") {}
-class Denied extends Schema.TaggedError<Denied>()("Denied", { reason: Schema.String }) {}
-class Other extends Schema.TaggedError<Other>()("Other", {}) {}
+class Denied extends Schema.TaggedError<Denied, { readonly brand: unique symbol }>()("Denied", {
+  reason: Schema.String
+}) {}
+class Other extends Schema.TaggedError<Other, { readonly brand: unique symbol }>()("Other", {}) {}
 
 declare const logged: Command<AnySchema, never, Log>
 const denied: Command<AnySchema, Denied> = () => Effect.fail(new Denied({ reason: "read-only" }))

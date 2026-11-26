@@ -135,6 +135,7 @@ export default defineConfig({
       "effecttsgo/prefer-typed-schema-decoder": "error",
       "effecttsgo/provide-layer-succeed-to-provide-service": "error",
       "effecttsgo/strict-effect-provide": "error",
+      "effecttsgo/schema-class-missing-brand": "error",
       "typescript/no-unnecessary-type-parameters": "error",
       // Covered by `effect/avoid-any` (an allowance above).
       "typescript/no-explicit-any": "off",

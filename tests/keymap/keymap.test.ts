@@ -104,7 +104,9 @@ describe("keymap", () => {
 
 class Clipboard extends Context.Service<Clipboard, { readonly copied: Array<string> }>()("test/Clipboard") {}
 
-class ReadOnly extends Schema.TaggedError<ReadOnly>()("ReadOnly", { key: Schema.String }) {}
+class ReadOnly extends Schema.TaggedError<ReadOnly, { readonly brand: unique symbol }>()("ReadOnly", {
+  key: Schema.String
+}) {}
 
 const copy: Command<AnySchema, never, Clipboard> = () =>
   Effect.gen(function* () {

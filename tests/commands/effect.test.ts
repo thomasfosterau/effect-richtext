@@ -25,9 +25,11 @@ import { apply, mkState } from "./apply.ts"
 
 class Log extends Context.Service<Log, { readonly entries: Array<string> }>()("test/Log") {}
 
-class Denied extends Schema.TaggedError<Denied>()("Denied", { reason: Schema.String }) {}
+class Denied extends Schema.TaggedError<Denied, { readonly brand: unique symbol }>()("Denied", {
+  reason: Schema.String
+}) {}
 
-class Other extends Schema.TaggedError<Other>()("Other", {}) {}
+class Other extends Schema.TaggedError<Other, { readonly brand: unique symbol }>()("Other", {}) {}
 
 /** A command that needs the `Log` service and declines. */
 const logged: Command<AnySchema, never, Log> = () =>
