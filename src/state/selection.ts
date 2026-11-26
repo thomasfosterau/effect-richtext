@@ -118,11 +118,7 @@ export abstract class Selection<Sc extends AnySchema = AnySchema> {
 
   /** Indicates whether the selection contains any content. */
   get empty(): boolean {
-    const ranges = this.ranges
-    for (let i = 0; i < ranges.length; i++) {
-      if (ranges[i].$from.pos !== ranges[i].$to.pos) return false
-    }
-    return true
+    return this.ranges.every(({ $from, $to }) => $from.pos === $to.pos)
   }
 
   /**
@@ -156,25 +152,21 @@ export abstract class Selection<Sc extends AnySchema = AnySchema> {
     // Put the new selection at the position after the inserted
     // content. When that ended in an inline node, search backwards,
     // to get the position after that node. If not, search forward.
-    const mapFrom = tr.steps.length,
-      ranges = this.ranges
-    for (let i = 0; i < ranges.length; i++) {
-      const { $from, $to } = ranges[i],
-        mapping = tr.mapping.slice(mapFrom)
+    const mapFrom = tr.steps.length
+    this.ranges.forEach(({ $from, $to }, i) => {
+      const mapping = tr.mapping.slice(mapFrom)
       tr.replaceRangeUnsafe(mapping.map($from.pos), mapping.map($to.pos), i ? Slice.empty : content)
       if (i === 0) {
         selectionToInsertionEnd(tr, mapFrom, endsInline(content) ? -1 : 1)
       }
-    }
+    })
   }
 
   /** Replace the selection with the given node, appending the changes to the given transaction. */
   replaceWith(tr: Transaction<Sc>, node: Node<Sc>): void {
-    const mapFrom = tr.steps.length,
-      ranges = this.ranges
-    for (let i = 0; i < ranges.length; i++) {
-      const { $from, $to } = ranges[i],
-        mapping = tr.mapping.slice(mapFrom)
+    const mapFrom = tr.steps.length
+    this.ranges.forEach(({ $from, $to }, i) => {
+      const mapping = tr.mapping.slice(mapFrom)
       const from = mapping.map($from.pos),
         to = mapping.map($to.pos)
       if (i) {
@@ -183,7 +175,7 @@ export abstract class Selection<Sc extends AnySchema = AnySchema> {
         tr.replaceRangeWithUnsafe(from, to, node)
         selectionToInsertionEnd(tr, mapFrom, node.isInline ? -1 : 1)
       }
-    }
+    })
   }
 
   /**

@@ -10,6 +10,7 @@ import * as Exit from "effect/Exit"
 import * as Option from "effect/Option"
 import * as Result from "effect/Result"
 import * as Predicate from "effect/Predicate"
+import * as Rec from "effect/Record"
 import type * as Types from "effect/Types"
 import type { AnySchema, Mark, MarkJSON, ModelError, Node, NodeJSON } from "../Model.ts"
 import { type SelectionError, StateError } from "./errors.ts"
@@ -453,14 +454,13 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
     const result: Types.Mutable<EditorStateJSON> = { doc: this.doc.toJSON(), selection: this.selection.toJSON() }
     if (this.storedMarksOrNull) result.storedMarks = this.storedMarksOrNull.map((m) => m.toJSON())
     if (Predicate.isObjectOrArray(pluginFields)) {
-      for (const prop in pluginFields) {
+      Rec.toEntries(pluginFields).forEach(([prop, plugin]) => {
         if (prop === "doc" || prop === "selection") {
           throw new StateError({ message: "The JSON fields `doc` and `selection` are reserved" })
         }
-        const plugin = pluginFields[prop],
-          state = plugin.spec.state
+        const state = plugin.spec.state
         if (state && state.toJSON) result[prop] = state.toJSON.call(plugin, this.slots[plugin.key])
-      }
+      })
     }
     return result
   }

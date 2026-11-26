@@ -6,6 +6,7 @@
 import type * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
+import * as Rec from "effect/Record"
 import type { AnySchema } from "../Model.ts"
 import type { EditorProps, EditorView } from "../view/view.ts"
 import type { EditorState, EditorStateConfig } from "./state.ts"
@@ -183,15 +184,13 @@ function bindProps(
   self: AnyPlugin,
   target: Record<string, unknown>
 ): Record<string, unknown> {
-  for (const prop in obj) {
-    let val = obj[prop]
-    if (Predicate.isFunction(val)) val = val.bind(self)
+  Rec.toEntries(obj).forEach(([prop, val]) => {
+    if (Predicate.isFunction(val)) target[prop] = val.bind(self)
     else if (prop === "handleDOMEvents") {
       // SAFETY: `handleDOMEvents` is an object of event handlers.
-      val = bindProps(val as { readonly [prop: string]: unknown }, self, {})
-    }
-    target[prop] = val
-  }
+      target[prop] = bindProps(val as { readonly [prop: string]: unknown }, self, {})
+    } else target[prop] = val
+  })
   return target
 }
 

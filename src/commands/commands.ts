@@ -228,9 +228,11 @@ function deleteBarrier(
     const wrappers = conn.value
     return done(dispatching, () => {
       const end = $cut.pos + after.nodeSize
-      let wrap: Fragment<any> = Fragment.empty
-      for (let i = wrappers.length - 1; i >= 0; i--) wrap = Fragment.from(wrappers[i].createUnsafe(null, wrap))
-      wrap = Fragment.from(before.copy(wrap))
+      const inner = wrappers.reduceRight(
+        (content: Fragment<any>, type) => Fragment.from(type.createUnsafe(null, content)),
+        Fragment.empty
+      )
+      const wrap = Fragment.from(before.copy(inner))
       const tr = state.tr.stepUnsafe(
         new ReplaceAroundStep($cut.pos - 1, end, $cut.pos, end, new Slice(wrap, 1, 0), wrappers.length, true)
       )
@@ -267,8 +269,10 @@ function deleteBarrier(
     }
     if (at.canReplace(at.childCount, at.childCount, afterText.content)) {
       return done(dispatching, () => {
-        let end: Fragment<any> = Fragment.empty
-        for (let i = wrap.length - 1; i >= 0; i--) end = Fragment.from(wrap[i].copy(end))
+        const end = wrap.reduceRight(
+          (content: Fragment<any>, node) => Fragment.from(node.copy(content)),
+          Fragment.empty
+        )
         const tr = state.tr.stepUnsafe(
           new ReplaceAroundStep(
             $cut.pos - wrap.length,
@@ -847,37 +851,27 @@ export const setBlockType = <Sc extends AnySchema, N extends NodeNames<Sc>>(
   attrs: NodeAttrsInput<Sc, N> | null = null
 ): Command<Sc> =>
   syncCommand<Sc>((state, dispatching) => {
-    let applicable = false
     const ranges = state.selection.ranges
-    for (let i = 0; i < ranges.length; i++) {
-      if (applicable) break
-      const {
-        $from: { pos: from },
-        $to: { pos: to }
-      } = ranges[i]
-      state.doc.nodesBetween(from, to, (node, pos) => {
-        if (applicable) return false
+    const applicable = ranges.some(({ $from, $to }) => {
+      let applies = false
+      state.doc.nodesBetween($from.pos, $to.pos, (node, pos) => {
+        if (applies) return false
         if (!node.isTextblock || node.hasMarkup(nodeType, attrs)) return true
         if (node.type === nodeType) {
-          applicable = true
+          applies = true
         } else {
           const $pos = state.doc.resolveUnsafe(pos),
             index = $pos.index()
-          applicable = $pos.parent.canReplaceWith(index, index + 1, nodeType)
+          applies = $pos.parent.canReplaceWith(index, index + 1, nodeType)
         }
         return true
       })
-    }
+      return applies
+    })
     if (!applicable) return false
     return done(dispatching, () => {
       const tr = state.tr
-      for (let i = 0; i < ranges.length; i++) {
-        const {
-          $from: { pos: from },
-          $to: { pos: to }
-        } = ranges[i]
-        tr.setBlockTypeUnsafe(from, to, nodeType, attrs)
-      }
+      ranges.forEach(({ $from, $to }) => tr.setBlockTypeUnsafe($from.pos, $to.pos, nodeType, attrs))
       return tr.scrollIntoView()
     })
   })
@@ -888,8 +882,7 @@ function markApplies(
   type: MarkType<any, any>,
   enterAtoms: boolean
 ): boolean {
-  for (let i = 0; i < ranges.length; i++) {
-    const { $from, $to } = ranges[i]
+  return ranges.some(({ $from, $to }) => {
     let can = $from.depth === 0 ? doc.inlineContent && doc.type.allowsMarkType(type) : false
     doc.nodesBetween($from.pos, $to.pos, (node, pos) => {
       if (can || (!enterAtoms && node.isAtom && node.isInline && pos >= $from.pos && pos + node.nodeSize <= $to.pos))
@@ -897,16 +890,15 @@ function markApplies(
       can = node.inlineContent && node.type.allowsMarkType(type)
       return true
     })
-    if (can) return true
-  }
-  return false
+    return can
+  })
 }
 
 function removeInlineAtoms(ranges: ReadonlyArray<SelectionRange<any>>): ReadonlyArray<SelectionRange<any>> {
-  const result: Array<SelectionRange<any>> = []
-  for (let i = 0; i < ranges.length; i++) {
-    let { $from } = ranges[i]
-    const { $to } = ranges[i]
+  return ranges.flatMap((range) => {
+    const result: Array<SelectionRange<any>> = []
+    let { $from } = range
+    const { $to } = range
     $from.doc.nodesBetween($from.pos, $to.pos, (node, pos) => {
       if (node.isAtom && node.content.size && node.isInline && pos >= $from.pos && pos + node.nodeSize <= $to.pos) {
         if (pos + 1 > $from.pos) result.push(new SelectionRange($from, $from.doc.resolveUnsafe(pos + 1)))
@@ -916,8 +908,8 @@ function removeInlineAtoms(ranges: ReadonlyArray<SelectionRange<any>>): Readonly
       return true
     })
     if ($from.pos < $to.pos) result.push(new SelectionRange($from, $to))
-  }
-  return result
+    return result
+  })
 }
 
 /**
@@ -1025,8 +1017,7 @@ export const toggleMark = <Sc extends AnySchema, M extends MarkNames<Sc>>(
         return !missing
       })
     }
-    for (let i = 0; i < ranges.length; i++) {
-      const { $from, $to } = ranges[i]
+    ranges.forEach(({ $from, $to }) => {
       if (!add) {
         tr.removeMark($from.pos, $to.pos, markType)
       } else {
@@ -1042,7 +1033,7 @@ export const toggleMark = <Sc extends AnySchema, M extends MarkNames<Sc>>(
         }
         tr.addMark(from, to, markType.createUnsafe(attrs))
       }
-    }
+    })
     return tr.scrollIntoView()
   })
 }
@@ -1055,37 +1046,37 @@ function wrapDispatchForJoin<Sc extends AnySchema>(
     Effect.suspend(() => {
       if (!tr.isGeneric) return dispatch(tr)
 
-      const ranges: Array<number> = []
-      for (let i = 0; i < tr.mapping.maps.length; i++) {
-        const map = tr.mapping.maps[i]
-        for (let j = 0; j < ranges.length; j++) ranges[j] = map.map(ranges[j])
-        map.forEach((_s, _e, from, to) => ranges.push(from, to))
-      }
+      // The changed ranges, as flat from/to pairs in the final document.
+      const ranges = tr.mapping.maps.reduce((mapped: Array<number>, map) => {
+        const next = mapped.map((pos) => map.map(pos))
+        map.forEach((_s, _e, from, to) => next.push(from, to))
+        return next
+      }, [])
 
       // Figure out which joinable points exist inside those ranges,
       // by checking all node boundaries in their parent nodes.
       const joinable: Array<number> = []
-      for (let i = 0; i < ranges.length; i += 2) {
-        const from = ranges[i],
-          to = ranges[i + 1]
+      Arr.chunksOf(ranges, 2).forEach(([from, to]) => {
         const $from = tr.doc.resolveUnsafe(from),
           depth = $from.sharedDepth(to),
-          parent = $from.node(depth)
-        for (let index = $from.indexAfter(depth), pos = $from.afterUnsafe(depth + 1); pos <= to; ++index) {
-          const after = parent.content.content[index]
-          if (!after) break
+          parent = $from.node(depth),
+          start = $from.indexAfter(depth)
+        let pos = $from.afterUnsafe(depth + 1)
+        parent.content.content.slice(start).some((after, i) => {
+          if (pos > to) return true
+          const index = start + i
           if (index && joinable.indexOf(pos) === -1) {
             const before = parent.content.content[index - 1]
             if (before.type === after.type && isJoinable(before, after)) joinable.push(pos)
           }
           pos += after.nodeSize
-        }
-      }
+          return false
+        })
+      })
       // Join the joinable points
-      const sorted = Arr.sort(joinable, Num.Order)
-      for (let i = sorted.length - 1; i >= 0; i--) {
-        if (canJoin(tr.doc, sorted[i])) tr.joinUnsafe(sorted[i])
-      }
+      Arr.reverse(Arr.sort(joinable, Num.Order)).forEach((pos) => {
+        if (canJoin(tr.doc, pos)) tr.joinUnsafe(pos)
+      })
       return dispatch(tr)
     })
 }
