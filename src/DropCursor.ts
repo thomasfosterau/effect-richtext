@@ -167,11 +167,11 @@ class DropCursorView implements PluginView {
       parentLeft = -win.pageXOffset
       parentTop = -win.pageYOffset
     } else {
-      const rect = parent.getBoundingClientRect()
-      const parentScaleX = rect.width / parent.offsetWidth,
-        parentScaleY = rect.height / parent.offsetHeight
-      parentLeft = rect.left - parent.scrollLeft * parentScaleX
-      parentTop = rect.top - parent.scrollTop * parentScaleY
+      const parentRect = parent.getBoundingClientRect()
+      const parentScaleX = parentRect.width / parent.offsetWidth,
+        parentScaleY = parentRect.height / parent.offsetHeight
+      parentLeft = parentRect.left - parent.scrollLeft * parentScaleX
+      parentTop = parentRect.top - parent.scrollTop * parentScaleY
     }
     this.element.style.left = (rect.left - parentLeft) / scaleX + "px"
     this.element.style.top = (rect.top - parentTop) / scaleY + "px"

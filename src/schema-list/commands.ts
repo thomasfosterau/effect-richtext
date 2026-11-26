@@ -191,13 +191,13 @@ export const splitListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(
         wrap = wrap.append(Fragment.from($from.node(-3).type.createAndFillOrNull()))
         const start = $from.beforeUnsafe($from.depth - (depthBefore - 1))
         const tr = state.tr.replaceUnsafe(start, $from.afterUnsafe(-depthAfter), new Slice(wrap, 4 - depthBefore, 0))
-        let sel = -1
-        tr.doc.nodesBetween(start, tr.doc.content.size, (node, pos) => {
-          if (sel > -1) return false
-          if (node.isTextblock && node.content.size === 0) sel = pos + 1
+        let cursor = -1
+        tr.doc.nodesBetween(start, tr.doc.content.size, (child, pos) => {
+          if (cursor > -1) return false
+          if (child.isTextblock && child.content.size === 0) cursor = pos + 1
           return true
         })
-        if (sel > -1) tr.setSelectionUnsafe(Selection.near(tr.doc.resolveUnsafe(sel)))
+        if (cursor > -1) tr.setSelectionUnsafe(Selection.near(tr.doc.resolveUnsafe(cursor)))
         return tr.scrollIntoView()
       })
     }

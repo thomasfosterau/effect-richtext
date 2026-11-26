@@ -574,14 +574,14 @@ export class EditorView {
     if (prop != null && (value = f ? f(prop as any) : prop)) return value as any
     const direct = this._props.plugins || []
     for (let i = 0; i < direct.length; i++) {
-      const prop = direct[i]!.props[propName]
-      if (prop != null && (value = f ? f(prop as any) : prop)) return value as any
+      const pluginProp = direct[i]!.props[propName]
+      if (pluginProp != null && (value = f ? f(pluginProp as any) : pluginProp)) return value as any
     }
     const plugins = this.state.plugins
     if (plugins) {
       for (let i = 0; i < plugins.length; i++) {
-        const prop = plugins[i]!.props[propName]
-        if (prop != null && (value = f ? f(prop as any) : prop)) return value as any
+        const pluginProp = plugins[i]!.props[propName]
+        if (pluginProp != null && (value = f ? f(pluginProp as any) : pluginProp)) return value as any
       }
     }
     return undefined

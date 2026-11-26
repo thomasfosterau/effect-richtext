@@ -1491,9 +1491,9 @@ function gatherMarks(schema: DocSchema<any, any>, marks: ReadonlyArray<string>) 
       found.push(mark)
     } else {
       for (const prop in schema.marks) {
-        const mark = schema.marks[prop]!
-        if (name === "_" || (mark.spec.group && mark.spec.group.split(" ").indexOf(name) > -1)) {
-          found.push((ok = mark))
+        const candidate = schema.marks[prop]!
+        if (name === "_" || (candidate.spec.group && candidate.spec.group.split(" ").indexOf(name) > -1)) {
+          found.push((ok = candidate))
         }
       }
     }

@@ -23,7 +23,7 @@ import {
   type TextNode
 } from "../Model.ts"
 import { isMarkdownError, MarkdownError } from "./errors.ts"
-import { schema } from "./schema.ts"
+import { schema as markdownSchema } from "./schema.ts"
 
 function maybeMerge(a: Node<any, any>, b: Node<any, any>): Node<any, any> | undefined {
   if (a.isText && b.isText && Mark.sameSet(a.marks, b.marks)) {
@@ -196,7 +196,7 @@ export interface ParseSpec<Sc extends AnySchema = AnySchema> {
   readonly ignore?: boolean | undefined
 }
 
-function attrs(spec: ParseSpec<any>, token: Token, tokens: Array<Token>, i: number): Attrs | null {
+function tokenAttrs(spec: ParseSpec<any>, token: Token, tokens: Array<Token>, i: number): Attrs | null {
   if (spec.getAttrs) return spec.getAttrs(token, tokens, i)
   const specAttrs: unknown = spec.attrs
   // For backwards compatibility when `attrs` is a Function
@@ -216,7 +216,7 @@ function withoutTrailingNewline(str: string): string {
 
 function noOp() {}
 
-function tokenHandlers<Sc extends AnySchema>(
+function makeTokenHandlers<Sc extends AnySchema>(
   schema: Sc,
   tokens: { readonly [token: string]: ParseSpec<Sc> }
 ): Record<string, TokenHandler<Sc>> {
@@ -226,30 +226,30 @@ function tokenHandlers<Sc extends AnySchema>(
     if (spec.block) {
       const nodeType = schema.nodeType(spec.block) as NodeType<Sc, any>
       if (noCloseToken(spec, type)) {
-        handlers[type] = (state, tok, tokens, i) => {
-          state.openNode(nodeType, attrs(spec, tok, tokens, i))
+        handlers[type] = (state, tok, toks, i) => {
+          state.openNode(nodeType, tokenAttrs(spec, tok, toks, i))
           state.addText(withoutTrailingNewline(tok.content))
           state.closeNode()
         }
       } else {
-        handlers[type + "_open"] = (state, tok, tokens, i) => state.openNode(nodeType, attrs(spec, tok, tokens, i))
+        handlers[type + "_open"] = (state, tok, toks, i) => state.openNode(nodeType, tokenAttrs(spec, tok, toks, i))
         handlers[type + "_close"] = (state) => state.closeNode()
       }
     } else if (spec.node) {
       const nodeType = schema.nodeType(spec.node) as NodeType<Sc, any>
-      handlers[type] = (state, tok, tokens, i) => state.addNode(nodeType, attrs(spec, tok, tokens, i))
+      handlers[type] = (state, tok, toks, i) => state.addNode(nodeType, tokenAttrs(spec, tok, toks, i))
     } else if (spec.mark) {
       const markType = schema.marks[spec.mark] as MarkType<Sc, any> | undefined
       if (!markType) throw new MarkdownError({ message: "Unknown mark type: " + spec.mark })
       if (noCloseToken(spec, type)) {
-        handlers[type] = (state, tok, tokens, i) => {
-          state.openMark(markType.createUnsafe(attrs(spec, tok, tokens, i) ?? undefined))
+        handlers[type] = (state, tok, toks, i) => {
+          state.openMark(markType.createUnsafe(tokenAttrs(spec, tok, toks, i) ?? undefined))
           state.addText(withoutTrailingNewline(tok.content))
           state.closeMark(markType)
         }
       } else {
-        handlers[type + "_open"] = (state, tok, tokens, i) =>
-          state.openMark(markType.createUnsafe(attrs(spec, tok, tokens, i) ?? undefined))
+        handlers[type + "_open"] = (state, tok, toks, i) =>
+          state.openMark(markType.createUnsafe(tokenAttrs(spec, tok, toks, i) ?? undefined))
         handlers[type + "_close"] = (state) => state.closeMark(markType)
       }
     } else if (spec.ignore) {
@@ -305,7 +305,7 @@ export class MarkdownParser<Sc extends AnySchema = AnySchema> {
      */
     readonly tokens: { readonly [name: string]: ParseSpec<Sc> }
   ) {
-    this.tokenHandlers = tokenHandlers(schema, tokens)
+    this.tokenHandlers = makeTokenHandlers(schema, tokens)
   }
 
   /**
@@ -364,8 +364,8 @@ const attrString = (value: string | number | null): string | null => (value == n
  * @since 0.1.0
  * @category parsers
  */
-export const defaultMarkdownParser: MarkdownParser<typeof schema> = new MarkdownParser(
-  schema,
+export const defaultMarkdownParser: MarkdownParser<typeof markdownSchema> = new MarkdownParser(
+  markdownSchema,
   new MarkdownIt("commonmark", { html: false }),
   {
     blockquote: { block: "blockquote" },

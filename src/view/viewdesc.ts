@@ -449,8 +449,8 @@ export class ViewDesc {
       const end = offset + child.size
       if (offset == pos && end != offset) {
         while (!child.border && child.children.length) {
-          for (let i = 0; i < child.children.length; i++) {
-            const inner = child.children[i]!
+          for (let j = 0; j < child.children.length; j++) {
+            const inner = child.children[j]!
             if (inner.size) {
               child = inner
               break
@@ -963,8 +963,8 @@ export class NodeViewDesc extends ViewDesc {
       if (!dom) dom = document.createTextNode(textOf(node))
       else if (dom.nodeType != 3) throw new RangeError("Text must be rendered as a DOM text node")
     } else if (!dom) {
-      const spec = DOMSerializer.renderSpecUnsafe(document, node.type.spec.toDOM!(node), null, node.attrs)
-      ;({ dom, contentDOM } = spec)
+      const rendered = DOMSerializer.renderSpecUnsafe(document, node.type.spec.toDOM!(node), null, node.attrs)
+      ;({ dom, contentDOM } = rendered)
     }
     if (!contentDOM && !node.isText && dom!.nodeName != "BR") {
       // Chrome gets confused by <br contenteditable=false>
@@ -1777,8 +1777,8 @@ class ViewTreeUpdater {
     for (let i = this.index; i < this.top.children.length; i++) {
       const next = this.top.children[i]!
       if (next instanceof NodeViewDesc) {
-        const preMatch = this.preMatch.matched.get(next)
-        if (preMatch != null && preMatch != index) return false
+        const matchedIndex = this.preMatch.matched.get(next)
+        if (matchedIndex != null && matchedIndex != index) return false
         const nextDOM = next.dom
         let updated
 

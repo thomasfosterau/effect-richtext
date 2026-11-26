@@ -116,8 +116,6 @@ export default defineConfig({
       "effect/require-safety-comment-for-type-assertion": "warn", // 841
       "effect/prefer-option-over-null": "warn", // 994
       "effect/imperative-loops": "warn", // 597
-      // The ported suites shadow the test-builder's `doc` / `schema`.
-      "eslint/no-shadow": "warn", // 312
       // ---- Type-aware allowances (same rules as above) ---------------------
       // tsrs's "unnecessary" verdict differs from the `check` task's tsc,
       // so remove those sites by hand, against `vp run check`, never by autofix.
@@ -480,13 +478,15 @@ export default defineConfig({
       },
       // Effect marks all of `@effect/vitest` (the mandated test API) and
       // `effect/process` unstable; there is no stable API to move to. The
-      // ported suites reach into internals with `as any`, as ProseMirror's do.
+      // ported suites reach into internals with `as any`, and shadow the
+      // test-builder's `doc` / `schema`, as ProseMirror's do.
       {
         files: ["tests/**/*.ts"],
         rules: {
           "eslint/no-console": "off",
           "effecttsgo/unstable-api-usage": "off",
-          "effect/avoid-any": "off"
+          "effect/avoid-any": "off",
+          "eslint/no-shadow": "off"
         }
       }
     ],
