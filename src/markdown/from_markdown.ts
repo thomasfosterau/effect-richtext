@@ -5,6 +5,7 @@
  */
 // Ported from prosemirror-markdown (MIT, Marijn Haverbeke and others)
 import type * as Effect from "effect/Effect"
+import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import MarkdownIt, { type Env, type MarkdownIt as Tokenizer, type Token } from "markdown-it"
 import { attempt } from "../internal/attempt.ts"
@@ -24,12 +25,10 @@ import {
 import { isMarkdownError, MarkdownError } from "./errors.ts"
 import { schema as markdownSchema } from "./schema.ts"
 
-function maybeMerge(a: Node<any, any>, b: Node<any, any>): Node<any, any> | undefined {
-  if (a.isTextNode() && b.isTextNode() && Mark.sameSet(a.marks, b.marks)) {
-    return a.withText(a.text + b.text)
-  }
-  return undefined
-}
+const maybeMerge = (a: Node<any, any>, b: Node<any, any>): Option.Option<Node<any, any>> =>
+  a.isTextNode() && b.isTextNode() && Mark.sameSet(a.marks, b.marks)
+    ? Option.some(a.withText(a.text + b.text))
+    : Option.none()
 
 /**
  * A function handling a markdown-it token while parsing.
@@ -91,8 +90,8 @@ export class MarkdownParseState<Sc extends AnySchema = AnySchema> {
       nodes = top.content,
       last = nodes[nodes.length - 1]
     const node = this.schema.textUnsafe(text, top.marks)
-    const merged = last && maybeMerge(last, node)
-    if (merged) nodes[nodes.length - 1] = merged
+    const merged = last ? maybeMerge(last, node) : Option.none()
+    if (Option.isSome(merged)) nodes[nodes.length - 1] = merged.value
     else nodes.push(node)
   }
 
@@ -332,11 +331,9 @@ export class MarkdownParser<Sc extends AnySchema = AnySchema> {
   /** Like `parse`, but throws a `MarkdownError` or `ModelError` on failure. */
   parseUnsafe(text: string, markdownEnv: Env = {}): Node<Sc> {
     const state = new MarkdownParseState(this.schema, this.tokenHandlers)
-    let doc: Node<Sc, any> | null
     state.parseTokens(this.tokenizer.parse(text, markdownEnv))
-    do {
-      doc = state.closeNode()
-    } while (state.stack.length)
+    let doc = state.closeNode()
+    while (state.stack.length) doc = state.closeNode()
     const result = doc || this.schema.topNodeType.createAndFillOrNull()
     if (!result) throw new MarkdownError({ message: "Can't create an empty document for the schema" })
     // SAFETY: built from this parser's schema, `Sc`.

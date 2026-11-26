@@ -127,10 +127,10 @@ export default defineConfig({
       // ---- Allowances for the ported ProseMirror code ----------------------
       // `warn`, with the site count when added: a new site is a defect, not
       // headroom. Lower the count as sites go; delete the line at zero.
-      "effect/prefer-option-over-null": "warn", // 680
-      "effect/imperative-loops": "warn", // 585
+      "effect/prefer-option-over-null": "warn", // 636
+      "effect/imperative-loops": "warn", // 584
       // ---- Type-aware allowances (same rules as above) ---------------------
-      "typescript/no-unsafe-type-assertion": "warn", // 229
+      "typescript/no-unsafe-type-assertion": "warn", // 227
       // `@effect/tsgo`'s preset warns on these; they have no sites left.
       "effecttsgo/any-unknown-in-error-context": "error",
       "effecttsgo/unnecessary-fail-yieldable-error": "error",
@@ -282,6 +282,13 @@ export default defineConfig({
         files: ["src/compat/internal/core.ts", "src/compat/state.ts"],
         rules: {
           "effect/no-object-parameters": "off"
+        }
+      },
+      // ProseMirror's suites run against the facade with its `null`s.
+      {
+        files: ["tests/compat/**", "tests/view/compat-*.ts"],
+        rules: {
+          "effect/prefer-option-over-null": "off"
         }
       },
       // The facade keeps ProseMirror's inline result types (`childAfter`,

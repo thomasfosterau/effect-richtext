@@ -3,24 +3,21 @@
  *
  * @since 0.1.0
  */
+import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import { type AnySchema, AttributeError, type Attrs, ContentError, type MarkType, type NodeType } from "../Model.ts"
 import { type EditorState, NodeSelection } from "../State.ts"
 
 const markTypeOf = (state: EditorState<any, any, any>, type: MarkType<any, any> | string): MarkType<any, any> => {
   if (!Predicate.isString(type)) return type
-  // SAFETY: the schema may not have a mark type of this name.
-  const markType = state.schema.marks[type] as MarkType<any, any> | undefined
-  if (!markType) throw new AttributeError({ message: "Unknown mark type " + type })
-  return markType
+  const markType: Option.Option<MarkType<any, any>> = Option.fromNullishOr(state.schema.marks[type])
+  return Option.getOrThrowWith(markType, () => new AttributeError({ message: "Unknown mark type " + type }))
 }
 
 const nodeTypeOf = (state: EditorState<any, any, any>, type: NodeType<any, any> | string): NodeType<any, any> => {
   if (!Predicate.isString(type)) return type
-  // SAFETY: the schema may not have a node type of this name.
-  const nodeType = state.schema.nodes[type] as NodeType<any, any> | undefined
-  if (!nodeType) throw new ContentError({ message: "Unknown node type " + type })
-  return nodeType
+  const nodeType: Option.Option<NodeType<any, any>> = Option.fromNullishOr(state.schema.nodes[type])
+  return Option.getOrThrowWith(nodeType, () => new ContentError({ message: "Unknown node type " + type }))
 }
 
 const attrsMatch = (attrs: Attrs, expected: Attrs | undefined): boolean => {

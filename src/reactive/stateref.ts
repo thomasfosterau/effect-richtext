@@ -6,6 +6,7 @@
 import * as Cause from "effect/Cause"
 import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
+import * as Option from "effect/Option"
 import type * as Scope from "effect/Scope"
 import * as Semaphore from "effect/Semaphore"
 import type { AnySchema } from "../Model.ts"
@@ -109,11 +110,13 @@ export const make = Effect.fn("StateRef.make")(function* <Sc extends AnySchema, 
 
   const execute = <CE, CR>(command: Command<Sc, CE, CR>): Effect.Effect<boolean, CE | E | StateFailure, CR> =>
     Effect.suspend(() => {
-      let failure: Cause.Cause<E | StateFailure> | undefined
+      let failure: Option.Option<Cause.Cause<E | StateFailure>> = Option.none()
       const commandDispatch: Dispatch<Sc> = (tr) =>
-        failure ? Effect.void : Effect.catchCause(dispatch(tr), (cause) => Effect.sync(() => void (failure = cause)))
+        Option.isSome(failure)
+          ? Effect.void
+          : Effect.catchCause(dispatch(tr), (cause) => Effect.sync(() => void (failure = Option.some(cause))))
       return Effect.tap(command(source.ref.value, commandDispatch), () =>
-        failure ? Effect.failCause(failure) : Effect.void
+        Option.match(failure, { onNone: () => Effect.void, onSome: Effect.failCause })
       )
     })
 

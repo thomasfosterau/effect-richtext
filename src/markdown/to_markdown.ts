@@ -174,12 +174,9 @@ export class MarkdownSerializer<Sc extends AnySchema = AnySchema> {
 }
 
 function backticksFor(node: Node<any, any>, side: number): string {
-  const ticks = /`+/g
-  let m: RegExpExecArray | null,
-    len = 0
-  if (node.isTextNode()) {
-    while ((m = ticks.exec(node.text))) len = Math.max(len, m[0].length)
-  }
+  const len = node.isTextNode()
+    ? Array.from(node.text.matchAll(/`+/g)).reduce((max, m) => Math.max(max, m[0].length), 0)
+    : 0
   let result = len > 0 && side > 0 ? " `" : "`"
   for (let i = 0; i < len; i++) result += "`"
   if (len > 0 && side < 0) result += " "
