@@ -130,7 +130,7 @@ export default defineConfig({
       // ---- Type-aware allowances (same rules as above) ---------------------
       // tsrs's "unnecessary" verdict differs from the `check` task's tsc,
       // so remove those sites by hand, against `vp run check`, never by autofix.
-      "typescript/no-unsafe-type-assertion": "warn", // 860
+      "typescript/no-unsafe-type-assertion": "warn", // 858
       "typescript/no-unnecessary-type-assertion": "warn", // 672
       "typescript/no-unnecessary-type-arguments": "warn", // 54
       "effecttsgo/any-unknown-in-error-context": "warn", // 51
