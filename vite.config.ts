@@ -119,7 +119,7 @@ export default defineConfig({
       "effect/avoid-any": "warn", // 413
       "effect/no-runtime-typeof": "warn", // 27
       "effect/no-unsafe-dictionary-type": "warn", // 68
-      "effect/no-unknown-parameters": "warn", // 59
+      "effect/no-unknown-parameters": "warn", // 57
       // The ported suites shadow the test-builder's `doc` / `schema`.
       "eslint/no-shadow": "warn", // 312
       // ---- Type-aware allowances (same rules as above) ---------------------
