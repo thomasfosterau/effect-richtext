@@ -252,6 +252,7 @@ export class DecorationSet implements DecorationSource {
 
   /** @internal */
   static removeOverlap(spans: ReadonlyArray<Decoration>): ReadonlyArray<Decoration> {
+    // SAFETY: facade decorations unwrap to core decorations.
     const core = unwrapArray(spans) as ReadonlyArray<V.Decoration>
     const result = V.DecorationSet.removeOverlap(core)
     return result === core ? spans : result.map(wrap)
@@ -533,8 +534,7 @@ export class EditorView {
   get props(): DirectEditorProps {
     if (this._props.state != this.state) {
       const prev = this._props
-      this._props = {} as DirectEditorProps
-      for (const name in prev) (this._props as any)[name] = (prev as any)[name]
+      this._props = copyProps(prev)
       this._props.state = this.state
     }
     return this._props
@@ -548,10 +548,9 @@ export class EditorView {
 
   /** Update the view by updating existing props object with the object given as argument. */
   setProps(props: Partial<DirectEditorProps>): void {
-    const updated: any = {}
-    for (const name in this._props) updated[name] = (this._props as any)[name]
+    const updated = copyProps(this._props)
     updated.state = this.state
-    for (const name in props) updated[name] = (props as any)[name]
+    copyProps(props, updated)
     this.update(updated)
   }
 
@@ -572,17 +571,19 @@ export class EditorView {
   ): Result | undefined {
     const prop = this._props && this._props[propName]
     let value
-    if (prop != null && (value = f ? f(prop as any) : prop)) return value as any
+    // SAFETY: without `f`, the overloads return the prop value itself as `Result`.
+    const apply = (p: NonNullable<EditorProps[PropName]>): Result => (f ? f(p) : (p as Result))
+    if (prop != null && (value = apply(prop))) return value
     const direct = this._props.plugins || []
     for (let i = 0; i < direct.length; i++) {
       const pluginProp = direct[i].props[propName]
-      if (pluginProp != null && (value = f ? f(pluginProp as any) : pluginProp)) return value as any
+      if (pluginProp != null && (value = apply(pluginProp))) return value
     }
     const plugins = this.state.plugins
     if (plugins) {
       for (let i = 0; i < plugins.length; i++) {
         const pluginProp = plugins[i].props[propName]
-        if (pluginProp != null && (value = f ? f(pluginProp as any) : pluginProp)) return value as any
+        if (pluginProp != null && (value = apply(pluginProp))) return value
       }
     }
     return undefined
@@ -691,7 +692,7 @@ export class EditorView {
 
   /** @internal */
   get domObserver(): any {
-    return (this[CORE] as any).domObserver
+    return this[CORE].domObserver
   }
 
   /** @internal */
@@ -706,7 +707,7 @@ export class EditorView {
 
   /** @internal */
   get focused(): boolean {
-    return (this[CORE] as any).focused
+    return this[CORE].focused
   }
 
   /** @internal */
@@ -736,14 +737,22 @@ export class EditorView {
   }
 }
 
+// Copies every enumerable property of `from`, inherited ones included, as ProseMirror does.
+function copyProps<T extends object>(from: T, into: Partial<T> = {}): T {
+  for (const name in from) into[name] = from[name]
+  // SAFETY: `into` now holds every property of `from`.
+  return into as T
+}
+
 registerWrapper(V.EditorView, (core: V.EditorView<any, any, any>) => {
   const facade = constructing.at(-1)
   if (facade && !(CORE in facade)) return facade
   // A view created through the core API: give it a facade whose props
   // are the core props.
   const view = adopt(EditorView.prototype, core)
+  // SAFETY: a core view's props are the editor props it was created with.
   view._props = core.props as any
-  ;(view as any).propsCache = new WeakMap()
+  Object.assign(view, { propsCache: new WeakMap() })
   view.dispatch = view.dispatch.bind(view)
   return view
 })

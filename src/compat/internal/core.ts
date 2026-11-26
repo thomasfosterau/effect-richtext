@@ -28,12 +28,13 @@ const factories = new WeakMap<object, (core: any) => object>()
 
 /** Associate a facade with its core object. @internal */
 export const link = <F extends object>(facade: F, core: object): F => {
-  ;(facade as any)[CORE] = core
+  Reflect.set(facade, CORE, core)
   facades.set(core, facade)
   return facade
 }
 
 /** Create a facade for `core` without running the facade's constructor. @internal */
+// SAFETY: an object whose prototype is `proto` has its methods; `link` sets its core.
 export const adopt = <F extends object>(proto: F, core: object): F => link(Object.create(proto) as F, core)
 
 /**

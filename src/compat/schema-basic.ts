@@ -20,10 +20,13 @@ const pDOM: DOMOutputSpec = ["p", 0],
  * @since 0.1.0
  * @category specs
  */
-export const nodes = {
+export const nodes: Record<
+  "doc" | "paragraph" | "blockquote" | "horizontal_rule" | "heading" | "code_block" | "text" | "image" | "hard_break",
+  NodeSpec
+> = {
   doc: {
     content: "block+"
-  } as NodeSpec,
+  },
 
   paragraph: {
     content: "inline*",
@@ -32,7 +35,7 @@ export const nodes = {
     toDOM() {
       return pDOM
     }
-  } as NodeSpec,
+  },
 
   blockquote: {
     content: "block+",
@@ -42,7 +45,7 @@ export const nodes = {
     toDOM() {
       return blockquoteDOM
     }
-  } as NodeSpec,
+  },
 
   horizontal_rule: {
     group: "block",
@@ -50,7 +53,7 @@ export const nodes = {
     toDOM() {
       return hrDOM
     }
-  } as NodeSpec,
+  },
 
   heading: {
     attrs: { level: { default: 1, validate: "number" } },
@@ -68,7 +71,7 @@ export const nodes = {
     toDOM(node) {
       return ["h" + node.attrs.level, 0]
     }
-  } as NodeSpec,
+  },
 
   code_block: {
     content: "text*",
@@ -80,11 +83,11 @@ export const nodes = {
     toDOM() {
       return preDOM
     }
-  } as NodeSpec,
+  },
 
   text: {
     group: "inline"
-  } as NodeSpec,
+  },
 
   image: {
     inline: true,
@@ -111,7 +114,7 @@ export const nodes = {
       const { alt, src, title } = node.attrs
       return ["img", { src, alt, title }]
     }
-  } as NodeSpec,
+  },
 
   hard_break: {
     inline: true,
@@ -121,7 +124,7 @@ export const nodes = {
     toDOM() {
       return brDOM
     }
-  } as NodeSpec
+  }
 }
 
 const emDOM: DOMOutputSpec = ["em", 0],
@@ -134,7 +137,7 @@ const emDOM: DOMOutputSpec = ["em", 0],
  * @since 0.1.0
  * @category specs
  */
-export const marks = {
+export const marks: Record<"link" | "em" | "strong" | "code", MarkSpec> = {
   link: {
     attrs: {
       href: { validate: "string" },
@@ -153,7 +156,7 @@ export const marks = {
       const { href, title } = node.attrs
       return ["a", { href, title }, 0]
     }
-  } as MarkSpec,
+  },
 
   em: {
     parseDOM: [
@@ -165,7 +168,7 @@ export const marks = {
     toDOM() {
       return emDOM
     }
-  } as MarkSpec,
+  },
 
   strong: {
     parseDOM: [
@@ -180,7 +183,7 @@ export const marks = {
     toDOM() {
       return strongDOM
     }
-  } as MarkSpec,
+  },
 
   code: {
     code: true,
@@ -188,7 +191,7 @@ export const marks = {
     toDOM() {
       return codeDOM
     }
-  } as MarkSpec
+  }
 }
 
 /**

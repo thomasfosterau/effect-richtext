@@ -22,7 +22,11 @@ type Tags = { [tag: string]: number }
  */
 export type ChildSpec = string | Node | { flat: ReadonlyArray<Node>; tag: Tags }
 
-const noTag = ((Node.prototype as any).tag = Object.create(null))
+const noTag: Tags = Object.create(null)
+Reflect.set(Node.prototype, "tag", noTag)
+
+// SAFETY: nodes read `tag` from `Node.prototype` unless a builder gave them their own; leaf builders have none.
+const tagOf = (child: Node | { readonly tag: Tags }): Tags => (child as { readonly tag?: Tags }).tag ?? noTag
 
 function flatten(
   schema: Schema,
@@ -51,20 +55,21 @@ function flatten(
       pos += child.length - at
       if (out) result.push(f(schema.text(out)))
     } else {
-      if ((child as any).tag && (child as any).tag != (Node.prototype as any).tag) {
+      const childTag = tagOf(child)
+      if (childTag != noTag) {
         if (tag == noTag) tag = Object.create(null)
-        for (const key in (child as any).tag) {
-          tag[key] = (child as any).tag[key] + ((child as any).flat || (child as any).isText ? 0 : 1) + pos
+        for (const key in childTag) {
+          tag[key] = childTag[key] + ("flat" in child || child.isText ? 0 : 1) + pos
         }
       }
-      if ((child as any).flat) {
-        for (let j = 0; j < (child as any).flat.length; j++) {
-          const node = f((child as any).flat[j])
+      if ("flat" in child) {
+        for (let j = 0; j < child.flat.length; j++) {
+          const node = f(child.flat[j])
           pos += node.nodeSize
           result.push(node)
         }
       } else {
-        const node = f(child as Node)
+        const node = f(child)
         pos += node.nodeSize
         result.push(node)
       }
@@ -79,15 +84,14 @@ function id<T>(x: T): T {
 
 function takeAttrs(attrs: Attrs | null, args: [a?: Attrs | ChildSpec | undefined, ...b: Array<ChildSpec>]) {
   const a0 = args[0]
-  if (!args.length || (a0 && (Predicate.isString(a0) || a0 instanceof Node || (a0 as any).flat))) return attrs
+  if (!args.length || (a0 && (Predicate.isString(a0) || a0 instanceof Node || "flat" in a0))) return attrs
 
   args.shift()
-  if (!attrs) return a0 as Attrs
-  if (!a0) return attrs
-  const result: Attrs = {}
-  for (const prop in attrs) (result as any)[prop] = attrs[prop]
-  for (const prop in a0 as Attrs) (result as any)[prop] = (a0 as Attrs)[prop]
-  return result
+  // SAFETY: a first argument that isn't a child holds the attributes.
+  const given = a0 as Attrs
+  if (!attrs) return given
+  if (!given) return attrs
+  return { ...attrs, ...given }
 }
 
 /**
@@ -118,20 +122,21 @@ type Builders<S extends Schema> = {
 
 // Create a builder function for nodes with content.
 function block(type: NodeType, attrs: Attrs | null = null): NodeBuilder {
-  const result = function (...args: Array<any>) {
-    const myAttrs = takeAttrs(attrs, args as any)
+  const result = function (...args: [a?: Attrs | ChildSpec, ...b: Array<ChildSpec>]) {
+    const myAttrs = takeAttrs(attrs, args)
+    // SAFETY: `takeAttrs` removed the attributes, leaving the children.
     const { nodes, tag } = flatten(type.schema, args as Array<ChildSpec>, id)
     const node = type.create(myAttrs, nodes)
-    if (tag != noTag) (node as any).tag = tag
-    return node
+    return tag != noTag ? Object.assign(node, { tag }) : node
   }
   if (type.isLeaf) {
     try {
-      ;(result as any).flat = [type.create(attrs)]
+      Object.assign(result, { flat: [type.create(attrs)] })
     } catch {
       // Types with required attributes can't be created without them.
     }
   }
+  // SAFETY: untagged nodes read `tag` from `Node.prototype`.
   return result as NodeBuilder
 }
 
@@ -139,6 +144,7 @@ function block(type: NodeType, attrs: Attrs | null = null): NodeBuilder {
 function mark(type: MarkType, attrs: Attrs | null): MarkBuilder {
   return function (...args) {
     const m = type.create(takeAttrs(attrs, args))
+    // SAFETY: `takeAttrs` removed the attributes, leaving the children.
     const { nodes, tag } = flatten(type.schema, args as Array<ChildSpec>, (n) => {
       const newMarks = m.addToSet(n.marks)
       return newMarks.length > n.marks.length ? n.mark(newMarks) : n
@@ -157,19 +163,20 @@ export function builders<Nodes extends string = any, Marks extends string = any>
   schema: Schema<Nodes, Marks>,
   names?: { [name: string]: Attrs }
 ): Builders<Schema<Nodes, Marks>> {
-  const result = { schema }
-  for (const name in schema.nodes) (result as any)[name] = block(schema.nodes[name], {})
-  for (const name in schema.marks) (result as any)[name] = mark(schema.marks[name], {})
+  const result: { [name: string]: unknown } = { schema }
+  for (const name in schema.nodes) result[name] = block(schema.nodes[name], {})
+  for (const name in schema.marks) result[name] = mark(schema.marks[name], {})
 
   if (names) {
     for (const name in names) {
       const value = names[name],
         typeName = value.nodeType || value.markType || name
       let type
-      if ((type = schema.nodes[typeName])) (result as any)[name] = block(type, value)
-      else if ((type = schema.marks[typeName])) (result as any)[name] = mark(type, value)
+      if ((type = schema.nodes[typeName])) result[name] = block(type, value)
+      else if ((type = schema.marks[typeName])) result[name] = mark(type, value)
     }
   }
+  // SAFETY: holds `schema`, a builder for each node and mark type, and one for each name.
   return result as Builders<Schema<Nodes, Marks>>
 }
 
@@ -184,7 +191,7 @@ export const schema = new Schema({
   marks: bSchema.spec.marks
 })
 
-const b = builders(schema, {
+const b: { [name: string]: any } = builders(schema, {
   p: { nodeType: "paragraph" },
   pre: { nodeType: "code_block" },
   h1: { nodeType: "heading", level: 1 },
@@ -197,7 +204,7 @@ const b = builders(schema, {
   img: { nodeType: "image", src: "img.png" },
   hr: { nodeType: "horizontal_rule" },
   a: { markType: "link", href: "foo" }
-}) as any
+})
 
 /**
  * Compare two values with their `eq` method.
