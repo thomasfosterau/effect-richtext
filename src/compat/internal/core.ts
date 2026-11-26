@@ -45,7 +45,7 @@ export const registerWrapper = (coreClass: abstract new (...args: any) => any, f
 
 /** The facade for a core value (or the value itself if it has none). @internal */
 export const wrap = (x: any): any => {
-  if (x === null || typeof x !== "object") return x
+  if (!Predicate.isObjectOrArray(x)) return x
   const known = facades.get(x)
   if (known) return known
   if (CORE in x) return x
@@ -61,7 +61,7 @@ export const wrap = (x: any): any => {
 }
 
 /** The core object behind a facade (or the value itself). @internal */
-export const unwrap = (x: any): any => (x !== null && typeof x === "object" && CORE in x ? x[CORE] : x)
+export const unwrap = (x: any): any => (Predicate.isObjectOrArray(x) && CORE in x ? x[CORE] : x)
 
 /**
  * Core objects created for user subclasses of facade classes are
@@ -87,7 +87,7 @@ export const getBase = (core: any, prop: string): any => {
 }
 
 /** Whether a value is a facade. @internal */
-export const isFacade = (x: unknown): boolean => x !== null && typeof x === "object" && CORE in x
+export const isFacade = (x: unknown): boolean => Predicate.isObjectOrArray(x) && CORE in x
 
 const arrayFacades = new WeakMap<ReadonlyArray<any>, ReadonlyArray<any>>()
 const arrayCores = new WeakMap<ReadonlyArray<any>, ReadonlyArray<any>>()
@@ -179,7 +179,7 @@ const proseMirrorError = (tag: string, message: string): Option.Option<Error> =>
 
 /** Convert a core (tagged) error into the exception ProseMirror would throw. @internal */
 export const convertError = (e: unknown): unknown => {
-  if (e === null || typeof e !== "object" || !("_tag" in e) || !Predicate.isString(e._tag)) return e
+  if (!Predicate.isObjectOrArray(e) || !("_tag" in e) || !Predicate.isString(e._tag)) return e
   const message = "message" in e && Predicate.isString(e.message) ? e.message : e._tag
   return Option.getOrElse(proseMirrorError(e._tag, message), () => e)
 }

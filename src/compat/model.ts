@@ -14,6 +14,7 @@
  * @since 0.1.0
  */
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import * as M from "../Model.ts"
 import {
   adopt,
@@ -362,7 +363,7 @@ const visitor =
     f(wrap(node), pos, nullable(parent), index)
 
 const leafTextInput = (leafText: null | undefined | string | ((leafNode: Node) => string)) =>
-  typeof leafText === "function" ? (node: M.Node) => leafText(wrap(node)) : leafText
+  Predicate.isFunction(leafText) ? (node: M.Node) => leafText(wrap(node)) : leafText
 
 registerWrapper(M.Node, (core) => adopt(Node.prototype, core))
 registerWrapper(M.TextNode, (core) => adopt(TextNode.prototype, core))
@@ -1518,7 +1519,7 @@ export class Schema<Nodes extends string = any, Marks extends string = any> {
     return wrap(
       guard(() =>
         this[CORE].nodeUnsafe(
-          typeof type === "string" ? type : (type[CORE] as any),
+          Predicate.isString(type) ? type : (type[CORE] as any),
           attrs,
           fragmentInput(content),
           marksInput(marks)
@@ -1535,7 +1536,7 @@ export class Schema<Nodes extends string = any, Marks extends string = any> {
   /** Create a mark with the given type and attributes. */
   mark(type: string | MarkType, attrs?: Attrs | null): Mark {
     return wrap(
-      guard(() => this[CORE].markUnsafe(typeof type === "string" ? type : (type[CORE] as any), attrs ?? undefined))
+      guard(() => this[CORE].markUnsafe(Predicate.isString(type) ? type : (type[CORE] as any), attrs ?? undefined))
     )
   }
 

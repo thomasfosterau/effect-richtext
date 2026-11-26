@@ -13,6 +13,7 @@
  * @since 0.1.0
  */
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import type * as M from "../Model.ts"
 import { isModelError } from "../Model.ts"
 import * as T from "../Transform.ts"
@@ -978,7 +979,7 @@ export class Transform {
     type: NodeType,
     attrs: Attrs | null | ((oldNode: Node) => Attrs) = null
   ): this {
-    const coreAttrs = typeof attrs === "function" ? (node: M.Node) => attrs(wrap(node)) : attrs
+    const coreAttrs = Predicate.isFunction(attrs) ? (node: M.Node) => attrs(wrap(node)) : attrs
     guard(() => this[CORE].setBlockTypeUnsafe(from, to, type[CORE], coreAttrs as any))
     return this
   }

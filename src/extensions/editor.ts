@@ -502,7 +502,7 @@ export class Editor<T extends ExtensionTypes> {
       if (args.length && (args[0] === null || isPlainObject(args[0]))) attrs = args.shift() as Attrs | null
       const children: Array<Node<any, any>> = []
       const add = (child: unknown) => {
-        if (typeof child === "string") {
+        if (Predicate.isString(child)) {
           if (child) children.push(this.schema.textUnsafe(child))
         } else if (Array.isArray(child)) child.forEach(add)
         else if (child instanceof Fragment) child.forEach((n) => children.push(n))
@@ -521,7 +521,7 @@ const parseContent = <Sc extends DocSchema<any, any>>(schema: Sc, content: Edito
     // through their JSON representation.
     return content.type.schema === schema ? content : (schema.nodeFromJSONUnsafe(content.toJSON()) as Node<Sc>)
   }
-  if (typeof content === "string") return fromHTMLUnsafe(schema, content)
+  if (Predicate.isString(content)) return fromHTMLUnsafe(schema, content)
   return schema.nodeFromJSONUnsafe(content) as Node<Sc>
 }
 

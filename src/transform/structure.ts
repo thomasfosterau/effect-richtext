@@ -5,6 +5,7 @@
  * @since 0.1.0
  */
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import {
   type AnySchema,
   type Attrs,
@@ -211,7 +212,7 @@ export function setBlockType(
   const mapFrom = tr.steps.length
   const linebreak = Option.getOrNull(type.schema.linebreakReplacement) as NodeType<any, any> | null
   tr.doc.nodesBetween(from, to, (node, pos) => {
-    const attrsHere = typeof attrs === "function" ? attrs(node) : attrs
+    const attrsHere = Predicate.isFunction(attrs) ? attrs(node) : attrs
     if (
       node.isTextblock &&
       !node.hasMarkup(type, attrsHere) &&

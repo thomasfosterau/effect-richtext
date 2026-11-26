@@ -60,11 +60,11 @@ export const viewObjectToCore = (view: any): any =>
   new Proxy(view, {
     get(target, prop) {
       const value = target[prop]
-      if (prop === "update" && typeof value === "function") {
+      if (prop === "update" && Predicate.isFunction(value)) {
         return (node: unknown, decorations: ReadonlyArray<unknown>, inner: unknown) =>
           target.update(wrap(node), wrapArray(decorations), wrap(inner))
       }
-      return typeof value === "function" ? value.bind(target) : value
+      return Predicate.isFunction(value) ? value.bind(target) : value
     }
   })
 
@@ -101,7 +101,7 @@ export const propsToCore = (
       target[name] = cached(cache, value, () => propsToCore(value, self, cache))
     } else if ((name === "nodeViews" || name === "markViews") && value) {
       target[name] = cached(cache, value, () => translateViews(value, cache))
-    } else if (name === "handleTextInput" && typeof value === "function") {
+    } else if (name === "handleTextInput" && Predicate.isFunction(value)) {
       target[name] = cached(
         cache,
         value,
@@ -118,7 +118,7 @@ export const propsToCore = (
       })
     } else if (name === "plugins" && Array.isArray(value)) {
       target[name] = unwrapArray(value)
-    } else if (typeof value === "function") {
+    } else if (Predicate.isFunction(value)) {
       target[name] = cached(cache, value, () => toCoreFunction(value, self))
     } else {
       target[name] = unwrap(value)
@@ -135,7 +135,7 @@ export const propsFromCore = (props: Record<string, any>, self: unknown): any =>
     if (name === "handleDOMEvents" && value) target[name] = propsFromCore(value, self)
     else if (name === "nodeViews" || name === "markViews") target[name] = value
     else if (name === "plugins" && Array.isArray(value)) target[name] = wrapArray(value)
-    else if (typeof value === "function") target[name] = fromCoreFunction(value, self)
+    else if (Predicate.isFunction(value)) target[name] = fromCoreFunction(value, self)
     else target[name] = wrap(value)
   }
   return target

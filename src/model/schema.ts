@@ -17,6 +17,7 @@ import * as Rec from "effect/Record"
 import * as Option from "effect/Option"
 import * as S from "effect/Schema"
 import * as SchemaAST from "effect/SchemaAST"
+import * as Predicate from "effect/Predicate"
 import { attempt } from "../internal/attempt.ts"
 import { showJson } from "../internal/json.ts"
 import { type ContentInput, ContentMatch, type SpecRefs } from "./content.ts"
@@ -656,8 +657,9 @@ export class Attribute {
     this.schema = options.schema
     this.is = options.schema ? (S.is(options.schema as any) as (value: unknown) => boolean) : undefined
     this.identityCodec = !options.schema || SchemaAST.toEncoded(options.schema.ast) === options.schema.ast
-    this.validate =
-      typeof options.validate === "string" ? validateType(typeName, attrName, options.validate) : options.validate
+    this.validate = Predicate.isString(options.validate)
+      ? validateType(typeName, attrName, options.validate)
+      : options.validate
   }
 
   get isRequired(): boolean {
@@ -1361,7 +1363,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
     marks?: MarksInput<DocSchema<N, M>>
   ): Node<DocSchema<N, M>, K> {
     let nodeType: NodeType<any, any>
-    if (typeof type === "string") nodeType = this.nodeType(type)
+    if (Predicate.isString(type)) nodeType = this.nodeType(type)
     else if (!(type instanceof NodeType)) throw new ContentError({ message: "Invalid node type: " + type })
     else if (type.schema !== this) {
       throw new ContentError({ message: "Node type from different schema used (" + type.name + ")" })
@@ -1415,7 +1417,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
     type: K | MarkType<DocSchema<N, M>, K>,
     attrs?: MarkAttrsInput<DocSchema<N, M>, K>
   ): Mark<DocSchema<N, M>, K> {
-    const markType = typeof type === "string" ? this.marks[type] : type
+    const markType = Predicate.isString(type) ? this.marks[type] : type
     if (!markType) throw new AttributeError({ message: "Unknown mark type: " + String(type) })
     return markType.createUnsafe(attrs as any) as any
   }
