@@ -16,9 +16,12 @@ import { isModelError, type ModelError } from "../model/errors.ts"
  * @since 0.1.0
  * @category errors
  */
-export class TransformError extends Schema.TaggedError<TransformError>()("TransformError", {
-  message: Schema.String
-}) {}
+export class TransformError extends Schema.TaggedError<TransformError, { readonly brand: unique symbol }>()(
+  "TransformError",
+  {
+    message: Schema.String
+  }
+) {}
 
 /**
  * A step could not be applied to a document. The `message` is the
@@ -27,7 +30,7 @@ export class TransformError extends Schema.TaggedError<TransformError>()("Transf
  * @since 0.1.0
  * @category errors
  */
-export class StepError extends Schema.TaggedError<StepError>()("StepError", {
+export class StepError extends Schema.TaggedError<StepError, { readonly brand: unique symbol }>()("StepError", {
   message: Schema.String
 }) {}
 

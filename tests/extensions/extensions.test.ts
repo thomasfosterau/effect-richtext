@@ -308,7 +308,7 @@ describe("Editor", () => {
 })
 
 class Step extends Context.Service<Step, { readonly size: number }>()("test/Step") {}
-class Rejected extends Schema.TaggedError<Rejected>()("Rejected", {}) {}
+class Rejected extends Schema.TaggedError<Rejected, { readonly brand: unique symbol }>()("Rejected", {}) {}
 
 describe("Effect requirements and errors", () => {
   const counter = new Plugin({

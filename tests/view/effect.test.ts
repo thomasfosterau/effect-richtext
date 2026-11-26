@@ -23,7 +23,7 @@ import { selFor, workspace } from "./helpers.ts"
 
 class Counter extends Context.Service<Counter, { readonly step: number }>()("test/Counter") {}
 
-class Boom extends Schema.TaggedError<Boom>()("Boom", { reason: Schema.String }) {}
+class Boom extends Schema.TaggedError<Boom, { readonly brand: unique symbol }>()("Boom", { reason: Schema.String }) {}
 
 // A plugin whose state hook requires a service.
 const stepCountPlugin = new Plugin({

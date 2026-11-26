@@ -43,7 +43,7 @@ import { findTextNode, flush, selFor, tempEditor, workspace } from "./helpers.ts
 
 class Counter extends Context.Service<Counter, { readonly step: number }>()("test/Counter") {}
 
-class Boom extends Schema.TaggedError<Boom>()("Boom", { message: Schema.String }) {}
+class Boom extends Schema.TaggedError<Boom, { readonly brand: unique symbol }>()("Boom", { message: Schema.String }) {}
 
 // Simulate typing: run the `handleTextInput` handlers like the view does
 // for each typed character, inserting the text when none handles it.

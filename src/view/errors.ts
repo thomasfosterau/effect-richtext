@@ -12,7 +12,7 @@ import * as Schema from "effect/Schema"
  * @since 0.1.0
  * @category errors
  */
-export class ViewError extends Schema.TaggedError<ViewError>()("ViewError", {
+export class ViewError extends Schema.TaggedError<ViewError, { readonly brand: unique symbol }>()("ViewError", {
   message: Schema.String
 }) {}
 

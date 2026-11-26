@@ -18,9 +18,12 @@ import * as Schema from "effect/Schema"
  * @since 0.1.0
  * @category errors
  */
-export class MarkdownError extends Schema.TaggedError<MarkdownError>()("MarkdownError", {
-  message: Schema.String
-}) {}
+export class MarkdownError extends Schema.TaggedError<MarkdownError, { readonly brand: unique symbol }>()(
+  "MarkdownError",
+  {
+    message: Schema.String
+  }
+) {}
 
 /**
  * @since 0.1.0

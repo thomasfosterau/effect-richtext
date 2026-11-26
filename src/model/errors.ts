@@ -17,9 +17,12 @@ import * as Schema from "effect/Schema"
  * @since 0.1.0
  * @category errors
  */
-export class PositionError extends Schema.TaggedError<PositionError>()("PositionError", {
-  message: Schema.String
-}) {}
+export class PositionError extends Schema.TaggedError<PositionError, { readonly brand: unique symbol }>()(
+  "PositionError",
+  {
+    message: Schema.String
+  }
+) {}
 
 /**
  * Raised when a [`Slice`](#Slice) cannot be fitted into a document,
@@ -28,9 +31,12 @@ export class PositionError extends Schema.TaggedError<PositionError>()("Position
  * @since 0.1.0
  * @category errors
  */
-export class ReplaceError extends Schema.TaggedError<ReplaceError>()("ReplaceError", {
-  message: Schema.String
-}) {}
+export class ReplaceError extends Schema.TaggedError<ReplaceError, { readonly brand: unique symbol }>()(
+  "ReplaceError",
+  {
+    message: Schema.String
+  }
+) {}
 
 /**
  * Content that does not satisfy a node type's content expression or
@@ -39,9 +45,12 @@ export class ReplaceError extends Schema.TaggedError<ReplaceError>()("ReplaceErr
  * @since 0.1.0
  * @category errors
  */
-export class ContentError extends Schema.TaggedError<ContentError>()("ContentError", {
-  message: Schema.String
-}) {}
+export class ContentError extends Schema.TaggedError<ContentError, { readonly brand: unique symbol }>()(
+  "ContentError",
+  {
+    message: Schema.String
+  }
+) {}
 
 /**
  * Missing, unknown, or invalid node or mark attributes.
@@ -49,9 +58,12 @@ export class ContentError extends Schema.TaggedError<ContentError>()("ContentErr
  * @since 0.1.0
  * @category errors
  */
-export class AttributeError extends Schema.TaggedError<AttributeError>()("AttributeError", {
-  message: Schema.String
-}) {}
+export class AttributeError extends Schema.TaggedError<AttributeError, { readonly brand: unique symbol }>()(
+  "AttributeError",
+  {
+    message: Schema.String
+  }
+) {}
 
 /**
  * A schema definition (or a content expression in it) is invalid.
@@ -59,7 +71,10 @@ export class AttributeError extends Schema.TaggedError<AttributeError>()("Attrib
  * @since 0.1.0
  * @category errors
  */
-export class SchemaDefinitionError extends Schema.TaggedError<SchemaDefinitionError>()("SchemaDefinitionError", {
+export class SchemaDefinitionError extends Schema.TaggedError<
+  SchemaDefinitionError,
+  { readonly brand: unique symbol }
+>()("SchemaDefinitionError", {
   message: Schema.String
 }) {}
 
@@ -70,7 +85,7 @@ export class SchemaDefinitionError extends Schema.TaggedError<SchemaDefinitionEr
  * @since 0.1.0
  * @category errors
  */
-export class JSONError extends Schema.TaggedError<JSONError>()("JSONError", {
+export class JSONError extends Schema.TaggedError<JSONError, { readonly brand: unique symbol }>()("JSONError", {
   message: Schema.String
 }) {}
 
@@ -82,9 +97,12 @@ export class JSONError extends Schema.TaggedError<JSONError>()("JSONError", {
  * @since 0.1.0
  * @category errors
  */
-export class DOMSpecError extends Schema.TaggedError<DOMSpecError>()("DOMSpecError", {
-  message: Schema.String
-}) {}
+export class DOMSpecError extends Schema.TaggedError<DOMSpecError, { readonly brand: unique symbol }>()(
+  "DOMSpecError",
+  {
+    message: Schema.String
+  }
+) {}
 
 /**
  * Union of all errors produced by the model.

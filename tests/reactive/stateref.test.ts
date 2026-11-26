@@ -28,7 +28,7 @@ const stateFor = <const P extends ReadonlyArray<Plugin<any, any, any>> = readonl
   EditorState.createUnsafe({ doc: d, selection: selFor(d), plugins })
 
 class Step extends Context.Service<Step, { readonly step: number }>()("test/Step") {}
-class Boom extends Schema.TaggedError<Boom>()("Boom", {}) {}
+class Boom extends Schema.TaggedError<Boom, { readonly brand: unique symbol }>()("Boom", {}) {}
 
 const countPlugin = new Plugin({
   state: {
