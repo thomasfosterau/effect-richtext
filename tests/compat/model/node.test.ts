@@ -25,6 +25,7 @@ import {
 import ist from "../../utils/ist.ts"
 import { present } from "../../utils/present.ts"
 import { showJson } from "../../utils/json.ts"
+import { tagsOf } from "../../utils/tags.ts"
 
 const customSchema = new Schema({
   nodes: {
@@ -51,12 +52,12 @@ const customSchema = new Schema({
 })
 
 function cut(doc: Node, cut: Node) {
-  ist(doc.cut((doc as any).tag.a || 0, (doc as any).tag.b), cut, eq)
+  ist(doc.cut(tagsOf(doc).a || 0, tagsOf(doc).b), cut, eq)
 }
 
 function between(doc: Node, ...nodes: string[]) {
   let i = 0
-  doc.nodesBetween((doc as any).tag.a, (doc as any).tag.b, (node, pos) => {
+  doc.nodesBetween(tagsOf(doc).a, tagsOf(doc).b, (node, pos) => {
     if (i == nodes.length) {
       assert.fail("More nodes iterated than listed (" + node.type.name + ")")
     }

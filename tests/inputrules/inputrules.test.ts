@@ -11,14 +11,27 @@ import {
 } from "@thomasfosterau/effect-richtext/InputRules"
 import type { Node } from "@thomasfosterau/effect-richtext/Model"
 import { EditorState, TextSelection, type Transaction } from "@thomasfosterau/effect-richtext/State"
-import { blockquote, doc, eq, h1, h3, li, ol, p, pre, schema, ul } from "@thomasfosterau/effect-richtext/TestBuilder"
+import {
+  blockquote,
+  doc,
+  eq,
+  h1,
+  h3,
+  li,
+  ol,
+  p,
+  pre,
+  schema,
+  tagsOf,
+  ul
+} from "@thomasfosterau/effect-richtext/TestBuilder"
 import ist from "../utils/ist.ts"
 import { present } from "../utils/present.ts"
 
 const nodes = schema.nodes
 
 const stateFor = (d: Node<any>) => {
-  const a = (d as any).tag.a as number
+  const a = tagsOf(d).a
   return EditorState.createUnsafe({ doc: d, selection: TextSelection.createUnsafe(d, a) })
 }
 

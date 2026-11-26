@@ -14,9 +14,9 @@ import {
   pre,
   strong
 } from "@thomasfosterau/effect-richtext/TestBuilder"
-import type { Step } from "@thomasfosterau/effect-richtext/Transform"
+import { ReplaceStep, type Step } from "@thomasfosterau/effect-richtext/Transform"
 import ist from "../utils/ist.ts"
-import { present } from "../utils/present.ts"
+import { instanceOf, present } from "../utils/present.ts"
 import { findTextNode, flush, tempEditor } from "./helpers.ts"
 
 const img = img_({ src: "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" })
@@ -155,7 +155,7 @@ describe("DOM change", () => {
     })
     const bq = present(view.dom.firstChild)
     bq.removeChild(present(bq.lastChild))
-    ;(present(bq.firstChild).firstChild as HTMLElement).innerHTML = "foo<br>bar"
+    instanceOf(HTMLElement, present(bq.firstChild).firstChild).innerHTML = "foo<br>bar"
     flush(view)
     ist(backspacePressed)
   })
@@ -189,7 +189,7 @@ describe("DOM change", () => {
   it("handles splitting of a textblock", () => {
     const view = tempEditor({ doc: doc(h1("abc"), p("defg<a>")) })
     const para = present(view.dom.querySelector("p"))
-    const split = present(para.parentNode).appendChild(para.cloneNode()) as HTMLElement
+    const split = instanceOf(HTMLElement, present(para.parentNode).appendChild(para.cloneNode()))
     split.innerHTML = "fg"
     present(findTextNode(para, "defg")).nodeValue = "dexy"
     setSel(present(split.firstChild), 1)
@@ -291,7 +291,7 @@ describe("DOM change", () => {
   it("aborts when an incompatible state is set", () => {
     const view = tempEditor({ doc: doc(p("abcde")) })
     present(findTextNode(view.dom, "abcde")).nodeValue = "xabcde"
-    view.dispatchEvent({ type: "input" } as Event)
+    view.dispatchEvent(new Event("input"))
     view.updateState(EditorState.createUnsafe({ doc: doc(p("uvw")) }))
     flush(view)
     ist(view.state.doc, doc(p("uvw")), eq)
@@ -314,7 +314,7 @@ describe("DOM change", () => {
   it("preserves marks on deletion", () => {
     const view = tempEditor({ doc: doc(p("one", em("x<a>"))) })
     present(view.dom.querySelector("em")).innerText = ""
-    view.dispatchEvent({ type: "input" } as Event)
+    view.dispatchEvent(new Event("input"))
     flush(view)
     view.dispatchUnsafe(view.state.tr.insertTextUnsafe("y"))
     ist(view.state.doc, doc(p("one", em("y"))), eq)
@@ -323,7 +323,7 @@ describe("DOM change", () => {
   it("works when a node's contentDOM is deleted", () => {
     const view = tempEditor({ doc: doc(p("one"), pre("two<a>")) })
     present(view.dom.querySelector("pre")).innerText = ""
-    view.dispatchEvent({ type: "input" } as Event)
+    view.dispatchEvent(new Event("input"))
     flush(view)
     ist(view.state.doc, doc(p("one"), pre()), eq)
     ist(view.state.selection.head, 6)
@@ -353,7 +353,7 @@ describe("DOM change", () => {
 
   it("maps input to coordsAtPos through pending changes", () => {
     const view = tempEditor({ doc: doc(p("foo")) })
-    view.dispatchEvent({ type: "input" } as Event)
+    view.dispatchEvent(new Event("input"))
     view.dispatchUnsafe(view.state.tr.insertTextUnsafe("more text"))
     ist(view.coordsAtPos(13))
   })
@@ -389,8 +389,8 @@ describe("DOM change", () => {
     flush(view)
 
     ist(steps.length, 1)
-    ist((steps[0] as any).from, 1)
-    ist((steps[0] as any).to, 2)
+    ist(instanceOf(ReplaceStep, steps[0]).from, 1)
+    ist(instanceOf(ReplaceStep, steps[0]).to, 2)
   })
 
   it("can disambiguate a multiple-character backspace event", () => {
@@ -409,8 +409,8 @@ describe("DOM change", () => {
     flush(view)
 
     ist(steps.length, 1)
-    ist((steps[0] as any).from, 1)
-    ist((steps[0] as any).to, 4)
+    ist(instanceOf(ReplaceStep, steps[0]).from, 1)
+    ist(instanceOf(ReplaceStep, steps[0]).to, 4)
   })
 
   it("doesn't confuse delete with backspace", () => {
@@ -427,8 +427,8 @@ describe("DOM change", () => {
     flush(view)
 
     ist(steps.length, 1)
-    ist((steps[0] as any).from, 2)
-    ist((steps[0] as any).to, 3)
+    ist(instanceOf(ReplaceStep, steps[0]).from, 2)
+    ist(instanceOf(ReplaceStep, steps[0]).to, 3)
   })
 
   it("doesn't confuse delete with backspace for multi-character deletions", () => {
@@ -445,8 +445,8 @@ describe("DOM change", () => {
     flush(view)
 
     ist(steps.length, 1)
-    ist((steps[0] as any).from, 8)
-    ist((steps[0] as any).to, 11)
+    ist(instanceOf(ReplaceStep, steps[0]).from, 8)
+    ist(instanceOf(ReplaceStep, steps[0]).to, 11)
   })
 
   it("creates a correct step for an ambiguous selection-deletion", () => {
@@ -465,8 +465,8 @@ describe("DOM change", () => {
     flush(view)
 
     ist(steps.length, 1)
-    ist((steps[0] as any).from, 3)
-    ist((steps[0] as any).to, 5)
+    ist(instanceOf(ReplaceStep, steps[0]).from, 3)
+    ist(instanceOf(ReplaceStep, steps[0]).to, 5)
   })
 
   it("creates a step that covers the entire selection for partially-matching replacement", () => {
@@ -482,17 +482,17 @@ describe("DOM change", () => {
     present(findTextNode(view.dom, "one two three")).nodeValue = "one t three"
     flush(view)
     ist(steps.length, 1)
-    ist((steps[0] as any).from, 5)
-    ist((steps[0] as any).to, 8)
-    ist((steps[0] as any).slice.content.toString(), '<"t">')
+    ist(instanceOf(ReplaceStep, steps[0]).from, 5)
+    ist(instanceOf(ReplaceStep, steps[0]).to, 8)
+    ist(instanceOf(ReplaceStep, steps[0]).slice.content.toString(), '<"t">')
 
     view.dispatchUnsafe(view.state.tr.setSelectionUnsafe(TextSelection.createUnsafe(view.state.doc, 7, 12)))
     present(findTextNode(view.dom, "one t three")).nodeValue = "one t e"
     flush(view)
     ist(steps.length, 1)
-    ist((steps[0] as any).from, 7)
-    ist((steps[0] as any).to, 12)
-    ist((steps[0] as any).slice.content.toString(), '<"e">')
+    ist(instanceOf(ReplaceStep, steps[0]).from, 7)
+    ist(instanceOf(ReplaceStep, steps[0]).to, 12)
+    ist(instanceOf(ReplaceStep, steps[0]).slice.content.toString(), '<"e">')
   })
 
   it("doesn't create steps in the middle of surrogate pairs", () => {
@@ -507,7 +507,7 @@ describe("DOM change", () => {
     present(findTextNode(view.dom, "👽")).nodeValue = "💎👽"
     flush(view)
     ist(steps.length, 1)
-    ist((steps[0] as any).from, 1)
-    ist((steps[0] as any).slice.content.toString(), '<"💎">')
+    ist(instanceOf(ReplaceStep, steps[0]).from, 1)
+    ist(instanceOf(ReplaceStep, steps[0]).slice.content.toString(), '<"💎">')
   })
 })

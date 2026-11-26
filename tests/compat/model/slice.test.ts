@@ -6,9 +6,10 @@ import { describe, it } from "@effect/vitest"
 import type { Node } from "@thomasfosterau/effect-richtext/compat/model"
 import { a, blockquote, doc, em, li, p, ul } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
+import { tagsOf } from "../../utils/tags.ts"
 
 function t(doc: Node, expect: Node, openStart: number, openEnd: number) {
-  const slice = doc.slice((doc as any).tag.a || 0, (doc as any).tag.b)
+  const slice = doc.slice(tagsOf(doc).a || 0, tagsOf(doc).b)
   ist(slice.content.eq(expect.content))
   ist(slice.openStart, openStart)
   ist(slice.openEnd, openEnd)
@@ -73,7 +74,7 @@ describe("Node", () => {
 
     it("can include parents", () => {
       const d = doc(blockquote(p("fo<a>o"), p("bar<b>")))
-      const slice = d.slice((d as any).tag.a, (d as any).tag.b, true)
+      const slice = d.slice(tagsOf(d).a, tagsOf(d).b, true)
       ist(slice.toString(), '<blockquote(paragraph("o"), paragraph("bar"))>(2,2)')
     })
   })

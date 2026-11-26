@@ -43,6 +43,7 @@ import {
 } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
 import { present } from "../../utils/present.ts"
+import { tagsOf } from "../../utils/tags.ts"
 
 const document: any = globalThis.document
 const xmlDocument: any = new window.DOMParser().parseFromString("<tag/>", "application/xml")
@@ -107,7 +108,7 @@ function find(html: string, doc: PMNode) {
       findPositions: [pos]
     })
     ist(result, doc, eq)
-    ist((pos as any).pos, (doc as any).tag.a)
+    ist((pos as any).pos, tagsOf(doc).a)
   }
 }
 
@@ -702,7 +703,7 @@ describe("DOMParser", () => {
       ist(
         contextParser("doc//blockquote/").parse(domFrom("<blockquote><foo></foo></blockquote>"), {
           topNode: blockquote(),
-          context: cxDoc.resolve((cxDoc as any).tag.a)
+          context: cxDoc.resolve(tagsOf(cxDoc).a)
         }),
         blockquote(blockquote(hr())),
         eq
@@ -713,7 +714,7 @@ describe("DOMParser", () => {
       const cxDoc = doc(blockquote("<a>", hr()))
       ist(
         contextParser("doc//blockquote/").parseSlice(domFrom("<foo></foo>"), {
-          context: cxDoc.resolve((cxDoc as any).tag.a)
+          context: cxDoc.resolve(tagsOf(cxDoc).a)
         }),
         new Slice(blockquote(hr()).content, 0, 0),
         eq

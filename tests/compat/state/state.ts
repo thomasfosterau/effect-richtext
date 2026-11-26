@@ -4,6 +4,7 @@
 // marked as such) and dprint formatting.
 import type { Node, Schema } from "@thomasfosterau/effect-richtext/compat/model"
 import type { Transaction } from "@thomasfosterau/effect-richtext/compat/state"
+import { tagsOf } from "../../utils/tags.ts"
 import {
   type Command,
   EditorState,
@@ -15,11 +16,11 @@ import {
 // Wrapper object to make writing state tests easier.
 
 function selFor(doc: Node) {
-  const a = (doc as any).tag.a
+  const a = tagsOf(doc).a
   if (a != null) {
     const $a = doc.resolve(a)
     if ($a.parent.inlineContent) {
-      return new TextSelection($a, (doc as any).tag.b != null ? doc.resolve((doc as any).tag.b) : undefined)
+      return new TextSelection($a, tagsOf(doc).b != null ? doc.resolve(tagsOf(doc).b) : undefined)
     } else return new NodeSelection($a)
   }
   return Selection.atStart(doc)
