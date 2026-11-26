@@ -248,14 +248,14 @@ export const keymap = <const B extends Bindings>(
 export const keydownHandler = <const B extends Bindings>(
   bindings: B
 ): KeydownHandler<BindingsError<B>, BindingsRequirements<B>> => {
-  const map = normalizeBindings<Command<any, any, any>>(bindings)
+  const map = normalizeBindings<Command<any, BindingsError<B>, BindingsRequirements<B>>>(bindings)
   // Matching is pure, so it happens when the handler is called: an
   // unbound key (most keystrokes) yields the completed `succeedFalse`
   // and the view needs no fiber to run it.
   return (view, event) => {
     const candidates = matchBindings(map, event)
     if (Arr.isArrayEmpty(candidates)) return succeedFalse
-    const loop = (i: number): Effect.Effect<boolean, any, any> =>
+    const loop = (i: number): Effect.Effect<boolean, BindingsError<B>, BindingsRequirements<B>> =>
       i === candidates.length
         ? succeedFalse
         : Effect.flatMap(

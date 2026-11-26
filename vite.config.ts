@@ -129,7 +129,7 @@ export default defineConfig({
       "typescript/no-unsafe-type-assertion": "warn", // 851
       "typescript/no-unnecessary-type-assertion": "warn", // 670
       "typescript/no-unnecessary-type-arguments": "warn", // 54
-      "effecttsgo/any-unknown-in-error-context": "warn", // 50
+      "effecttsgo/any-unknown-in-error-context": "warn", // 22
       "typescript/unbound-method": "warn", // 43
       // `@effect/tsgo`'s preset warns on these; they have no sites left.
       "effecttsgo/unnecessary-fail-yieldable-error": "error",

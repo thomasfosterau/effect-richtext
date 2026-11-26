@@ -178,7 +178,8 @@ const pluginExt = union(
   definePlugin(plugin),
   definePlugin(() => [plugin])
 )
-const pluginProgram: Effect.Effect<unknown, unknown, Svc> = createEditor(pluginExt)
+const pluginProgram = createEditor(pluginExt)
+type _pluginServices = Expect<Equals<Effect.Services<typeof pluginProgram>, Svc>>
 
 // ---- plugins: defineExtension records everything ---------------------------
 
