@@ -15,6 +15,7 @@
  */
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
+import * as Arr from "effect/Array"
 import * as Predicate from "effect/Predicate"
 import type * as M from "../Model.ts"
 import * as S from "../State.ts"
@@ -41,6 +42,11 @@ import { type Mappable, Transform } from "./transform.ts"
 import type { EditorProps, EditorView } from "./view.ts"
 
 const INTERNAL: unique symbol = Symbol("effect-richtext/compat/internal") as never
+
+// The arguments the built-in subclasses pass to `Selection`'s constructor.
+type InternalArgs = readonly [new (...args: Array<any>) => S.Selection, Array<unknown>]
+const isInternal = (anchor: ResolvedPos | typeof INTERNAL, head: ResolvedPos | InternalArgs): head is InternalArgs =>
+  anchor === INTERNAL && Arr.isArray(head)
 
 // -----------------------------------------------------------------------------
 // Selection
@@ -137,8 +143,8 @@ export abstract class Selection {
 
   /** Initialize a selection with the head and anchor and ranges. */
   constructor($anchor: ResolvedPos, $head: ResolvedPos, ranges?: ReadonlyArray<SelectionRange>) {
-    if (($anchor as unknown) === INTERNAL) {
-      const [CoreClass, args] = $head as unknown as [new (...args: Array<any>) => S.Selection, Array<unknown>]
+    if (isInternal($anchor, $head)) {
+      const [CoreClass, args] = $head
       link(
         this,
         guard(() => coreSelection(this, new.target, CoreClass, args))

@@ -4,6 +4,7 @@
  * @since 0.1.0
  */
 import type * as Effect from "effect/Effect"
+import * as Predicate from "effect/Predicate"
 import * as Option from "effect/Option"
 import { attempt } from "../internal/attempt.ts"
 import { DOMSpecError } from "./errors.ts"
@@ -13,8 +14,9 @@ import type { Node } from "./node.ts"
 import type { AnySchema, Attrs, MarkType, NodeType } from "./schema.ts"
 
 /**
- * A description of a DOM structure. Can be either a DOM node, a
- * `{dom, contentDOM}` object, or an array.
+ * A description of a DOM structure. Can be either a string (rendered
+ * as a text node), a DOM node, a `{dom, contentDOM}` object, or an
+ * array.
  *
  * An array describes a DOM element. The first value in the array
  * should be a string—the name of the DOM element, optionally prefixed
@@ -34,6 +36,7 @@ import type { AnySchema, Attrs, MarkType, NodeType } from "./schema.ts"
  * @category models
  */
 export type DOMOutputSpec =
+  | string
   | Element
   | { readonly dom: Element; readonly contentDOM?: HTMLElement | undefined }
   | readonly [string, ...Array<any>]
@@ -232,8 +235,6 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
     xmlNS: string | null = null,
     blockArraysIn?: Attrs
   ): RenderedSpec {
-    // Kludge for backwards-compatibility with accidental original behaviour
-    if (typeof structure == "string") return { dom: doc.createTextNode(structure) }
     return renderSpecInner(doc, structure, xmlNS, blockArraysIn)
   }
 
@@ -258,7 +259,7 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
    */
   static nodesFromSchema<Sc extends AnySchema>(schema: Sc): { [node: string]: NodeSerializer<Sc> } {
     const result = gatherToDOM(schema.nodes) as { [node: string]: NodeSerializer<Sc> }
-    if (!result.text) result.text = (node) => node.textContent as unknown as DOMOutputSpec
+    if (!result.text) result.text = (node) => node.textContent
     return result
   }
 
@@ -317,6 +318,8 @@ function renderSpecInner(
   xmlNS: string | null,
   blockArraysIn?: Attrs
 ): RenderedSpec {
+  // Kludge for backwards-compatibility with accidental original behaviour
+  if (Predicate.isString(structure)) return { dom: doc.createTextNode(structure) }
   // Only elements may be returned directly; anything else is read as an
   // array spec (prosemirror-model 1.25.5 / 1.25.7).
   if ((structure as globalThis.Node).nodeType === 1) return { dom: structure as Element }
@@ -354,7 +357,7 @@ function renderSpecInner(
     }
   }
   for (let i = start; i < spec.length; i++) {
-    const child = spec[i] as DOMOutputSpec | string | 0
+    const child = spec[i] as DOMOutputSpec | 0
     if (child === 0) {
       if (i < spec.length - 1 || i > start) {
         throw new DOMSpecError({ message: "Content hole must be the only child of its parent node" })

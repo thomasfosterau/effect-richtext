@@ -9,7 +9,8 @@ import { type Command, EditorState, type Plugin } from "@thomasfosterau/effect-r
 import { schema } from "@thomasfosterau/effect-richtext/TestBuilder"
 import ist from "../utils/ist.ts"
 
-const fakeView = { state: {}, dispatch: () => Effect.void } as unknown as KeymapView
+const fakeViewProps: Partial<KeymapView> = { dispatch: () => Effect.void }
+const fakeView = fakeViewProps as KeymapView
 
 // The maps `dispatch` drives bind commands that never fail.
 type Handler = (view: KeymapView, event: KeyboardEvent) => Effect.Effect<boolean, never, never>

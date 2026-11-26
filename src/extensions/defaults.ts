@@ -37,6 +37,7 @@ import { marks as basicMarks, nodes as basicNodes } from "../SchemaBasic.ts"
 import { addListNodes, liftListItem, sinkListItem, splitListItem, wrapInList } from "../SchemaList.ts"
 import type { Command } from "../State.ts"
 import {
+  type AnyExtension,
   type CommandsExtension,
   type CommandSignature,
   defineCommands,
@@ -341,6 +342,18 @@ export type ListCommands = {
 
 const listItemCommand = (f: (type: NodeType<any, any>) => Command<any>): Command<any> => byNodeName("list_item", f)
 
+// The creators take names as strings; `ListCommands` types them against
+// the editor's final schema, which only an `AnyExtension` can stand for.
+const listCommands = (): CommandsExtension<ListCommands> => {
+  const extension: AnyExtension = defineCommands({
+    wrapInList: (name: string, attrs?: any) => byNodeName(name, (type) => wrapInList(type, attrs ?? null)),
+    splitListItem: () => listItemCommand(splitListItem),
+    liftListItem: () => listItemCommand(liftListItem),
+    sinkListItem: () => listItemCommand(sinkListItem)
+  })
+  return extension
+}
+
 /**
  * Lists: the `ordered_list`, `bullet_list` (both in the `block` group)
  * and `list_item` (`paragraph block*`) nodes, the list commands
@@ -361,12 +374,7 @@ export const defineList = () =>
       "Mod-[": listItemCommand(liftListItem),
       "Mod-]": listItemCommand(sinkListItem)
     }),
-    defineCommands({
-      wrapInList: (name: string, attrs?: any) => byNodeName(name, (type) => wrapInList(type, attrs ?? null)),
-      splitListItem: () => listItemCommand(splitListItem),
-      liftListItem: () => listItemCommand(liftListItem),
-      sinkListItem: () => listItemCommand(sinkListItem)
-    }) as unknown as CommandsExtension<ListCommands>
+    listCommands()
   )
 
 // -----------------------------------------------------------------------------

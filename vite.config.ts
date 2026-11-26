@@ -112,16 +112,15 @@ export default defineConfig({
       // ---- Allowances for the ported ProseMirror code ----------------------
       // `warn`, with the site count when added: a new site is a defect, not
       // headroom. Lower the count as sites go; delete the line at zero.
-      "effect/avoid-non-null-assertion": "warn", // 1295
-      "effect/require-safety-comment-for-type-assertion": "warn", // 982
+      "effect/avoid-non-null-assertion": "warn", // 1293
+      "effect/require-safety-comment-for-type-assertion": "warn", // 964
       "effect/prefer-option-over-null": "warn", // 989
       "effect/imperative-loops": "warn", // 599
-      "effect/avoid-any": "warn", // 423
-      "effect/no-runtime-typeof": "warn", // 28
+      "effect/avoid-any": "warn", // 413
+      "effect/no-runtime-typeof": "warn", // 27
       "effect/no-unsafe-dictionary-type": "warn", // 68
       "effect/no-unknown-parameters": "warn", // 59
       "effect/avoid-object-type": "warn", // 33
-      "effect/no-chained-type-assertions": "warn", // 9
       "effect/use-clock-service": "warn", // 20
       "effect/no-unknown-returns": "warn", // 22
       // The ported suites shadow the test-builder's `doc` / `schema`.
@@ -129,8 +128,8 @@ export default defineConfig({
       // ---- Type-aware allowances (same rules as above) ---------------------
       // tsrs's "unnecessary" verdict differs from the `check` task's tsc,
       // so remove those sites by hand, against `vp run check`, never by autofix.
-      "typescript/no-unsafe-type-assertion": "warn", // 856
-      "typescript/no-unnecessary-type-assertion": "warn", // 672
+      "typescript/no-unsafe-type-assertion": "warn", // 851
+      "typescript/no-unnecessary-type-assertion": "warn", // 670
       "typescript/no-unnecessary-type-arguments": "warn", // 54
       "effecttsgo/any-unknown-in-error-context": "warn", // 50
       "typescript/unbound-method": "warn", // 43
