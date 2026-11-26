@@ -55,7 +55,7 @@ export type Command<Sc extends AnySchema = AnySchema, E = never, R = never> = (
  * @since 0.1.0
  * @category models
  */
-export type MetaKey = string | Plugin<any, any, any, any> | PluginKey<any>
+export type MetaKey = string | Plugin<any, any, any, any> | PluginKey
 
 /**
  * An editor state transaction, which can be applied to a state to

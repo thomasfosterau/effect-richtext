@@ -106,14 +106,13 @@ const variance = { _Refs: (_: never) => _ }
 
 const make = <R extends string>(ast: ExprAST): ContentExpr<R> => ({ [TypeId]: variance as any, ast })
 
-const toAST = (input: ContentInput<string>): ExprAST =>
-  Predicate.isString(input) ? { _tag: "Name", name: input } : input.ast
+const toAST = (input: ContentInput): ExprAST => (Predicate.isString(input) ? { _tag: "Name", name: input } : input.ast)
 
 /**
  * @since 0.1.0
  * @category guards
  */
-export const isContentExpr = (u: unknown): u is ContentExpr<string> => Predicate.isObjectOrArray(u) && TypeId in u
+export const isContentExpr = (u: unknown): u is ContentExpr => Predicate.isObjectOrArray(u) && TypeId in u
 
 /**
  * Reference a single node type or group by name.
@@ -129,7 +128,7 @@ export const ref = <const Name extends string>(name: Name): ContentExpr<Name> =>
  * @since 0.1.0
  * @category combinators
  */
-export const seq = <const Items extends ReadonlyArray<ContentInput<string>>>(
+export const seq = <const Items extends ReadonlyArray<ContentInput>>(
   ...items: Items
 ): ContentExpr<Refs<Items[number]>> =>
   items.length === 1 ? make(toAST(items[0]!)) : make({ _tag: "Seq", exprs: items.map(toAST) })
@@ -140,7 +139,7 @@ export const seq = <const Items extends ReadonlyArray<ContentInput<string>>>(
  * @since 0.1.0
  * @category combinators
  */
-export const choice = <const Items extends ReadonlyArray<ContentInput<string>>>(
+export const choice = <const Items extends ReadonlyArray<ContentInput>>(
   ...items: Items
 ): ContentExpr<Refs<Items[number]>> =>
   items.length === 1 ? make(toAST(items[0]!)) : make({ _tag: "Choice", exprs: items.map(toAST) })
@@ -151,7 +150,7 @@ export const choice = <const Items extends ReadonlyArray<ContentInput<string>>>(
  * @since 0.1.0
  * @category combinators
  */
-export const zeroOrMore = <const C extends ContentInput<string>>(item: C): ContentExpr<Refs<C>> =>
+export const zeroOrMore = <const C extends ContentInput>(item: C): ContentExpr<Refs<C>> =>
   make({ _tag: "Star", expr: toAST(item) })
 
 /**
@@ -160,7 +159,7 @@ export const zeroOrMore = <const C extends ContentInput<string>>(item: C): Conte
  * @since 0.1.0
  * @category combinators
  */
-export const oneOrMore = <const C extends ContentInput<string>>(item: C): ContentExpr<Refs<C>> =>
+export const oneOrMore = <const C extends ContentInput>(item: C): ContentExpr<Refs<C>> =>
   make({ _tag: "Plus", expr: toAST(item) })
 
 /**
@@ -169,7 +168,7 @@ export const oneOrMore = <const C extends ContentInput<string>>(item: C): Conten
  * @since 0.1.0
  * @category combinators
  */
-export const optional = <const C extends ContentInput<string>>(item: C): ContentExpr<Refs<C>> =>
+export const optional = <const C extends ContentInput>(item: C): ContentExpr<Refs<C>> =>
   make({ _tag: "Opt", expr: toAST(item) })
 
 /**
@@ -179,11 +178,8 @@ export const optional = <const C extends ContentInput<string>>(item: C): Content
  * @since 0.1.0
  * @category combinators
  */
-export const repeat = <const C extends ContentInput<string>>(
-  item: C,
-  min: number,
-  max: number = min
-): ContentExpr<Refs<C>> => make({ _tag: "Range", min, max: max === Infinity ? -1 : max, expr: toAST(item) })
+export const repeat = <const C extends ContentInput>(item: C, min: number, max: number = min): ContentExpr<Refs<C>> =>
+  make({ _tag: "Range", min, max: max === Infinity ? -1 : max, expr: toAST(item) })
 
 /**
  * Parse a ProseMirror-style content expression string, such as
@@ -196,7 +192,7 @@ export const repeat = <const C extends ContentInput<string>>(
  * @since 0.1.0
  * @category constructors
  */
-export const parse = (source: string): ContentExpr<string> => {
+export const parse = (source: string): ContentExpr => {
   const stream = new TokenStream(source)
   if (stream.next === undefined) return make({ _tag: "Seq", exprs: [] })
   const expr = parseExpr(stream)
@@ -210,7 +206,7 @@ export const parse = (source: string): ContentExpr<string> => {
  * @since 0.1.0
  * @category utils
  */
-export const format = (expr: ContentInput<string>): string => formatAST(toAST(expr), 0)
+export const format = (expr: ContentInput): string => formatAST(toAST(expr), 0)
 
 const formatAST = (ast: ExprAST, prec: number): string =>
   Match.valueTags(ast, {
@@ -364,7 +360,7 @@ export class ContentMatch {
 
   /** @internal */
   static compile(
-    content: ContentInput<string> | undefined,
+    content: ContentInput | undefined,
     nodeTypes: Readonly<Partial<Record<string, NodeType>>>,
     typeName: string
   ): ContentMatch {

@@ -26,4 +26,4 @@ const plugin: Plugin<InputRulesState, AnySchema, Boom, Counter> = inputRules({
 })
 
 // @ts-expect-error -- the plugin requires Counter
-export const _noReqs: Plugin<InputRulesState, AnySchema, Boom, never> = plugin
+export const _noReqs: Plugin<InputRulesState, AnySchema, Boom> = plugin

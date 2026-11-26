@@ -41,7 +41,7 @@ export function selFor(doc: PMNode<any>): Selection<any> {
 let tempView: EditorView<any> | null = null
 
 export type TempEditorProps = Partial<Omit<DirectEditorProps<any>, "plugins">> & {
-  readonly plugins?: ReadonlyArray<Plugin<any, any, any, never>>
+  readonly plugins?: ReadonlyArray<Plugin<any, any, any>>
   readonly doc?: PMNode<any>
 }
 

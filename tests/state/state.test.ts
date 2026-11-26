@@ -203,7 +203,7 @@ const stepCountPlugin = new Plugin({
         yield* Counter
         return 0
       }),
-    apply: (_tr: Transaction<AnySchema>, value: number) =>
+    apply: (_tr: Transaction, value: number) =>
       Effect.gen(function* () {
         const counter = yield* Counter
         return value + counter.step
@@ -215,13 +215,13 @@ const stepCountPlugin = new Plugin({
 const docSizePlugin = new Plugin({
   state: {
     init: (_config, instance) => instance.doc.content.size,
-    apply: (tr: Transaction<AnySchema>) => Effect.succeed(tr.doc.content.size)
+    apply: (tr: Transaction) => Effect.succeed(tr.doc.content.size)
   }
 })
 
 // A plugin whose filter can fail with a typed error.
 const strictPlugin = new Plugin({
-  filterTransaction: (tr: Transaction<AnySchema>) =>
+  filterTransaction: (tr: Transaction) =>
     Option.isSome(tr.getMeta("reject")) ? Effect.fail(new Rejected({ reason: "rejected" })) : true
 })
 
@@ -405,7 +405,7 @@ describe("EditorState (Effect API)", () => {
   })
 })
 
-const insertX: Command<AnySchema> = (state, dispatch) =>
+const insertX: Command = (state, dispatch) =>
   Effect.gen(function* () {
     if (!state.selection.empty) return false
     if (dispatch) yield* dispatch(state.tr.insertTextUnsafe("x"))

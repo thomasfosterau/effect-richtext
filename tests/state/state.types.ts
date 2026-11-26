@@ -18,7 +18,7 @@ const stepCountPlugin = new Plugin({
         yield* Counter
         return 0
       }),
-    apply: (_tr: Transaction<AnySchema>, value: number) =>
+    apply: (_tr: Transaction, value: number) =>
       Effect.gen(function* () {
         const counter = yield* Counter
         return value + counter.step

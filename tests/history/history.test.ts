@@ -24,7 +24,7 @@ type State = EditorState<typeof schema, never, any>
 const plugin = history()
 
 function mkState(doc?: Node<any>, config?: any): State {
-  const plugins: Array<Plugin<any, any, any, never>> = [config ? history(config) : plugin]
+  const plugins: Array<Plugin<any, any, any>> = [config ? history(config) : plugin]
   if (config && config.preserveItems) plugins.push(new Plugin({ historyPreserveItems: true }))
   return EditorState.createUnsafe({ schema, plugins: plugins.concat((config && config.plugins) || []), doc })
 }

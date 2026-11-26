@@ -12,7 +12,7 @@ export function mkState(doc: Node<any>): EditorState<any> {
 }
 
 /** Run a command (which must not require services) against a state, applying dispatched transactions. */
-export function run(state: EditorState<any>, command: Command<any, any, never>): EditorState<any> {
+export function run(state: EditorState<any>, command: Command<any, any>): EditorState<any> {
   Effect.runSync(
     command(state, (tr) =>
       Effect.sync(() => {
@@ -23,7 +23,7 @@ export function run(state: EditorState<any>, command: Command<any, any, never>):
   return state
 }
 
-export function apply(doc: Node<any>, command: Command<any, any, never>, result: Node<any> | null): void {
+export function apply(doc: Node<any>, command: Command<any, any>, result: Node<any> | null): void {
   const state = run(mkState(doc), command)
   ist(state.doc, result || doc, eq)
   if (result && tagsOf(result).a != null) ist(state.selection, selFor(result), eq)

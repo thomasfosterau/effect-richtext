@@ -29,8 +29,7 @@ class Boom extends Schema.TaggedError<Boom>()("Boom", { reason: Schema.String })
 const stepCountPlugin = new Plugin({
   state: {
     init: () => 0,
-    apply: (_tr: Transaction<AnySchema>, value: number) =>
-      Effect.map(Effect.service(Counter), (counter) => value + counter.step)
+    apply: (_tr: Transaction, value: number) => Effect.map(Effect.service(Counter), (counter) => value + counter.step)
   }
 })
 
@@ -161,7 +160,7 @@ describe("EditorView (Effect API)", () => {
     Effect.gen(function* () {
       const d = startDoc()
       const failing = new Plugin({
-        filterTransaction: (tr: Transaction<AnySchema>) =>
+        filterTransaction: (tr: Transaction) =>
           Option.isSome(tr.getMeta("boom")) ? Effect.fail(new Boom({ reason: "filter" })) : true
       })
       const state = EditorState.createUnsafe({ doc: d, selection: selFor(d), plugins: [failing] })
@@ -236,7 +235,7 @@ describe("EditorView (Effect API)", () => {
     const thrown = thrownBy(() =>
       EditorView.makeUnsafe(workspace(), {
         state,
-        plugins: [new Plugin({ state: { init: () => 0, apply: (_tr: Transaction<AnySchema>, v: number) => v } })]
+        plugins: [new Plugin({ state: { init: () => 0, apply: (_tr: Transaction, v: number) => v } })]
       })
     )
     ist(Predicate.isError(Option.getOrUndefined(thrown)))

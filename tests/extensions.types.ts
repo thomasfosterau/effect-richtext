@@ -35,7 +35,7 @@ class Boom extends Schema.TaggedError<Boom>()("Boom", {}) {}
 const basic = defineBasicExtension()
 const editor = createEditorUnsafe(basic)
 type Sc = typeof editor.schema
-type Run = Effect.Effect<boolean, never, never>
+type Run = Effect.Effect<boolean>
 
 // ---- schema: merged node and mark names ------------------------------------
 
