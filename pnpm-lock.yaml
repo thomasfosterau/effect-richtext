@@ -275,9 +275,6 @@ catalogs:
     rope-sequence:
       specifier: ^1.3.4
       version: 1.3.4
-    tsx:
-      specifier: ^4.23.15
-      version: 4.23.15
     typescript:
       specifier: npm:@typescript/typescript6@6.0.2
       version: 6.0.2
@@ -295,6 +292,8 @@ overrides:
   effect: 4.1.5
   vite@*: npm:@voidzero-dev/vite-plus-core@8.3.8001
   vitest@*: 5.1.1
+
+packageExtensionsChecksum: sha256-BjURLhZH78dDTuNwvYQiWVUOJgwUcclbjM2T6SuKo3U=
 
 importers:
 
@@ -409,9 +408,6 @@ importers:
       prosemirror-view:
         specifier: 'catalog:'
         version: 1.44.0
-      tsx:
-        specifier: 'catalog:'
-        version: 4.23.15
       typescript:
         specifier: 'catalog:'
         version: '@typescript/typescript6@6.0.2'
@@ -547,6 +543,9 @@ packages:
     peerDependencies:
       tsx: '>=4.19.3 <5.0.0'
       typescript: '>=5.8.2 <7.0.0'
+    peerDependenciesMeta:
+      tsx:
+        optional: true
 
   '@effect/language-service@0.87.5':
     resolution: {integrity: sha512-np/zJgk71/PyHxtoqyUKLYcpQhoRBI+L6+1Z0ILk35JSQ/lvXzwlwOwddYZLDkeC4bdF2ukKekqKlla/F88R5w==}
@@ -3139,8 +3138,9 @@ snapshots:
       prettier: 3.10.1
       ts-morph: 28.0.0
       tsconfck: 3.1.6(@typescript/typescript6@6.0.2)
-      tsx: 4.23.15
       typescript: '@typescript/typescript6@6.0.2'
+    optionalDependencies:
+      tsx: 4.23.15
     transitivePeerDependencies:
       - bufferutil
       - redis
@@ -4317,6 +4317,7 @@ snapshots:
       '@esbuild/win32-arm64': 0.28.2
       '@esbuild/win32-ia32': 0.28.2
       '@esbuild/win32-x64': 0.28.2
+    optional: true
 
   esprima@4.0.1: {}
 
@@ -5082,6 +5083,7 @@ snapshots:
       esbuild: 0.28.2
     optionalDependencies:
       fsevents: 2.3.3
+    optional: true
 
   type-fest@5.10.0:
     dependencies:
