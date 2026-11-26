@@ -210,6 +210,12 @@ export abstract class Selection {
     return getBase(this[CORE], "visible")
   }
 
+  // ProseMirror's subclasses assign `Sub.prototype.visible = false`, which
+  // an inherited getter alone would reject.
+  set visible(value: boolean) {
+    Object.defineProperty(this, "visible", { value, writable: true, configurable: true })
+  }
+
   /** Test whether the selection is the same as another selection. */
   abstract eq(selection: Selection): boolean
 
@@ -278,16 +284,17 @@ export abstract class Selection {
   }
 }
 
-interface Getter {
+interface VisibleDescriptor {
+  readonly value?: boolean
   readonly get?: (this: object) => boolean
 }
 
-const getterOf = (proto: object | null, prop: string) => {
+const descriptorOf = (proto: object | null, prop: string) => {
   for (; proto; proto = Object.getPrototypeOf(proto)) {
     const desc = Object.getOwnPropertyDescriptor(proto, prop)
     if (desc) {
-      const getter: Getter = desc
-      return getter.get
+      const visible: VisibleDescriptor = desc
+      return visible
     }
   }
   return undefined
@@ -304,12 +311,13 @@ const adaptedSelectionClass = (CoreClass: any, FacadeClass: any): any => {
   let found = adaptedSelectionClasses.get(CoreClass)
   if (!found) {
     const base = FacadeClass.prototype,
-      baseVisible = getterOf(base, "visible")
+      baseVisible = descriptorOf(base, "visible")?.get
     found = class extends CoreClass {
       declare facade: Selection
       get visible(): boolean {
-        const get = getterOf(Object.getPrototypeOf(this.facade), "visible")
-        return get && get !== baseVisible ? get.call(this.facade) : super.visible
+        const desc = descriptorOf(this.facade, "visible")
+        if (desc && "value" in desc) return desc.value
+        return desc?.get && desc.get !== baseVisible ? desc.get.call(this.facade) : super.visible
       }
       eq(other: S.Selection): boolean {
         return this.facade.eq === base.eq ? super.eq(other) : this.facade.eq(wrap(other))
@@ -976,7 +984,7 @@ export const fromCoreCommand = (command: S.Command<any, any>): Command => {
     found = (state, dispatch, view) =>
       runSync(
         command(
-          state[CORE],
+          commandState(state),
           dispatch && ((tr) => Effect.sync(() => dispatch(wrap(tr)))),
           view && unwrap(view)
         ) as Effect.Effect<boolean, unknown>
@@ -985,6 +993,24 @@ export const fromCoreCommand = (command: S.Command<any, any>): Command => {
     coreCommands.set(found, command)
   }
   return found
+}
+
+/**
+ * The core state a command reads. ProseMirror's commands read only a state's
+ * public properties, so callers pass state-like objects: TipTap's chained
+ * commands pass `{ ...state, doc, selection, storedMarks, tr }`, whose `tr` is
+ * one shared transaction. Such an object gets a core state that reads through
+ * it, so that a command's changes land on that transaction.
+ */
+const commandState = (state: EditorState): S.EditorState<any, any, any> => {
+  const core = state[CORE]
+  if (Object.getPrototypeOf(state) === EditorState.prototype) return core
+  return Object.create(core, {
+    doc: { get: () => state.doc[CORE] },
+    selection: { get: () => state.selection[CORE] },
+    storedMarksOrNull: { get: () => (state.storedMarks ? unwrapArray(state.storedMarks) : null) },
+    tr: { get: () => state.tr[CORE] }
+  })
 }
 
 /**

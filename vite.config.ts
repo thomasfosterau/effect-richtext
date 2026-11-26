@@ -60,6 +60,21 @@ const maxWorkers =
   process.env.VITEST_MAX_WORKERS === undefined ? undefined : { maxWorkers: Number(process.env.VITEST_MAX_WORKERS) }
 const chromium = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
 
+/** The ProseMirror packages the compat facade replaces, for the conformance project. */
+const compatAliases = [
+  "commands",
+  "keymap",
+  "model",
+  "schema-basic",
+  "schema-list",
+  "state",
+  "test-builder",
+  "transform",
+  "view"
+]
+  .map((name) => ({ find: new RegExp(`^prosemirror-${name}$`), replacement: `${srcDir}compat/${name}.ts` }))
+  .concat({ find: /^orderedmap$/, replacement: `${srcDir}compat/orderedmap.ts` })
+
 export default defineConfig({
   // Lint without `--fix`: tsrs's type-assertion autofixes can break the
   // `check` task's tsc. CSS, JSON and Markdown are only formatted (a lint pass
@@ -436,7 +451,7 @@ export default defineConfig({
       },
       "ci:gates": {
         command: "echo 'ci: all gates green'",
-        dependsOn: ["check", "test:unit", "test:browser", "docgen", "ci:audit"],
+        dependsOn: ["check", "test:unit", "test:conformance", "test:browser", "docgen", "ci:audit"],
         cache: false
       },
       // Fails on a pre-release Node, which the matrix's `latest` must never be.
@@ -473,6 +488,12 @@ export default defineConfig({
       },
       "test:unit": {
         command: "vp test run --project node",
+        cache: { env: testEnv, input: cacheInputs, output: [] }
+      },
+      // TipTap, ProseKit and ProseMirror's add-ons on the compat facade, and
+      // the same suite on ProseMirror itself.
+      "test:conformance": {
+        command: "vp test run --project conformance --project conformance:prosemirror",
         cache: { env: testEnv, input: cacheInputs, output: [] }
       },
       "test:browser": {
@@ -556,11 +577,28 @@ export default defineConfig({
         test: {
           name: "node",
           include: ["tests/**/*.test.ts"],
-          exclude: ["tests/view/**", "tests/**/*.browser.test.ts"],
+          exclude: ["tests/view/**", "tests/conformance/**", "tests/**/*.browser.test.ts"],
           environment: "happy-dom",
           sequence: { concurrent: true }
         }
       },
+      // TipTap and ProseKit with every `prosemirror-*` package the facade
+      // covers aliased to it, as a consumer's bundler would (docs/compat.md),
+      // and the same suite on ProseMirror itself, which keeps it honest. The
+      // packages are inlined so the aliases reach their imports too.
+      ...[
+        { name: "conformance", alias: compatAliases },
+        { name: "conformance:prosemirror", alias: [] }
+      ].map(({ name, alias }) => ({
+        extends: true,
+        resolve: { alias },
+        test: {
+          name,
+          include: ["tests/conformance/**/*.test.ts"],
+          environment: "happy-dom",
+          server: { deps: { inline: [/@tiptap\//, /@prosekit\//, /prosemirror-/, /orderedmap/] } }
+        }
+      })),
       {
         extends: true,
         optimizeDeps: {

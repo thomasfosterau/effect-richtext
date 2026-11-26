@@ -40,6 +40,14 @@ export default defineConfig({
 
 Alias every `prosemirror-*` package you use together. A facade object from a compat module and an object from the real ProseMirror package are different classes and do not mix.
 
+## Conformance
+
+[tests/conformance](../tests/conformance) runs [TipTap](https://tiptap.dev) 3, [ProseKit](https://prosekit.dev) and ProseMirror's own add-ons (history, input rules, tables, gap cursor, drop cursor, changeset, flat lists) unmodified, with the packages above aliased to the compat modules as in the Vite example. The same suite also runs on ProseMirror itself, so a scenario that fails only on the facade is a compatibility gap. [tests/compat/surface.types.ts](../tests/compat/surface.types.ts) checks that each compat module declares every public export and class member of its ProseMirror package.
+
+Known gaps:
+
+- `ReplaceStep.MAP_BIAS` (prosemirror-transform 1.12) is not supported.
+
 ## What the facade does
 
 - **ProseMirror's shapes.** Facade methods return `null` where the core returns an `Option`, and throw ProseMirror's exceptions (`RangeError`, `ReplaceError`, `TransformError`, `SyntaxError` for content expressions) where the core fails with tagged errors. Commands are plain `(state, dispatch?, view?) => boolean` functions.

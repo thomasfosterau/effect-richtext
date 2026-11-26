@@ -24,6 +24,7 @@ import {
   toCoreCommand,
   type Transaction
 } from "@thomasfosterau/effect-richtext/compat/state"
+import { setBlockType } from "@thomasfosterau/effect-richtext/compat/commands"
 import { doc, eq, p, schema } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import {
   type Mappable,
@@ -240,6 +241,33 @@ describe("compat bridge", () => {
     ist(stateFromCore(bookmark.resolve(modelToCore(d))) instanceof HiddenCursor)
     // Default implementations from the base class.
     ist(sel.content().size, 0)
+  })
+
+  it("lets subclasses assign visible on their prototype", () => {
+    class Invisible extends TextSelection {}
+    Invisible.prototype.visible = false
+    const d = doc(p("foo"))
+    const sel = new Invisible(d.resolve(1))
+    ist(sel.visible, false)
+    ist(TextSelection.create(d, 1).visible, true)
+    const state = EditorState.create({ doc: d }).apply(EditorState.create({ doc: d }).tr.setSelection(sel))
+    ist(stateToCore(state).selection.visible, false)
+  })
+
+  it("runs commands on state-like objects", () => {
+    // As TipTap's chained commands do: one transaction, shared through `tr`.
+    const state = EditorState.create({ doc: doc(p("<a>foo")) })
+    const tr = state.tr
+    const chainable = Object.defineProperties(Object.assign({}, state), {
+      doc: { get: () => tr.doc },
+      selection: { get: () => tr.selection },
+      storedMarks: { get: () => tr.storedMarks },
+      tr: { get: () => tr }
+    })
+    const { heading } = schema.nodes
+    assert.exists(heading)
+    ist(setBlockType(heading, { level: 1 })(chainable, () => {}))
+    ist(tr.doc.firstChild?.type.name, "heading")
   })
 
   it("bridges plugins in both directions", () => {
