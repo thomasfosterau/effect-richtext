@@ -289,8 +289,8 @@ function beforeinput(view: EditorView<any, any, any>, event: InputEvent): boolea
   return Effect.as(view.dispatch(tr), false)
 }
 
-function drawGapCursor(state: EditorState<any>): DecorationSet | null {
-  if (!(state.selection instanceof GapCursor)) return null
+function drawGapCursor(state: EditorState<any>): DecorationSet {
+  if (!(state.selection instanceof GapCursor)) return DecorationSet.empty
   const widget = Decoration.widget(
     state.selection.head,
     (view) => {

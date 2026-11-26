@@ -593,7 +593,8 @@ function* applySteps<Sc extends AnySchema, R, E>(
 
   const trs: Array<Transaction<Sc>> = [rootTr]
   let newState: EditorState<Sc, R, E> = yield new Call(applyInnerSteps(state, rootTr))
-  let seen: Array<{ state: EditorState<Sc, R, E>; n: number }> | null = null
+  // Filled, one entry per plugin, once a plugin first appends a transaction.
+  const seen: Array<{ state: EditorState<Sc, R, E>; n: number }> = []
   const plugins = state.config.plugins
   // This loop repeatedly gives plugins a chance to respond to
   // transactions as new transactions are added, making sure to only
@@ -604,14 +605,14 @@ function* applySteps<Sc extends AnySchema, R, E>(
       const plugin = plugins[i],
         append = plugin.spec.appendTransaction
       if (append) {
-        const n = seen ? seen[i].n : 0,
-          oldState = seen ? seen[i].state : state
+        const n = seen.length ? seen[i].n : 0,
+          oldState = seen.length ? seen[i].state : state
         const appended = n < trs.length ? append.call(plugin, n ? trs.slice(n) : trs, oldState, newState) : undefined
-        const tr: Transaction<Sc> | null | undefined = isHookEffect(appended) ? yield appended : appended
-        if (tr && (yield new Call(filterSteps(newState, tr, i)))) {
+        const next = Option.fromNullishOr<Transaction<Sc>>(isHookEffect(appended) ? yield appended : appended)
+        if (Option.isSome(next) && (yield new Call(filterSteps(newState, next.value, i)))) {
+          const tr = next.value
           tr.setMeta("appendedTransaction", rootTr)
-          if (!seen) {
-            seen = []
+          if (!seen.length) {
             for (let j = 0; j < plugins.length; j++) {
               seen.push(j < i ? { state: newState, n: trs.length } : { state, n: 0 })
             }
@@ -620,7 +621,7 @@ function* applySteps<Sc extends AnySchema, R, E>(
           newState = yield new Call(applyInnerSteps(newState, tr))
           haveNew = true
         }
-        if (seen) seen[i] = { state: newState, n: trs.length }
+        if (seen.length) seen[i] = { state: newState, n: trs.length }
       }
     }
     if (!haveNew) return { state: newState, transactions: trs }

@@ -128,11 +128,9 @@ function flatten<Sc extends AnySchema>(
   for (let i = 0; i < children.length; i++) {
     const child = children[i]
     if (Predicate.isString(child)) {
-      const re = /<(\w+)>/g
-      let m: RegExpExecArray | null
       let at = 0,
         out = ""
-      while ((m = re.exec(child))) {
+      for (const m of child.matchAll(/<(\w+)>/g)) {
         out += child.slice(at, m.index)
         pos += m.index - at
         at = m.index + m[0].length

@@ -281,7 +281,7 @@ export const inputRules = <const Rules extends ReadonlyArray<InputRule<any, any,
 
     props: {
       handleTextInput(view, from, to, text, deflt) {
-        return run(view, from, to, text, rules, plugin, deflt)
+        return run(view, from, to, text, rules, plugin, Option.fromNullishOr(deflt))
       },
       handleDOMEvents: {
         compositionend: (view) => {
@@ -293,7 +293,7 @@ export const inputRules = <const Rules extends ReadonlyArray<InputRule<any, any,
               Effect.sync(() => {
                 const sel = view.state.selection
                 const $cursor = sel instanceof TextSelection ? sel.$cursorOrNull : null
-                if ($cursor) view.runHandler(run(view, $cursor.pos, $cursor.pos, "", rules, plugin, undefined))
+                if ($cursor) view.runHandler(run(view, $cursor.pos, $cursor.pos, "", rules, plugin, Option.none()))
               })
             )
           )
@@ -317,7 +317,7 @@ interface RunContext {
   readonly textBefore: string
   readonly rules: ReadonlyArray<InputRule<any, any, any>>
   readonly plugin: Plugin<any, any, any, any>
-  readonly deflt: (() => Transaction<any>) | undefined
+  readonly deflt: Option.Option<() => Transaction<any>>
   // Set to false once the handler call that started this run returned
   // (more precisely, at the next microtask), so that effects can tell
   // whether they completed synchronously.
@@ -334,7 +334,7 @@ function run(
   text: string,
   rules: ReadonlyArray<InputRule<any, any, any>>,
   plugin: Plugin<any, any, any, any>,
-  deflt: (() => Transaction<any>) | undefined
+  deflt: Option.Option<() => Transaction<any>>
 ): HandlerResult<any, any> {
   if (view.composing) return false
   const state = view.state,
@@ -383,8 +383,9 @@ function applyRule(cx: RunContext, rule: InputRule<any, any, any>, tr: Transacti
 // Without a matching rule, an asynchronous run has to insert the typed
 // text itself, since the view already considered the input handled.
 function fallback(cx: RunContext): Effect.Effect<boolean> {
-  if (cx.sync || !cx.deflt || cx.view.isDestroyed || cx.view.state !== cx.state) return Effect.succeed(false)
-  return Effect.as(cx.view.dispatch(cx.deflt()), true)
+  if (cx.sync || Option.isNone(cx.deflt) || cx.view.isDestroyed || cx.view.state !== cx.state)
+    return Effect.succeed(false)
+  return Effect.as(cx.view.dispatch(cx.deflt.value()), true)
 }
 
 function runEffectRule(

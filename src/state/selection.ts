@@ -156,13 +156,6 @@ export abstract class Selection<Sc extends AnySchema = AnySchema> {
     // Put the new selection at the position after the inserted
     // content. When that ended in an inline node, search backwards,
     // to get the position after that node. If not, search forward.
-    let lastNode: Node<Sc> | undefined = content.content.content[content.content.childCount - 1]
-    let lastParent: Node<Sc> | null = null
-    for (let i = 0; i < content.openEnd && lastNode; i++) {
-      lastParent = lastNode
-      lastNode = lastNode.content.content[lastNode.childCount - 1]
-    }
-
     const mapFrom = tr.steps.length,
       ranges = this.ranges
     for (let i = 0; i < ranges.length; i++) {
@@ -170,11 +163,7 @@ export abstract class Selection<Sc extends AnySchema = AnySchema> {
         mapping = tr.mapping.slice(mapFrom)
       tr.replaceRangeUnsafe(mapping.map($from.pos), mapping.map($to.pos), i ? Slice.empty : content)
       if (i === 0) {
-        selectionToInsertionEnd(
-          tr,
-          mapFrom,
-          (lastNode ? lastNode.isInline : lastParent && lastParent.isTextblock) ? -1 : 1
-        )
+        selectionToInsertionEnd(tr, mapFrom, endsInline(content) ? -1 : 1)
       }
     }
   }
@@ -682,17 +671,31 @@ function findSelectionIn<Sc extends AnySchema>(
   return null
 }
 
+// Whether a slice ends in inline content: its last node, followed down
+// through its open end, is inline or is a textblock left open.
+function endsInline(content: Slice<any>): boolean {
+  const last = content.content.lastChild
+  if (Option.isNone(last)) return false
+  let node: Node<any> = last.value
+  for (let i = 0; i < content.openEnd; i++) {
+    const next = node.lastChild
+    if (Option.isNone(next)) return node.isTextblock
+    node = next.value
+  }
+  return node.isInline
+}
+
 function selectionToInsertionEnd(tr: Transaction<any>, startLen: number, bias: number) {
   const last = tr.steps.length - 1
   if (last < startLen) return
   const step = tr.steps[last]
   if (!(step instanceof ReplaceStep || step instanceof ReplaceAroundStep)) return
   const map = tr.mapping.maps[last]
-  let end: number | undefined
+  let end = -1
   map.forEach((_from, _to, _newFrom, newTo) => {
-    if (end == null) end = newTo
+    if (end < 0) end = newTo
   })
-  if (end === undefined) return
+  if (end < 0) return
   tr.setSelectionUnsafe(Selection.near(tr.doc.resolveUnsafe(end), bias))
 }
 

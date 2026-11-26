@@ -57,8 +57,8 @@ export class Branch {
 
   // Pop the latest event off the branch's history and apply it
   // to a document transform.
-  popEvent(state: EditorState<any, any, any>, preserveItems: boolean): PopResult | null {
-    if (this.eventCount === 0) return null
+  popEvent(state: EditorState<any, any, any>, preserveItems: boolean): Option.Option<PopResult> {
+    if (this.eventCount === 0) return Option.none()
 
     let end = this.items.length
     for (; ; end--) {
@@ -76,7 +76,7 @@ export class Branch {
       mapFrom = remap.maps.length
     }
     const transform = state.tr
-    let selection: SelectionBookmark<any> | undefined, remaining: Branch | undefined
+    let popped: Option.Option<PopResult> = Option.none()
     const addAfter: Array<Item> = [],
       addBefore: Array<Item> = []
 
@@ -94,25 +94,26 @@ export class Branch {
 
         if (remap) {
           addBefore.push(new Item(item.map))
-          const step = Option.getOrNull(item.step.map(remap.slice(mapFrom)))
-          let map: StepMap | undefined
-
-          if (step && transform.maybeStep(step).docOrNull) {
-            map = transform.mapping.maps[transform.mapping.maps.length - 1]
-            addAfter.push(new Item(map, undefined, undefined, addAfter.length + addBefore.length))
-          }
+          const step = item.step.map(remap.slice(mapFrom))
           mapFrom--
-          if (map) remap.appendMap(map, mapFrom)
+          if (Option.isSome(step) && transform.maybeStep(step.value).docOrNull) {
+            const map = transform.mapping.maps[transform.mapping.maps.length - 1]
+            addAfter.push(new Item(map, undefined, undefined, addAfter.length + addBefore.length))
+            remap.appendMap(map, mapFrom)
+          }
         } else {
           transform.maybeStep(item.step)
         }
 
         if (item.selection) {
-          selection = remap ? item.selection.map(remap.slice(mapFrom)) : item.selection
-          remaining = new Branch(
-            this.items.slice(0, end).append(addBefore.reverse().concat(addAfter)),
-            this.eventCount - 1
-          )
+          popped = Option.some({
+            remaining: new Branch(
+              this.items.slice(0, end).append(addBefore.reverse().concat(addAfter)),
+              this.eventCount - 1
+            ),
+            transform,
+            selection: remap ? item.selection.map(remap.slice(mapFrom)) : item.selection
+          })
           return false
         }
         return true
@@ -121,37 +122,37 @@ export class Branch {
       0
     )
 
-    if (!remaining || !selection) return null
-    return { remaining, transform, selection }
+    return popped
   }
 
   // Create a new branch with the given transform added.
   addTransform(
     transform: Transform<any>,
-    selection: SelectionBookmark<any> | undefined,
+    selection: Option.Option<SelectionBookmark<any>>,
     histOptions: HistoryConfig,
     preserveItems: boolean
   ): Branch {
     const newItems: Array<Item> = []
     let eventCount = this.eventCount
     let oldItems = this.items,
-      lastItem = !preserveItems && oldItems.length ? oldItems.get(oldItems.length - 1) : null
+      lastItem =
+        preserveItems || !oldItems.length ? Option.none<Item>() : Option.some(oldItems.get(oldItems.length - 1))
 
     for (let i = 0; i < transform.steps.length; i++) {
       const step = transform.steps[i].invert(transform.docs[i])
-      let item = new Item(transform.mapping.maps[i], step, selection)
-      const merged = lastItem && lastItem.merge(item)
-      if (merged) {
-        item = merged
+      let item = new Item(transform.mapping.maps[i], step, Option.getOrUndefined(selection))
+      const merged = Option.flatMap(lastItem, (last) => last.merge(item))
+      if (Option.isSome(merged)) {
+        item = merged.value
         if (i) newItems.pop()
         else oldItems = oldItems.slice(0, oldItems.length - 1)
       }
       newItems.push(item)
-      if (selection) {
+      if (Option.isSome(selection)) {
         eventCount++
-        selection = undefined
+        selection = Option.none()
       }
-      if (!preserveItems) lastItem = item
+      if (!preserveItems) lastItem = Option.some(item)
     }
     const overflow = eventCount - histOptions.depth
     if (overflow > DEPTH_OVERFLOW) {
@@ -261,8 +262,8 @@ export class Branch {
             if (selection) events++
             const newItem = new Item(map.invert(), step, selection),
               last = items.length - 1
-            const merged = items.length ? items[last].merge(newItem) : undefined
-            if (merged) items[last] = merged
+            const merged = items.length ? items[last].merge(newItem) : Option.none()
+            if (Option.isSome(merged)) items[last] = merged.value
             else items.push(newItem)
           }
         } else if (item.map) {
@@ -279,7 +280,7 @@ export class Branch {
 }
 
 function cutOffEvents(items: RopeSequence<Item>, n: number): RopeSequence<Item> {
-  let cutPoint: number | undefined
+  let cutPoint = 0
   items.forEach((item, i) => {
     if (item.selection && n-- === 0) {
       cutPoint = i
@@ -287,7 +288,7 @@ function cutOffEvents(items: RopeSequence<Item>, n: number): RopeSequence<Item> 
     }
     return undefined
   })
-  return items.slice(cutPoint ?? 0)
+  return items.slice(cutPoint)
 }
 
 /** @internal */
@@ -306,12 +307,9 @@ export class Item {
     readonly mirrorOffset?: number
   ) {}
 
-  merge(other: Item): Item | undefined {
-    if (this.step && other.step && !other.selection) {
-      const step = Option.getOrNull(other.step.merge(this.step))
-      if (step) return new Item(step.getMap().invert(), step, this.selection)
-    }
-    return undefined
+  merge(other: Item): Option.Option<Item> {
+    if (!this.step || !other.step || other.selection) return Option.none()
+    return Option.map(other.step.merge(this.step), (step) => new Item(step.getMap().invert(), step, this.selection))
   }
 }
 
@@ -331,7 +329,7 @@ export class HistoryState {
     /** @internal */
     readonly undone: Branch,
     /** @internal */
-    readonly prevRanges: ReadonlyArray<number> | null,
+    readonly prevRanges: Option.Option<ReadonlyArray<number>>,
     /** @internal */
     readonly prevTime: number,
     /** @internal */
@@ -362,27 +360,27 @@ function applyTransaction(
   const historyTr = Option.getOrUndefined(tr.getMeta<HistoryMeta>(historyKey))
   if (historyTr) return historyTr.historyState
 
-  if (hasMeta(tr, closeHistoryKey)) history = new HistoryState(history.done, history.undone, null, 0, -1)
+  if (hasMeta(tr, closeHistoryKey)) history = new HistoryState(history.done, history.undone, Option.none(), 0, -1)
 
   const appended = Option.getOrUndefined(tr.getMeta<Transaction<any>>("appendedTransaction"))
-  let rebased: number | undefined
+  const rebased = Option.filter(tr.getMeta<number>("rebased"), Boolean)
 
   if (Arr.isReadonlyArrayEmpty(tr.steps)) {
     return history
   } else if (appended && hasMeta(appended, historyKey)) {
     if (Option.exists(appended.getMeta<HistoryMeta>(historyKey), (meta) => meta.redo)) {
       return new HistoryState(
-        history.done.addTransform(tr, undefined, options, mustPreserveItems(state)),
+        history.done.addTransform(tr, Option.none(), options, mustPreserveItems(state)),
         history.undone,
-        rangesFor(tr.mapping.maps),
+        Option.some(rangesFor(tr.mapping.maps)),
         history.prevTime,
         history.prevComposition
       )
     } else {
       return new HistoryState(
         history.done,
-        history.undone.addTransform(tr, undefined, options, mustPreserveItems(state)),
-        null,
+        history.undone.addTransform(tr, Option.none(), options, mustPreserveItems(state)),
+        Option.none(),
         history.prevTime,
         history.prevComposition
       )
@@ -395,11 +393,11 @@ function applyTransaction(
       (!appended &&
         history.prevComposition !== composition &&
         (history.prevTime < (tr.time || 0) - options.newGroupDelay || !isAdjacentTo(tr, history.prevRanges)))
-    const prevRanges = appended ? mapRanges(history.prevRanges, tr.mapping) : rangesFor(tr.mapping.maps)
+    const prevRanges = appended ? mapRanges(history.prevRanges, tr.mapping) : Option.some(rangesFor(tr.mapping.maps))
     return new HistoryState(
       history.done.addTransform(
         tr,
-        newGroup ? state.selection.getBookmark() : undefined,
+        newGroup ? Option.some(state.selection.getBookmark()) : Option.none(),
         options,
         mustPreserveItems(state)
       ),
@@ -408,12 +406,12 @@ function applyTransaction(
       tr.time,
       composition == null ? history.prevComposition : composition
     )
-  } else if ((rebased = Option.getOrUndefined(tr.getMeta<number>("rebased")))) {
+  } else if (Option.isSome(rebased)) {
     // Used by the collab module to tell the history that some of its
     // content has been rebased.
     return new HistoryState(
-      history.done.rebased(tr, rebased),
-      history.undone.rebased(tr, rebased),
+      history.done.rebased(tr, rebased.value),
+      history.undone.rebased(tr, rebased.value),
       mapRanges(history.prevRanges, tr.mapping),
       history.prevTime,
       history.prevComposition
@@ -429,8 +427,9 @@ function applyTransaction(
   }
 }
 
-function isAdjacentTo(transform: Transform<any>, prevRanges: ReadonlyArray<number> | null): boolean {
-  if (!prevRanges) return false
+function isAdjacentTo(transform: Transform<any>, ranges: Option.Option<ReadonlyArray<number>>): boolean {
+  if (Option.isNone(ranges)) return false
+  const prevRanges = ranges.value
   if (!transform.docChanged) return true
   let adjacent = false
   transform.mapping.maps[0].forEach((start, end) => {
@@ -450,16 +449,19 @@ function rangesFor(maps: ReadonlyArray<StepMap>): Array<number> {
   return result
 }
 
-function mapRanges(ranges: ReadonlyArray<number> | null, mapping: Mapping): Array<number> | null {
-  if (!ranges) return null
-  const result: Array<number> = []
-  for (let i = 0; i < ranges.length; i += 2) {
-    const from = mapping.map(ranges[i], 1),
-      to = mapping.map(ranges[i + 1], -1)
-    if (from <= to) result.push(from, to)
-  }
-  return result
-}
+const mapRanges = (
+  ranges: Option.Option<ReadonlyArray<number>>,
+  mapping: Mapping
+): Option.Option<ReadonlyArray<number>> =>
+  Option.map(ranges, (prev) => {
+    const result: Array<number> = []
+    for (let i = 0; i < prev.length; i += 2) {
+      const from = mapping.map(prev[i], 1),
+        to = mapping.map(prev[i + 1], -1)
+      if (from <= to) result.push(from, to)
+    }
+    return result
+  })
 
 // Apply the latest event from one branch to the document and shift the event
 // onto the other branch.
@@ -467,30 +469,31 @@ function histTransaction<Sc extends AnySchema>(
   history: HistoryState,
   state: EditorState<Sc, any, any>,
   redo: boolean
-): Transaction<Sc> | null {
+): Option.Option<Transaction<Sc>> {
   const preserveItems = mustPreserveItems(state)
   const plugin = Option.getOrUndefined(historyKey.get(state))
   // Unreachable: callers only get here after reading the plugin's state.
-  if (!plugin) return null
+  if (!plugin) return Option.none()
   // SAFETY: the history plugin's spec holds its config.
   const histOptions = plugin.spec.config as HistoryConfig
-  const pop = (redo ? history.undone : history.done).popEvent(state, preserveItems)
-  if (!pop) return null
+  const popped = (redo ? history.undone : history.done).popEvent(state, preserveItems)
+  if (Option.isNone(popped)) return Option.none()
+  const pop = popped.value
 
   const selection = pop.selection.resolve(pop.transform.doc)
   const added = (redo ? history.done : history.undone).addTransform(
     pop.transform,
-    state.selection.getBookmark(),
+    Option.some(state.selection.getBookmark()),
     histOptions,
     preserveItems
   )
 
-  const newHist = new HistoryState(redo ? added : pop.remaining, redo ? pop.remaining : added, null, 0, -1)
-  return pop.transform.setSelectionUnsafe(selection).setMeta(historyKey, { redo, historyState: newHist })
+  const newHist = new HistoryState(redo ? added : pop.remaining, redo ? pop.remaining : added, Option.none(), 0, -1)
+  return Option.some(pop.transform.setSelectionUnsafe(selection).setMeta(historyKey, { redo, historyState: newHist }))
 }
 
 let cachedPreserveItems = false,
-  cachedPreserveItemsPlugins: ReadonlyArray<Plugin<any, any, any, any>> | null = null
+  cachedPreserveItemsPlugins: ReadonlyArray<Plugin<any, any, any, any>> = []
 // Check whether any plugin in the given state has a
 // `historyPreserveItems` property in its spec, in which case we must
 // preserve steps exactly as they came in, so that they can be
@@ -609,7 +612,7 @@ export const history = (config: HistoryOptions = {}): Plugin<HistoryState> => {
 
     state: {
       init() {
-        return new HistoryState(Branch.empty, Branch.empty, null, 0, -1)
+        return new HistoryState(Branch.empty, Branch.empty, Option.none(), 0, -1)
       },
       apply(tr, hist, state) {
         return applyTransaction(hist, state, tr, options)
@@ -640,7 +643,7 @@ const buildCommand =
       if (!hist || (redo ? hist.undone : hist.done).eventCount === 0) return Effect.succeed(false)
       if (dispatch) {
         const tr = histTransaction(hist, state, redo)
-        if (tr) return Effect.as(dispatch(scroll ? tr.scrollIntoView() : tr), true)
+        if (Option.isSome(tr)) return Effect.as(dispatch(scroll ? tr.value.scrollIntoView() : tr.value), true)
       }
       return Effect.succeed(true)
     })

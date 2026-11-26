@@ -158,12 +158,12 @@ export function matchBindings<A>(map: Record<string, A>, event: KeyboardEvent): 
       const noShift = map[modifiers(name, event, false)]
       if (noShift) candidates.push(noShift)
     }
-    let baseName: string | undefined
+    const baseName = base[event.keyCode]
     if (
       (event.altKey || event.metaKey || event.ctrlKey) &&
       // Ctrl-Alt may be used for AltGr on Windows
       !(windows && event.ctrlKey && event.altKey) &&
-      (baseName = base[event.keyCode]) &&
+      baseName &&
       baseName !== name
     ) {
       // Try falling back to the keyCode when there's a modifier

@@ -314,7 +314,7 @@ export class Editor<T extends ExtensionTypes> {
   declare readonly [EditorTypeId]: { readonly _T: (_: never) => T }
 
   private _state: EditorState<SchemaOf<T>, T["R"], T["E"]>
-  private _view: EditorView<SchemaOf<T>, T["R"], T["E"]> | undefined = undefined
+  private _view: Option.Option<EditorView<SchemaOf<T>, T["R"], T["E"]>> = Option.none()
   private readonly creators: Record<string, CommandCreator>
 
   /** Typed node builders: `editor.nodes.heading({ level: 2 }, "Title")`. Throw on invalid content. */
@@ -354,17 +354,17 @@ export class Editor<T extends ExtensionTypes> {
 
   /** The current editor state (the view's state while mounted). */
   get state(): EditorState<SchemaOf<T>, T["R"], T["E"]> {
-    return this._view ? this._view.state : this._state
+    return Option.isSome(this._view) ? this._view.value.state : this._state
   }
 
   /** The view, while the editor is mounted. */
   get view(): Option.Option<EditorView<SchemaOf<T>, T["R"], T["E"]>> {
-    return Option.fromUndefinedOr(this._view)
+    return this._view
   }
 
   /** Whether the editor is currently mounted. */
   get mounted(): boolean {
-    return this._view !== undefined
+    return Option.isSome(this._view)
   }
 
   /**
@@ -380,7 +380,7 @@ export class Editor<T extends ExtensionTypes> {
     return Effect.gen({ self: this }, function* () {
       yield* this.unmount
       const view = yield* EditorView.make<SchemaOf<T>, T["R"], T["E"]>(place, { ...props, state: this.state })
-      this._view = view
+      this._view = Option.some(view)
       yield* Effect.addFinalizer(() => Effect.sync(() => this.detach(view)))
     })
   }
@@ -388,18 +388,17 @@ export class Editor<T extends ExtensionTypes> {
   /** Destroy the view, if mounted. The editor keeps the view's last state. */
   get unmount(): Effect.Effect<void> {
     return Effect.sync(() => {
-      const view = this._view
-      if (view) {
+      Option.map(this._view, (view) => {
         this.detach(view)
         view.destroy()
-      }
+      })
     })
   }
 
   private detach(view: EditorView<SchemaOf<T>, T["R"], T["E"]>): void {
-    if (this._view !== view) return
+    if (Option.getOrUndefined(this._view) !== view) return
     this._state = view.state
-    this._view = undefined
+    this._view = Option.none()
   }
 
   /**
@@ -410,8 +409,7 @@ export class Editor<T extends ExtensionTypes> {
   dispatch(tr: Transaction<SchemaOf<T>>): Effect.Effect<void, T["E"], T["R"]> {
     // SAFETY: the state's plugins are the extension's, with its errors and requirements.
     return Effect.suspend(() => {
-      const view = this._view
-      if (view) return dieOnStateFailure(view.tryDispatch(tr))
+      if (Option.isSome(this._view)) return dieOnStateFailure(this._view.value.tryDispatch(tr))
       return dieOnStateFailure(
         Effect.map(this._state.apply(tr), (state) => {
           this._state = state
@@ -425,7 +423,7 @@ export class Editor<T extends ExtensionTypes> {
   // fiber. A failed dispatch skips the command's later dispatches, and
   // its failure becomes the command's.
   private runCommand(command: Command<any, any, any>, dispatching: boolean): Effect.Effect<boolean, any, any> {
-    if (!dispatching) return command(this.state, undefined, this._view)
+    if (!dispatching) return command(this.state, undefined, Option.getOrUndefined(this._view))
     return Effect.flatMap(Effect.context<T["R"]>(), (context) => {
       let failure = Option.none<Cause.Cause<T["E"]>>()
       const dispatch: Dispatch<any> = (tr) =>
@@ -434,7 +432,7 @@ export class Editor<T extends ExtensionTypes> {
           : Effect.catchCause(Effect.provideContext(this.dispatch(tr), context), (cause) =>
               Effect.sync(() => void (failure = Option.some(cause)))
             )
-      return Effect.tap(command(this.state, dispatch, this._view), () =>
+      return Effect.tap(command(this.state, dispatch, Option.getOrUndefined(this._view)), () =>
         Option.match(failure, { onNone: () => Effect.void, onSome: Effect.failCause })
       )
     })
@@ -475,9 +473,13 @@ export class Editor<T extends ExtensionTypes> {
       const chained = new ChainableState(state, tr)
       const dispatch: Dispatch<any> = (t) => Effect.sync(() => foldInto(tr, t))
       // Every command runs, in order, even after one fails to apply.
-      const results = yield* Effect.forEach(queue, (command) => command(chained, dispatch, this._view), {
-        concurrency: 1
-      })
+      const results = yield* Effect.forEach(
+        queue,
+        (command) => command(chained, dispatch, Option.getOrUndefined(this._view)),
+        {
+          concurrency: 1
+        }
+      )
       if (tr.docChanged || tr.selectionSet || tr.storedMarksSet || tr.scrolledIntoView || !tr.isGeneric) {
         yield* this.dispatch(tr)
       }

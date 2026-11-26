@@ -127,10 +127,10 @@ export default defineConfig({
       // ---- Allowances for the ported ProseMirror code ----------------------
       // `warn`, with the site count when added: a new site is a defect, not
       // headroom. Lower the count as sites go; delete the line at zero.
-      "effect/prefer-option-over-null": "warn", // 972
-      "effect/imperative-loops": "warn", // 586
+      "effect/prefer-option-over-null": "warn", // 636
+      "effect/imperative-loops": "warn", // 584
       // ---- Type-aware allowances (same rules as above) ---------------------
-      "typescript/no-unsafe-type-assertion": "warn", // 231
+      "typescript/no-unsafe-type-assertion": "warn", // 227
       // `@effect/tsgo`'s preset warns on these; they have no sites left.
       "effecttsgo/any-unknown-in-error-context": "error",
       "effecttsgo/unnecessary-fail-yieldable-error": "error",
@@ -284,16 +284,25 @@ export default defineConfig({
           "effect/no-object-parameters": "off"
         }
       },
+      // ProseMirror's suites run against the facade with its `null`s.
+      {
+        files: ["tests/compat/**", "tests/view/compat-*.ts"],
+        rules: {
+          "effect/prefer-option-over-null": "off"
+        }
+      },
       // The facade keeps ProseMirror's inline result types (`childAfter`,
       // `applyTransaction`, `serializeForClipboard`, …) rather than adding
       // names ProseMirror doesn't export, and converts specs and configs
       // to the core's shapes key by key in open dictionaries. Its overloaded
       // `toCore` / `fromCore` and wrappers take and return any facade or core
       // value, so their implementation signatures return `unknown`, and
-      // its `as any` casts stand where ProseMirror's own types say `any`.
+      // its `as any` casts stand where ProseMirror's own types say `any`,
+      // as its `null`s stand where ProseMirror returns or takes `null`.
       {
         files: ["src/compat/**"],
         rules: {
+          "effect/prefer-option-over-null": "off",
           "effect/avoid-any": "off",
           "effect/no-unsafe-dictionary-type": "off",
           "effecttsgo/any-unknown-in-error-context": "off",
