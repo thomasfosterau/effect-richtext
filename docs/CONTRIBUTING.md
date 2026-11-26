@@ -19,6 +19,7 @@ The main branch is `trunk`. Branch off `trunk`, open a pull request into `trunk`
 | `vp check` | Format and lint (Oxfmt, Oxlint with the Effect presets), type-aware |
 | `vp run check` | The type gate: `src`, then the tests and `tests/**/*.types.ts` |
 | `vp run test:unit` | The `node` test project (happy-dom) |
+| `vp run test:conformance` | TipTap, ProseKit and ProseMirror's add-ons with `prosemirror-*` aliased to `compat/*`, then the same suite on ProseMirror ([tests/conformance](../tests/conformance)) |
 | `vp run test:browser` | prosemirror-view's suites in headless Chromium (installs it unless `PLAYWRIGHT_CHROMIUM_EXECUTABLE` names one) |
 | `vp run build` | `vp pack` → `dist/` |
 | `vp run docgen` | Builds, then compiles and runs every JSDoc example; writes `docs/api/` (not committed) |
@@ -38,7 +39,7 @@ The main branch is `trunk`. Branch off `trunk`, open a pull request into `trunk`
 
 ## Before pushing
 
-Run `vp run ci`, or the gates one at a time: `vp check`, `vp run check`, `vp run test:unit`, `vp run test:browser`, `vp run docgen` (builds first), `pnpm audit --audit-level high` (network). Say in the PR body which couldn't run.
+Run `vp run ci`, or the gates one at a time: `vp check`, `vp run check`, `vp run test:unit`, `vp run test:conformance`, `vp run test:browser`, `vp run docgen` (builds first), `pnpm audit --audit-level high` (network). Say in the PR body which couldn't run.
 
 CI ([ci.yml](../.github/workflows/ci.yml)) runs `vp run ci` on Node `lts` and `latest`. Workflows pin actions by exact tag, locked to commits by `.github/workflows/actions.lock`: run `gh actions-lock` after changing a `uses:`. `uvx zizmor --offline .github` audits the workflows.
 

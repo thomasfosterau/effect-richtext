@@ -16,6 +16,15 @@ catalog:
   "@effect/tsgo": 0.73.4
   "@effect/vitest": 4.1.5
   "@enfect/oxlint": 0.10.0
+  # Consumers of the prosemirror-* packages, for the conformance suite
+  # (tests/conformance), which aliases those packages to the compat facade.
+  "@prosekit/basic": ^0.9.14
+  "@prosekit/core": ^0.13.5
+  "@prosekit/extensions": ^0.18.8
+  "@tiptap/core": ^3.35.0
+  "@tiptap/extensions": ^3.35.0
+  "@tiptap/pm": ^3.35.0
+  "@tiptap/starter-kit": ^3.35.0
   "@types/node": ^26.6.6
   # Both peer on the exact `vitest` version.
   "@vitest/browser-playwright": 5.1.1
@@ -25,11 +34,13 @@ catalog:
   happy-dom: ^21.0.4
   markdown-it: ^15.0.3
   playwright: ^1.65.1
-  # The reference implementation, for the benchmarks and their parity test
-  # only; never imported from `src/`.
+  # The reference implementation, for the benchmarks, their parity test, the
+  # surface check and the conformance suite; never imported from `src/`.
   prosemirror-commands: ^1.7.2
   prosemirror-history: ^1.5.2
+  prosemirror-keymap: ^1.2.3
   prosemirror-model: ^1.25.13
+  prosemirror-schema-basic: ^1.2.4
   prosemirror-schema-list: ^1.6.1
   prosemirror-state: ^1.4.4
   prosemirror-test-builder: ^1.1.1
