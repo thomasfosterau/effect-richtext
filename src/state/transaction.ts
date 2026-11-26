@@ -93,7 +93,7 @@ export class Transaction<Sc extends AnySchema = AnySchema> extends Transform<Sc>
   /** @internal */
   constructor(state: EditorState<Sc, any, any>) {
     super(state.doc)
-    this.time = Date.now()
+    this.time = state.config.clock()
     this.curSelection = state.selection
     this.storedMarksOrNull = state.storedMarksOrNull
   }
