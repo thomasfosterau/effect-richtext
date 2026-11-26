@@ -64,7 +64,7 @@ export type Priority = (typeof Priority)[keyof typeof Priority]
 export interface CommandSignature {
   readonly Schema: unknown
   readonly Return: unknown
-  readonly signature: (...args: any) => unknown
+  readonly signature: (...args: any) => this["Return"]
 }
 
 /**
