@@ -10,15 +10,24 @@ import * as Stream from "effect/Stream"
 import { lift, toggleMark, wrapIn } from "@thomasfosterau/effect-richtext/Commands"
 import type { AnySchema, Node } from "@thomasfosterau/effect-richtext/Model"
 import { StateRef } from "@thomasfosterau/effect-richtext/Reactive"
-import { EditorState, Plugin, StateError, TextSelection, type Transaction } from "@thomasfosterau/effect-richtext/State"
+import {
+  EditorState,
+  Plugin,
+  StateError,
+  type StateFailure,
+  TextSelection,
+  type Transaction
+} from "@thomasfosterau/effect-richtext/State"
 import { blockquote, doc, eq, h1, p, schema, strong } from "@thomasfosterau/effect-richtext/TestBuilder"
 import { selFor } from "../state/state.ts"
 import ist from "../utils/ist.ts"
 import { collect } from "./helpers.ts"
 import { getSome } from "../utils/option.ts"
 
-const stateFor = (d: Node<any>, plugins?: ReadonlyArray<Plugin<any, any, any, never>>) =>
-  EditorState.createUnsafe({ doc: d, selection: selFor(d), plugins })
+const stateFor = <const P extends ReadonlyArray<Plugin<any, any, any, never>> = readonly []>(
+  d: Node<any>,
+  plugins?: P
+) => EditorState.createUnsafe({ doc: d, selection: selFor(d), plugins })
 
 class Step extends Context.Service<Step, { readonly step: number }>()("test/Step") {}
 class Boom extends Schema.TaggedError<Boom>()("Boom", {}) {}
@@ -171,7 +180,9 @@ describe("StateRef", () => {
       const state = yield* EditorState.create({ doc: d, selection: selFor(d), plugins: [countPlugin] })
       const ref = yield* StateRef.make(state)
       // `dispatch` requires nothing: the context was captured by `make`.
-      const dispatch: Effect.Effect<void, unknown, never> = ref.dispatch(ref.state.getUnsafe().tr.insertTextUnsafe("b"))
+      const dispatch: Effect.Effect<void, StateFailure, never> = ref.dispatch(
+        ref.state.getUnsafe().tr.insertTextUnsafe("b")
+      )
       yield* dispatch
       ref.dispatchUnsafe(ref.state.getUnsafe().tr.insertTextUnsafe("c"))
       ist(getSome(countPlugin.getState(ref.state.getUnsafe())), 6)

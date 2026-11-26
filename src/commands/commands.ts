@@ -1117,11 +1117,14 @@ export const chainCommands =
     ...commands: Commands
   ): Command<AnySchema, CommandError<Commands[number]>, CommandRequirements<Commands[number]>> =>
   (state, dispatch, view) => {
-    const loop = (i: number): Effect.Effect<boolean, any, any> =>
-      i === commands.length
+    type E = CommandError<Commands[number]>
+    type R = CommandRequirements<Commands[number]>
+    const typed: ReadonlyArray<Command<AnySchema, E, R>> = commands
+    const loop = (i: number): Effect.Effect<boolean, E, R> =>
+      i === typed.length
         ? succeedFalse
         : Effect.flatMap(
-            Effect.suspend(() => commands[i]!(state, dispatch, view)),
+            Effect.suspend(() => typed[i]!(state, dispatch, view)),
             (handled) => (handled ? succeedTrue : loop(i + 1))
           )
     return loop(0)

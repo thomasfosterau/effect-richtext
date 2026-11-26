@@ -5,7 +5,7 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 import { keydownHandler, keymap, KeymapError, type KeymapView } from "@thomasfosterau/effect-richtext/Keymap"
 import type { AnySchema } from "@thomasfosterau/effect-richtext/Model"
-import { type Command, EditorState, type Plugin } from "@thomasfosterau/effect-richtext/State"
+import { type Command, EditorState, type Plugin, type StateError } from "@thomasfosterau/effect-richtext/State"
 import { schema } from "@thomasfosterau/effect-richtext/TestBuilder"
 import ist from "../utils/ist.ts"
 
@@ -151,7 +151,7 @@ describe("keymap (Effect API)", () => {
     void _check
     // A state with this plugin carries its requirement.
     const program = EditorState.create({ schema, plugins: [plugin] })
-    const _program: Effect.Effect<EditorState<any, Clipboard, ReadOnly>, any, Clipboard> = program
+    const _program: Effect.Effect<EditorState<any, Clipboard, ReadOnly>, ReadOnly | StateError, Clipboard> = program
     void _program
     assert.isTrue(Effect.isEffect(program))
   })
