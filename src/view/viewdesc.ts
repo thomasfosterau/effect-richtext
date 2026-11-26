@@ -27,7 +27,11 @@ import type { EditorView } from "./view.ts"
 
 type AnyView = EditorView<any, any, any>
 
+// SAFETY: only called on text nodes.
 const textOf = (node: Node<any, any>): string => (node as TextNode<any>).text
+
+// SAFETY: only called on widget decorations, whose type is a `WidgetType`.
+const widgetType = (widget: Decoration): WidgetType => widget.type as WidgetType
 
 /**
  * A `ViewMutationRecord` represents a DOM mutation or a selection
@@ -433,7 +437,8 @@ export class ViewDesc {
         // If dom is outside of this desc's nodeDOM, don't count it.
         if (
           first &&
-          (nodeDOM = (desc as NodeViewDesc).nodeDOM) &&
+          desc instanceof NodeViewDesc &&
+          (nodeDOM = desc.nodeDOM) &&
           !(nodeDOM.nodeType == 1 ? nodeDOM.contains(dom.nodeType == 1 ? dom : dom.parentNode) : nodeDOM == dom)
         ) {
           first = false
@@ -614,6 +619,7 @@ export class ViewDesc {
 
     let anchorDOM = this.domFromPos(anchor, anchor ? -1 : 1)
     let headDOM = head == anchor ? anchorDOM : this.domFromPos(head, head ? -1 : 1)
+    // SAFETY: `EditorView.root` gives a shadow root `getSelection` when it lacks one.
     const domSel = (view.root as Document).getSelection()
     if (!domSel) return
     const selRange = view.domSelectionRange()
@@ -642,14 +648,14 @@ export class ViewDesc {
         }
       } else {
         const prev = node.childNodes[offset - 1]
-        brKludge = !!prev && (prev.nodeName == "BR" || (prev as HTMLElement).contentEditable == "false")
+        brKludge = !!prev && (prev.nodeName == "BR" || (isElt(prev) && prev.contentEditable == "false"))
       }
     }
     // Firefox can act strangely when the selection is in front of an
     // uneditable node. See https://bugzilla.mozilla.org/show_bug.cgi?id=1709536
     if (browser.gecko && selRange.focusNode && selRange.focusNode != headDOM.node && selRange.focusNode.nodeType == 1) {
       const after = selRange.focusNode.childNodes[selRange.focusOffset]
-      if (after && (after as HTMLElement).contentEditable == "false") force = true
+      if (after && isElt(after) && after.contentEditable == "false") force = true
     }
 
     if (
@@ -773,7 +779,7 @@ class WidgetViewDesc extends ViewDesc {
     // The widget's `getPos` can be called before `super` returns, so it
     // reads the desc through a cell that is filled in once it exists.
     const cell: WidgetCell = { desc: undefined }
-    let dom = (widget.type as WidgetType).toDOM
+    let dom = widgetType(widget).toDOM
     if (Predicate.isFunction(dom)) {
       dom = dom(view, () => {
         const desc = cell.desc
@@ -827,7 +833,7 @@ class WidgetViewDesc extends ViewDesc {
   }
 
   get side() {
-    return (this.widget.type as WidgetType).side
+    return widgetType(this.widget).side
   }
 }
 
@@ -879,12 +885,14 @@ class MarkViewDesc extends ViewDesc {
   static create(parent: ViewDesc, mark: Mark<any, any>, inline: boolean, view: AnyView) {
     const custom = view.nodeViews[mark.type.name]
     let spec: { dom: DOMNode; contentDOM?: HTMLElement | null | undefined } =
+      // SAFETY: a node view registered under a mark's name is a mark view constructor.
       custom && (custom as MarkViewConstructor<any, any>)(mark, view, inline)
     if (!spec || !spec.dom) {
       const toDOM = mark.type.spec.toDOM
       if (!toDOM) throw new ViewError({ message: "Mark type " + mark.type.name + " has no toDOM method" })
       spec = DOMSerializer.renderSpecUnsafe(document, toDOM(mark, inline), null, mark.attrs)
     }
+    // SAFETY: as in ProseMirror, a mark view renders to an element, and `spec` is a `MarkView` or a rendered spec.
     return new MarkViewDesc(parent, mark, spec.dom, spec.contentDOM || (spec.dom as HTMLElement), spec as MarkView)
   }
 
@@ -970,6 +978,7 @@ export class NodeViewDesc extends ViewDesc {
     let descObj: ViewDesc | undefined
     const spec: NodeView<any> | undefined =
       custom &&
+      // SAFETY: a node view registered under a node's name is a node view constructor.
       (custom as NodeViewConstructor<any, any>)(
         node,
         view,
@@ -997,14 +1006,17 @@ export class NodeViewDesc extends ViewDesc {
     }
     if (!contentDOM && !node.isText && dom.nodeName != "BR") {
       // Chrome gets confused by <br contenteditable=false>
-      if (!(dom as HTMLElement).hasAttribute("contenteditable")) (dom as HTMLElement).contentEditable = "false"
-      if (node.type.spec.draggable) (dom as HTMLElement).draggable = true
+      if (isElt(dom)) {
+        if (!dom.hasAttribute("contenteditable")) dom.contentEditable = "false"
+        if (node.type.spec.draggable) dom.draggable = true
+      }
     }
 
     const nodeDOM = dom
     dom = applyOuterDeco(dom, outerDeco, node)
 
     if (spec) {
+      // SAFETY: as in ProseMirror, a custom node view renders to an element.
       return (descObj = new CustomNodeViewDesc(
         parent,
         node,
@@ -1043,8 +1055,9 @@ export class NodeViewDesc extends ViewDesc {
       // new parent.
       for (let i = this.children.length - 1; i >= 0; i--) {
         const child = this.children[i]
-        if (this.dom.contains(child.dom.parentNode)) {
-          rule.contentElement = child.dom.parentNode as HTMLElement
+        const parent = child.dom.parentElement
+        if (parent && this.dom.contains(parent)) {
+          rule.contentElement = parent
           break
         }
       }
@@ -1101,7 +1114,7 @@ export class NodeViewDesc extends ViewDesc {
       (widget, i, insideNode) => {
         if (widget.spec.marks) {
           updater.syncToMarks(widget.spec.marks, inline, view, i)
-        } else if ((widget.type as WidgetType).side >= 0 && !insideNode) {
+        } else if (widgetType(widget).side >= 0 && !insideNode) {
           updater.syncToMarks(
             i == this.node.childCount ? Mark.none : this.node.content.content[i].marks,
             inline,
@@ -1149,7 +1162,7 @@ export class NodeViewDesc extends ViewDesc {
       // May have to protect focused DOM from being changed if a composition is active
       if (localComposition) this.protectLocalComposition(view, localComposition)
       if (this.contentDOM) renderDescs(this.contentDOM, this.children, view)
-      if (browser.ios) iosHacks(this.dom as HTMLElement)
+      if (browser.ios && isElt(this.dom)) iosHacks(this.dom)
     }
   }
 
@@ -1236,18 +1249,20 @@ export class NodeViewDesc extends ViewDesc {
 
   // Mark this node as being the selected node.
   selectNode(): void {
-    if (this.nodeDOM.nodeType == 1) {
-      ;(this.nodeDOM as HTMLElement).classList.add("ProseMirror-selectednode")
-      if (this.contentDOM || !this.node.type.spec.draggable) (this.nodeDOM as HTMLElement).draggable = true
+    const dom = this.nodeDOM
+    if (isElt(dom)) {
+      dom.classList.add("ProseMirror-selectednode")
+      if (this.contentDOM || !this.node.type.spec.draggable) dom.draggable = true
     }
   }
 
   // Remove selected node marking from this node.
   deselectNode(): void {
-    if (this.nodeDOM.nodeType == 1) {
-      ;(this.nodeDOM as HTMLElement).classList.remove("ProseMirror-selectednode")
+    const dom = this.nodeDOM
+    if (isElt(dom)) {
+      dom.classList.remove("ProseMirror-selectednode")
       if (this.contentDOM || !this.node.type.spec.draggable) {
-        ;(this.nodeDOM as HTMLElement).removeAttribute("draggable")
+        dom.removeAttribute("draggable")
       }
     }
   }
@@ -1510,6 +1525,7 @@ function computeOuterDeco(outerDeco: ReadonlyArray<Decoration>, node: Node<any, 
   const result = [top]
 
   for (let i = 0; i < outerDeco.length; i++) {
+    // SAFETY: outer decorations are node decorations, whose type is a `NodeType`.
     const attrs = (outerDeco[i].type as NodeType).attrs
     if (!attrs) continue
     if (attrs.nodeName) {
@@ -1563,7 +1579,7 @@ function patchOuterDeco(
         curDOM = parent
       }
     }
-    patchAttributes(curDOM as HTMLElement, prev || noDeco[0], deco)
+    if (isElt(curDOM)) patchAttributes(curDOM, prev || noDeco[0], deco)
   }
   return curDOM
 }
@@ -1672,6 +1688,7 @@ class ViewTreeUpdater {
     const maxKeep = Math.min(depth, marks.length)
     while (
       keep < maxKeep &&
+      // SAFETY: `stack` alternates descs (even indices) and child indices (odd).
       (keep == depth - 1 ? this.top : (this.stack[(keep + 1) << 1] as ViewDesc)).matchesMark(marks[keep]) &&
       marks[keep].type.spec.spanning !== false
     ) {
@@ -1681,7 +1698,9 @@ class ViewTreeUpdater {
     while (keep < depth) {
       this.destroyRest()
       this.top.dirty = NOT_DIRTY
+      // SAFETY: `stack` holds (desc, index) pairs, pushed desc first.
       this.index = this.stack.pop() as number
+      // SAFETY: as above.
       this.top = this.stack.pop() as ViewDesc
       depth--
     }
@@ -1771,6 +1790,7 @@ class ViewTreeUpdater {
     index: number,
     view: AnyView
   ) {
+    // SAFETY: callers pass the index of a node desc found by `findNodeMatch`.
     const child = this.top.children[index] as NodeViewDesc
     if (child.dirty == NODE_DIRTY && child.dom == child.contentDOM) child.dirty = CONTENT_DIRTY
     if (!child.update(node, outerDeco, innerDeco, view)) return false
@@ -1896,9 +1916,9 @@ class ViewTreeUpdater {
   placeWidget(widget: Decoration, view: AnyView, pos: number) {
     const next = this.index < this.top.children.length ? this.top.children[this.index] : null
     if (
-      next &&
+      next instanceof WidgetViewDesc &&
       next.matchesWidget(widget) &&
-      (widget == (next as WidgetViewDesc).widget || isDetachedWidget((next as WidgetViewDesc).widget))
+      (widget == next.widget || isDetachedWidget(next.widget))
     ) {
       this.index++
     } else {
@@ -1928,7 +1948,8 @@ class ViewTreeUpdater {
       if (
         (browser.safari || browser.chrome) &&
         lastChild &&
-        (lastChild.dom as HTMLElement).contentEditable == "false"
+        isElt(lastChild.dom) &&
+        lastChild.dom.contentEditable == "false"
       ) {
         this.addHackNode("IMG", parent)
       }
@@ -1947,7 +1968,7 @@ class ViewTreeUpdater {
       const dom = document.createElement(nodeName)
       if (nodeName == "IMG") {
         dom.className = "ProseMirror-separator"
-        ;(dom as HTMLImageElement).alt = ""
+        dom.setAttribute("alt", "")
       }
       if (nodeName == "BR") dom.className = "ProseMirror-trailingBreak"
       const hack = new BufferHackViewDesc(this.top, [], dom, null)
@@ -2013,7 +2034,7 @@ function preMatch(frag: Fragment<any, any>, parentDesc: ViewDesc): PreMatch {
   return { index: fI, matched, matches: matches.reverse() }
 }
 
-const bySide: Order.Order<Decoration> = (a, b) => Order.Number((a.type as WidgetType).side, (b.type as WidgetType).side)
+const bySide: Order.Order<Decoration> = (a, b) => Order.Number(widgetType(a).side, widgetType(b).side)
 
 // This function abstracts iterating over the nodes and decorations in
 // a fragment. Calls `onNode` for each node, with its local and child
@@ -2160,12 +2181,18 @@ function replaceNodes(nodes: ReadonlyArray<ViewDesc>, from: number, to: number, 
     if (start >= to || end <= from) {
       result.push(child)
     } else {
-      if (start < from) result.push((child as MarkViewDesc | TextViewDesc).slice(0, from - start, view))
+      if (start < from) {
+        // SAFETY: only composition text, inside mark and text descs, is replaced, so only those are cut.
+        result.push((child as MarkViewDesc | TextViewDesc).slice(0, from - start, view))
+      }
       if (replacement) {
         result.push(replacement)
         replacement = undefined
       }
-      if (end > to) result.push((child as MarkViewDesc | TextViewDesc).slice(to - start, child.size, view))
+      if (end > to) {
+        // SAFETY: as above.
+        result.push((child as MarkViewDesc | TextViewDesc).slice(to - start, child.size, view))
+      }
     }
   }
   return result
