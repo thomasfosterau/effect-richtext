@@ -1,5 +1,6 @@
 // Ported from prosemirror-model/test/test-mark.ts (MIT, Marijn Haverbeke and others)
 import { assert, describe, it } from "@effect/vitest"
+import * as DateTime from "effect/DateTime"
 import * as Effect from "effect/Effect"
 import * as Equal from "effect/Equal"
 import * as Hash from "effect/Hash"
@@ -230,7 +231,7 @@ describe("Mark", () => {
         nodes: { doc: { content: Content.zeroOrMore("text") }, text: {} },
         marks: { at: { attrs: { when: Schema.DateFromMillis } } }
       })
-      const date = new Date(0)
+      const date = DateTime.toDateUtc(DateTime.makeUnsafe(0))
       const mark = s.marks.at.createUnsafe({ when: date })
       const json = mark.toJSON()
       assert.deepStrictEqual(json, { type: "at", attrs: { when: 0 } })

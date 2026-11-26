@@ -118,7 +118,7 @@ export function readDOMChange(
   typeOver: boolean,
   addedNodes: ReadonlyArray<DOMNode>
 ): void {
-  const now = Date.now()
+  const now = view.state.config.clock()
   const compositionID = view.input.compositionPendingChanges || (view.composing ? view.input.compositionID : 0)
   view.input.compositionPendingChanges = 0
 

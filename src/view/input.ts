@@ -84,7 +84,7 @@ export function initInput(view: AnyView): void {
 
 function setSelectionOrigin(view: AnyView, origin: string) {
   view.input.lastSelectionOrigin = origin
-  view.input.lastSelectionTime = Date.now()
+  view.input.lastSelectionTime = view.state.config.clock()
 }
 
 /** @internal */
@@ -153,7 +153,7 @@ editHandlers.keydown = (view: AnyView, _event: Event) => {
   view.input.shiftKey = event.keyCode == 16 || event.shiftKey
   if (inOrNearComposition(view, event)) return
   view.input.lastKeyCode = event.keyCode
-  view.input.lastKeyCodeTime = Date.now()
+  view.input.lastKeyCodeTime = view.state.config.clock()
   view.input.lastKeyDispatched = false
   // Suppress enter key events on Chrome Android, because those tend
   // to be part of a confused sequence of composition events fired,
@@ -166,7 +166,7 @@ editHandlers.keydown = (view: AnyView, _event: Event) => {
   // makes the DOM change code recognize that what just happens should
   // be replaced by whatever the Enter key handlers do.
   if (browser.ios && event.keyCode == 13 && !event.ctrlKey && !event.altKey && !event.metaKey) {
-    const now = Date.now()
+    const now = view.state.config.clock()
     view.input.lastIOSEnter = now
     view.input.lastIOSEnterFallbackTimeout = setTimeout(() => {
       if (view.input.lastIOSEnter == now) {
@@ -365,7 +365,7 @@ handlers.mousedown = (view, _event) => {
   const event = _event as MouseEvent
   view.input.shiftKey = event.shiftKey
   const flushed = forceDOMFlush(view)
-  const now = Date.now()
+  const now = view.state.config.clock()
   let type = "singleClick"
   if (
     now - view.input.lastClick.time < 500 &&
@@ -596,13 +596,13 @@ class TripleClickDrag extends MouseDown {
 }
 
 handlers.touchstart = (view) => {
-  view.input.lastTouch = Date.now()
+  view.input.lastTouch = view.state.config.clock()
   forceDOMFlush(view)
   setSelectionOrigin(view, "pointer")
 }
 
 handlers.touchmove = (view) => {
-  view.input.lastTouch = Date.now()
+  view.input.lastTouch = view.state.config.clock()
   setSelectionOrigin(view, "pointer")
 }
 
@@ -620,7 +620,7 @@ function inOrNearComposition(view: AnyView, _event: Event) {
   // This guards against the case where compositionend is triggered without the keyboard
   // (e.g. character confirmation may be done with the mouse), and keydown is triggered
   // afterwards- we wouldn't want to ignore the keydown event in this case.
-  if (browser.safari && Math.abs(Date.now() - view.input.compositionEndedAt) < 500) {
+  if (browser.safari && Math.abs(view.state.config.clock() - view.input.compositionEndedAt) < 500) {
     view.input.compositionEndedAt = -2e8
     return true
   }
@@ -697,7 +697,7 @@ function selectionBeforeUneditable(view: AnyView) {
 editHandlers.compositionend = (view, _event) => {
   if (view.composing) {
     view.input.composing = false
-    view.input.compositionEndedAt = Date.now()
+    view.input.compositionEndedAt = view.state.config.clock()
     view.input.compositionPendingChanges = view.domObserver.pendingRecords().length ? view.input.compositionID : 0
     view.input.compositionNode = null
     if (view.input.badSafariComposition) view.domObserver.forceFlush()
@@ -716,7 +716,7 @@ function scheduleComposeEnd(view: AnyView, delay: number) {
 export function clearComposition(view: AnyView): void {
   if (view.composing) {
     view.input.composing = false
-    view.input.compositionEndedAt = Date.now()
+    view.input.compositionEndedAt = view.state.config.clock()
   }
   while (Arr.isArrayNonEmpty(view.input.compositionNodes)) view.input.compositionNodes.pop()!.markParentsDirty()
 }
@@ -1007,7 +1007,7 @@ function handleDrop(view: AnyView, event: DragEvent, dragging: Dragging | null) 
 }
 
 handlers.focus = (view) => {
-  view.input.lastFocus = Date.now()
+  view.input.lastFocus = view.state.config.clock()
   if (!view.focused) {
     view.domObserver.stop()
     view.dom.classList.add("ProseMirror-focused")

@@ -4,6 +4,7 @@
  * @since 0.1.0
  */
 import * as Cause from "effect/Cause"
+import * as Clock from "effect/Clock"
 import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
 import * as Option from "effect/Option"
@@ -37,11 +38,12 @@ export interface EditorStateConfig<
   /** The plugins that should be active in this state. */
   readonly plugins?: P | undefined
   /**
-   * The clock that stamps `Transaction.time` when `state.tr` starts a
-   * transaction, in milliseconds like `Date.now` (the default). States
-   * derived by `apply` and `reconfigure` keep it. Pass a controllable
-   * clock to test time-dependent plugins, such as the history's grouping
-   * of steps by `newGroupDelay`.
+   * The clock, in milliseconds like `Date.now`, that stamps
+   * `Transaction.time` when `state.tr` starts a transaction and that the
+   * view's input handling reads. It defaults to Effect's default `Clock`.
+   * States derived by `apply` and `reconfigure` keep it. Pass a
+   * controllable clock to test time-dependent plugins, such as the
+   * history's grouping of steps by `newGroupDelay`.
    */
   readonly clock?: (() => number) | undefined
 }
@@ -123,6 +125,10 @@ const baseFields: ReadonlyArray<FieldDesc> = [
   }
 ]
 
+// The default `EditorStateConfig.clock`: Effect's default clock.
+const defaultClock = Clock.Clock.defaultValue()
+const currentTimeMillis = (): number => defaultClock.currentTimeMillisUnsafe()
+
 /**
  * Object wrapping the part of a state object that stays the same across
  * transactions. Stored in the state's `config` property.
@@ -137,7 +143,7 @@ export class Configuration<Sc extends AnySchema> {
   constructor(
     readonly schema: Sc,
     plugins?: ReadonlyArray<AnyPlugin>,
-    readonly clock: () => number = Date.now
+    readonly clock: () => number = currentTimeMillis
   ) {
     this.fields = baseFields.slice()
     if (plugins) {
