@@ -196,9 +196,8 @@ describe("Editor", () => {
       ist(yield* editor.commands.selectAll())
       ist(editor.state.selection.to, editor.state.doc.content.size)
       // Commands referring to types the schema lacks don't apply.
-      const untyped = editor.commands as unknown as Record<string, (name: string) => Effect.Effect<boolean>>
-      ist(!(yield* untyped.toggleMark!("underline")))
-      ist(!(yield* untyped.setBlockType!("table")))
+      ist(!(yield* editor.commands.toggleMark("underline" as never)))
+      ist(!(yield* editor.commands.setBlockType("table" as never)))
     })
   )
 

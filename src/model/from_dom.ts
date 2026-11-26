@@ -6,6 +6,7 @@
 import * as Arr from "effect/Array"
 import type * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import type * as Types from "effect/Types"
 import { attempt } from "../internal/attempt.ts"
 import type { ContentMatch } from "./content.ts"
@@ -16,6 +17,10 @@ import type { Node, TextNode } from "./node.ts"
 import { Slice } from "./replace.ts"
 import type { ResolvedPos } from "./resolvedpos.ts"
 import type { AnySchema, Attrs, MarkType, NodeType } from "./schema.ts"
+
+// `skip` may also hold an element to parse in place of the matched one
+// (undocumented ProseMirror behaviour).
+const isDOMElement = (value: unknown): value is HTMLElement => Predicate.hasProperty(value, "nodeType")
 
 /**
  * A DOM position whose document position should be recorded while
@@ -699,7 +704,7 @@ class ParseContext implements RuleContext {
       this.ignoreFallback(dom, marks)
     } else if (!rule || rule.skip || rule.closeParent) {
       if (rule && rule.closeParent) this.open = Math.max(0, this.open - 1)
-      else if (rule && (rule.skip as any).nodeType) dom = rule.skip as any as HTMLElement
+      else if (rule && isDOMElement(rule.skip)) dom = rule.skip
       let sync = false
       const oldNeedsBlock = this.needsBlock
       if (hasOwn(blockTags, name)) {

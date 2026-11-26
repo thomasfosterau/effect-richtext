@@ -312,8 +312,9 @@ export abstract class Selection<Sc extends AnySchema = AnySchema> {
   static jsonID<C extends SelectionDeserializer>(id: string, selectionClass: C): C {
     if (id in classesById) throw new SelectionError({ message: "Duplicate use of selection JSON ID " + id })
     classesById[id] = selectionClass
-    const proto = (selectionClass as unknown as { prototype?: object }).prototype
-    if (proto) (proto as { jsonID?: string }).jsonID = id
+    if (Predicate.hasProperty(selectionClass, "prototype") && Predicate.isObjectOrArray(selectionClass.prototype)) {
+      Reflect.set(selectionClass.prototype, "jsonID", id)
+    }
     return selectionClass
   }
 

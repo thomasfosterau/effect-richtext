@@ -3,11 +3,9 @@ import * as Effect from "effect/Effect"
 import * as Html from "@thomasfosterau/effect-richtext/Html"
 import { DOMSerializer, Fragment } from "@thomasfosterau/effect-richtext/Model"
 import { blockquote, doc, em, eq, img, p, schema, strong } from "@thomasfosterau/effect-richtext/TestBuilder"
-import { Window } from "happy-dom"
 import ist from "../utils/ist.ts"
 
-const window = new Window()
-const otherDocument = window.document as unknown as Document
+const otherDocument = document.implementation.createHTMLDocument()
 
 describe("toHTML", () => {
   it("serializes the content of a top node", () => {
@@ -62,7 +60,7 @@ describe("fromHTML", () => {
   })
 
   it("accepts an HTML string parser", () => {
-    const htmlParser = new window.DOMParser() as unknown as Html.HTMLStringParser
+    const htmlParser: Html.HTMLStringParser = new DOMParser()
     ist(Html.fromHTMLUnsafe(schema, "<p>b</p>", { htmlParser }), doc(p("b")), eq)
   })
 
