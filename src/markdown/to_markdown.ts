@@ -177,10 +177,7 @@ function backticksFor(node: Node<any, any>, side: number): string {
   const len = node.isTextNode()
     ? Array.from(node.text.matchAll(/`+/g)).reduce((max, m) => Math.max(max, m[0].length), 0)
     : 0
-  let result = len > 0 && side > 0 ? " `" : "`"
-  for (let i = 0; i < len; i++) result += "`"
-  if (len > 0 && side < 0) result += " "
-  return result
+  return (len > 0 && side > 0 ? " `" : "`") + "`".repeat(len) + (len > 0 && side < 0 ? " " : "")
 }
 
 function isPlainURL(link: Mark<any, any>, parent: Node<any, any>, index: number): boolean {
@@ -268,12 +265,7 @@ export const defaultMarkdownSerializer: MarkdownSerializer = new MarkdownSeriali
       )
     },
     hard_break(state, node, parent, index) {
-      for (let i = index + 1; i < parent.childCount; i++) {
-        if (parent.childUnsafe(i).type != node.type) {
-          state.write("\\\n")
-          return
-        }
-      }
+      if (parent.content.content.slice(index + 1).some((next) => next.type != node.type)) state.write("\\\n")
     },
     text(state, node) {
       // SAFETY: the `text` serializer is only called for text nodes.
@@ -360,7 +352,7 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
         let delimMin = this.delim
         const trim = /\s+$/.exec(delimMin)
         if (trim) delimMin = delimMin.slice(0, delimMin.length - trim[0].length)
-        for (let i = 1; i < size; i++) this.out += delimMin + "\n"
+        this.out += (delimMin + "\n").repeat(size - 1)
       }
       this.closed = null
     }
@@ -422,15 +414,15 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
   /** Add the given text to the document. When escape is not `false`, it will be escaped. */
   text(text: string, escape = true): void {
     const lines = text.split("\n")
-    for (let i = 0; i < lines.length; i++) {
+    lines.forEach((line, i) => {
       this.write()
       // Escape exclamation marks in front of links
-      if (!escape && lines[i][0] == "[" && /(^|[^\\])!$/.test(this.out.slice(-2))) {
+      if (!escape && line[0] == "[" && /(^|[^\\])!$/.test(this.out.slice(-2))) {
         this.out = this.out.slice(0, this.out.length - 1) + "\\!"
       }
-      this.out += escape ? this.esc(lines[i], this.atBlockStart) : lines[i]
+      this.out += escape ? this.esc(line, this.atBlockStart) : line
       if (i != lines.length - 1) this.out += "\n"
-    }
+    })
   }
 
   /**
@@ -642,9 +634,7 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
 
   /** Repeat the given string `n` times. */
   repeat(str: string, n: number): string {
-    let out = ""
-    for (let i = 0; i < n; i++) out += str
-    return out
+    return str.repeat(Math.max(0, Math.ceil(n)))
   }
 
   /** Get the markdown string for a given opening or closing mark. */

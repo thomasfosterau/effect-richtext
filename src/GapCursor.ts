@@ -281,8 +281,10 @@ function beforeinput(view: EditorView<any, any, any>, event: InputEvent): boolea
   const insert = $from.parent.contentMatchAtUnsafe($from.index()).findWrappingOrNull(view.state.schema.nodes.text)
   if (!insert) return false
 
-  let frag: Fragment<any> = Fragment.empty
-  for (let i = insert.length - 1; i >= 0; i--) frag = Fragment.from(insert[i].createAndFillOrNull(null, frag))
+  const frag = insert.reduceRight(
+    (inner: Fragment<any>, type) => Fragment.from(type.createAndFillOrNull(null, inner)),
+    Fragment.empty
+  )
   const tr = view.state.tr.replaceUnsafe($from.pos, $from.pos, new Slice(frag, 0, 0))
   tr.setSelectionUnsafe(TextSelection.near(tr.doc.resolveUnsafe($from.pos + 1)))
   // Dispatch (synchronously, when possible), but let the event through.

@@ -217,8 +217,7 @@ export class Branch {
       }
     }, start)
 
-    const newMaps: Array<Item> = []
-    for (let i = count; i < newUntil; i++) newMaps.push(new Item(mapping.maps[i]))
+    const newMaps = mapping.maps.slice(count, newUntil).map((map) => new Item(map))
     const items = this.items.slice(0, start).append(newMaps).append(rebasedItems)
     let branch = new Branch(items, eventCount)
 
@@ -431,37 +430,33 @@ function isAdjacentTo(transform: Transform<any>, ranges: Option.Option<ReadonlyA
   if (Option.isNone(ranges)) return false
   const prevRanges = ranges.value
   if (!transform.docChanged) return true
+  const pairs = Arr.chunksOf(prevRanges, 2)
   let adjacent = false
   transform.mapping.maps[0].forEach((start, end) => {
-    for (let i = 0; i < prevRanges.length; i += 2) {
-      if (start <= prevRanges[i + 1] && end >= prevRanges[i]) adjacent = true
-    }
+    if (pairs.some(([from, to]) => start <= to && end >= from)) adjacent = true
   })
   return adjacent
 }
 
-function rangesFor(maps: ReadonlyArray<StepMap>): Array<number> {
-  const result: Array<number> = []
-  for (let i = maps.length - 1; i >= 0; i--) {
-    maps[i].forEach((_from, _to, from, to) => result.push(from, to))
-    if (Arr.isArrayNonEmpty(result)) break
-  }
-  return result
-}
+// The changed ranges of the last map that changed anything.
+const rangesFor = (maps: ReadonlyArray<StepMap>): Array<number> =>
+  Arr.findFirst(Arr.reverse(maps), (map) => {
+    const ranges: Array<number> = []
+    map.forEach((_from, _to, from, to) => ranges.push(from, to))
+    return Arr.isArrayNonEmpty(ranges) ? Option.some(ranges) : Option.none()
+  }).pipe(Option.getOrElse((): Array<number> => []))
 
 const mapRanges = (
   ranges: Option.Option<ReadonlyArray<number>>,
   mapping: Mapping
 ): Option.Option<ReadonlyArray<number>> =>
-  Option.map(ranges, (prev) => {
-    const result: Array<number> = []
-    for (let i = 0; i < prev.length; i += 2) {
-      const from = mapping.map(prev[i], 1),
-        to = mapping.map(prev[i + 1], -1)
-      if (from <= to) result.push(from, to)
-    }
-    return result
-  })
+  Option.map(ranges, (prev) =>
+    Arr.flatMap(Arr.chunksOf(prev, 2), ([start, end]) => {
+      const from = mapping.map(start, 1),
+        to = mapping.map(end, -1)
+      return from <= to ? [from, to] : []
+    })
+  )
 
 // Apply the latest event from one branch to the document and shift the event
 // onto the other branch.
@@ -501,14 +496,8 @@ let cachedPreserveItems = false,
 function mustPreserveItems(state: EditorState<any, any, any>): boolean {
   const plugins = state.plugins
   if (cachedPreserveItemsPlugins !== plugins) {
-    cachedPreserveItems = false
     cachedPreserveItemsPlugins = plugins
-    for (let i = 0; i < plugins.length; i++) {
-      if (plugins[i].spec.historyPreserveItems) {
-        cachedPreserveItems = true
-        break
-      }
-    }
+    cachedPreserveItems = plugins.some((plugin) => Boolean(plugin.spec.historyPreserveItems))
   }
   return cachedPreserveItems
 }

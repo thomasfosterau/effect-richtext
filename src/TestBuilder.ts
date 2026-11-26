@@ -12,6 +12,7 @@
  */
 import type { NoKeys } from "./internal/types.ts"
 import * as Predicate from "effect/Predicate"
+import * as Rec from "effect/Record"
 import * as Result from "effect/Result"
 import {
   type AnySchema,
@@ -252,11 +253,11 @@ export function builders<Sc extends AnySchema, const Extra extends Record<string
 ): Builders<Sc, Extra> {
   const result: Record<string, unknown> = {}
   result.schema = schema
-  for (const name in schema.nodes) result[name] = block(schema.nodes[name], {})
-  for (const name in schema.marks) result[name] = mark(schema.marks[name], {})
+  Rec.toEntries(schema.nodes).forEach(([name, type]) => (result[name] = block(type, {})))
+  Rec.toEntries(schema.marks).forEach(([name, type]) => (result[name] = mark(type, {})))
   if (names) {
-    for (const name in names) {
-      const { nodeType: nodeTypeName, markType: markTypeName, ...value } = names[name]
+    Rec.toEntries(names).forEach(([name, spec]) => {
+      const { nodeType: nodeTypeName, markType: markTypeName, ...value } = spec
       const typeName =
         Predicate.isString(nodeTypeName) && nodeTypeName
           ? nodeTypeName
@@ -267,7 +268,7 @@ export function builders<Sc extends AnySchema, const Extra extends Record<string
         markType = schema.marks[typeName]
       if (nodeType) result[name] = block(nodeType, value)
       else if (markType) result[name] = mark(markType, value)
-    }
+    })
   }
   // SAFETY: holds `schema`, a builder for each node and mark type, and one for each of `names`.
   return result as Builders<Sc, Extra>
