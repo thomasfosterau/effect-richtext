@@ -187,7 +187,13 @@ export function focusPreventScroll(dom: HTMLElement): void {
   }
 }
 
-function findOffsetInNode(node: HTMLElement, coords: { top: number; left: number }): { node: DOMNode; offset: number } {
+// A DOM position: a node and an offset into it.
+interface DOMOffset {
+  readonly node: DOMNode
+  readonly offset: number
+}
+
+function findOffsetInNode(node: HTMLElement, coords: { top: number; left: number }): DOMOffset {
   let closest: DOMNode | undefined,
     dxClosest = 2e8,
     coordsClosest: { left: number; top: number } | undefined

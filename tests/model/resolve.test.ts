@@ -15,21 +15,21 @@ const _p2 = { node: _blk.node.childUnsafe(0), start: 6, end: 10 }
 describe("Node", () => {
   describe("resolve", () => {
     it("should reflect the document structure", () => {
-      const expected: { [pos: number]: Array<any> } = {
-        0: [_doc, 0, null, _p1.node],
-        1: [_doc, _p1, 0, null, "ab"],
-        2: [_doc, _p1, 1, "a", "b"],
-        3: [_doc, _p1, 2, "ab", null],
-        4: [_doc, 4, _p1.node, _blk.node],
-        5: [_doc, _blk, 0, null, _p2.node],
-        6: [_doc, _blk, _p2, 0, null, "cd"],
-        7: [_doc, _blk, _p2, 1, "c", "d"],
-        8: [_doc, _blk, _p2, 2, "cd", "ef"],
-        9: [_doc, _blk, _p2, 3, "e", "f"],
-        10: [_doc, _blk, _p2, 4, "ef", null],
-        11: [_doc, _blk, 6, _p2.node, null],
-        12: [_doc, 12, _blk.node, null]
-      }
+      const expected: ReadonlyArray<ReadonlyArray<any>> = [
+        [_doc, 0, null, _p1.node],
+        [_doc, _p1, 0, null, "ab"],
+        [_doc, _p1, 1, "a", "b"],
+        [_doc, _p1, 2, "ab", null],
+        [_doc, 4, _p1.node, _blk.node],
+        [_doc, _blk, 0, null, _p2.node],
+        [_doc, _blk, _p2, 0, null, "cd"],
+        [_doc, _blk, _p2, 1, "c", "d"],
+        [_doc, _blk, _p2, 2, "cd", "ef"],
+        [_doc, _blk, _p2, 3, "e", "f"],
+        [_doc, _blk, _p2, 4, "ef", null],
+        [_doc, _blk, 6, _p2.node, null],
+        [_doc, 12, _blk.node, null]
+      ]
 
       for (let pos = 0; pos <= testDoc.content.size; pos++) {
         const $pos = testDoc.resolveUnsafe(pos),

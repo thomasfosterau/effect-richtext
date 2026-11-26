@@ -109,11 +109,16 @@ Object.defineProperty(Node.prototype, "tag", {
 // so they can be passed as children without being called.
 const isFlat = (u: unknown): u is Flat<any> => Predicate.hasProperty(u, "flat") && Array.isArray(u.flat)
 
+interface Flattened<Sc extends AnySchema> {
+  readonly nodes: Array<Node<Sc>>
+  readonly tag: Tags
+}
+
 function flatten<Sc extends AnySchema>(
   schema: Sc,
   children: ReadonlyArray<ChildSpec<Sc>>,
   f: (node: Node<Sc>) => Node<Sc>
-): { nodes: Array<Node<Sc>>; tag: Tags } {
+): Flattened<Sc> {
   const result: Array<Node<Sc>> = []
   let pos = 0
   let tag: Record<string, number> = noTag as Record<string, number>
@@ -239,15 +244,19 @@ export function builders<Sc extends AnySchema, const Extra extends Record<string
   schema: Sc,
   names?: Extra
 ): Builders<Sc, Extra> {
-  const result: Record<string, unknown> = { schema }
+  const result: Record<string, unknown> = {}
+  result.schema = schema
   for (const name in schema.nodes) result[name] = block(schema.nodes[name]!, {})
   for (const name in schema.marks) result[name] = mark(schema.marks[name]!, {})
   if (names) {
     for (const name in names) {
-      const value = { ...names[name] } as Record<string, any>
-      const typeName = value.nodeType || value.markType || name
-      delete value.nodeType
-      delete value.markType
+      const { nodeType: nodeTypeName, markType: markTypeName, ...value } = names[name]
+      const typeName =
+        Predicate.isString(nodeTypeName) && nodeTypeName
+          ? nodeTypeName
+          : Predicate.isString(markTypeName) && markTypeName
+            ? markTypeName
+            : name
       const nodeType = schema.nodes[typeName],
         markType = schema.marks[typeName]
       if (nodeType) result[name] = block(nodeType, value)

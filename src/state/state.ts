@@ -9,6 +9,7 @@ import * as Exit from "effect/Exit"
 import * as Option from "effect/Option"
 import * as Result from "effect/Result"
 import * as Predicate from "effect/Predicate"
+import type * as Types from "effect/Types"
 import type { AnySchema, Mark, MarkJSON, ModelError, Node, NodeJSON } from "../Model.ts"
 import { type SelectionError, StateError } from "./errors.ts"
 import type { AnyPlugin, Plugin, PluginErrors, PluginRequirements, StateField } from "./plugin.ts"
@@ -442,12 +443,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
    * a plugin is mapped to the reserved `doc` or `selection` fields.
    */
   toJSON(pluginFields?: Record<string, AnyPlugin> | string | number): EditorStateJSON {
-    const result: {
-      doc: NodeJSON
-      selection: SelectionJSON
-      storedMarks?: ReadonlyArray<MarkJSON>
-      [field: string]: unknown
-    } = { doc: this.doc.toJSON(), selection: this.selection.toJSON() }
+    const result: Types.Mutable<EditorStateJSON> = { doc: this.doc.toJSON(), selection: this.selection.toJSON() }
     if (this.storedMarksOrNull) result.storedMarks = this.storedMarksOrNull.map((m) => m.toJSON())
     if (Predicate.isObjectOrArray(pluginFields)) {
       for (const prop in pluginFields) {

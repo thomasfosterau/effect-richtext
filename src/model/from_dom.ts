@@ -6,6 +6,7 @@
 import * as Arr from "effect/Array"
 import type * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
+import type * as Types from "effect/Types"
 import { attempt } from "../internal/attempt.ts"
 import type { ContentMatch } from "./content.ts"
 import { isModelError, type ModelError, SchemaDefinitionError } from "./errors.ts"
@@ -432,7 +433,7 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
       const rules: ReadonlyArray<ParseRule> | undefined = schema.marks[name]!.spec.parseDOM
       if (rules) {
         rules.forEach((r) => {
-          const rule = { ...r } as { -readonly [K in keyof ParseRule]: ParseRule[K] }
+          const rule = { ...r } as Types.Mutable<ParseRule>
           if (!(rule.mark || rule.ignore || (rule as StyleParseRule).clearMark)) rule.mark = name
           insert(rule as ParseRule)
         })
@@ -442,7 +443,7 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
       const rules: ReadonlyArray<TagParseRule> | undefined = schema.nodes[name]!.spec.parseDOM
       if (rules) {
         rules.forEach((r) => {
-          const rule = { ...r } as { -readonly [K in keyof TagParseRule]: TagParseRule[K] }
+          const rule = { ...r } as Types.Mutable<TagParseRule>
           if (!(rule.node || rule.ignore || rule.mark)) rule.node = name
           insert(rule)
         })
@@ -467,7 +468,7 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
 // A set of lower-case HTML tag names.
 type TagTable = { readonly [tagName: string]: boolean }
 
-const blockTags: TagTable = {
+const blockTags = {
   address: true,
   article: true,
   aside: true,
@@ -501,18 +502,18 @@ const blockTags: TagTable = {
   table: true,
   tfoot: true,
   ul: true
-}
+} satisfies TagTable
 
-const ignoreTags: TagTable = {
+const ignoreTags = {
   head: true,
   noscript: true,
   object: true,
   script: true,
   style: true,
   title: true
-}
+} satisfies TagTable
 
-const listTags: TagTable = { ol: true, ul: true }
+const listTags = { ol: true, ul: true } satisfies TagTable
 
 const hasOwn = (table: TagTable, key: string): boolean => Object.prototype.hasOwnProperty.call(table, key)
 

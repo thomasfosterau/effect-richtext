@@ -219,6 +219,32 @@ type MutableParseRule = { -readonly [K in keyof ParseRuleLike]: ParseRuleLike[K]
 
 // Superclass for the various kinds of descriptions. Defines their
 // basic structure and shared methods.
+/**
+ * The DOM position of a document position (`ViewDesc.domFromPos`). `atom`
+ * is set when the position is inside a leaf with no content DOM.
+ *
+ * @internal
+ */
+export interface DOMFromPos {
+  readonly node: DOMNode
+  readonly offset: number
+  readonly atom?: number | undefined
+}
+
+/**
+ * A DOM range in a single parent covering a changed document range
+ * (`ViewDesc.parseRange`).
+ *
+ * @internal
+ */
+export interface ParsedRange {
+  readonly node: DOMNode
+  readonly from: number
+  readonly to: number
+  readonly fromOffset: number
+  readonly toOffset: number
+}
+
 /** @internal */
 export class ViewDesc {
   dirty = NOT_DIRTY
@@ -438,7 +464,7 @@ export class ViewDesc {
     return undefined
   }
 
-  domFromPos(pos: number, side: number): { node: DOMNode; offset: number; atom?: number | undefined } {
+  domFromPos(pos: number, side: number): DOMFromPos {
     if (!this.contentDOM) return { node: this.dom, offset: 0, atom: pos + 1 }
     // First find the position in the child array
     let i = 0,
@@ -481,11 +507,7 @@ export class ViewDesc {
 
   // Used to find a DOM range in a single parent for a given changed
   // range.
-  parseRange(
-    from: number,
-    to: number,
-    base = 0
-  ): { node: DOMNode; from: number; to: number; fromOffset: number; toOffset: number } {
+  parseRange(from: number, to: number, base = 0): ParsedRange {
     if (Arr.isReadonlyArrayEmpty(this.children)) {
       return { node: this.contentDOM!, from, to, fromOffset: 0, toOffset: this.contentDOM!.childNodes.length }
     }
@@ -1428,7 +1450,11 @@ function renderDescs(parentDOM: HTMLElement, descs: ReadonlyArray<ViewDesc>, vie
 
 type OuterDecoLevel = { [attr: string]: string }
 
-const OuterDecoLevel: { new (nodeName?: string): OuterDecoLevel } = function (this: any, nodeName?: string) {
+interface OuterDecoLevelConstructor {
+  new (nodeName?: string): OuterDecoLevel
+}
+
+const OuterDecoLevel: OuterDecoLevelConstructor = function (this: any, nodeName?: string) {
   if (nodeName) this.nodeName = nodeName
 } as any
 OuterDecoLevel.prototype = Object.create(null)
@@ -1896,18 +1922,17 @@ class ViewTreeUpdater {
 // Iterate from the end of the fragment and array of descs to find
 // directly matching ones, in order to avoid overeagerly reusing those
 // for other nodes.
-function preMatch(
-  frag: Fragment<any, any>,
-  parentDesc: ViewDesc
-): {
+interface PreMatch {
   // The fragment index of the first node that is part of the sequence
   // of matched nodes at the end of the fragment.
-  index: number
+  readonly index: number
   // A map from matched descs to fragment indices.
-  matched: WeakMap<ViewDesc, number>
+  readonly matched: WeakMap<ViewDesc, number>
   // The matched descs.
-  matches: ReadonlyArray<ViewDesc>
-} {
+  readonly matches: ReadonlyArray<ViewDesc>
+}
+
+function preMatch(frag: Fragment<any, any>, parentDesc: ViewDesc): PreMatch {
   let curDesc = parentDesc,
     descI = curDesc.children.length
   let fI = frag.childCount

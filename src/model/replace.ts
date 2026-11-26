@@ -6,6 +6,7 @@
 import * as Equal from "effect/Equal"
 import * as Hash from "effect/Hash"
 import * as Predicate from "effect/Predicate"
+import type * as Types from "effect/Types"
 import { JSONError, PositionError, ReplaceError } from "./errors.ts"
 import { Fragment } from "./fragment.ts"
 import type { Node, NodeJSON, TextNode } from "./node.ts"
@@ -96,7 +97,7 @@ export class Slice<Sc extends AnySchema = AnySchema> implements Equal.Equal {
   /** Convert a slice to a JSON-serializable representation. */
   toJSON(): SliceJSON | null {
     if (!this.content.size) return null
-    const json: { content: ReadonlyArray<NodeJSON>; openStart?: number; openEnd?: number } = {
+    const json: Types.Mutable<SliceJSON> = {
       content: this.content.toJSON()!
     }
     if (this.openStart > 0) json.openStart = this.openStart
