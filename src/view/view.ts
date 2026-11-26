@@ -4,6 +4,7 @@
  *
  * @since 0.1.0
  */
+import { defined } from "../internal/defined.ts"
 import * as Predicate from "effect/Predicate"
 import * as Cause from "effect/Cause"
 import * as Context from "effect/Context"
@@ -958,7 +959,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
   }
 
   private updateDraggedNode(dragging: Dragging, prev: EditorState<Sc, R, E>) {
-    const sel = dragging.node!
+    const sel = defined(dragging.node, "a dragged node")
     let found = -1
     if (sel.from < this.state.doc.content.size && this.state.doc.nodeAtOrNull(sel.from) == sel.node) {
       found = sel.from
@@ -1122,7 +1123,8 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
       for (let search = this.dom.parentNode; search; search = search.parentNode) {
         if (search.nodeType == 9 || (search.nodeType == 11 && Predicate.hasProperty(search, "host") && search.host)) {
           if (!Predicate.hasProperty(search, "getSelection") || !search.getSelection) {
-            Object.getPrototypeOf(search).getSelection = () => (search as DOMNode).ownerDocument!.getSelection()
+            Object.getPrototypeOf(search).getSelection = () =>
+              defined((search as DOMNode).ownerDocument, "an owner document").getSelection()
           }
           return (this._root = search as Document | ShadowRoot)
         }

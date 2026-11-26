@@ -719,10 +719,10 @@ const facadeConfig = (config: any): any => configs.get(config) ?? config
 const pluginViewToCore = (pluginView: PluginView): S.PluginView<any> =>
   ({
     get update() {
-      return pluginView.update && ((view: any, prevState: any) => pluginView.update!(wrap(view), wrap(prevState)))
+      return pluginView.update && ((view: any, prevState: any) => pluginView.update?.(wrap(view), wrap(prevState)))
     },
     get destroy() {
-      return pluginView.destroy && (() => pluginView.destroy!())
+      return pluginView.destroy && (() => pluginView.destroy?.())
     }
   }) as S.PluginView<any>
 
@@ -735,11 +735,11 @@ const pluginSpecToCore = (spec: PluginSpec<any>, self: Plugin): S.PluginSpec => 
       init: (config: any, instance: any) => state.init.call(self, facadeConfig(config), wrap(instance)),
       apply: (tr: any, value: any, oldState: any, newState: any) =>
         state.apply.call(self, wrap(tr), value, wrap(oldState), wrap(newState)),
-      toJSON: state.toJSON && ((value: any) => state.toJSON!.call(self, value)),
+      toJSON: state.toJSON && ((value: any) => state.toJSON?.call(self, value)),
       fromJSON:
         state.fromJSON &&
         ((config: any, value: any, instance: any) =>
-          state.fromJSON!.call(self, facadeConfig(config), value, wrap(instance)))
+          state.fromJSON?.call(self, facadeConfig(config), value, wrap(instance)))
     }
   }
   const filter = spec.filterTransaction
@@ -955,8 +955,8 @@ export class EditorState {
     pluginFields?: { [propName: string]: Plugin }
   ): EditorState {
     const fields: Record<string, any> | undefined = pluginFields && {}
-    if (pluginFields) {
-      for (const prop in pluginFields) fields![prop] = unwrap(pluginFields[prop])
+    if (pluginFields && fields) {
+      for (const prop in pluginFields) fields[prop] = unwrap(pluginFields[prop])
     }
     return wrap(runSync(S.EditorState.fromJSON(configToCore(config), json, fields)))
   }

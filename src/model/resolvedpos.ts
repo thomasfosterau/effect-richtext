@@ -6,6 +6,7 @@
 import type * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import { attempt } from "../internal/attempt.ts"
+import { defined } from "../internal/defined.ts"
 import { PositionError } from "./errors.ts"
 import { Mark } from "./mark.ts"
 import type { Node } from "./node.ts"
@@ -314,7 +315,7 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
       const rem = parentOffset - offset
       path.push(node, index, start + offset)
       if (!rem) break
-      node = node.content.content[index]!
+      node = defined(node.content.content[index], "a child on the path")
       if (node.isText) break
       parentOffset = rem - 1
       start += offset + 1

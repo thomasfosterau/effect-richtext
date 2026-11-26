@@ -4,6 +4,7 @@
  *
  * @since 0.1.0
  */
+import { defined } from "../internal/defined.ts"
 import * as Predicate from "effect/Predicate"
 import * as Arr from "effect/Array"
 import * as Order from "effect/Order"
@@ -322,7 +323,7 @@ export class ViewDesc {
   }
 
   get posBefore(): number {
-    return this.parent!.posBeforeChild(this)
+    return defined(this.parent, "a parent view desc").posBeforeChild(this)
   }
 
   get posAtStart(): number {
@@ -346,23 +347,23 @@ export class ViewDesc {
         if (dom == this.contentDOM) {
           domBefore = dom.childNodes[offset - 1]
         } else {
-          while (dom.parentNode != this.contentDOM) dom = dom.parentNode!
+          while (dom.parentNode != this.contentDOM) dom = defined(dom.parentNode, "a DOM ancestor in the content")
           domBefore = dom.previousSibling
         }
         while (domBefore && !((desc = domBefore.pmViewDesc) && desc.parent == this)) {
           domBefore = domBefore.previousSibling
         }
-        return domBefore ? this.posBeforeChild(desc!) + desc!.size : this.posAtStart
+        return domBefore && desc ? this.posBeforeChild(desc) + desc.size : this.posAtStart
       } else {
         let domAfter, desc: ViewDesc | undefined
         if (dom == this.contentDOM) {
           domAfter = dom.childNodes[offset]
         } else {
-          while (dom.parentNode != this.contentDOM) dom = dom.parentNode!
+          while (dom.parentNode != this.contentDOM) dom = defined(dom.parentNode, "a DOM ancestor in the content")
           domAfter = dom.nextSibling
         }
         while (domAfter && !((desc = domAfter.pmViewDesc) && desc.parent == this)) domAfter = domAfter.nextSibling
-        return domAfter ? this.posBeforeChild(desc!) : this.posAtEnd
+        return domAfter && desc ? this.posBeforeChild(desc) : this.posAtEnd
       }
     }
     // Otherwise, use various heuristics, falling back on the bias
@@ -382,21 +383,27 @@ export class ViewDesc {
       }
     } else if (this.dom.firstChild) {
       if (offset == 0) {
-        for (let search = dom; ; search = search.parentNode!) {
+        for (let search = dom; ;) {
           if (search == this.dom) {
             atEnd = false
             break
           }
           if (search.previousSibling) break
+          const up = search.parentNode
+          if (!up) break
+          search = up
         }
       }
       if (atEnd == null && offset == dom.childNodes.length) {
-        for (let search = dom; ; search = search.parentNode!) {
+        for (let search = dom; ;) {
           if (search == this.dom) {
             atEnd = true
             break
           }
           if (search.nextSibling) break
+          const up = search.parentNode
+          if (!up) break
+          search = up
         }
       }
     }
@@ -509,8 +516,9 @@ export class ViewDesc {
   // Used to find a DOM range in a single parent for a given changed
   // range.
   parseRange(from: number, to: number, base = 0): ParsedRange {
+    const contentDOM = defined(this.contentDOM, "a content DOM for the range")
     if (Arr.isReadonlyArrayEmpty(this.children)) {
-      return { node: this.contentDOM!, from, to, fromOffset: 0, toOffset: this.contentDOM!.childNodes.length }
+      return { node: contentDOM, from, to, fromOffset: 0, toOffset: contentDOM.childNodes.length }
     }
 
     let fromOffset = -1,
@@ -526,7 +534,7 @@ export class ViewDesc {
           to <= end - child.border &&
           child.node &&
           child.contentDOM &&
-          this.contentDOM!.contains(child.contentDOM)
+          contentDOM.contains(child.contentDOM)
         ) {
           return child.parseRange(from, to, childBase)
         }
@@ -552,12 +560,12 @@ export class ViewDesc {
           }
           to += next.size
         }
-        if (toOffset == -1) toOffset = this.contentDOM!.childNodes.length
+        if (toOffset == -1) toOffset = contentDOM.childNodes.length
         break
       }
       offset = end
     }
-    return { node: this.contentDOM!, from, to, fromOffset, toOffset }
+    return { node: contentDOM, from, to, fromOffset, toOffset }
   }
 
   emptyChildAt(side: number): boolean {
@@ -594,7 +602,7 @@ export class ViewDesc {
 
     let anchorDOM = this.domFromPos(anchor, anchor ? -1 : 1)
     let headDOM = head == anchor ? anchorDOM : this.domFromPos(head, head ? -1 : 1)
-    const domSel = (view.root as Document).getSelection()!
+    const domSel = defined((view.root as Document).getSelection(), "a DOM selection")
     const selRange = view.domSelectionRange()
 
     let brKludge = false
@@ -605,12 +613,16 @@ export class ViewDesc {
     if ((browser.gecko || browser.safari) && anchor == head) {
       const { node, offset } = anchorDOM
       if (node.nodeType == 3) {
-        brKludge = !!(offset && node.nodeValue![offset - 1] == "\n")
-        if (brKludge && offset == node.nodeValue!.length) {
+        const text = node.nodeValue ?? ""
+        brKludge = !!(offset && text[offset - 1] == "\n")
+        if (brKludge && offset == text.length) {
           for (let scan: DOMNode | null = node, after; scan; scan = scan.parentNode) {
             if ((after = scan.nextSibling)) {
               if (after.nodeName == "BR") {
-                anchorDOM = headDOM = { node: after.parentNode!, offset: domIndex(after) + 1 }
+                anchorDOM = headDOM = {
+                  node: defined(after.parentNode, "a parent for the BR"),
+                  offset: domIndex(after) + 1
+                }
               }
               break
             }
@@ -632,8 +644,10 @@ export class ViewDesc {
 
     if (
       !(force || (brKludge && browser.safari)) &&
-      isEquivalentPosition(anchorDOM.node, anchorDOM.offset, selRange.anchorNode!, selRange.anchorOffset) &&
-      isEquivalentPosition(headDOM.node, headDOM.offset, selRange.focusNode!, selRange.focusOffset)
+      !!selRange.anchorNode &&
+      !!selRange.focusNode &&
+      isEquivalentPosition(anchorDOM.node, anchorDOM.offset, selRange.anchorNode, selRange.anchorOffset) &&
+      isEquivalentPosition(headDOM.node, headDOM.offset, selRange.focusNode, selRange.focusOffset)
     ) {
       return
     }
@@ -857,14 +871,19 @@ class MarkViewDesc extends ViewDesc {
     let spec: { dom: DOMNode; contentDOM?: HTMLElement | null | undefined } =
       custom && (custom as MarkViewConstructor<any, any>)(mark, view, inline)
     if (!spec || !spec.dom) {
-      spec = DOMSerializer.renderSpecUnsafe(document, mark.type.spec.toDOM!(mark, inline), null, mark.attrs)
+      const toDOM = defined(mark.type.spec.toDOM, "a toDOM method for mark type " + mark.type.name)
+      spec = DOMSerializer.renderSpecUnsafe(document, toDOM(mark, inline), null, mark.attrs)
     }
     return new MarkViewDesc(parent, mark, spec.dom, spec.contentDOM || (spec.dom as HTMLElement), spec as MarkView)
   }
 
   override parseRule() {
     if (this.dirty & NODE_DIRTY || this.mark.type.spec.reparseInView) return null
-    return { mark: this.mark.type.name, attrs: this.mark.attrs, contentElement: this.contentDOM! }
+    return {
+      mark: this.mark.type.name,
+      attrs: this.mark.attrs,
+      contentElement: defined(this.contentDOM, "a mark view's content DOM")
+    }
   }
 
   override matchesMark(mark: Mark<any, any>) {
@@ -875,15 +894,15 @@ class MarkViewDesc extends ViewDesc {
     super.markDirty(from, to)
     // Move dirty info to nearest node view
     if (this.dirty != NOT_DIRTY) {
-      let parent = this.parent!
-      while (!parent.node) parent = parent.parent!
+      let parent = defined(this.parent, "a parent view desc")
+      while (!parent.node) parent = defined(parent.parent, "a node view above the mark")
       if (parent.dirty < this.dirty) parent.dirty = this.dirty
       this.dirty = NOT_DIRTY
     }
   }
 
   slice(from: number, to: number, view: AnyView) {
-    const copy = MarkViewDesc.create(this.parent!, this.mark, true, view)
+    const copy = MarkViewDesc.create(defined(this.parent, "a parent view desc"), this.mark, true, view)
     let nodes = this.children
     const size = this.size
     if (to < size) nodes = replaceNodes(nodes, to, size, view)
@@ -963,7 +982,8 @@ export class NodeViewDesc extends ViewDesc {
       if (!dom) dom = document.createTextNode(textOf(node))
       else if (dom.nodeType != 3) throw new RangeError("Text must be rendered as a DOM text node")
     } else if (!dom) {
-      const rendered = DOMSerializer.renderSpecUnsafe(document, node.type.spec.toDOM!(node), null, node.attrs)
+      const toDOM = defined(node.type.spec.toDOM, "a toDOM method for node type " + node.type.name)
+      const rendered = DOMSerializer.renderSpecUnsafe(document, toDOM(node), null, node.attrs)
       ;({ dom, contentDOM } = rendered)
     }
     if (!contentDOM && !node.isText && dom.nodeName != "BR") {
@@ -1119,7 +1139,7 @@ export class NodeViewDesc extends ViewDesc {
     if (updater.changed || this.dirty == CONTENT_DIRTY) {
       // May have to protect focused DOM from being changed if a composition is active
       if (localComposition) this.protectLocalComposition(view, localComposition)
-      renderDescs(this.contentDOM!, this.children, view)
+      renderDescs(defined(this.contentDOM, "a content DOM"), this.children, view)
       if (browser.ios) iosHacks(this.dom as HTMLElement)
     }
   }
@@ -1138,7 +1158,7 @@ export class NodeViewDesc extends ViewDesc {
       // Find the text in the focused node in the node, stop if it's not
       // there (may have been modified through other means, in which
       // case it should overwritten)
-      const text = textNode.nodeValue!
+      const text = textNode.data
       const textPos = findTextInFragment(this.node.content, text, from - pos, to - pos)
       return textPos < 0 ? null : { node: textNode, pos: textPos, text }
     } else {
@@ -1152,11 +1172,13 @@ export class NodeViewDesc extends ViewDesc {
 
     // Create a composition view for the orphaned nodes
     let topNode: DOMNode = node
-    for (; ; topNode = topNode.parentNode!) {
-      if (topNode.parentNode == this.contentDOM) break
-      while (topNode.previousSibling) topNode.parentNode!.removeChild(topNode.previousSibling)
-      while (topNode.nextSibling) topNode.parentNode!.removeChild(topNode.nextSibling)
+    for (;;) {
+      const parent = defined(topNode.parentNode, "a DOM parent above the composition")
+      if (parent == this.contentDOM) break
+      while (topNode.previousSibling) parent.removeChild(topNode.previousSibling)
+      while (topNode.nextSibling) parent.removeChild(topNode.nextSibling)
       if (topNode.pmViewDesc) topNode.pmViewDesc = undefined
+      topNode = parent
     }
     const desc = new CompositionViewDesc(this, topNode, node, text)
     view.input.compositionNodes.push(desc)
@@ -1283,7 +1305,7 @@ class TextViewDesc extends NodeViewDesc {
   }
 
   inParent() {
-    const parentDOM = this.parent!.contentDOM
+    const parentDOM = defined(this.parent, "a parent view desc").contentDOM
     for (let n: DOMNode | null = this.nodeDOM; n; n = n.parentNode) if (n == parentDOM) return true
     return false
   }
@@ -1309,7 +1331,7 @@ class TextViewDesc extends NodeViewDesc {
 
   override markDirty(from: number, to: number) {
     super.markDirty(from, to)
-    if (this.dom != this.nodeDOM && (from == 0 || to == this.nodeDOM.nodeValue!.length)) {
+    if (this.dom != this.nodeDOM && (from == 0 || to == (this.nodeDOM.nodeValue ?? "").length)) {
       this.dirty = NODE_DIRTY
     }
   }
@@ -1428,7 +1450,7 @@ function renderDescs(parentDOM: HTMLElement, descs: ReadonlyArray<ViewDesc>, vie
       childDOM = desc.dom
     if (childDOM.parentNode == parentDOM) {
       while (childDOM != dom) {
-        dom = rm(dom!)
+        dom = rm(defined(dom, "a DOM node before the child"))
         written = true
       }
       dom = dom.nextSibling
@@ -1438,7 +1460,7 @@ function renderDescs(parentDOM: HTMLElement, descs: ReadonlyArray<ViewDesc>, vie
     }
     if (desc instanceof MarkViewDesc) {
       const pos = dom ? dom.previousSibling : parentDOM.lastChild
-      renderDescs(desc.contentDOM!, desc.children, view)
+      renderDescs(defined(desc.contentDOM, "a mark view's content DOM"), desc.children, view)
       dom = pos ? pos.nextSibling : parentDOM.firstChild
     }
   }
@@ -1591,7 +1613,7 @@ function sameOuterDeco(a: ReadonlyArray<Decoration>, b: ReadonlyArray<Decoration
 // Remove a DOM node and return its next sibling.
 function rm(dom: DOMNode) {
   const next = dom.nextSibling
-  dom.parentNode!.removeChild(dom)
+  dom.parentNode?.removeChild(dom)
   return next
 }
 
@@ -1689,7 +1711,7 @@ class ViewTreeUpdater {
           this.changed = true
           this.destroyBetween(this.index, found)
         }
-        this.top = this.top.children[this.index]!
+        this.top = this.top.children[this.index]
       } else {
         const markDesc = MarkViewDesc.create(this.top, marks[depth], inline, view)
         this.top.children.splice(this.index, 0, markDesc)
@@ -1713,7 +1735,7 @@ class ViewTreeUpdater {
       targetDesc
     if (
       index >= this.preMatch.index &&
-      (targetDesc = this.preMatch.matches[index - this.preMatch.index]!).parent == this.top &&
+      (targetDesc = this.preMatch.matches[index - this.preMatch.index]).parent == this.top &&
       targetDesc.matchesNode(node, outerDeco, innerDeco)
     ) {
       found = this.top.children.indexOf(targetDesc, this.index)
@@ -1965,8 +1987,9 @@ function preMatch(frag: Fragment<any, any>, parentDesc: ViewDesc): PreMatch {
       } else if (curDesc == parentDesc) {
         break outer
       } else {
-        descI = curDesc.parent!.children.indexOf(curDesc)
-        curDesc = curDesc.parent!
+        const parent = defined(curDesc.parent, "a parent view desc")
+        descI = parent.children.indexOf(curDesc)
+        curDesc = parent
       }
     }
     const node = desc.node
@@ -2036,7 +2059,7 @@ function iterDeco(
       restNode = null
     } else if (parentIndex < parent.childCount) {
       index = parentIndex
-      child = parent.content.content[parentIndex++]!
+      child = parent.content.content[parentIndex++]
     } else {
       break
     }

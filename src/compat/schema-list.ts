@@ -30,7 +30,7 @@ export const orderedList = {
     {
       tag: "ol",
       getAttrs(dom: HTMLElement) {
-        return { order: dom.hasAttribute("start") ? +dom.getAttribute("start")! : 1 }
+        return { order: Number(dom.getAttribute("start") ?? 1) }
       }
     }
   ],

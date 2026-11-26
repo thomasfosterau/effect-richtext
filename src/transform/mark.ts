@@ -3,6 +3,7 @@
  *
  * @internal
  */
+import { defined } from "../internal/defined.ts"
 import * as Option from "effect/Option"
 import { type ContentMatch, Fragment, type Mark, MarkType, type NodeType, Slice, type TextNode } from "../Model.ts"
 import { pushMarkStep } from "./mark_set_step.ts"
@@ -83,7 +84,7 @@ export function clearIncompatible(
   match: ContentMatch = parentType.contentMatch,
   clearNewlines = true
 ): void {
-  const node = tr.doc.nodeAtOrNull(pos)!
+  const node = defined(tr.doc.nodeAtOrNull(pos), "a node at pos")
   const replSteps: Array<Step<any>> = []
   let cur = pos + 1
   for (let i = 0; i < node.childCount; i++) {
@@ -119,7 +120,7 @@ export function clearIncompatible(
   }
   if (!match.validEnd) {
     const fill = match.fillBeforeOrNull(Fragment.empty, true)
-    tr.replaceUnsafe(cur, cur, new Slice(fill!, 0, 0))
+    tr.replaceUnsafe(cur, cur, new Slice(defined(fill, "a fill to the end"), 0, 0))
   }
   for (let i = replSteps.length - 1; i >= 0; i--) tr.stepUnsafe(replSteps[i])
 }

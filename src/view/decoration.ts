@@ -921,7 +921,8 @@ function takeSpansForNode(
 function withoutNulls<T>(array: ReadonlyArray<T | null>): Array<T> {
   const result: Array<T> = []
   for (let i = 0; i < array.length; i++) {
-    if (array[i] != null) result.push(array[i]!)
+    const item = array[i]
+    if (item != null) result.push(item)
   }
   return result
 }

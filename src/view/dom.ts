@@ -27,10 +27,9 @@ export type DOMSelectionRange = {
 
 /** @internal */
 export const domIndex = function (node: DOMNode): number {
-  for (let index = 0; ; index++) {
-    node = node.previousSibling!
-    if (!node) return index
-  }
+  let index = 0
+  for (let sibling = node.previousSibling; sibling; sibling = sibling.previousSibling) index++
+  return index
 }
 
 /** @internal */
@@ -47,7 +46,7 @@ let reusedRange: Range | null = null
 /** @internal */
 export const textRange = function (node: Text, from?: number, to?: number): Range {
   const range = reusedRange || (reusedRange = document.createRange())
-  range.setEnd(node, to == null ? node.nodeValue!.length : to)
+  range.setEnd(node, to == null ? node.data.length : to)
   range.setStart(node, from || 0)
   return range
 }
@@ -105,7 +104,7 @@ function scanFor(node: DOMNode, off: number, targetNode: DOMNode, targetOff: num
 
 /** @internal */
 export function nodeSize(node: DOMNode): number {
-  return node.nodeType == 3 ? node.nodeValue!.length : node.childNodes.length
+  return node.nodeType == 3 ? (node.nodeValue ?? "").length : node.childNodes.length
 }
 
 /** @internal */
@@ -119,7 +118,7 @@ export function textNodeBefore(node: DOMNode, offset: number): Text | null {
     if (node.nodeType == 3 && offset) return node as Text
     if (node.nodeType == 1 && offset > 0) {
       if ((node as HTMLElement).contentEditable == "false") return null
-      node = node.childNodes[offset - 1]!
+      node = node.childNodes[offset - 1]
       offset = nodeSize(node)
     } else if (node.parentNode && !hasBlockDesc(node)) {
       offset = domIndex(node)
@@ -133,10 +132,10 @@ export function textNodeBefore(node: DOMNode, offset: number): Text | null {
 /** @internal */
 export function textNodeAfter(node: DOMNode, offset: number): Text | null {
   for (;;) {
-    if (node.nodeType == 3 && offset < node.nodeValue!.length) return node as Text
+    if (node.nodeType == 3 && offset < (node.nodeValue ?? "").length) return node as Text
     if (node.nodeType == 1 && offset < node.childNodes.length) {
       if ((node as HTMLElement).contentEditable == "false") return null
-      node = node.childNodes[offset]!
+      node = node.childNodes[offset]
       offset = 0
     } else if (node.parentNode && !hasBlockDesc(node)) {
       offset = domIndex(node) + 1
@@ -152,8 +151,9 @@ export function isOnEdge(node: DOMNode, offset: number, parent: DOMNode): boolea
   for (let atStart = offset == 0, atEnd = offset == nodeSize(node); atStart || atEnd;) {
     if (node == parent) return true
     const index = domIndex(node)
-    node = node.parentNode!
-    if (!node) return false
+    const up = node.parentNode
+    if (!up) return false
+    node = up
     atStart = atStart && index == 0
     atEnd = atEnd && index == nodeSize(node)
   }
@@ -173,7 +173,8 @@ export function hasBlockDesc(dom: DOMNode): boolean {
 export const selectionCollapsed = function (domSel: DOMSelectionRange): boolean {
   return (
     !!domSel.focusNode &&
-    isEquivalentPosition(domSel.focusNode, domSel.focusOffset, domSel.anchorNode!, domSel.anchorOffset)
+    !!domSel.anchorNode &&
+    isEquivalentPosition(domSel.focusNode, domSel.focusOffset, domSel.anchorNode, domSel.anchorOffset)
   )
 }
 

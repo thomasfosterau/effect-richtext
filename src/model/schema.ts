@@ -20,6 +20,7 @@ import * as S from "effect/Schema"
 import * as SchemaAST from "effect/SchemaAST"
 import * as Predicate from "effect/Predicate"
 import { attempt } from "../internal/attempt.ts"
+import { defined } from "../internal/defined.ts"
 import { showJson } from "../internal/json.ts"
 import { type ContentInput, ContentMatch, type SpecRefs } from "./content.ts"
 import type { DOMOutputSpec, ParseRule, TagParseRule } from "./dom.ts"
@@ -1270,7 +1271,8 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
     const nodes: Record<string, NodeType<any, any>> = Object.create(null)
     for (const name in this.spec.nodes) nodes[name] = new NodeType<AnySchema, string>(name, this, this.spec.nodes[name])
     const topType = this.spec.topNode || "doc"
-    if (!nodes[topType]) {
+    const topNodeType = nodes[topType]
+    if (!topNodeType) {
       throw new SchemaDefinitionError({ message: "Schema is missing its top node type ('" + topType + "')" })
     }
     if (!nodes.text) throw new SchemaDefinitionError({ message: "Every schema needs a 'text' type" })
@@ -1315,7 +1317,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
       type.excluded = excl == null ? [type] : excl === "" ? [] : gatherMarks(this, excl.split(" "))
     }
     this.linebreakReplacement = linebreak
-    this.topNodeType = nodes[topType]!
+    this.topNodeType = topNodeType
   }
 
   /**
@@ -1412,7 +1414,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
   /** Like `text`, but throws a `ContentError` for empty strings. */
   textUnsafe(text: string, marks?: ReadonlyArray<Mark<DocSchema<N, M>>> | null): TextNode<this> {
     const type = this.nodes.text as NodeType<any, any>
-    return new TextNode(type, type.defaultAttrs!, text, Mark.setFrom(marks))
+    return new TextNode(type, defined(type.defaultAttrs, "the text type's default attrs"), text, Mark.setFrom(marks))
   }
 
   /** Create a mark with the given type and attributes. */

@@ -75,7 +75,7 @@ function selectHorizontally(view: AnyView, dir: number, mods: string) {
 }
 
 function nodeLen(node: DOMNode) {
-  return node.nodeType == 3 ? node.nodeValue!.length : node.childNodes.length
+  return node.nodeType == 3 ? (node.nodeValue ?? "").length : node.childNodes.length
 }
 
 function isIgnorable(dom: DOMNode, dir: number) {
@@ -97,9 +97,10 @@ function skipIgnoredNodes(view: AnyView, dir: number): boolean {
 // nodes, which will confuse the browser's cursor motion logic.
 function skipIgnoredNodesBefore(view: AnyView) {
   const sel = view.domSelectionRange()
-  let node = sel.focusNode!,
+  const focus = sel.focusNode
+  if (!focus) return
+  let node: DOMNode = focus,
     offset = sel.focusOffset
-  if (!node) return
   let moveNode,
     moveOffset: number | undefined,
     force = false
@@ -120,7 +121,7 @@ function skipIgnoredNodesBefore(view: AnyView) {
           moveOffset = --offset
         } else if (before.nodeType == 3) {
           node = before
-          offset = node.nodeValue!.length
+          offset = (before.nodeValue ?? "").length
         } else break
       }
     } else if (isBlockNode(node)) {
@@ -133,7 +134,9 @@ function skipIgnoredNodesBefore(view: AnyView) {
         prev = prev.previousSibling
       }
       if (!prev) {
-        node = node.parentNode!
+        const up = node.parentNode
+        if (!up) break
+        node = up
         if (node == view.dom) break
         offset = 0
       } else {
@@ -143,16 +146,17 @@ function skipIgnoredNodesBefore(view: AnyView) {
     }
   }
   if (force) setSelFocus(view, node, offset)
-  else if (moveNode) setSelFocus(view, moveNode, moveOffset!)
+  else if (moveNode && moveOffset !== undefined) setSelFocus(view, moveNode, moveOffset)
 }
 
 // Make sure the cursor isn't directly before one or more ignored
 // nodes.
 function skipIgnoredNodesAfter(view: AnyView) {
   const sel = view.domSelectionRange()
-  let node = sel.focusNode!,
+  const focus = sel.focusNode
+  if (!focus) return
+  let node: DOMNode = focus,
     offset = sel.focusOffset
-  if (!node) return
   let len = nodeLen(node)
   let moveNode, moveOffset: number | undefined
   for (;;) {
@@ -173,7 +177,9 @@ function skipIgnoredNodesAfter(view: AnyView) {
         next = next.nextSibling
       }
       if (!next) {
-        node = node.parentNode!
+        const up = node.parentNode
+        if (!up) break
+        node = up
         if (node == view.dom) break
         offset = len = 0
       } else {
@@ -183,7 +189,7 @@ function skipIgnoredNodesAfter(view: AnyView) {
       }
     }
   }
-  if (moveNode) setSelFocus(view, moveNode, moveOffset!)
+  if (moveNode && moveOffset !== undefined) setSelFocus(view, moveNode, moveOffset)
 }
 
 function isBlockNode(dom: DOMNode) {
@@ -229,7 +235,7 @@ function setSelFocus(view: AnyView, node: DOMNode, offset: number) {
       offset = 0
     } else if ((before = textNodeBefore(node, offset))) {
       node = before
-      offset = before.nodeValue!.length
+      offset = before.data.length
     }
   }
 

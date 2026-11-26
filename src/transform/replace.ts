@@ -4,6 +4,7 @@
  *
  * @since 0.1.0
  */
+import { defined } from "../internal/defined.ts"
 import * as Option from "effect/Option"
 import {
   type AnySchema,
@@ -177,7 +178,7 @@ class Fitter {
         let fragment: Fragment<any>,
           parent: Node<any> | null = null
         if (sliceDepth) {
-          parent = contentAt(this.unplaced.content, sliceDepth - 1).content[0]!
+          parent = defined(contentAt(this.unplaced.content, sliceDepth - 1).content[0], "an open node in the slice")
           fragment = parent.content
         } else {
           fragment = this.unplaced.content
@@ -253,7 +254,7 @@ class Fitter {
     const { type } = this.frontier[frontierDepth]
     if (inject) {
       for (let i = 0; i < inject.childCount; i++) add.push(inject.content[i])
-      match = match.matchFragmentOrNull(inject)!
+      match = defined(match.matchFragmentOrNull(inject), "a match after the injected fill")
     }
     // Computes the amount of (end) open nodes at the end of the
     // fragment. When 0, the parent is open, but no more. When
@@ -357,7 +358,10 @@ class Fitter {
     $to = close.move
     for (let d = close.depth + 1; d <= $to.depth; d++) {
       const node = $to.node(d),
-        add = node.type.contentMatch.fillBeforeOrNull(node.content, true, $to.index(d))!
+        add = defined(
+          node.type.contentMatch.fillBeforeOrNull(node.content, true, $to.index(d)),
+          "a fill for the open end"
+        )
       this.openFrontierNode(node.type, node.attrs, add)
     }
     return $to
@@ -365,14 +369,14 @@ class Fitter {
 
   openFrontierNode(type: NodeType<any, any>, attrs: Attrs | null = null, content?: Fragment<any>): void {
     const top = this.frontier[this.depth]
-    top.match = top.match.matchTypeOrNull(type)!
+    top.match = defined(top.match.matchTypeOrNull(type), "a match for the opened node")
     this.placed = addToFragment(this.placed, this.depth, Fragment.from(type.createUnsafe(attrs, content)))
     this.frontier.push({ type, match: type.contentMatch })
   }
 
   closeFrontierNode(): void {
-    const open = this.frontier.pop()!
-    const add = open.match.fillBeforeOrNull(Fragment.empty, true)!
+    const open = defined(this.frontier.pop(), "an open frontier node")
+    const add = defined(open.match.fillBeforeOrNull(Fragment.empty, true), "a fill to close the node")
     if (add.childCount) this.placed = addToFragment(this.placed, this.frontier.length, add)
   }
 }
@@ -389,6 +393,12 @@ function addToFragment(fragment: Fragment<any>, depth: number, content: Fragment
   return fragment.replaceChild(fragment.childCount - 1, last.copy(addToFragment(last.content, depth - 1, content)))
 }
 
+// The content that completes `fragment`, which is known to fit `match`.
+function closeFill(match: ContentMatch, fragment: Fragment<any>): Fragment<any> {
+  const after = defined(match.matchFragmentOrNull(fragment), "a match after the content")
+  return defined(after.fillBeforeOrNull(Fragment.empty, true), "a fill to the end")
+}
+
 function contentAt(fragment: Fragment<any>, depth: number): Fragment<any> {
   for (let i = 0; i < depth; i++) fragment = fragment.content[0].content
   return fragment
@@ -401,9 +411,9 @@ function closeNodeStart(node: Node<any>, openStart: number, openEnd: number): No
     frag = frag.replaceChild(0, closeNodeStart(frag.content[0], openStart - 1, frag.childCount === 1 ? openEnd - 1 : 0))
   }
   if (openStart > 0) {
-    frag = node.type.contentMatch.fillBeforeOrNull(frag)!.append(frag)
+    frag = defined(node.type.contentMatch.fillBeforeOrNull(frag), "a fill before the content").append(frag)
     if (openEnd <= 0) {
-      frag = frag.append(node.type.contentMatch.matchFragmentOrNull(frag)!.fillBeforeOrNull(Fragment.empty, true)!)
+      frag = frag.append(closeFill(node.type.contentMatch, frag))
     }
   }
   return node.copy(frag)
@@ -543,9 +553,9 @@ function closeFragment(
     fragment = fragment.replaceChild(0, first.copy(closeFragment(first.content, depth + 1, oldOpen, newOpen, first)))
   }
   if (depth > newOpen) {
-    const match = parent!.contentMatchAtUnsafe(0)
-    const start = match.fillBeforeOrNull(fragment)!.append(fragment)
-    fragment = start.append(match.matchFragmentOrNull(start)!.fillBeforeOrNull(Fragment.empty, true)!)
+    const match = defined(parent, "a parent for the open depth").contentMatchAtUnsafe(0)
+    const start = defined(match.fillBeforeOrNull(fragment), "a fill before the content").append(fragment)
+    fragment = start.append(closeFill(match, start))
   }
   return fragment
 }

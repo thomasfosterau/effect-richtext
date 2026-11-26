@@ -4,6 +4,7 @@
  *
  * @since 0.1.0
  */
+import { defined } from "../internal/defined.ts"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import {
@@ -391,7 +392,8 @@ function canAppendWithSubstitutedLinebreaks(a: Node<any>, b: Node<any>): boolean
   const linebreakReplacement = Option.getOrNull(a.type.schema.linebreakReplacement)
   for (let i = 0; i < b.childCount; i++) {
     const child = b.content.content[i]
-    const type = child.type === linebreakReplacement ? a.type.schema.nodes.text! : child.type
+    const type =
+      child.type === linebreakReplacement ? defined(a.type.schema.nodes.text, "a text node type") : child.type
     match = match.matchTypeOrNull(type)
     if (!match) return false
     if (!a.type.allowsMarks(child.marks)) return false

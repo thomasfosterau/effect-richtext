@@ -126,7 +126,7 @@ export function normalizeBindings<A>(map: { readonly [key: string]: A }): Record
     if (Object.prototype.hasOwnProperty.call(copy, norm)) {
       throw new KeymapError({ message: "Multiple bindings for key " + norm + " in a single keymap" })
     }
-    copy[norm] = map[prop]!
+    copy[norm] = map[prop]
   }
   return copy
 }

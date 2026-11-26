@@ -8,7 +8,7 @@ import * as Equal from "effect/Equal"
 import * as Hash from "effect/Hash"
 import * as Order from "effect/Order"
 import type * as Types from "effect/Types"
-import { encodeAttrs } from "./attrsCodec.ts"
+import { writeAttrsJSON } from "./attrsCodec.ts"
 import { compareDeep } from "./comparedeep.ts"
 import type { AnySchema, MarkAttrs, MarkNames, MarkType } from "./schema.ts"
 
@@ -110,10 +110,7 @@ export class Mark<Sc extends AnySchema = AnySchema, out M extends MarkNames<Sc> 
   /** Convert this mark to a JSON-serializable representation. */
   toJSON(): MarkJSON {
     const obj: Types.Mutable<MarkJSON> = { type: this.type.name }
-    for (const _ in this.attrs) {
-      obj.attrs = this.type.identityAttrs ? this.attrs : encodeAttrs(this.type.attrs, this.attrs)
-      break
-    }
+    writeAttrsJSON(obj, this.type, this.attrs)
     return obj
   }
 

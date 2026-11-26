@@ -208,7 +208,7 @@
       },
       {
         "from": "schema-list",
-        "allow": ["commands", "model", "state", "transform"]
+        "allow": ["commands", "internal", "model", "state", "transform"]
       },
       {
         "from": "markdown",

@@ -3,6 +3,7 @@
  *
  * @since 0.1.0
  */
+import { defined } from "../internal/defined.ts"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import { type AnySchema, type Attrs, Fragment, JSONError, type Node, Slice } from "../Model.ts"
@@ -48,7 +49,7 @@ export class AttrStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
   }
 
   invert(doc: Node<Sc>): Step<Sc> {
-    const attrs: Attrs = doc.nodeAtOrNull(this.pos)!.attrs
+    const attrs: Attrs = defined(doc.nodeAtOrNull(this.pos), "the node the step changed").attrs
     return new AttrStep(this.pos, this.attr, attrs[this.attr])
   }
 

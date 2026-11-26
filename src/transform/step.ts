@@ -3,6 +3,7 @@
  *
  * @since 0.1.0
  */
+import { defined } from "../internal/defined.ts"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
@@ -174,13 +175,13 @@ export class StepResult<Sc extends AnySchema = AnySchema> {
   toEffect(): Effect.Effect<Node<Sc>, StepError> {
     return this.failedOrNull !== null
       ? Effect.fail(new StepError({ message: this.failedOrNull }))
-      : Effect.succeed(this.docOrNull!)
+      : Effect.succeed(defined(this.docOrNull, "a doc on a successful step"))
   }
 
   /** Get the resulting document, throwing a `StepError` for failed results. */
   getUnsafe(): Node<Sc> {
     if (this.failedOrNull !== null) throw new StepError({ message: this.failedOrNull })
-    return this.docOrNull!
+    return defined(this.docOrNull, "a doc on a successful step")
   }
 
   /** Create a successful step result. */

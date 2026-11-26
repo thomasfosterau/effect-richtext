@@ -4,6 +4,8 @@
  *
  * @internal
  */
+import * as Option from "effect/Option"
+import { defined } from "../internal/defined.ts"
 import * as Predicate from "effect/Predicate"
 import type { EditorState } from "../State.ts"
 import * as browser from "./browser.ts"
@@ -91,7 +93,7 @@ export function scrollRectIntoView(view: AnyView, rect: Rect, startDOM: DOMNode)
     }
     if (moveX || moveY) {
       if (atTop) {
-        doc.defaultView!.scrollBy(moveX, moveY)
+        doc.defaultView?.scrollBy(moveX, moveY)
       } else {
         const startX = elt.scrollLeft,
           startY = elt.scrollTop
@@ -110,8 +112,7 @@ export function scrollRectIntoView(view: AnyView, rect: Rect, startDOM: DOMNode)
 
 /** @internal */
 export type ScrollPos = {
-  refDOM: HTMLElement
-  refTop: number
+  ref: Option.Option<{ readonly dom: HTMLElement; readonly top: number }>
   stack: Array<{ dom: HTMLElement; top: number; left: number }>
 }
 
@@ -123,18 +124,17 @@ export type ScrollPos = {
 export function storeScrollPos(view: AnyView): ScrollPos {
   const rect = view.dom.getBoundingClientRect(),
     startY = Math.max(0, rect.top)
-  let refDOM: HTMLElement | undefined, refTop: number | undefined
+  let ref: ScrollPos["ref"] = Option.none()
   for (let x = (rect.left + rect.right) / 2, y = startY + 1; y < Math.min(innerHeight, rect.bottom); y += 5) {
     const dom = view.root.elementFromPoint(x, y)
     if (!dom || dom == view.dom || !view.dom.contains(dom)) continue
     const localRect = (dom as HTMLElement).getBoundingClientRect()
     if (localRect.top >= startY - 20) {
-      refDOM = dom as HTMLElement
-      refTop = localRect.top
+      ref = Option.some({ dom: dom as HTMLElement, top: localRect.top })
       break
     }
   }
-  return { refDOM: refDOM!, refTop: refTop!, stack: scrollStack(view.dom) }
+  return { ref, stack: scrollStack(view.dom) }
 }
 
 function scrollStack(dom: DOMNode): Array<{ dom: HTMLElement; top: number; left: number }> {
@@ -150,9 +150,15 @@ function scrollStack(dom: DOMNode): Array<{ dom: HTMLElement; top: number; left:
 // Reset the scroll position of the editor's parent nodes to that what
 // it was before, when storeScrollPos was called.
 /** @internal */
-export function resetScrollPos({ refDOM, refTop, stack }: ScrollPos): void {
-  const newRefTop = refDOM ? refDOM.getBoundingClientRect().top : 0
-  restoreScrollStack(stack, newRefTop == 0 ? 0 : newRefTop - refTop)
+export function resetScrollPos({ ref, stack }: ScrollPos): void {
+  const shift = Option.match(ref, {
+    onNone: () => 0,
+    onSome: ({ dom, top }) => {
+      const newTop = dom.getBoundingClientRect().top
+      return newTop == 0 ? 0 : newTop - top
+    }
+  })
+  restoreScrollStack(stack, shift)
 }
 
 function restoreScrollStack(stack: Array<{ dom: HTMLElement; top: number; left: number }>, dTop: number) {
@@ -249,13 +255,14 @@ function findOffsetInNode(node: HTMLElement, coords: { top: number; left: number
     coordsClosest = coordsBelow
     dxClosest = 0
   }
-  if (closest && closest.nodeType == 3) return findOffsetInText(closest as Text, coordsClosest!)
+  if (closest && closest.nodeType == 3)
+    return findOffsetInText(closest as Text, defined(coordsClosest, "the closest node's rect"))
   if (!closest || (dxClosest && closest.nodeType == 1)) return { node, offset }
-  return findOffsetInNode(closest as HTMLElement, coordsClosest!)
+  return findOffsetInNode(closest as HTMLElement, defined(coordsClosest, "the closest node's rect"))
 }
 
 function findOffsetInText(node: Text, coords: { top: number; left: number }) {
-  const len = node.nodeValue!.length
+  const len = node.data.length
   const range = document.createRange()
   let result: { node: DOMNode; offset: number } | undefined
   for (let i = 0; i < len; i++) {
@@ -332,7 +339,9 @@ function posFromCaret(view: AnyView, node: DOMNode, offset: number, coords: { to
         return before ? desc.posBefore : desc.posAfter
       }
     }
-    cur = desc.dom.parentNode!
+    const up = desc.dom.parentNode
+    if (!up) break
+    cur = up
   }
   return outsideBlock > -1 ? outsideBlock : view.docView.posFromDOM(node, offset, -1)
 }
@@ -414,7 +423,7 @@ export function posAtCoords(
       browser.webkit &&
       offset &&
       node.nodeType == 1 &&
-      (prev = node.childNodes[offset - 1]!).nodeType == 1 &&
+      (prev = node.childNodes[offset - 1]).nodeType == 1 &&
       (prev as HTMLElement).contentEditable == "false" &&
       (prev as HTMLElement).getBoundingClientRect().top >= coords.top
     ) {
@@ -425,7 +434,7 @@ export function posAtCoords(
     if (
       node == view.dom &&
       offset == node.childNodes.length - 1 &&
-      node.lastChild!.nodeType == 1 &&
+      node.lastChild?.nodeType == 1 &&
       coords.top > (node.lastChild as HTMLElement).getBoundingClientRect().bottom
     ) {
       pos = view.state.doc.content.size
@@ -465,14 +474,15 @@ export function coordsAtPos(view: AnyView, pos: number, side: number): Rect {
 
   const supportEmptyRange = browser.webkit || browser.gecko
   if (node.nodeType == 3) {
+    const text = node.nodeValue ?? ""
     // These browsers support querying empty text ranges. Prefer that in
     // bidi context or when at the end of a node.
-    if (supportEmptyRange && (BIDI.test(node.nodeValue!) || (side < 0 ? !offset : offset == node.nodeValue!.length))) {
+    if (supportEmptyRange && (BIDI.test(text) || (side < 0 ? !offset : offset == text.length))) {
       const rect = singleRect(textRange(node as Text, offset, offset), side)
       // Firefox returns bad results (the position before the space)
       // when querying a position directly after line-broken
       // whitespace. Detect this situation and and kludge around it
-      if (browser.gecko && offset && /\s/.test(node.nodeValue![offset - 1]) && offset < node.nodeValue!.length) {
+      if (browser.gecko && offset && /\s/.test(text[offset - 1]) && offset < text.length) {
         const rectBefore = singleRect(textRange(node as Text, offset - 1, offset - 1), -1)
         if (rectBefore.top == rect.top) {
           const rectAfter = singleRect(textRange(node as Text, offset, offset + 1), -1)
@@ -489,7 +499,7 @@ export function coordsAtPos(view: AnyView, pos: number, side: number): Rect {
       if (side < 0 && !offset) {
         to++
         takeSide = -1
-      } else if (side >= 0 && offset == node.nodeValue!.length) {
+      } else if (side >= 0 && offset == text.length) {
         from--
         takeSide = 1
       } else if (side < 0) {
@@ -529,8 +539,8 @@ export function coordsAtPos(view: AnyView, pos: number, side: number): Rect {
     if (target) return flattenV(singleRect(target as Range | HTMLElement, 1), false)
   }
   if (atom == null && offset < nodeSize(node)) {
-    let after = node.childNodes[offset]
-    while (after.pmViewDesc && after.pmViewDesc.ignoreForCoords) after = after.nextSibling!
+    let after: ChildNode | null = node.childNodes[offset]
+    while (after && after.pmViewDesc && after.pmViewDesc.ignoreForCoords) after = after.nextSibling
     const target = !after
       ? null
       : after.nodeType == 3
@@ -583,13 +593,15 @@ function endOfTextblockVertical(view: AnyView, state: EditorState<any, any, any>
         dom = nearest.contentDOM || nearest.dom
         break
       }
-      dom = nearest.dom.parentNode!
+      const up = nearest.dom.parentNode
+      if (!up) break
+      dom = up
     }
     const coords = coordsAtPos(view, $pos.pos, 1)
     for (let child = dom.firstChild; child; child = child.nextSibling) {
       let boxes
       if (child.nodeType == 1) boxes = (child as HTMLElement).getClientRects()
-      else if (child.nodeType == 3) boxes = textRange(child as Text, 0, child.nodeValue!.length).getClientRects()
+      else if (child.nodeType == 3) boxes = textRange(child as Text, 0, (child.nodeValue ?? "").length).getClientRects()
       else continue
       for (let i = 0; i < boxes.length; i++) {
         const box = boxes[i]

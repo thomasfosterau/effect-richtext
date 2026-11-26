@@ -104,7 +104,7 @@ class DropCursorView implements PluginView {
   update(editorView: EditorView<any, any, any>, prevState: EditorState<any, any, any>) {
     if (this.cursorPos != null && prevState.doc !== editorView.state.doc) {
       if (this.cursorPos > editorView.state.doc.content.size) this.setCursor(null)
-      else this.updateOverlay()
+      else this.updateOverlay(this.cursorPos)
     }
   }
 
@@ -115,13 +115,13 @@ class DropCursorView implements PluginView {
       this.element?.remove()
       this.element = null
     } else {
-      this.updateOverlay()
+      this.updateOverlay(pos)
     }
   }
 
-  updateOverlay() {
+  updateOverlay(cursorPos: number) {
     const view = this.editorView
-    const $pos = view.state.doc.resolveUnsafe(this.cursorPos!)
+    const $pos = view.state.doc.resolveUnsafe(cursorPos)
     const isBlock = !$pos.parent.inlineContent
     let rect: { left: number; right: number; top: number; bottom: number } | undefined
     const editorDOM = view.dom,
@@ -132,12 +132,12 @@ class DropCursorView implements PluginView {
       const before = $pos.nodeBeforeOrNull,
         after = $pos.nodeAfterOrNull
       if (before || after) {
-        const node = Option.getOrNull(view.nodeDOM(this.cursorPos! - (before ? before.nodeSize : 0)))
+        const node = Option.getOrNull(view.nodeDOM(cursorPos - (before ? before.nodeSize : 0)))
         if (node) {
           const nodeRect = (node as HTMLElement).getBoundingClientRect()
           let top = before ? nodeRect.bottom : nodeRect.top
           if (before && after) {
-            const afterDOM = Option.getOrNull(view.nodeDOM(this.cursorPos!)) as HTMLElement | null
+            const afterDOM = Option.getOrNull(view.nodeDOM(cursorPos)) as HTMLElement | null
             if (afterDOM) top = (top + afterDOM.getBoundingClientRect().top) / 2
           }
           const halfWidth = (this.width / 2) * scaleY
@@ -146,7 +146,7 @@ class DropCursorView implements PluginView {
       }
     }
     if (!rect) {
-      const coords = view.coordsAtPos(this.cursorPos!)
+      const coords = view.coordsAtPos(cursorPos)
       const halfWidth = (this.width / 2) * scaleX
       rect = { left: coords.left - halfWidth, right: coords.left + halfWidth, top: coords.top, bottom: coords.bottom }
     }
@@ -191,7 +191,8 @@ class DropCursorView implements PluginView {
 
     const node = pos && pos.inside >= 0 ? view.state.doc.nodeAtOrNull(pos.inside) : null
     const disableDropCursor = node ? (node.type.spec.disableDropCursor as DisableDropCursor | undefined) : undefined
-    const disabled = Predicate.isFunction(disableDropCursor) ? disableDropCursor(view, pos!, event) : disableDropCursor
+    const disabled =
+      pos && Predicate.isFunction(disableDropCursor) ? disableDropCursor(view, pos, event) : disableDropCursor
 
     if (pos && !disabled) {
       let target = pos.pos

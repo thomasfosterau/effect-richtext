@@ -4,6 +4,7 @@
  *
  * @internal
  */
+import { defined } from "../internal/defined.ts"
 import * as Option from "effect/Option"
 import type { ResolvedPos } from "../Model.ts"
 import { NodeSelection, Selection, TextSelection } from "../State.ts"
@@ -33,7 +34,8 @@ const geckoKeySelection = (
 function skippedScrollWrapper(view: AnyView, domSel: DOMSelectionRange, head: number, nearestDesc: ViewDesc) {
   const to = view.state.selection.to
   if (head <= to || nearestDesc.posAtStart <= to) return undefined
-  if (!focusAtElementEnd(domSel) || !inScrollableWrapper(domSel.focusNode!, nearestDesc.dom)) return undefined
+  const focus = domSel.focusNode
+  if (!focus || !focusAtElementEnd(domSel) || !inScrollableWrapper(focus, nearestDesc.dom)) return undefined
   return Option.getOrUndefined(Selection.findFrom(view.state.doc.resolveUnsafe(nearestDesc.posAtStart), 1))
 }
 
@@ -72,10 +74,11 @@ export function selectionFromDOM(view: AnyView, origin: string | null = null): S
     const nearestDescNode = (nearestDesc as NodeViewDesc | undefined)?.node
     if (
       nearestDesc &&
-      nearestDescNode!.isAtom &&
-      NodeSelection.isSelectable(nearestDescNode!) &&
+      nearestDescNode &&
+      nearestDescNode.isAtom &&
+      NodeSelection.isSelectable(nearestDescNode) &&
       nearestDesc.parent &&
-      !(nearestDescNode!.isInline && isOnEdge(domSel.focusNode, domSel.focusOffset, nearestDesc.dom))
+      !(nearestDescNode.isInline && isOnEdge(domSel.focusNode, domSel.focusOffset, nearestDesc.dom))
     ) {
       const pos = nearestDesc.posBefore
       selection = new NodeSelection(head == pos ? $head : doc.resolveUnsafe(pos))
@@ -83,7 +86,8 @@ export function selectionFromDOM(view: AnyView, origin: string | null = null): S
       selection = geckoKeySelection(view, domSel, head, Option.fromNullishOr(nearestDesc), origin == "key")
     }
   } else {
-    if (domSel instanceof view.dom.ownerDocument.defaultView!.Selection && domSel.rangeCount > 1) {
+    const win = view.dom.ownerDocument.defaultView
+    if (win && domSel instanceof win.Selection && domSel.rangeCount > 1) {
       let min = head,
         max = head
       for (let i = 0; i < domSel.rangeCount; i++) {
@@ -95,7 +99,7 @@ export function selectionFromDOM(view: AnyView, origin: string | null = null): S
       ;[anchor, head] = max == view.state.selection.anchor ? [max, min] : [min, max]
       $head = doc.resolveUnsafe(head)
     } else {
-      anchor = view.docView.posFromDOM(domSel.anchorNode!, domSel.anchorOffset, 1)
+      anchor = view.docView.posFromDOM(defined(domSel.anchorNode, "a selection anchor"), domSel.anchorOffset, 1)
     }
     if (anchor < 0) return null
   }
@@ -216,29 +220,29 @@ function resetEditable(element: EditableElement) {
 
 function removeClassOnSelectionChange(view: AnyView) {
   const doc = view.dom.ownerDocument
-  doc.removeEventListener("selectionchange", view.input.hideSelectionGuard!)
+  const prevGuard = view.input.hideSelectionGuard
+  if (prevGuard) doc.removeEventListener("selectionchange", prevGuard)
   const domSel = view.domSelectionRange()
   const node = domSel.anchorNode,
     offset = domSel.anchorOffset
-  doc.addEventListener(
-    "selectionchange",
-    (view.input.hideSelectionGuard = () => {
-      if (domSel.anchorNode != node || domSel.anchorOffset != offset) {
-        doc.removeEventListener("selectionchange", view.input.hideSelectionGuard!)
-        setTimeout(() => {
-          if (!editorOwnsSelection(view) || view.state.selection.visible) {
-            view.dom.classList.remove("ProseMirror-hideselection")
-          }
-        }, 20)
-      }
-    })
-  )
+  const guard = () => {
+    if (domSel.anchorNode != node || domSel.anchorOffset != offset) {
+      doc.removeEventListener("selectionchange", guard)
+      setTimeout(() => {
+        if (!editorOwnsSelection(view) || view.state.selection.visible) {
+          view.dom.classList.remove("ProseMirror-hideselection")
+        }
+      }, 20)
+    }
+  }
+  view.input.hideSelectionGuard = guard
+  doc.addEventListener("selectionchange", guard)
 }
 
 function selectCursorWrapper(view: AnyView) {
   const domSel = view.domSelection()
   if (!domSel) return
-  const node = view.cursorWrapper!.dom,
+  const node = defined(view.cursorWrapper, "a cursor wrapper").dom,
     img = node.nodeName == "IMG"
   if (img) domSel.collapse(node.parentNode, domIndex(node) + 1)
   else domSel.collapse(node, 0)
@@ -307,7 +311,8 @@ export function hasSelection(view: AnyView): boolean {
     // element.
     return (
       view.dom.contains(sel.anchorNode.nodeType == 3 ? sel.anchorNode.parentNode : sel.anchorNode) &&
-      (view.editable || view.dom.contains(sel.focusNode!.nodeType == 3 ? sel.focusNode!.parentNode : sel.focusNode))
+      (view.editable ||
+        (!!sel.focusNode && view.dom.contains(sel.focusNode.nodeType == 3 ? sel.focusNode.parentNode : sel.focusNode)))
     )
   } catch {
     return false
@@ -318,5 +323,8 @@ export function hasSelection(view: AnyView): boolean {
 export function anchorInRightPlace(view: AnyView): boolean {
   const anchorDOM = view.docView.domFromPos(view.state.selection.anchor, 0)
   const domSel = view.domSelectionRange()
-  return isEquivalentPosition(anchorDOM.node, anchorDOM.offset, domSel.anchorNode!, domSel.anchorOffset)
+  return (
+    !!domSel.anchorNode &&
+    isEquivalentPosition(anchorDOM.node, anchorDOM.offset, domSel.anchorNode, domSel.anchorOffset)
+  )
 }

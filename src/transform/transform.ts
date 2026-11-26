@@ -4,6 +4,7 @@
  *
  * @since 0.1.0
  */
+import { defined } from "../internal/defined.ts"
 import * as Arr from "effect/Array"
 import type * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
@@ -146,7 +147,7 @@ export class Transform<Sc extends AnySchema = AnySchema> {
    */
   maybeStep(step: Step<Sc>): StepResult<Sc> {
     const result = applyStep(step, this.currentDoc)
-    if (result.failedOrNull === null) this.addStep(step, result.docOrNull!)
+    if (result.failedOrNull === null) this.addStep(step, defined(result.docOrNull, "a doc on a successful step"))
     return result
   }
 

@@ -4,6 +4,7 @@
  *
  * @internal
  */
+import { defined } from "../internal/defined.ts"
 import { Selection } from "../State.ts"
 import * as browser from "./browser.ts"
 import {
@@ -82,7 +83,7 @@ export class DOMObserver {
           mutations.some(
             (m) =>
               (m.type == "childList" && m.removedNodes.length) ||
-              (m.type == "characterData" && m.oldValue!.length > m.target.nodeValue!.length)
+              (m.type == "characterData" && (m.oldValue ?? "").length > (m.target.nodeValue ?? "").length)
           )
         ) {
           // IE11 will sometimes (on backspacing out a single character
@@ -180,7 +181,11 @@ export class DOMObserver {
     if (browser.ie && browser.ie_version <= 11 && !this.view.state.selection.empty) {
       const sel = this.view.domSelectionRange()
       // Selection.isCollapsed isn't reliable on IE
-      if (sel.focusNode && isEquivalentPosition(sel.focusNode, sel.focusOffset, sel.anchorNode!, sel.anchorOffset)) {
+      if (
+        sel.focusNode &&
+        sel.anchorNode &&
+        isEquivalentPosition(sel.focusNode, sel.focusOffset, sel.anchorNode, sel.anchorOffset)
+      ) {
         return this.flushSoon()
       }
     }
@@ -204,10 +209,11 @@ export class DOMObserver {
     }
     const desc = container && this.view.docView.nearestDesc(container)
     if (
+      container &&
       desc &&
       desc.ignoreMutation({
         type: "selection",
-        target: container!.nodeType == 3 ? container!.parentNode! : container!
+        target: container.nodeType == 3 ? defined(container.parentNode, "a parent for the text node") : container
       })
     ) {
       this.setCurSelection()
@@ -482,7 +488,7 @@ function fixUpBadSafariComposition(view: AnyView, addedNodes: ReadonlyArray<DOMN
           parent = first
         }
         parent.insertBefore(node, parent.firstChild)
-        if (focusNode == node) view.domSelection()!.collapse(node, focusOffset)
+        if (focusNode == node) defined(view.domSelection(), "a DOM selection").collapse(node, focusOffset)
       } else {
         node.parentNode.removeChild(node)
       }
