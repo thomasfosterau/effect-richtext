@@ -129,7 +129,7 @@ export class InlineType implements DecorationType {
     )
   }
 
-  static is(span: Decoration) {
+  static is(this: void, span: Decoration) {
     return span.type instanceof InlineType
   }
 

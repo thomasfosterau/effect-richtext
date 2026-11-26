@@ -278,10 +278,17 @@ export abstract class Selection {
   }
 }
 
+interface Getter {
+  readonly get?: (this: object) => boolean
+}
+
 const getterOf = (proto: object | null, prop: string) => {
   for (; proto; proto = Object.getPrototypeOf(proto)) {
     const desc = Object.getOwnPropertyDescriptor(proto, prop)
-    if (desc) return desc.get
+    if (desc) {
+      const getter: Getter = desc
+      return getter.get
+    }
   }
   return undefined
 }

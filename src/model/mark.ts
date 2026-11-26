@@ -123,7 +123,7 @@ export class Mark<Sc extends AnySchema = AnySchema, out M extends MarkNames<Sc> 
   }
 
   /** Test whether two sets of marks are identical. */
-  static sameSet(a: ReadonlyArray<Mark<any, any>>, b: ReadonlyArray<Mark<any, any>>): boolean {
+  static sameSet(this: void, a: ReadonlyArray<Mark<any, any>>, b: ReadonlyArray<Mark<any, any>>): boolean {
     if (a === b) return true
     if (a.length !== b.length) return false
     for (let i = 0; i < a.length; i++) if (!a[i]!.eq(b[i]!)) return false

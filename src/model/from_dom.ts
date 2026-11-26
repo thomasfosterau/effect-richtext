@@ -1005,7 +1005,7 @@ class ParseContext implements RuleContext {
 
   // Determines whether the given context string matches this context.
   matchesContext(context: string): boolean {
-    if (context.indexOf("|") > -1) return context.split(/\s*\|\s*/).some(this.matchesContext, this)
+    if (context.indexOf("|") > -1) return context.split(/\s*\|\s*/).some((c) => this.matchesContext(c))
 
     const parts = context.split("/")
     const option = this.options.context

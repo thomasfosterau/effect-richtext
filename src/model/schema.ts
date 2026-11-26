@@ -1303,6 +1303,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
    * runtime would fail with a `SchemaDefinitionError`.
    */
   static make<const N extends NodeSpecs, const M extends MarkSpecs = NoKeys, const Top extends string = "doc">(
+    this: void,
     spec: SchemaSpec<N, M, Top> & NoInfer<SchemaSpecCheck<N, M, Top>>
   ): Effect.Effect<DocSchema<N, M>, SchemaDefinitionError> {
     return attempt(
@@ -1313,6 +1314,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
 
   /** Like `make`, but throws a `SchemaDefinitionError` for invalid specs. */
   static makeUnsafe<const N extends NodeSpecs, const M extends MarkSpecs = NoKeys, const Top extends string = "doc">(
+    this: void,
     spec: SchemaSpec<N, M, Top> & NoInfer<SchemaSpecCheck<N, M, Top>>
   ): DocSchema<N, M> {
     return new DocSchema(spec)

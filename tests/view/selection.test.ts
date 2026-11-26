@@ -1,5 +1,5 @@
 // Ported from prosemirror-view/test/webtest-selection.ts (MIT, Marijn Haverbeke and others)
-import { describe, it } from "@effect/vitest"
+import { describe, it, vi } from "@effect/vitest"
 import type { Node as PMNode } from "@thomasfosterau/effect-richtext/Model"
 import { NodeSelection, Selection } from "@thomasfosterau/effect-richtext/State"
 import {
@@ -380,18 +380,17 @@ describe("EditorView", () => {
   })
 
   it("sets selection even if Selection.extend throws DOMException", () => {
-    const originalExtend = window.Selection.prototype.extend
-    window.Selection.prototype.extend = () => {
+    const extend = vi.spyOn(window.Selection.prototype, "extend").mockImplementation(() => {
       // declare global: DOMException
       throw new DOMException("failed")
-    }
+    })
     try {
       const view = tempEditor({ doc: doc(p("foo", img), hr(), p(img, "bar")) })
       setSel(view, NodeSelection.createUnsafe(view.state.doc, 4))
       view.dispatchEvent(event(DOWN))
       ist(view.state.selection.from, 6)
     } finally {
-      window.Selection.prototype.extend = originalExtend
+      extend.mockRestore()
     }
   })
 

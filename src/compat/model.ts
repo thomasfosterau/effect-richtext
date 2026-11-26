@@ -611,7 +611,7 @@ export class Mark {
   }
 
   /** Test whether two sets of marks are identical. */
-  static sameSet(a: ReadonlyArray<Mark>, b: ReadonlyArray<Mark>): boolean {
+  static sameSet(this: void, a: ReadonlyArray<Mark>, b: ReadonlyArray<Mark>): boolean {
     return a === b || M.Mark.sameSet(unwrapArray(a), unwrapArray(b))
   }
 

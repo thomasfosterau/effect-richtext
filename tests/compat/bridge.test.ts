@@ -98,7 +98,7 @@ class HiddenCursor extends Selection {
     const bookmark: SelectionBookmark = {
       map: (mapping) => ({
         ...bookmark,
-        map: bookmark.map,
+        map: (m) => bookmark.map(m),
         resolve: (doc) => new HiddenCursor(doc.resolve(mapping.map(pos)))
       }),
       resolve: (doc) => new HiddenCursor(doc.resolve(pos))

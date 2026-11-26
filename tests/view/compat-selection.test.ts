@@ -1,8 +1,9 @@
 // Ported from prosemirror-view/test/webtest-selection.ts (MIT, Marijn Haverbeke and others).
-// Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
+// Changes: imports (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
 // ../utils/ist.ts, ./view.js -> ./compat-view.ts, mocha describe/it ->
-// @effect/vitest; type-only imports marked as such) and dprint formatting
-import { describe, it } from "@effect/vitest"
+// @effect/vitest; type-only imports marked as such), dprint formatting, and
+// `vi.spyOn` in place of reassigning `Selection.prototype.extend`
+import { describe, it, vi } from "@effect/vitest"
 import type { Node as PMNode } from "@thomasfosterau/effect-richtext/compat/model"
 import { NodeSelection, Selection } from "@thomasfosterau/effect-richtext/compat/state"
 import {
@@ -379,18 +380,17 @@ describe("EditorView", () => {
   })
 
   it("sets selection even if Selection.extend throws DOMException", () => {
-    const originalExtend = window.Selection.prototype.extend
-    window.Selection.prototype.extend = () => {
+    const extend = vi.spyOn(window.Selection.prototype, "extend").mockImplementation(() => {
       // declare global: DOMException
       throw new DOMException("failed")
-    }
+    })
     try {
       const view = tempEditor({ doc: doc(p("foo", img), hr(), p(img, "bar")) })
       setSel(view, NodeSelection.create(view.state.doc, 4))
       view.dispatchEvent(event(DOWN))
       ist(view.state.selection.from, 6)
     } finally {
-      window.Selection.prototype.extend = originalExtend
+      extend.mockRestore()
     }
   })
 

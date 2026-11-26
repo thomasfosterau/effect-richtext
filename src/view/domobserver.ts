@@ -114,7 +114,6 @@ export class DOMObserver {
         this.flushSoon()
       }
     }
-    this.onSelectionChange = this.onSelectionChange.bind(this)
   }
 
   flushSoon() {
@@ -171,7 +170,7 @@ export class DOMObserver {
     setTimeout(() => (this.suppressingSelectionUpdates = false), 50)
   }
 
-  onSelectionChange() {
+  readonly onSelectionChange = (): void => {
     if (!hasFocusAndSelection(this.view)) return
     if (this.suppressingSelectionUpdates) return selectionToDOM(this.view)
     // Deletions on IE11 fire their events in the wrong order, giving
