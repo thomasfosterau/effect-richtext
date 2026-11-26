@@ -340,7 +340,19 @@ describe("Effect requirements and errors", () => {
             })
           ),
           defineExtension({
-            commands: { fail: (): Command<any, Rejected> => () => Effect.fail(new Rejected()) }
+            commands: {
+              fail: (): Command<any, Rejected> => () => Effect.fail(new Rejected()),
+              insertTwice:
+                (first: string, second: string): Command =>
+                (state, dispatch) =>
+                  Effect.gen(function* () {
+                    if (dispatch) {
+                      yield* dispatch(state.tr.insertTextUnsafe(first))
+                      yield* dispatch(state.tr.insertTextUnsafe(second))
+                    }
+                    return true
+                  })
+            }
           })
         )
       )
@@ -350,6 +362,10 @@ describe("Effect requirements and errors", () => {
       ist(editor.state.doc.textContent, "")
       const viaCommand = yield* Effect.exit(editor.commands.fail())
       ist(Exit.findErrorOption(viaCommand).pipe(getSome)._tag, "Rejected")
+      // A failed dispatch fails the command and skips its later dispatches.
+      const viaDispatch = yield* Effect.exit(editor.commands.insertTwice("!", "a"))
+      ist(Exit.findErrorOption(viaDispatch).pipe(getSome)._tag, "Rejected")
+      ist(editor.state.doc.textContent, "")
       const viaChain = yield* Effect.exit(editor.chain().insertText("a").insertText("!").run)
       ist(Exit.isFailure(viaChain))
       ist(editor.state.doc.textContent, "")
