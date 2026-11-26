@@ -5,13 +5,15 @@ import { NodeSelection, TextSelection } from "@thomasfosterau/effect-richtext/St
 import { blockquote, br, doc, eq, hr, li, ol, p, strong, ul } from "@thomasfosterau/effect-richtext/TestBuilder"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
+import { present } from "../utils/present.ts"
 import { tempEditor } from "./helpers.ts"
 
 import { __parseFromClipboard } from "@thomasfosterau/effect-richtext/View"
 
 const embedContext = (url: string) => `<p data-pm-slice='1 1 ["embed",{"url":"${url}"}]'>hi</p>`
 
-const parseFromClipboard = (...args: Parameters<typeof __parseFromClipboard>) => __parseFromClipboard(...args)!
+const parseFromClipboard = (...args: Parameters<typeof __parseFromClipboard>) =>
+  present(__parseFromClipboard(...args), "expected a pasted slice")
 
 function tableSchema() {
   return DocSchema.makeUnsafe({

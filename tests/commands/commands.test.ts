@@ -46,6 +46,7 @@ import {
 import ist from "../utils/ist.ts"
 import { apply, mkState, run } from "./apply.ts"
 import { getSome } from "../utils/option.ts"
+import { present } from "../utils/present.ts"
 
 const storedMarkCount = (state: EditorState<any>) => getSome(state.storedMarks).length
 
@@ -445,14 +446,14 @@ describe("splitBlockAs", () => {
   it("splits to the appropriate type", () =>
     apply(
       doc(p("on<a>e")),
-      splitBlockAs((n) => ({ type: n.type.schema.nodes.heading!, attrs: { level: 1 } })),
+      splitBlockAs((n) => ({ type: present(n.type.schema.nodes.heading), attrs: { level: 1 } })),
       doc(p("on"), h1("<a>e"))
     ))
 
   it("passes an end-of-block flag", () =>
     apply(
       doc(p("one<a>")),
-      splitBlockAs((n, e) => (e ? { type: n.type.schema.nodes.code_block! } : null)),
+      splitBlockAs((n, e) => (e ? { type: present(n.type.schema.nodes.code_block) } : null)),
       doc(p("one"), pre("<a>"))
     ))
 })

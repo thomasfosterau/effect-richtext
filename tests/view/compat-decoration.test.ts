@@ -19,6 +19,7 @@ import {
 } from "@thomasfosterau/effect-richtext/compat/transform"
 import { Decoration, DecorationSet } from "@thomasfosterau/effect-richtext/compat/view"
 import ist from "../utils/ist.ts"
+import { present } from "../utils/present.ts"
 
 const widget = document.createElement("button")
 
@@ -79,19 +80,19 @@ function arrayStr(arr: readonly any[]) {
 }
 
 function buildMap(doc: Node, ...decorations: (DecoSpec | ((tr: Transform) => Transform))[]) {
-  const f = decorations.pop()!
+  const f = present(decorations.pop())
   const oldSet = build(doc, ...(decorations as DecoSpec[]))
   const tr = (f as any)(new Transform(doc))
   return { set: oldSet.map(tr.mapping, tr.doc), oldSet }
 }
 
 function buildAdd(doc: Node, ...decorations: (DecoSpec | DecoSpec[])[]) {
-  const toAdd = decorations.pop()!
+  const toAdd = present(decorations.pop())
   return build(doc, ...(decorations as DecoSpec[])).add(doc, Array.isArray(toAdd) ? toAdd.map(make) : [make(toAdd)])
 }
 
 function buildRem(doc: Node, ...decorations: (DecoSpec | DecoSpec[])[]) {
-  const toAdd = decorations.pop()!
+  const toAdd = present(decorations.pop())
   return build(doc, ...(decorations as DecoSpec[])).remove(Array.isArray(toAdd) ? toAdd.map(make) : [make(toAdd)])
 }
 
@@ -347,7 +348,7 @@ describe("DecorationSet", () => {
       const d = doc(ul(li(p())))
       const set = build(d, { node: true, from: 2, to: 4 })
       const range = new NodeRange(d.resolve(2), d.resolve(4), 2)
-      const tr = new Transform(d).lift(range, liftTarget(range)!)
+      const tr = new Transform(d).lift(range, present(liftTarget(range)))
       const mapped = set.map(tr.mapping, tr.doc).find()
       ist(mapped.length, 1)
       ist(mapped[0].from, 0)

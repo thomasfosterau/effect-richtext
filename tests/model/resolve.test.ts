@@ -6,6 +6,7 @@ import * as Option from "effect/Option"
 import { blockquote, doc, em, p } from "@thomasfosterau/effect-richtext/TestBuilder"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
+import { present } from "../utils/present.ts"
 
 const testDoc = doc(p("ab"), blockquote(p(em("cd"), "ef")))
 const _doc = { node: testDoc, start: 0, end: 12 }
@@ -48,10 +49,10 @@ describe("Node", () => {
         ist($pos.parentOffset, exp[exp.length - 3])
         const before = Option.getOrNull($pos.nodeBefore),
           eBefore = exp[exp.length - 2]
-        ist(Predicate.isString(eBefore) ? before!.textContent : before, eBefore)
+        ist(Predicate.isString(eBefore) ? present(before).textContent : before, eBefore)
         const after = Option.getOrNull($pos.nodeAfter),
           eAfter = exp[exp.length - 1]
-        ist(Predicate.isString(eAfter) ? after!.textContent : after, eAfter)
+        ist(Predicate.isString(eAfter) ? present(after).textContent : after, eAfter)
       }
     })
 

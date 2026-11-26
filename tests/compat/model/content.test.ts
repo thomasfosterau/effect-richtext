@@ -7,6 +7,7 @@ import type { Node } from "@thomasfosterau/effect-richtext/compat/model"
 import { ContentMatch } from "@thomasfosterau/effect-richtext/compat/model"
 import { br, doc, eq, h1, hr, img, p, pre, schema } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
+import { present } from "../../utils/present.ts"
 
 function get(expr: string) {
   return ContentMatch.parse(expr, schema.nodes)
@@ -15,8 +16,12 @@ function get(expr: string) {
 function match(expr: string, types: string) {
   const ts = types ? types.split(" ").map((t) => schema.nodes[t]) : []
   let m = get(expr)
-  for (let i = 0; m && i < ts.length; i++) m = m.matchType(ts[i])!
-  return m && m.validEnd
+  for (let i = 0; i < ts.length; i++) {
+    const next = m.matchType(ts[i])
+    if (!next) return false
+    m = next
+  }
+  return m.validEnd
 }
 
 function valid(expr: string, types: string) {
@@ -27,18 +32,19 @@ function invalid(expr: string, types: string) {
 }
 
 function fill(expr: string, before: Node, after: Node, result: Node | null) {
-  const filled = get(expr).matchFragment(before.content)!.fillBefore(after.content, true)
+  const filled = present(get(expr).matchFragment(before.content)).fillBefore(after.content, true)
   if (result) ist(filled, result.content, eq)
   else ist(!filled)
 }
 
 function fill3(expr: string, before: Node, mid: Node, after: Node, left: Node | null, right?: Node) {
   const content = get(expr)
-  const a = content.matchFragment(before.content)!.fillBefore(mid.content)
-  const b = a && content.matchFragment(before.content.append(a).append(mid.content))!.fillBefore(after.content, true)
+  const a = present(content.matchFragment(before.content)).fillBefore(mid.content)
+  const b =
+    a && present(content.matchFragment(before.content.append(a).append(mid.content))).fillBefore(after.content, true)
   if (left) {
     ist(a, left.content, eq)
-    ist(b, right!.content, eq)
+    ist(b, present(right).content, eq)
   } else {
     ist(!b)
   }

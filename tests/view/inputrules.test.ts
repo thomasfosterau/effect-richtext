@@ -38,6 +38,7 @@ import {
 } from "@thomasfosterau/effect-richtext/TestBuilder"
 import { EditorView } from "@thomasfosterau/effect-richtext/View"
 import ist from "../utils/ist.ts"
+import { present } from "../utils/present.ts"
 import { getSome } from "../utils/option.ts"
 import { findTextNode, flush, selFor, tempEditor, workspace } from "./helpers.ts"
 
@@ -286,9 +287,9 @@ describe("inputRules", () => {
 
   it("works with real DOM text input", () => {
     const view = editor(doc(p("foo-<a>")))
-    const text = findTextNode(view.dom, "foo-")!
+    const text = present(findTextNode(view.dom, "foo-"))
     text.nodeValue = "foo--"
-    const sel = window.getSelection()!
+    const sel = present(window.getSelection())
     sel.collapse(text, 5)
     flush(view)
     ist(view.state.doc, doc(p("foo—")), eq)

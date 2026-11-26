@@ -7,6 +7,7 @@ import { Schema } from "@thomasfosterau/effect-richtext/compat/model"
 import { Plugin } from "@thomasfosterau/effect-richtext/compat/state"
 import { doc, h1, hr, p, pre, schema, strong } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../utils/ist.ts"
+import { present } from "../utils/present.ts"
 import { tempEditor } from "./compat-view.ts"
 
 describe("EditorView draw", () => {
@@ -170,7 +171,7 @@ describe("EditorView draw", () => {
       nodes: {
         doc: { content: "paragraph+", marks: "m" },
         text: { group: "inline" },
-        paragraph: schema.spec.nodes.get("paragraph")!
+        paragraph: present(schema.spec.nodes.get("paragraph"))
       },
       marks: {
         m: {

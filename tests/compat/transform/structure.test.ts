@@ -8,6 +8,7 @@ import { Schema, Slice } from "@thomasfosterau/effect-richtext/compat/model"
 import { eq, schema as baseSchema } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import { canSplit, findWrapping, liftTarget, Transform } from "@thomasfosterau/effect-richtext/compat/transform"
 import ist from "../../utils/ist.ts"
+import { present } from "../../utils/present.ts"
 
 const schema = new Schema({
   nodes: {
@@ -20,7 +21,7 @@ const schema = new Schema({
     caption: { content: "text*", marks: "" },
     sect: { content: "head block* sect*" },
     closing: { content: "text*" },
-    text: baseSchema.spec.nodes.get("text")!,
+    text: present(baseSchema.spec.nodes.get("text")),
 
     fixed: { content: "head para closing", group: "block" }
   },
@@ -154,10 +155,10 @@ describe("liftTarget", () => {
     })
     const p = s.node("p", null, [s.text("A")])
     const d = s.node("doc", null, [s.node("section", null, [s.node("heading", null, [p, p, p]), p])])
-    ist(liftTarget(d.resolve(3).blockRange()!), null)
-    ist(liftTarget(d.resolve(6).blockRange()!), null)
-    ist(liftTarget(d.resolve(3).blockRange(d.resolve(6))!), null)
-    ist(liftTarget(d.resolve(9).blockRange()!), 1)
+    ist(liftTarget(present(d.resolve(3).blockRange())), null)
+    ist(liftTarget(present(d.resolve(6).blockRange())), null)
+    ist(liftTarget(present(d.resolve(3).blockRange(d.resolve(6)))), null)
+    ist(liftTarget(present(d.resolve(9).blockRange())), 1)
   })
 })
 

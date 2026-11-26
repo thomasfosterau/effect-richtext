@@ -6,6 +6,7 @@ import { EditorState } from "@thomasfosterau/effect-richtext/State"
 import { doc, em, hr, li, p, schema, strong, ul } from "@thomasfosterau/effect-richtext/TestBuilder"
 import { EditorView } from "@thomasfosterau/effect-richtext/View"
 import ist from "../utils/ist.ts"
+import { present } from "../utils/present.ts"
 import { getSome } from "../utils/option.ts"
 import { tempEditor, workspace } from "./helpers.ts"
 
@@ -22,7 +23,7 @@ describe("EditorView", () => {
     )
     ist(view.dom, dom)
     ist(dom.contentEditable, "true")
-    ist(dom.firstChild!.nodeName, "P")
+    ist(present(dom.firstChild).nodeName, "P")
     view.destroy()
     ist(dom.contentEditable, "inherit")
     space.removeChild(dom)
@@ -110,11 +111,11 @@ describe("EditorView", () => {
 
   it("can map DOM positions to doc positions", () => {
     const view = tempEditor({ doc: doc(p("foo"), hr()) })
-    ist(view.posAtDOMUnsafe(view.dom.firstChild!.firstChild!, 2), 3)
+    ist(view.posAtDOMUnsafe(present(present(view.dom.firstChild).firstChild), 2), 3)
     ist(view.posAtDOMUnsafe(view.dom, 1), 5)
     ist(view.posAtDOMUnsafe(view.dom, 2), 6)
-    ist(view.posAtDOMUnsafe(view.dom.lastChild!, 0, -1), 5)
-    ist(view.posAtDOMUnsafe(view.dom.lastChild!, 0, 1), 6)
+    ist(view.posAtDOMUnsafe(present(view.dom.lastChild), 0, -1), 5)
+    ist(view.posAtDOMUnsafe(present(view.dom.lastChild), 0, 1), 6)
   })
 
   it("binds this to itself in dispatchTransaction prop", () => {

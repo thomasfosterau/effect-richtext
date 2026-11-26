@@ -42,6 +42,7 @@ import {
   ul
 } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
+import { present } from "../../utils/present.ts"
 
 const document: any = globalThis.document
 const xmlDocument: any = new window.DOMParser().parseFromString("<tag/>", "application/xml")
@@ -91,7 +92,7 @@ function find(html: string, doc: PMNode) {
     const dom = document.createElement("div")
     dom.innerHTML = html
     const tag = dom.querySelector("var"),
-      prev = tag.previousSibling!,
+      prev = tag.previousSibling,
       next = tag.nextSibling
     let pos
     if (prev && next && prev.nodeType == 3 && next.nodeType == 3) {
@@ -243,7 +244,7 @@ describe("DOMParser", () => {
             {
               tag: "span.comment",
               getAttrs(dom: HTMLElement) {
-                return { id: parseInt(dom.getAttribute("data-id")!, 10) }
+                return { id: parseInt(present(dom.getAttribute("data-id")), 10) }
               }
             }
           ],
@@ -255,14 +256,18 @@ describe("DOMParser", () => {
       })
       const b = builders(commentSchema)
       test(
-        b.schema.nodes.doc.createAndFill(undefined, [
-          b.schema.nodes.paragraph.createAndFill(undefined, [
-            b.schema.text("double comment", [
-              b.schema.marks.comment.create({ id: 1 }),
-              b.schema.marks.comment.create({ id: 2 })
-            ])
-          ])!
-        ])!,
+        present(
+          b.schema.nodes.doc.createAndFill(undefined, [
+            present(
+              b.schema.nodes.paragraph.createAndFill(undefined, [
+                b.schema.text("double comment", [
+                  b.schema.marks.comment.create({ id: 1 }),
+                  b.schema.marks.comment.create({ id: 2 })
+                ])
+              ])
+            )
+          ])
+        ),
         '<p><span class="comment" data-id="1"><span class="comment" data-id="2">double comment</span></span></p>'
       )()
     })
@@ -445,12 +450,12 @@ describe("DOMParser", () => {
       "accepts the topNode option",
       parse(
         "<li>wow</li><li>such</li>",
-        { topNode: schema.nodes.bullet_list.createAndFill()! },
+        { topNode: present(schema.nodes.bullet_list.createAndFill()) },
         ul(li(p("wow")), li(p("such")))
       )
     )
 
-    const item = schema.nodes.list_item.createAndFill()!
+    const item = present(schema.nodes.list_item.createAndFill())
     it(
       "accepts the topMatch option",
       parse("<ul><li>x</li></ul>", { topNode: item, topMatch: item.contentMatchAt(1) }, li(ul(li(p("x")))))

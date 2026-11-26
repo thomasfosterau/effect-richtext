@@ -23,6 +23,7 @@ import {
   ul
 } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
+import { present } from "../../utils/present.ts"
 import { showJson } from "../../utils/json.ts"
 
 const customSchema = new Schema({
@@ -59,7 +60,7 @@ function between(doc: Node, ...nodes: string[]) {
     if (i == nodes.length) {
       assert.fail("More nodes iterated than listed (" + node.type.name + ")")
     }
-    const compare = node.isText ? node.text! : node.type.name
+    const compare = node.isText ? present(node.text) : node.type.name
     if (compare != nodes[i++]) {
       assert.fail("Expected " + showJson(nodes[i - 1]) + ", got " + showJson(compare))
     }

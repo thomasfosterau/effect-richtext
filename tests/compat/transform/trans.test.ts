@@ -29,6 +29,7 @@ import {
 } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import { findWrapping, liftTarget, Transform } from "@thomasfosterau/effect-richtext/compat/transform"
 import ist from "../../utils/ist.ts"
+import { present } from "../../utils/present.ts"
 import { testTransform } from "./trans.ts"
 
 function tag$(node: Node, tag: string): number | null {
@@ -76,12 +77,15 @@ function split(
 
 function lift(doc: Node, expect: Node) {
   const range = doc.resolve(tag(doc, "a")).blockRange(doc.resolve(tag$(doc, "b") || tag(doc, "a")))
-  testTransform(new Transform(doc).lift(range!, liftTarget(range!)!), expect)
+  testTransform(new Transform(doc).lift(present(range), present(liftTarget(present(range)))), expect)
 }
 
 function wrap(doc: Node, expect: Node, type: string, attrs?: Attrs) {
   const range = doc.resolve(tag(doc, "a")).blockRange(doc.resolve(tag$(doc, "b") || tag(doc, "a")))
-  testTransform(new Transform(doc).wrap(range!, findWrapping(range!, schema.nodes[type], attrs)!), expect)
+  testTransform(
+    new Transform(doc).wrap(present(range), present(findWrapping(present(range), schema.nodes[type], attrs))),
+    expect
+  )
 }
 
 function typeInSetBlockType(doc: Node, expect: Node, nodeType: string, attrs?: Attrs | ((oldNode: Node) => Attrs)) {
@@ -194,7 +198,7 @@ describe("Transform", () => {
       })
       const tr = new Transform(schema.node("doc", null, schema.text("hi", [schema.mark("comment", { id: 10 })])))
       tr.addMark(0, 2, schema.mark("comment", { id: 20 }))
-      ist(tr.doc.firstChild!.marks.length, 2)
+      ist(present(tr.doc.firstChild).marks.length, 2)
     })
 
     it("can remove multiple excluded marks", () => {
@@ -205,10 +209,10 @@ describe("Transform", () => {
       const tr = new Transform(
         schema.node("doc", null, schema.text("hi", [schema.mark("small1"), schema.mark("small2")]))
       )
-      ist(tr.doc.firstChild!.marks.length, 2)
+      ist(present(tr.doc.firstChild).marks.length, 2)
       tr.addMark(0, 2, schema.mark("big"))
-      ist(tr.doc.firstChild!.marks.length, 1)
-      ist(tr.doc.firstChild!.marks[0].type.name, "big")
+      ist(present(tr.doc.firstChild).marks.length, 1)
+      ist(present(tr.doc.firstChild).marks[0].type.name, "big")
     })
   })
 
@@ -254,9 +258,9 @@ describe("Transform", () => {
           schema.text("hi", [schema.mark("comment", { id: 1 }), schema.mark("comment", { id: 2 })])
         )
       )
-      ist(tr.doc.firstChild!.marks.length, 2)
+      ist(present(tr.doc.firstChild).marks.length, 2)
       tr.removeMark(0, 2, schema.marks["comment"])
-      ist(tr.doc.firstChild!.marks.length, 0)
+      ist(present(tr.doc.firstChild).marks.length, 0)
     })
   })
 
@@ -289,7 +293,7 @@ describe("Transform", () => {
       ))
 
     it("will wrap a node with the suitable parent", () =>
-      ins(doc(p("foo<a>bar")), schema.nodes.list_item.createAndFill()!, doc(p("foo"), ol(li(p())), p("bar"))))
+      ins(doc(p("foo<a>bar")), present(schema.nodes.list_item.createAndFill()), doc(p("foo"), ol(li(p())), p("bar"))))
   })
 
   describe("delete", () => {
@@ -763,7 +767,7 @@ describe("Transform", () => {
       const tr = new Transform(ms.node("doc", null, [ms.node("paragraph", null, [ms.text("a")])]))
       tr.replace(3, 3, ms.node("doc", null, [ms.node("paragraph", null, [ms.text("b")], [ms.mark("em")])]).slice(1, 3))
       ist(tr.doc.childCount, 2)
-      ist(tr.doc.lastChild!.marks.length, 1)
+      ist(present(tr.doc.lastChild).marks.length, 1)
     })
 
     // A schema that enforces a heading and a body at the top level

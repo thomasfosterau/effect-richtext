@@ -15,6 +15,7 @@ import {
 import { br, doc, eq, h1, hr, img, p, pre, schema } from "@thomasfosterau/effect-richtext/TestBuilder"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
+import { present } from "../utils/present.ts"
 
 function compile(expr: ContentExpr): ContentMatch {
   return ContentMatch.compile(expr, schema.nodes, "test")
@@ -25,7 +26,7 @@ function get(expr: string): ContentMatch {
 }
 
 function matchTypes(m: ContentMatch | null, types: string): ContentMatch | null {
-  const ts = types ? types.split(" ").map((t) => schema.nodes[t]!) : []
+  const ts = types ? types.split(" ").map((t) => present(schema.nodes[t], "no node type " + t)) : []
   for (let i = 0; m && i < ts.length; i++) m = Option.getOrNull(m.matchType(ts[i]))
   return m
 }
@@ -57,8 +58,8 @@ function fill3(expr: string, before: Node, mid: Node, after: Node, left: Node | 
       getSome(content.matchFragment(before.content.append(a).append(mid.content))).fillBefore(after.content, true)
     )
   if (left) {
-    ist(a!, left.content, eq)
-    ist(b!, right!.content, eq)
+    ist(a, left.content, eq)
+    ist(b, present(right).content, eq)
   } else {
     ist(!b)
   }

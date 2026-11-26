@@ -7,6 +7,7 @@ import { Fragment, Slice } from "@thomasfosterau/effect-richtext/compat/model"
 import { doc, eq, p, schema } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import { AddMarkStep, RemoveMarkStep, ReplaceStep } from "@thomasfosterau/effect-richtext/compat/transform"
 import ist from "../../utils/ist.ts"
+import { present } from "../../utils/present.ts"
 
 const testDoc = doc(p("foobar"))
 
@@ -26,7 +27,7 @@ function yes(from1: number, to1: number, val1: string | null, from2: number, to2
       step2 = mkStep(from2, to2, val2)
     const merged = step1.merge(step2)
     ist(merged)
-    ist(merged!.apply(testDoc).doc, step2.apply(step1.apply(testDoc).doc!).doc, eq)
+    ist(present(merged).apply(testDoc).doc, step2.apply(present(step1.apply(testDoc).doc)).doc, eq)
   }
 }
 

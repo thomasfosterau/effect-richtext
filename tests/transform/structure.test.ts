@@ -7,6 +7,7 @@ import { eq, schema as baseSchema } from "@thomasfosterau/effect-richtext/TestBu
 import { canSplit, findWrapping, liftTarget, Transform } from "@thomasfosterau/effect-richtext/Transform"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
+import { present } from "../utils/present.ts"
 
 const schema = DocSchema.makeUnsafe({
   nodes: {
@@ -29,7 +30,7 @@ const schema = DocSchema.makeUnsafe({
 })
 
 function n(name: string, ...content: Array<Node<any>>) {
-  return schema.nodes[name]!.createUnsafe(null, content as any)
+  return present(schema.nodes[name], "no node type " + name).createUnsafe(null, content as any)
 }
 function t(str: string, em = false) {
   return schema.textUnsafe(str, em ? [schema.markUnsafe("em")] : null)
@@ -67,11 +68,27 @@ function range(pos: number, end?: number) {
 }
 
 function yesInCansplit(pos: number, depth?: number, after?: string) {
-  return () => ist(canSplit(doc, pos, depth, after == null ? undefined : [{ type: schema.nodes[after]! }]))
+  return () =>
+    ist(
+      canSplit(
+        doc,
+        pos,
+        depth,
+        after == null ? undefined : [{ type: present(schema.nodes[after], "no node type " + after) }]
+      )
+    )
 }
 
 function noInCansplit(pos: number, depth?: number, after?: string) {
-  return () => ist(!canSplit(doc, pos, depth, after == null ? undefined : [{ type: schema.nodes[after]! }]))
+  return () =>
+    ist(
+      !canSplit(
+        doc,
+        pos,
+        depth,
+        after == null ? undefined : [{ type: present(schema.nodes[after], "no node type " + after) }]
+      )
+    )
 }
 
 describe("canSplit", () => {
@@ -168,14 +185,14 @@ describe("liftTarget", () => {
 function yesInFindwrapping(pos: number, end: number, type: string) {
   return () => {
     const r = range(pos, end)
-    ist(Option.isSome(r) && Option.isSome(findWrapping(r.value, schema.nodes[type]!)))
+    ist(Option.isSome(r) && Option.isSome(findWrapping(r.value, present(schema.nodes[type], "no node type " + type))))
   }
 }
 
 function noInFindwrapping(pos: number, end: number, type: string) {
   return () => {
     const r = range(pos, end)
-    ist(Option.isNone(r) || Option.isNone(findWrapping(r.value, schema.nodes[type]!)))
+    ist(Option.isNone(r) || Option.isNone(findWrapping(r.value, present(schema.nodes[type], "no node type " + type))))
   }
 }
 

@@ -16,6 +16,7 @@ import {
 } from "@thomasfosterau/effect-richtext/Transform"
 import { Decoration, DecorationSet } from "@thomasfosterau/effect-richtext/View"
 import ist from "../utils/ist.ts"
+import { present } from "../utils/present.ts"
 import { getSome } from "../utils/option.ts"
 
 const widget = document.createElement("button")
@@ -77,19 +78,19 @@ function arrayStr(arr: readonly any[]) {
 }
 
 function buildMap(doc: Node, ...decorations: (DecoSpec | ((tr: Transform) => Transform))[]) {
-  const f = decorations.pop()!
+  const f = present(decorations.pop())
   const oldSet = build(doc, ...(decorations as DecoSpec[]))
   const tr = (f as any)(new Transform(doc))
   return { set: oldSet.map(tr.mapping, tr.doc), oldSet }
 }
 
 function buildAdd(doc: Node, ...decorations: (DecoSpec | DecoSpec[])[]) {
-  const toAdd = decorations.pop()!
+  const toAdd = present(decorations.pop())
   return build(doc, ...(decorations as DecoSpec[])).add(doc, Array.isArray(toAdd) ? toAdd.map(make) : [make(toAdd)])
 }
 
 function buildRem(doc: Node, ...decorations: (DecoSpec | DecoSpec[])[]) {
-  const toAdd = decorations.pop()!
+  const toAdd = present(decorations.pop())
   return build(doc, ...(decorations as DecoSpec[])).remove(Array.isArray(toAdd) ? toAdd.map(make) : [make(toAdd)])
 }
 

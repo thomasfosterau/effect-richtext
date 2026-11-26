@@ -1,10 +1,12 @@
 // Ported from prosemirror-view/test/webtest-nodeview.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
+import { constUndefined } from "effect/Function"
 import * as Option from "effect/Option"
 import { Plugin } from "@thomasfosterau/effect-richtext/State"
 import { blockquote, br, doc, p } from "@thomasfosterau/effect-richtext/TestBuilder"
 import { Decoration, DecorationSet, type ViewMutationRecord } from "@thomasfosterau/effect-richtext/View"
 import ist from "../utils/ist.ts"
+import { present } from "../utils/present.ts"
 import { flush, tempEditor } from "./helpers.ts"
 
 describe("nodeViews prop", () => {
@@ -31,9 +33,9 @@ describe("nodeViews prop", () => {
         }
       }
     })
-    ist(view.dom.querySelector("p")!.textContent, "FOO")
+    ist(present(view.dom.querySelector("p")).textContent, "FOO")
     view.dispatchUnsafe(view.state.tr.insertTextUnsafe("a"))
-    ist(view.dom.querySelector("p")!.textContent, "AFOO")
+    ist(present(view.dom.querySelector("p")).textContent, "AFOO")
   })
 
   it("can register its own update method", () => {
@@ -53,7 +55,7 @@ describe("nodeViews prop", () => {
         }
       }
     })
-    const para = view.dom.querySelector("p")!
+    const para = present(view.dom.querySelector("p"))
     view.dispatchUnsafe(view.state.tr.insertTextUnsafe("a"))
     ist(view.dom.querySelector("p"), para)
     ist(para.textContent, "AFOO")
@@ -97,7 +99,7 @@ describe("nodeViews prop", () => {
         }
       }
     })
-    const para = view.dom.querySelector("p")!
+    const para = present(view.dom.querySelector("p"))
     view.dispatchUnsafe(view.state.tr.insertTextUnsafe("a"))
     ist(view.dom.querySelector("p"), para)
     ist(para.textContent, "afoo")
@@ -125,10 +127,10 @@ describe("nodeViews prop", () => {
       }
     })
     ist(!mutation)
-    view.dom.querySelector("x-info")!.textContent = "info"
+    present(view.dom.querySelector("x-info")).textContent = "info"
     flush(view)
     ist(mutation)
-    ist((mutation!.target as HTMLElement).tagName, "X-INFO")
+    ist((present(mutation).target as HTMLElement).tagName, "X-INFO")
   })
 
   it("has its destroy method called", () => {
@@ -147,7 +149,7 @@ describe("nodeViews prop", () => {
   })
 
   it("can query its own position", () => {
-    let get: () => number | undefined
+    let get: () => number | undefined = constUndefined
     const view = tempEditor({
       doc: doc(blockquote(p("abc"), p("foo", br()))),
       nodeViews: {
@@ -158,9 +160,9 @@ describe("nodeViews prop", () => {
         }
       }
     })
-    ist(get!(), 10)
+    ist(get(), 10)
     view.dispatchUnsafe(view.state.tr.insertTextUnsafe("a"))
-    ist(get!(), 11)
+    ist(get(), 11)
   })
 
   it("has access to outer decorations", () => {
@@ -202,11 +204,11 @@ describe("nodeViews prop", () => {
         }
       }
     })
-    ist(view.dom.querySelector("var")!.textContent, "[]")
+    ist(present(view.dom.querySelector("var")).textContent, "[]")
     view.dispatchUnsafe(view.state.tr.setMeta("setDeco", "foo"))
-    ist(view.dom.querySelector("var")!.textContent, "foo")
+    ist(present(view.dom.querySelector("var")).textContent, "foo")
     view.dispatchUnsafe(view.state.tr.setMeta("setDeco", "bar"))
-    ist(view.dom.querySelector("var")!.textContent, "bar")
+    ist(present(view.dom.querySelector("var")).textContent, "bar")
   })
 
   it("provides access to inner decorations in the constructor", () => {

@@ -30,6 +30,7 @@ import {
   ul
 } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
+import { present } from "../../utils/present.ts"
 
 import {
   autoJoin,
@@ -477,14 +478,14 @@ describe("splitBlockKeepMarks", () => {
   it("keeps marks when used after marked text", () => {
     let state = mkState(doc(p(strong("foo<a>"), "bar")))
     splitBlockKeepMarks(state, (tr) => (state = state.apply(tr)))
-    ist(state.storedMarks!.length, 1)
+    ist(present(state.storedMarks).length, 1)
   })
 
   it("preserves the stored marks", () => {
     let state = mkState(doc(p(em("foo<a>"))))
     toggleMark(schema.marks.strong)(state, (tr) => (state = state.apply(tr)))
     splitBlockKeepMarks(state, (tr) => (state = state.apply(tr)))
-    ist(state.storedMarks!.length, 2)
+    ist(present(state.storedMarks).length, 2)
   })
 })
 
@@ -654,11 +655,11 @@ describe("toggleMark", () => {
   it("can toggle pending marks", () => {
     let state = mkState(doc(p("hell<a>o")))
     toggleEm(state, (tr) => (state = state.apply(tr)))
-    ist(state.storedMarks!.length, 1)
+    ist(present(state.storedMarks).length, 1)
     toggleStrong(state, (tr) => (state = state.apply(tr)))
-    ist(state.storedMarks!.length, 2)
+    ist(present(state.storedMarks).length, 2)
     toggleEm(state, (tr) => (state = state.apply(tr)))
-    ist(state.storedMarks!.length, 1)
+    ist(present(state.storedMarks).length, 1)
   })
 
   it("skips whitespace at selection ends when adding marks", () => {

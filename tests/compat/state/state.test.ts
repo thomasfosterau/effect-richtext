@@ -7,6 +7,7 @@ import * as Str from "effect/String"
 import { EditorState, Plugin, PluginKey, TextSelection } from "@thomasfosterau/effect-richtext/compat/state"
 import { doc, eq, p, schema } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
+import { present } from "../../utils/present.ts"
 import { toJsonString } from "../../utils/json.ts"
 
 const messageCountKey = new PluginKey("messageCount")
@@ -96,9 +97,9 @@ describe("State", () => {
 
   it("supports specifying and persisting storedMarks", () => {
     const state = EditorState.create({ doc: doc(p("ok")), storedMarks: [schema.mark("em")] })
-    ist(state.storedMarks!.length, 1)
+    ist(present(state.storedMarks).length, 1)
     const copy = EditorState.fromJSON({ schema }, state.toJSON())
-    ist(copy.storedMarks!.length, 1)
+    ist(present(copy.storedMarks).length, 1)
   })
 
   it("supports reconfiguration", () => {
