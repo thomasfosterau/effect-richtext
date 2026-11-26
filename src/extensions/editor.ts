@@ -4,6 +4,7 @@
  *
  * @since 0.1.0
  */
+import type * as Cause from "effect/Cause"
 import * as Effect from "effect/Effect"
 import * as Predicate from "effect/Predicate"
 import * as Option from "effect/Option"
@@ -414,13 +415,21 @@ export class Editor<T extends ExtensionTypes> {
 
   // Run a command against the current state. The dispatch function
   // applies transactions immediately, with the context of the calling
-  // fiber; failures of plugin hooks propagate through the command's
-  // effect.
+  // fiber. A failed dispatch skips the command's later dispatches, and
+  // its failure becomes the command's.
   private runCommand(command: Command<any, any, any>, dispatching: boolean): Effect.Effect<boolean, any, any> {
     if (!dispatching) return command(this.state, undefined, this._view)
-    return Effect.flatMap(Effect.context<any>(), (context) => {
-      const dispatch: Dispatch<any> = (tr) => Effect.provideContext(this.dispatch(tr), context) as Effect.Effect<void>
-      return command(this.state, dispatch, this._view)
+    return Effect.flatMap(Effect.context<T["R"]>(), (context) => {
+      let failure = Option.none<Cause.Cause<T["E"]>>()
+      const dispatch: Dispatch<any> = (tr) =>
+        Option.isSome(failure)
+          ? Effect.void
+          : Effect.catchCause(Effect.provideContext(this.dispatch(tr), context), (cause) =>
+              Effect.sync(() => void (failure = Option.some(cause)))
+            )
+      return Effect.tap(command(this.state, dispatch, this._view), () =>
+        Option.match(failure, { onNone: () => Effect.void, onSome: Effect.failCause })
+      )
     })
   }
 
