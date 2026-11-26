@@ -11,8 +11,9 @@ import * as Schema from "effect/Schema"
  * spec, or (in strict mode) the serializer met a node or mark type it
  * has no serializer for.
  *
- * Parsing reports unsupported tokens in the Effect error channel; the
- * other cases are programming errors and are thrown.
+ * `parse` and `serialize` report unsupported tokens and unknown types in
+ * the Effect error channel (their `…Unsafe` twins throw); an invalid
+ * parsing spec is a programming error and is thrown.
  *
  * @since 0.1.0
  * @category errors
