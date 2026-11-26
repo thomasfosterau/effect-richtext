@@ -183,19 +183,19 @@ function block<Sc extends AnySchema, N extends NodeNames<Sc>>(
   const result = function (...args: Array<any>) {
     const myAttrs = takeAttrs(attrs, args)
     const { nodes, tag } = flatten(type.schema, args as Array<ChildSpec<Sc>>, (n) => n)
-    return withTag(type.createUnsafe(myAttrs as any, nodes as any), tag)
+    return withTag(type.createUnsafe(myAttrs, nodes), tag)
   }
   if (type.isLeaf) {
     // Leaf types with required attributes have no default instance.
-    const leaf = Result.try(() => type.createUnsafe(attrs as any))
-    if (Result.isSuccess(leaf)) (result as any).flat = [leaf.success]
+    const leaf = Result.try(() => type.createUnsafe(attrs))
+    if (Result.isSuccess(leaf)) Object.assign(result, { flat: [leaf.success] })
   }
   return result as NodeBuilder<Sc, N>
 }
 
 function mark<Sc extends AnySchema>(type: MarkType<Sc>, attrs: Attrs | null): MarkBuilder<Sc> {
   return function (...args: Array<any>) {
-    const m = type.createUnsafe(takeAttrs(attrs, args) as any)
+    const m = type.createUnsafe(takeAttrs(attrs, args) ?? undefined)
     const { nodes, tag } = flatten(type.schema, args as Array<ChildSpec<Sc>>, (n) => {
       const newMarks = m.addToSet(n.marks)
       return newMarks.length > n.marks.length ? n.mark(newMarks) : n

@@ -556,7 +556,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
     pluginFields?: Record<string, AnyPlugin>
   ): EditorState<Sc, never, PluginErrors<P>> {
     // Every run awaits the document's decode, an Effect, so there is no synchronous fast path to take.
-    return runSyncUnsafe(EditorState.fromJSON(config, json, pluginFields)) as any
+    return runSyncUnsafe(EditorState.fromJSON(config, json, pluginFields))
   }
 }
 

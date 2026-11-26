@@ -7,6 +7,8 @@
 
 const nav = typeof navigator != "undefined" ? navigator : null
 const doc = typeof document != "undefined" ? document : null
+// IE-only.
+const documentMode = (d: Document & { readonly documentMode?: number }): number => d.documentMode ?? 0
 const agent = (nav && nav.userAgent) || ""
 
 const ie_edge = /Edge\/(\d+)/.exec(agent)
@@ -17,7 +19,7 @@ const ie_11up = /Trident\/(?:[7-9]|\d{2,})\..*rv:(\d+)/.exec(agent)
 export const ie = !!(ie_upto10 || ie_11up || ie_edge)
 /** @internal */
 export const ie_version: number = ie_upto10
-  ? (document as any).documentMode
+  ? documentMode(document)
   : ie_11up
     ? +ie_11up[1]!
     : ie_edge

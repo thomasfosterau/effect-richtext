@@ -92,7 +92,7 @@ export class DocAttrStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
     const attrs = Object.create(null)
     for (const name in doc.attrs) attrs[name] = doc.attrs[name]
     attrs[this.attr] = this.value
-    const updated = doc.type.createUnsafe(attrs, doc.content as any, doc.marks)
+    const updated = doc.type.createUnsafe(attrs, doc.content, doc.marks)
     return StepResult.ok(updated as Node<Sc>)
   }
 

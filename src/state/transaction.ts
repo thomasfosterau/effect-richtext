@@ -226,7 +226,7 @@ export class Transaction<Sc extends AnySchema = AnySchema> extends Transform<Sc>
    * with a text node containing the given string.
    */
   insertText(text: string, from?: number, to?: number): Effect.Effect<this, ReplaceFailure> {
-    return attempt(() => this.insertTextUnsafe(text, from, to), isTransformOrModelError as any)
+    return attempt(() => this.insertTextUnsafe(text, from, to), isTransformOrModelError)
   }
 
   /** Like `insertText`, but throws on failure (for example for positions outside of the document). */

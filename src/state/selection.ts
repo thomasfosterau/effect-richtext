@@ -445,7 +445,7 @@ export class TextSelection<Sc extends AnySchema = AnySchema> extends Selection<S
     anchor: number,
     head = anchor
   ): Effect.Effect<TextSelection<Sc>, PositionError> {
-    return attempt(() => TextSelection.createUnsafe(doc, anchor, head), isModelError as any)
+    return attempt(() => TextSelection.createUnsafe(doc, anchor, head), isModelError)
   }
 
   /** Like `create`, but throws a `PositionError` for positions outside of the document. */
@@ -725,5 +725,5 @@ export const SelectionFromJSON = <Sc extends AnySchema>(doc: Node<Sc>): S.Codec<
       ),
       encode: SchemaGetter.transform((selection: Selection<Sc>) => selection.toJSON())
     })
-  ) as any
+  )
 }

@@ -104,7 +104,7 @@ export type SpecRefs<C> =
 
 const variance = { _Refs: (_: never) => _ }
 
-const make = <R extends string>(ast: ExprAST): ContentExpr<R> => ({ [TypeId]: variance as any, ast })
+const make = <R extends string>(ast: ExprAST): ContentExpr<R> => ({ [TypeId]: variance, ast })
 
 const toAST = (input: ContentInput): ExprAST => (Predicate.isString(input) ? { _tag: "Name", name: input } : input.ast)
 

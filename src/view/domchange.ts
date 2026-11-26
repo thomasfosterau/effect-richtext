@@ -97,7 +97,7 @@ const ruleFromNode =
       if (browser.safari && /^(ul|ol)$/i.test(dom.parentNode.nodeName)) {
         const skip = document.createElement("div")
         skip.appendChild(document.createElement("li"))
-        return { skip } as any
+        return { skip }
       } else if (dom.parentNode.lastChild == dom || (browser.safari && /^(tr|table)$/i.test(dom.parentNode.nodeName))) {
         return { ignore: true }
       }

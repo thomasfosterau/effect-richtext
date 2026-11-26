@@ -16,7 +16,7 @@ import { captureKeyDown } from "./capturekeys.ts"
 import { parseFromClipboard, serializeForClipboard } from "./clipboard.ts"
 import { type DOMNode, keyEvent, textNodeAfter, textNodeBefore } from "./dom.ts"
 import { selectionBetween, selectionFromDOM, selectionToDOM } from "./selection.ts"
-import type { EditorView } from "./view.ts"
+import type { EditorView, HandlerResult } from "./view.ts"
 import type { ViewDesc } from "./viewdesc.ts"
 
 type AnyView = EditorView<any, any, any>
@@ -109,9 +109,12 @@ export function ensureListeners(view: AnyView): void {
   })
 }
 
+type DOMEventHandler = (view: AnyView, event: Event) => HandlerResult<any, any>
+
 function runCustomHandler(view: AnyView, event: Event) {
   return view.someProp("handleDOMEvents", (handlers) => {
-    const handler = (handlers as any)[event.type]
+    // SAFETY: `handleDOMEvents` maps each event type to a handler for it.
+    const handler = (handlers as Partial<Readonly<Record<string, DOMEventHandler>>>)[event.type]
     return handler ? view.runHandler(handler(view, event)) || event.defaultPrevented : false
   })
 }

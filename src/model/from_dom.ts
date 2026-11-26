@@ -131,8 +131,12 @@ export interface GenericParseRule {
   readonly ignore?: boolean | undefined
   /** When true, finding an element that matches this rule will close the current node. */
   readonly closeParent?: boolean | undefined
-  /** When true, ignore the node that matches this rule, but do parse its content. */
-  readonly skip?: boolean | undefined
+  /**
+   * When true, ignore the node that matches this rule, but do parse its
+   * content. A DOM node instead parses that node's content (the view
+   * uses this to skip decoration wrappers).
+   */
+  readonly skip?: boolean | globalThis.Node | undefined
   /**
    * Attributes for the node or mark created by this rule. When
    * `getAttrs` is provided, it takes precedence.

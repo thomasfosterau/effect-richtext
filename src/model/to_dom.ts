@@ -323,7 +323,12 @@ function renderSpecInner(
   // Only elements may be returned directly; anything else is read as an
   // array spec (prosemirror-model 1.25.5 / 1.25.7).
   if ((structure as globalThis.Node).nodeType === 1) return { dom: structure as Element }
-  if ((structure as any).dom && (structure as any).dom.nodeType === 1) return structure as RenderedSpec
+  if (
+    Predicate.hasProperty(structure, "dom") &&
+    Predicate.hasProperty(structure.dom, "nodeType") &&
+    structure.dom.nodeType === 1
+  )
+    return structure as RenderedSpec
   let tagName = (structure as ReadonlyArray<unknown>)[0],
     suspicious
   if (!Predicate.isString(tagName)) throw new DOMSpecError({ message: "Invalid array passed to renderSpec" })
