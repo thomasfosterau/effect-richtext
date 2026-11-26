@@ -2,6 +2,7 @@
 import { assert, describe, it } from "@effect/vitest"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
+import * as Predicate from "effect/Predicate"
 import * as Schema from "effect/Schema"
 import {
   autoJoin,
@@ -185,7 +186,7 @@ describe("commands with a view", () => {
 describe("base keymaps", () => {
   it("binds the standard keys", () => {
     for (const key of ["Enter", "Mod-Enter", "Backspace", "Mod-Backspace", "Shift-Backspace", "Delete", "Mod-Delete"]) {
-      ist(typeof pcBaseKeymap[key], "function")
+      ist(Predicate.isFunction(pcBaseKeymap[key]))
     }
     ist(macBaseKeymap["Ctrl-h"], pcBaseKeymap["Backspace"])
     ist(macBaseKeymap["Mod-a"], pcBaseKeymap["Mod-a"])

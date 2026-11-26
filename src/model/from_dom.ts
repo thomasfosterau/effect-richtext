@@ -812,8 +812,8 @@ class ParseContext implements RuleContext {
       rule.getContent(dom, this.parser.schema).forEach((node) => this.insertNode(node, marks, false))
     } else {
       let contentDOM = dom
-      if (typeof rule.contentElement == "string") contentDOM = dom.querySelector(rule.contentElement)!
-      else if (typeof rule.contentElement == "function") contentDOM = rule.contentElement(dom)
+      if (Predicate.isString(rule.contentElement)) contentDOM = dom.querySelector(rule.contentElement)!
+      else if (Predicate.isFunction(rule.contentElement)) contentDOM = rule.contentElement(dom)
       else if (rule.contentElement) contentDOM = rule.contentElement
       this.findAround(dom, contentDOM, true)
       this.addAll(contentDOM, marks)

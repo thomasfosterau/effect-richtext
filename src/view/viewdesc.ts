@@ -4,6 +4,7 @@
  *
  * @since 0.1.0
  */
+import * as Predicate from "effect/Predicate"
 import * as Arr from "effect/Array"
 import * as Order from "effect/Order"
 import {
@@ -749,7 +750,7 @@ class WidgetViewDesc extends ViewDesc {
     // reads the desc through a cell that is filled in once it exists.
     const cell: WidgetCell = { desc: undefined }
     let dom = (widget.type as WidgetType).toDOM as WidgetConstructor
-    if (typeof dom == "function") {
+    if (Predicate.isFunction(dom)) {
       dom = dom(view, () => {
         const desc = cell.desc
         if (!desc) return pos

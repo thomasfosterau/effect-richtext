@@ -4,6 +4,7 @@
  *
  * @internal
  */
+import * as Predicate from "effect/Predicate"
 import type { EditorState } from "../State.ts"
 import * as browser from "./browser.ts"
 import { caretFromPoint, type DOMNode, nodeSize, parentNode, textRange } from "./dom.ts"
@@ -38,7 +39,7 @@ function windowRect(doc: Document): Rect {
 }
 
 function getSide(value: number | Rect, side: keyof Rect): number {
-  return typeof value == "number" ? value : value[side]
+  return Predicate.isNumber(value) ? value : value[side]
 }
 
 function clientRect(node: HTMLElement): Rect {

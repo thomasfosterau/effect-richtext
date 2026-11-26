@@ -295,9 +295,9 @@ function suspiciousAttributes(attrs: Attrs): ReadonlyArray<unknown> | null {
 function suspiciousAttributesInner(attrs: Attrs): ReadonlyArray<unknown> | null {
   let result: Array<unknown> | null = null
   function scan(value: any) {
-    if (value && typeof value == "object") {
+    if (Predicate.isObjectOrArray(value)) {
       if (Array.isArray(value)) {
-        if (typeof value[0] == "string") {
+        if (Predicate.isString(value[0])) {
           if (!result) result = []
           result.push(value)
         } else {
@@ -326,7 +326,7 @@ function renderSpecInner(
   if ((structure as any).dom && (structure as any).dom.nodeType === 1) return structure as RenderedSpec
   let tagName = (structure as ReadonlyArray<unknown>)[0],
     suspicious
-  if (typeof tagName != "string") throw new DOMSpecError({ message: "Invalid array passed to renderSpec" })
+  if (!Predicate.isString(tagName)) throw new DOMSpecError({ message: "Invalid array passed to renderSpec" })
   if (blockArraysIn && (suspicious = suspiciousAttributes(blockArraysIn)) && suspicious.indexOf(structure) > -1) {
     throw new DOMSpecError({
       message:
@@ -345,7 +345,8 @@ function renderSpecInner(
   const spec = structure as ReadonlyArray<any>
   const attrs = spec[1]
   let start = 1
-  if (attrs && typeof attrs == "object" && attrs.nodeType == null && !Array.isArray(attrs)) {
+  // Checked on `spec[1]` so that `attrs` keeps its `any` values.
+  if (Predicate.isObjectOrArray(spec[1]) && attrs.nodeType == null && !Array.isArray(attrs)) {
     start = 2
     for (const name in attrs) {
       if (attrs[name] != null) {
@@ -363,7 +364,7 @@ function renderSpecInner(
         throw new DOMSpecError({ message: "Content hole must be the only child of its parent node" })
       }
       return { dom, contentDOM: dom }
-    } else if (typeof child == "string") {
+    } else if (Predicate.isString(child)) {
       dom.appendChild(doc.createTextNode(child))
     } else {
       const { contentDOM: innerContent, dom: inner } = renderSpecInner(doc, child, xmlNS, blockArraysIn)

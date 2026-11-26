@@ -7,6 +7,7 @@
  *
  * @since 0.1.0
  */
+import * as Predicate from "effect/Predicate"
 import { type Attrs, type MarkType, Node, type NodeType, Schema } from "./model.ts"
 import { schema as bSchema } from "./schema-basic.ts"
 import { addListNodes } from "./schema-list.ts"
@@ -34,7 +35,7 @@ function flatten(
 
   for (let i = 0; i < children.length; i++) {
     const child = children[i]!
-    if (typeof child == "string") {
+    if (Predicate.isString(child)) {
       const re = /<(\w+)>/g
       let m,
         at = 0,
@@ -78,7 +79,7 @@ function id<T>(x: T): T {
 
 function takeAttrs(attrs: Attrs | null, args: [a?: Attrs | ChildSpec | undefined, ...b: Array<ChildSpec>]) {
   const a0 = args[0]
-  if (!args.length || (a0 && (typeof a0 == "string" || a0 instanceof Node || (a0 as any).flat))) return attrs
+  if (!args.length || (a0 && (Predicate.isString(a0) || a0 instanceof Node || (a0 as any).flat))) return attrs
 
   args.shift()
   if (!attrs) return a0 as Attrs

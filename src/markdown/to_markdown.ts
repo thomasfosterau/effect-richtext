@@ -4,6 +4,7 @@
  * @since 0.1.0
  */
 // Ported from prosemirror-markdown (MIT, Marijn Haverbeke and others)
+import * as Predicate from "effect/Predicate"
 import * as Arr from "effect/Array"
 import type * as Effect from "effect/Effect"
 import * as Order from "effect/Order"
@@ -658,7 +659,7 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
   markString(mark: Mark<Sc, any>, open: boolean, parent: Node<Sc, any>, index: number): string {
     const info = this.getMark(mark.type.name)
     const value = open ? info.open : info.close
-    return typeof value == "string" ? value : value(this, mark, parent, index)
+    return Predicate.isString(value) ? value : value(this, mark, parent, index)
   }
 
   /**

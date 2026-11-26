@@ -4,6 +4,7 @@
  *
  * @since 0.1.0
  */
+import * as Predicate from "effect/Predicate"
 import * as Cause from "effect/Cause"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
@@ -649,7 +650,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     this.dom = (place && (place as { mount: HTMLElement }).mount) || document.createElement("div")
     if (place) {
       if ((place as DOMNode).appendChild) (place as DOMNode).appendChild(this.dom)
-      else if (typeof place == "function") place(this.dom)
+      else if (Predicate.isFunction(place)) place(this.dom)
       else if ((place as { mount: HTMLElement }).mount) this.mounted = true
     }
 
@@ -1387,8 +1388,9 @@ function computeDocDeco(view: EditorView<any, any, any>) {
   attrs.contenteditable = String(view.editable)
 
   view.someProp("attributes", (prop) => {
-    const value: { readonly [name: string]: string } | null | undefined =
-      typeof prop == "function" ? prop(view.state as EditorState<any>) : prop
+    const value: { readonly [name: string]: string } | null | undefined = Predicate.isFunction(prop)
+      ? prop(view.state as EditorState<any>)
+      : prop
     if (value) {
       for (const attr in value) {
         if (attr == "class") {

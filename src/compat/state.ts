@@ -928,7 +928,7 @@ export class EditorState {
   /** Serialize this state to JSON. */
   toJSON(pluginFields?: { [propName: string]: Plugin }): any {
     let fields: Record<string, any> | undefined
-    if (pluginFields && typeof pluginFields == "object") {
+    if (Predicate.isObjectOrArray(pluginFields)) {
       fields = {}
       for (const prop in pluginFields) fields[prop] = unwrap(pluginFields[prop])
     }

@@ -2,6 +2,7 @@
 // Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
 // ../../utils/ist.ts, mocha describe/it -> @effect/vitest; type-only imports
 // marked as such) and dprint formatting.
+import * as Predicate from "effect/Predicate"
 import { describe, it } from "@effect/vitest"
 import { blockquote, doc, em, p } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
@@ -47,10 +48,10 @@ describe("Node", () => {
         ist($pos.parentOffset, exp[exp.length - 3])
         const before = $pos.nodeBefore!,
           eBefore = exp[exp.length - 2]
-        ist(typeof eBefore == "string" ? before.textContent : before, eBefore)
+        ist(Predicate.isString(eBefore) ? before.textContent : before, eBefore)
         const after = $pos.nodeAfter!,
           eAfter = exp[exp.length - 1]
-        ist(typeof eAfter == "string" ? after.textContent : after, eAfter)
+        ist(Predicate.isString(eAfter) ? after.textContent : after, eAfter)
       }
     })
 
