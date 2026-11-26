@@ -5,9 +5,11 @@
  */
 // Ported from prosemirror-markdown (MIT, Marijn Haverbeke and others)
 import * as Arr from "effect/Array"
+import type * as Effect from "effect/Effect"
 import * as Order from "effect/Order"
+import { attempt } from "../internal/attempt.ts"
 import { type AnySchema, type Attrs, Mark, type Node, type TextNode } from "../Model.ts"
-import { MarkdownError } from "./errors.ts"
+import { isMarkdownError, MarkdownError } from "./errors.ts"
 
 /**
  * A function serializing a node to Markdown, by calling methods on the
@@ -142,11 +144,16 @@ export class MarkdownSerializer<Sc extends AnySchema = AnySchema> {
    * Serialize the content of the given node to
    * [CommonMark](http://commonmark.org/).
    *
-   * Serialization can't fail for nodes that the serializer knows; in
-   * strict mode (the default) an unknown node or mark type is a
-   * programming error and throws a `MarkdownError`.
+   * Fails with a `MarkdownError` when, in strict mode (the default), the
+   * content holds a node or mark type the serializer has no entry for.
+   * Anything else a node serializer throws is a defect.
    */
-  serialize(content: Node<Sc, any>, options: MarkdownSerializeOptions = {}): string {
+  serialize(content: Node<Sc, any>, options: MarkdownSerializeOptions = {}): Effect.Effect<string, MarkdownError> {
+    return attempt(() => this.serializeUnsafe(content, options), isMarkdownError)
+  }
+
+  /** Like `serialize`, but throws a `MarkdownError` on failure. */
+  serializeUnsafe(content: Node<Sc, any>, options: MarkdownSerializeOptions = {}): string {
     const state = new MarkdownSerializerState(this.nodes, this.marks, { ...this.options, ...options })
     state.renderContent(content)
     return state.out
@@ -191,8 +198,8 @@ function isPlainURL(link: Mark<any, any>, parent: Node<any, any>, index: number)
  * const source = "# Hello *world*\n\nSome `code`."
  * const doc = Effect.runSync(defaultMarkdownParser.parse(source))
  *
- * // Serializing is synchronous, and round-trips this document.
- * assert.strictEqual(defaultMarkdownSerializer.serialize(doc), source)
+ * // This document round-trips.
+ * assert.strictEqual(Effect.runSync(defaultMarkdownSerializer.serialize(doc)), source)
  * ```
  *
  * @since 0.1.0

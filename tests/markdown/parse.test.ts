@@ -16,7 +16,7 @@ function parse(text: string, doc: Node<any>) {
 }
 
 function serialize(doc: Node<any>, text: string) {
-  ist(defaultMarkdownSerializer.serialize(doc), text)
+  ist(defaultMarkdownSerializer.serializeUnsafe(doc), text)
 }
 
 function same(text: string, doc: Node<any>) {
@@ -201,7 +201,7 @@ describe("markdown", () => {
       defaultMarkdownSerializer.marks,
       { escapeExtraCharacters: /[|!]/g }
     )
-    ist(markdownSerializer.serialize(doc(p("foo|bar!"))), "foo\\|bar\\!")
+    ist(markdownSerializer.serializeUnsafe(doc(p("foo|bar!"))), "foo\\|bar\\!")
   })
 
   it("escapes list markers inside lists", () => {
@@ -249,7 +249,7 @@ describe("markdown", () => {
 
   it("parses a code block ends with empty line", () => {
     const originalText = "1\n"
-    const mdText = defaultMarkdownSerializer.serialize(
+    const mdText = defaultMarkdownSerializer.serializeUnsafe(
       doc(schema.nodeUnsafe("code_block", { params: "" }, [schema.textUnsafe(originalText)]))
     )
     same(mdText, doc(schema.nodeUnsafe("code_block", { params: "" }, [schema.textUnsafe(originalText)])))
