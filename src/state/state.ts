@@ -34,6 +34,14 @@ export interface EditorStateConfig<
   readonly storedMarks?: ReadonlyArray<Mark<Sc>> | null | undefined
   /** The plugins that should be active in this state. */
   readonly plugins?: P | undefined
+  /**
+   * The clock that stamps `Transaction.time` when `state.tr` starts a
+   * transaction, in milliseconds like `Date.now` (the default). States
+   * derived by `apply` and `reconfigure` keep it. Pass a controllable
+   * clock to test time-dependent plugins, such as the history's grouping
+   * of steps by `newGroupDelay`.
+   */
+  readonly clock?: (() => number) | undefined
 }
 
 /**
@@ -126,7 +134,8 @@ export class Configuration<Sc extends AnySchema> {
 
   constructor(
     readonly schema: Sc,
-    plugins?: ReadonlyArray<AnyPlugin>
+    plugins?: ReadonlyArray<AnyPlugin>,
+    readonly clock: () => number = Date.now
   ) {
     this.fields = baseFields.slice()
     if (plugins) {
@@ -243,7 +252,7 @@ const runStepsUnsafe = <A>(steps: Steps<A>): A => {
 function* createSteps<Sc extends AnySchema, R, E>(config: EditorStateConfig<Sc>): Steps<EditorState<Sc, R, E>> {
   const schema = config.doc ? config.doc.type.schema : config.schema
   if (!schema) throw new StateError({ message: "Either `doc` or `schema` must be provided" })
-  const instance = new EditorState<Sc, R, E>(new Configuration(schema, config.plugins))
+  const instance = new EditorState<Sc, R, E>(new Configuration(schema, config.plugins, config.clock))
   for (const field of instance.config.fields) {
     instance.slots[field.name] = yield field.init.call(field.self, config, instance)
   }
@@ -401,10 +410,12 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
    * active plugins. State fields that exist in both sets of plugins are
    * kept unchanged. Those that no longer exist are dropped, and those
    * that are new are initialized using their `init` method, passing in
-   * the new configuration object.
+   * the new configuration object. The state's `clock` is kept unless
+   * `config` gives one.
    */
   reconfigure<const P extends ReadonlyArray<AnyPlugin> = readonly []>(config: {
     readonly plugins?: P | undefined
+    readonly clock?: (() => number) | undefined
   }): Effect.Effect<
     EditorState<Sc, PluginRequirements<P>, PluginErrors<P>>,
     PluginErrors<P> | StateError,
@@ -416,6 +427,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
   /** Like `reconfigure`, but runs synchronously (see `applyUnsafe`). */
   reconfigureUnsafe<const P extends ReadonlyArray<Plugin<any, any, any, never>> = readonly []>(config: {
     readonly plugins?: P | undefined
+    readonly clock?: (() => number) | undefined
   }): EditorState<Sc, never, PluginErrors<P>> {
     return runStepsUnsafe(reconfigureSteps(this, config))
   }
@@ -476,10 +488,11 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
    * at least a `schema` field, and should contain an array of plugins to
    * initialize the state with. `pluginFields` can be used to deserialize
    * the state of plugins, by associating plugin instances with the
-   * property names they use in the JSON object.
+   * property names they use in the JSON object. `config.clock` is as in
+   * `EditorStateConfig`.
    */
   static fromJSON<Sc extends AnySchema, const P extends ReadonlyArray<AnyPlugin> = readonly []>(
-    config: { readonly schema: Sc; readonly plugins?: P | undefined },
+    config: { readonly schema: Sc; readonly plugins?: P | undefined; readonly clock?: (() => number) | undefined },
     json: unknown,
     pluginFields?: Record<string, AnyPlugin>
   ): Effect.Effect<
@@ -492,7 +505,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
       const data = json as Record<string, any> | null | undefined
       if (!data || typeof data !== "object") throw new StateError({ message: "Invalid input for EditorState.fromJSON" })
       if (!config.schema) throw new StateError({ message: "Required config field 'schema' missing" })
-      const $config = new Configuration(config.schema, config.plugins)
+      const $config = new Configuration(config.schema, config.plugins, config.clock)
       const instance = new EditorState<Sc, PluginRequirements<P>, PluginErrors<P>>($config)
       for (const field of $config.fields) {
         if (field.name === "doc") {
@@ -538,7 +551,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
     Sc extends AnySchema,
     const P extends ReadonlyArray<Plugin<any, any, any, never>> = readonly []
   >(
-    config: { readonly schema: Sc; readonly plugins?: P | undefined },
+    config: { readonly schema: Sc; readonly plugins?: P | undefined; readonly clock?: (() => number) | undefined },
     json: unknown,
     pluginFields?: Record<string, AnyPlugin>
   ): EditorState<Sc, never, PluginErrors<P>> {
@@ -630,9 +643,9 @@ function* applyInnerSteps<Sc extends AnySchema, R, E>(
 // `reconfigure`: keep the fields both plugin sets share, init the new ones.
 function* reconfigureSteps<Sc extends AnySchema, R, E>(
   state: EditorState<Sc, any, any>,
-  config: { readonly plugins?: ReadonlyArray<AnyPlugin> | undefined }
+  config: { readonly plugins?: ReadonlyArray<AnyPlugin> | undefined; readonly clock?: (() => number) | undefined }
 ): Steps<EditorState<Sc, R, E>> {
-  const $config = new Configuration(state.schema, config.plugins)
+  const $config = new Configuration(state.schema, config.plugins, config.clock ?? state.config.clock)
   const instance = new EditorState<Sc, R, E>($config)
   for (const field of $config.fields) {
     instance.slots[field.name] = Object.prototype.hasOwnProperty.call(state.slots, field.name)
