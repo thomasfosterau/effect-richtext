@@ -273,6 +273,14 @@ export default defineConfig({
       // prototype chains by reflection (`link`, `adopt`, `getterOf`): any
       // object or prototype is a valid argument, so there is no owner type
       // to name in place of `object`.
+      // `effect/reactivity`'s Atom API is all marked unstable; these
+      // bindings say so in their docs, and nothing else in `src` uses it.
+      {
+        files: ["src/reactive/atoms.ts"],
+        rules: {
+          "effecttsgo/unstable-api-usage": "off"
+        }
+      },
       {
         files: ["src/compat/internal/core.ts", "src/compat/state.ts"],
         rules: {

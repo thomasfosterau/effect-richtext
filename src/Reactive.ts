@@ -8,7 +8,8 @@
  *
  * Both expose the same `EditorStreams`: `state`, `transactions`,
  * `docChanges`, `selection`, `select(f, eq?)`, `isMarkActive`,
- * `isNodeActive` and `canExecute`.
+ * `isNodeActive` and `canExecute`. `editorStateAtom` and `selectAtom`
+ * expose them as `effect/reactivity` atoms.
  *
  * @since 0.1.0
  */
@@ -26,6 +27,12 @@ export {
   StateRef
 }
 
+export {
+  /** @since 0.4.0 */
+  editorStateAtom,
+  /** @since 0.4.0 */
+  selectAtom
+} from "./reactive/atoms.ts"
 export {
   /** @since 0.1.0 */
   isMarkActive,
