@@ -14,6 +14,7 @@ import * as FiberSet from "effect/FiberSet"
 import * as Option from "effect/Option"
 import { PreventSchedulerYield } from "effect/Scheduler"
 import * as Scope from "effect/Scope"
+import type * as Types from "effect/Types"
 import type {
   AnySchema,
   DOMParser,
@@ -741,10 +742,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
   /** The view's current props. */
   get props(): DirectEditorProps<Sc, R, E> {
     if (this._props.state != this.state) {
-      const prev = this._props
-      this._props = {} as any
-      for (const name in prev) (this._props as any)[name] = (prev as any)[name]
-      ;(this._props as any).state = this.state
+      this._props = withState(this._props, this.state)
     }
     return this._props
   }
@@ -767,10 +765,8 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
    * `view.update(Object.assign({}, view.props, props))`.
    */
   setProps(props: Partial<DirectEditorProps<Sc, R, E>>): void {
-    const updated = {} as DirectEditorProps<Sc, R, E>
-    for (const name in this._props) (updated as any)[name] = (this._props as any)[name]
-    ;(updated as any).state = this.state
-    for (const name in props) (updated as any)[name] = (props as any)[name]
+    const updated: Types.Mutable<DirectEditorProps<Sc, R, E>> = withState(this._props, this.state)
+    copyProps(props, updated)
     this.update(updated)
   }
 
@@ -926,7 +922,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     const startDOM = this.domSelectionRange().focusNode
     if (!startDOM || !this.dom.contains(startDOM.nodeType == 1 ? startDOM : startDOM.parentNode)) {
       // Ignore selections outside the editor
-    } else if (this.someHandler("handleScrollToSelection", (f) => f(this as any))) {
+    } else if (this.someHandler("handleScrollToSelection", (f) => f(this))) {
       // Handled
     } else if (this.state.selection instanceof NodeSelection) {
       const target = this.docView.domAfterPos(this.state.selection.from)
@@ -947,16 +943,16 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
       this.destroyPluginViews()
       for (let i = 0; i < this.directPlugins.length; i++) {
         const plugin = this.directPlugins[i]!
-        if (plugin.spec.view) this.pluginViews.push(plugin.spec.view(this as any))
+        if (plugin.spec.view) this.pluginViews.push(plugin.spec.view(this))
       }
       for (let i = 0; i < this.state.plugins.length; i++) {
         const plugin = this.state.plugins[i]!
-        if (plugin.spec.view) this.pluginViews.push(plugin.spec.view(this as any))
+        if (plugin.spec.view) this.pluginViews.push(plugin.spec.view(this))
       }
     } else {
       for (let i = 0; i < this.pluginViews.length; i++) {
         const pluginView = this.pluginViews[i]!
-        if (pluginView.update) pluginView.update(this as any, prevState)
+        if (pluginView.update) pluginView.update(this, prevState)
       }
     }
   }
@@ -1000,18 +996,20 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     propName: PropName,
     f?: (value: NonNullable<EditorProps<Sc, R, E>[PropName]>) => Result
   ): Result | undefined {
-    const prop = this._props && this._props[propName]
-    let value
-    if (prop != null && (value = f ? f(prop as any) : prop)) return value as any
+    const read = (props: EditorProps<Sc, R, E>) => {
+      const prop = props && props[propName]
+      // SAFETY: without `f`, the second overload returns the prop itself.
+      return prop != null && (f ? f(prop) : (prop as Result))
+    }
+    let value = read(this._props)
+    if (value) return value
     for (let i = 0; i < this.directPlugins.length; i++) {
-      const prop = (this.directPlugins[i]!.props as any)[propName]
-      if (prop != null && (value = f ? f(prop as any) : prop)) return value as any
+      if ((value = read(this.directPlugins[i]!.props))) return value
     }
     const plugins = this.state.plugins
     if (plugins) {
       for (let i = 0; i < plugins.length; i++) {
-        const prop = (plugins[i]!.props as any)[propName]
-        if (prop != null && (value = f ? f(prop as any) : prop)) return value as any
+        if ((value = read(plugins[i]!.props))) return value
       }
     }
     return undefined
@@ -1122,8 +1120,8 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     const cached = this._root
     if (cached == null) {
       for (let search = this.dom.parentNode; search; search = search.parentNode) {
-        if (search.nodeType == 9 || (search.nodeType == 11 && (search as any).host)) {
-          if (!(search as any).getSelection) {
+        if (search.nodeType == 9 || (search.nodeType == 11 && Predicate.hasProperty(search, "host") && search.host)) {
+          if (!Predicate.hasProperty(search, "getSelection") || !search.getSelection) {
             Object.getPrototypeOf(search).getSelection = () => (search as DOMNode).ownerDocument!.getSelection()
           }
           return (this._root = search as Document | ShadowRoot)
@@ -1272,7 +1270,8 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
       this.dom.parentNode.removeChild(this.dom)
     }
     this.docView.destroy()
-    ;(this as any).docView = null
+    // A destroyed view has no desc tree (see `isDestroyed`).
+    Object.assign(this, { docView: null })
     clearReusedRange()
   }
 
@@ -1416,7 +1415,7 @@ function updateCursorWrapper(view: EditorView<any, any, any>) {
     dom.setAttribute("alt", "")
     view.cursorWrapper = {
       dom,
-      deco: Decoration.widget(view.state.selection.from, dom, { raw: true, marks: view.markCursor } as any)
+      deco: Decoration.widget(view.state.selection.from, dom, { raw: true, marks: view.markCursor ?? undefined })
     }
   } else {
     view.cursorWrapper = null
@@ -1461,4 +1460,18 @@ function checkStateComponent(plugin: Plugin<any, any, any, any>) {
   if (plugin.spec.state || plugin.spec.filterTransaction || plugin.spec.appendTransaction) {
     throw new ViewError({ message: "Plugins passed directly to the view must not have a state component" })
   }
+}
+
+// Copies every enumerable property, inherited ones included, as
+// ProseMirror does.
+function copyProps<T extends object>(from: Partial<T>, into: Types.Mutable<Partial<T>>): void {
+  for (const name in from) into[name] = from[name]
+}
+
+function withState<P extends { readonly state: unknown }>(props: P, state: P["state"]): Types.Mutable<P> {
+  // SAFETY: filled with every property of `props` before it is returned.
+  const copy = {} as Types.Mutable<P>
+  copyProps(props, copy)
+  copy.state = state
+  return copy
 }

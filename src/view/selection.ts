@@ -193,20 +193,24 @@ function temporarilyEditableNear(view: AnyView, pos: number) {
   return undefined
 }
 
-function setEditable(element: HTMLElement) {
+// Safari can't select into draggable elements, so they are made
+// undraggable while selected.
+type EditableElement = HTMLElement & { wasDraggable?: boolean }
+
+function setEditable(element: EditableElement) {
   element.contentEditable = "true"
   if (browser.safari && element.draggable) {
     element.draggable = false
-    ;(element as any).wasDraggable = true
+    element.wasDraggable = true
   }
   return element
 }
 
-function resetEditable(element: HTMLElement) {
+function resetEditable(element: EditableElement) {
   element.contentEditable = "false"
-  if ((element as any).wasDraggable) {
+  if (element.wasDraggable) {
     element.draggable = true
-    ;(element as any).wasDraggable = null
+    element.wasDraggable = false
   }
 }
 
@@ -244,8 +248,9 @@ function selectCursorWrapper(view: AnyView) {
   // positioned wrapper, rather than the root editable node, the
   // focused element.
   if (!img && !view.state.selection.visible && browser.ie && browser.ie_version <= 11) {
-    ;(node as any).disabled = true
-    ;(node as any).disabled = false
+    const ieNode: globalThis.Node & { disabled?: boolean } = node
+    ieNode.disabled = true
+    ieNode.disabled = false
   }
 }
 

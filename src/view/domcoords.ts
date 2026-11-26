@@ -168,7 +168,8 @@ let preventScrollSupported: false | null | { preventScroll: boolean } = null
 // a fallback kludge when not supported.
 /** @internal */
 export function focusPreventScroll(dom: HTMLElement): void {
-  if ((dom as any).setActive) return (dom as any).setActive() // in IE
+  const ieDom: HTMLElement & { setActive?: () => void } = dom
+  if (ieDom.setActive) return ieDom.setActive() // in IE
   if (preventScrollSupported) return dom.focus(preventScrollSupported)
 
   const stored = scrollStack(dom)
@@ -373,10 +374,7 @@ export function posAtCoords(
   const caret = caretFromPoint(doc, coords.left, coords.top)
   if (caret) ({ node, offset } = caret)
 
-  let elt = ((view.root as any).elementFromPoint ? view.root : doc).elementFromPoint(
-    coords.left,
-    coords.top
-  ) as HTMLElement
+  let elt = ("elementFromPoint" in view.root ? view.root : doc).elementFromPoint(coords.left, coords.top) as HTMLElement
   let pos
   if (!elt || !view.dom.contains(elt.nodeType != 1 ? elt.parentNode : elt)) {
     const box = view.dom.getBoundingClientRect()
@@ -625,7 +623,9 @@ function endOfTextblockHorizontal(
   if (!sel) return $head.pos == $head.start() || $head.pos == $head.end()
   // If the textblock is all LTR, or the browser doesn't support
   // Selection.modify (Edge), fall back to a primitive approach
-  if (!maybeRTL.test($head.parent.textContent) || !(sel as any).modify) {
+  // `modify` is missing in old Edge; `caretBidiLevel` is Firefox-only.
+  const bidiSel: Selection & { caretBidiLevel?: number } = sel
+  if (!maybeRTL.test($head.parent.textContent) || !bidiSel.modify) {
     return dir == "left" || dir == "backward" ? atStart : atEnd
   }
 
@@ -636,8 +636,8 @@ function endOfTextblockHorizontal(
     // textblock (or doesn't move it at all, when at the start/end of
     // the document).
     const { anchorNode, anchorOffset, focusNode: oldNode, focusOffset: oldOff } = view.domSelectionRange()
-    const oldBidiLevel = (sel as any).caretBidiLevel // Only for Firefox
-    ;(sel as any).modify("move", dir, "character")
+    const oldBidiLevel = bidiSel.caretBidiLevel
+    bidiSel.modify("move", dir, "character")
     const parentDOM = $head.depth ? view.docView.domAfterPos($head.beforeUnsafe()) : view.dom
     const { focusNode: newNode, focusOffset: newOff } = view.domSelectionRange()
     const result =
@@ -650,7 +650,7 @@ function endOfTextblockHorizontal(
     } catch {
       // ignore
     }
-    if (oldBidiLevel != null) (sel as any).caretBidiLevel = oldBidiLevel
+    if (oldBidiLevel != null) bidiSel.caretBidiLevel = oldBidiLevel
     return result
   })
 }

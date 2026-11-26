@@ -12,7 +12,7 @@ const decoderCache = new WeakMap<object, (u: unknown) => unknown>()
 const encoder = (schema: S.Codec<any, any>): ((u: unknown) => unknown) => {
   let enc = encoderCache.get(schema)
   if (!enc) {
-    enc = S.encodeUnknownSync(schema as any) as (u: unknown) => unknown
+    enc = S.encodeUnknownSync(schema)
     encoderCache.set(schema, enc)
   }
   return enc
@@ -21,7 +21,7 @@ const encoder = (schema: S.Codec<any, any>): ((u: unknown) => unknown) => {
 const decoder = (schema: S.Codec<any, any>): ((u: unknown) => unknown) => {
   let dec = decoderCache.get(schema)
   if (!dec) {
-    dec = S.decodeUnknownSync(schema as any) as (u: unknown) => unknown
+    dec = S.decodeUnknownSync(schema)
     decoderCache.set(schema, dec)
   }
   return dec

@@ -248,5 +248,5 @@ export const StepFromJSON = <Sc extends AnySchema>(schema: Sc): S.Codec<Step<Sc>
       ),
       encode: SchemaGetter.transform((step: Step<Sc>) => step.toJSON())
     })
-  ) as any
+  )
 }

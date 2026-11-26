@@ -151,7 +151,9 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     let i = 0
     if (last.isText && last.sameMarkup(first)) {
       const lastText: Node<Sc> = last
-      content[content.length - 1] = (lastText as TextNode<Sc>).withText(lastText.textContent + first.textContent) as any
+      const joinedText: Node<Sc> = (lastText as TextNode<Sc>).withText(lastText.textContent + first.textContent)
+      // SAFETY: the joined node keeps `last`'s type, one of `N`.
+      content[content.length - 1] = joinedText as Node<Sc, N>
       i = 1
     }
     for (; i < other.content.length; i++) content.push(other.content[i]!)
@@ -344,9 +346,11 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
       if (i && node.isText && array[i - 1]!.sameMarkup(node)) {
         if (!joined) joined = array.slice(0, i)
         const text: Node<Sc> = node
-        joined[joined.length - 1] = (text as TextNode<Sc>).withText(
+        const joinedText: Node<Sc> = (text as TextNode<Sc>).withText(
           joined[joined.length - 1].textContent + text.textContent
-        ) as any
+        )
+        // SAFETY: the joined node keeps `node`'s type, one of `N`.
+        joined[joined.length - 1] = joinedText as Node<Sc, N>
       } else if (joined) {
         joined.push(node)
       }

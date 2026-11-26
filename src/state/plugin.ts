@@ -269,7 +269,9 @@ export class Plugin<PState = any, Sc extends AnySchema = AnySchema, E = never, R
     /** The plugin's spec object. */
     readonly spec: PluginSpec<PState, Sc, E, R>
   ) {
-    if (spec.props) bindProps(spec.props as any, this, this.props as Record<string, unknown>)
+    // SAFETY: props are a plain object of handlers.
+    if (spec.props)
+      bindProps(spec.props as { readonly [prop: string]: unknown }, this, this.props as Record<string, unknown>)
     this.key = spec.key ? spec.key.key : createKey("plugin")
   }
 

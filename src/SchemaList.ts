@@ -136,9 +136,10 @@ export const addListNodes = <
   itemContent: ContentInput<ItemRefs>,
   listGroup?: Group
 ): N & ListNodes<ItemRefs, Group> =>
+  // SAFETY: the three list nodes are spelled out as `ListNodes` describes them.
   ({
     ...nodes,
     ordered_list: { ...orderedList, content: Content.oneOrMore("list_item"), group: listGroup },
     bullet_list: { ...bulletList, content: Content.oneOrMore("list_item"), group: listGroup },
     list_item: { ...listItem, content: Predicate.isString(itemContent) ? Content.ref(itemContent) : itemContent }
-  }) as any
+  }) as N & ListNodes<ItemRefs, Group>

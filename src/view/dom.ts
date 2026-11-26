@@ -179,11 +179,12 @@ export const selectionCollapsed = function (domSel: DOMSelectionRange): boolean 
 
 /** @internal */
 export function keyEvent(keyCode: number, key: string): KeyboardEvent {
-  const event = document.createEvent("Event") as KeyboardEvent
+  // A plain event, so these are writable.
+  const event: Event & { keyCode?: number; key?: string; code?: string } = document.createEvent("Event")
   event.initEvent("keydown", true, true)
-  ;(event as any).keyCode = keyCode
-  ;(event as any).key = (event as any).code = key
-  return event
+  event.keyCode = keyCode
+  event.key = event.code = key
+  return event as KeyboardEvent
 }
 
 /** @internal */
@@ -195,10 +196,10 @@ export function deepActiveElement(doc: Document): Element | null {
 
 /** @internal */
 export function caretFromPoint(doc: Document, x: number, y: number): { node: DOMNode; offset: number } | undefined {
-  if ((doc as any).caretPositionFromPoint) {
+  if (doc.caretPositionFromPoint) {
     try {
       // Firefox throws for this call in hard-to-predict circumstances
-      const pos = (doc as any).caretPositionFromPoint(x, y)
+      const pos = doc.caretPositionFromPoint(x, y)
       // Clip the offset, because Chrome will return a text offset
       // into <input> nodes, which can't be treated as a regular DOM
       // offset
@@ -207,8 +208,8 @@ export function caretFromPoint(doc: Document, x: number, y: number): { node: DOM
       // ignore
     }
   }
-  if ((doc as any).caretRangeFromPoint) {
-    const range: Range | null = (doc as any).caretRangeFromPoint(x, y)
+  if (doc.caretRangeFromPoint) {
+    const range: Range | null = doc.caretRangeFromPoint(x, y)
     if (range) {
       return { node: range.startContainer, offset: Math.min(nodeSize(range.startContainer), range.startOffset) }
     }

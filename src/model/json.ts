@@ -125,7 +125,7 @@ export const NodeJSONSchema: S.Codec<NodeJSON> = S.suspend(() =>
     ),
     text: S.optionalKey(S.String)
   }).annotate({ identifier: "NodeJSON" })
-) as any
+)
 
 const wrap = <A>(f: () => A): Effect.Effect<A, SchemaIssue.Issue> =>
   Effect.try({
@@ -179,7 +179,7 @@ export const NodeFromJSON = <Sc extends AnySchema>(schema: Sc): S.Codec<Node<Sc>
       ),
       encode: SchemaGetter.transform((node: Node<Sc>) => node.toJSON())
     })
-  ) as any
+  )
 }
 
 /**
@@ -208,5 +208,5 @@ export const DocFromJSON = <Sc extends AnySchema>(schema: Sc): S.Codec<Node<Sc>,
       ),
       encode: SchemaGetter.transform((node: Node<Sc>) => node.toJSON())
     })
-  ) as any
+  )
 }

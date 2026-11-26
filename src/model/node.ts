@@ -117,7 +117,7 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
 
   /** Narrow this node to the given node type(s). */
   is<K extends NodeNames<Sc>>(...names: ReadonlyArray<K>): this is Node<Sc, K> {
-    return names.indexOf(this.type.name as any) > -1
+    return (names as ReadonlyArray<string>).indexOf(this.type.name) > -1
   }
 
   /** Narrow this node to a text node. */
@@ -298,7 +298,7 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
     to: number,
     slice: Slice<Sc>
   ): Effect.Effect<Node<Sc, N>, ReplaceError | PositionError | ContentError> {
-    return attempt(() => this.replaceUnsafe(from, to, slice), isModelError as any)
+    return attempt(() => this.replaceUnsafe(from, to, slice), isModelError)
   }
 
   /** Like `replace`, but throws on failure. */
@@ -485,7 +485,7 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
    * `AttributeError` when they do not.
    */
   check(): Effect.Effect<void, ContentError | AttributeError> {
-    return attempt(() => this.checkUnsafe(), isModelError as any)
+    return attempt(() => this.checkUnsafe(), isModelError)
   }
 
   /** Like `check`, but throws on failure. */
@@ -532,7 +532,7 @@ export class TextNode<Sc extends AnySchema = AnySchema> extends Node<Sc, "text" 
 
   /** @internal */
   constructor(type: NodeType<Sc, any>, attrs: Attrs, content: string, marks?: ReadonlyArray<Mark<Sc>>) {
-    super(type, attrs as any, null, marks)
+    super(type, attrs, null, marks)
     if (!content) throw new ContentError({ message: "Empty text nodes are not allowed" })
     this.text = content
   }

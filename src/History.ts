@@ -470,7 +470,7 @@ function histTransaction<Sc extends AnySchema>(
   const plugin = Option.getOrUndefined(historyKey.get(state))
   // Unreachable: callers only get here after reading the plugin's state.
   if (!plugin) return null
-  const histOptions = (plugin.spec as any).config as HistoryConfig
+  const histOptions = plugin.spec.config as HistoryConfig
   const pop = (redo ? history.undone : history.done).popEvent(state, preserveItems)
   if (!pop) return null
 

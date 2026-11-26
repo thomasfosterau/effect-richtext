@@ -106,10 +106,11 @@ export class DOMObserver {
       })
     if (useCharData) {
       this.onCharData = (e) => {
+        const event: Event & { readonly prevValue?: string } = e
         this.queue.push({
           target: e.target as DOMNode,
           type: "characterData",
-          oldValue: (e as any).prevValue
+          oldValue: event.prevValue
         } as MutationRecord)
         this.flushSoon()
       }
@@ -416,12 +417,18 @@ function rangeToSelectionRange(view: AnyView, range: StaticRange) {
   return { anchorNode, anchorOffset, focusNode, focusOffset }
 }
 
+interface SafariSelection {
+  readonly getComposedRanges?: (...roots: ReadonlyArray<Document | ShadowRoot>) => ReadonlyArray<StaticRange>
+}
+
 // Used to work around a Safari Selection/shadow DOM bug
 // Based on https://github.com/codemirror/dev/issues/414 fix
 /** @internal */
 export function safariShadowSelectionRange(view: AnyView, selection: DOMSelection): DOMSelectionRange | null {
-  if ((selection as any).getComposedRanges) {
-    const range = (selection as any).getComposedRanges(view.root)[0] as StaticRange
+  // SAFETY: Safari's version takes the shadow roots as arguments.
+  const composed = selection as SafariSelection
+  if (composed.getComposedRanges) {
+    const range = composed.getComposedRanges(view.root)[0]
     if (range) return rangeToSelectionRange(view, range)
   }
 

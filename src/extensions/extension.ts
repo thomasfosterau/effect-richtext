@@ -8,8 +8,10 @@ import type { NoKeys } from "../internal/types.ts"
 import type * as Types from "effect/Types"
 import * as Arr from "effect/Array"
 import type * as Effect from "effect/Effect"
+import * as Option from "effect/Option"
 import * as Order from "effect/Order"
 import * as Predicate from "effect/Predicate"
+import * as Rec from "effect/Record"
 import { type Bindings, type BindingsError, type BindingsRequirements, keymap } from "../Keymap.ts"
 import type { AnySchema, MarkSpec, MarkSpecs, NodeSpec, NodeSpecs } from "../Model.ts"
 import type { AnyPlugin, Command, Plugin } from "../State.ts"
@@ -396,7 +398,7 @@ export const defineExtension = <
  */
 export const union = <const Exts extends ReadonlyArray<AnyExtension>>(
   ...extensions: Exts
-): Extension<MergeTypes<TypesOf<Exts[number]>>> => new Extension(undefined, extensions, undefined) as any
+): Extension<MergeTypes<TypesOf<Exts[number]>>> => new Extension(undefined, extensions, undefined)
 
 /**
  * Give an extension (and every part of it that doesn't set its own
@@ -453,7 +455,7 @@ export const definePlugin = <const P extends PluginInput>(
  */
 export const defineKeymap = <const B extends Bindings>(
   bindings: B
-): Extension<SpecTypes<NoKeys, NoKeys, readonly [], B, NoKeys>> => defineExtension({ keymap: bindings }) as any
+): Extension<SpecTypes<NoKeys, NoKeys, readonly [], B, NoKeys>> => defineExtension({ keymap: bindings })
 
 /**
  * Define an extension adding commands. Each command is given as a
@@ -508,8 +510,13 @@ export interface Flattened {
   readonly commands: Record<string, CommandCreator>
 }
 
-const mergeSpec = <S extends NodeSpec | MarkSpec>(base: S | undefined, over: S): S => {
-  if (!base) return over
+const mergeInto = <S extends NodeSpec | MarkSpec>(specs: Record<string, Option.Option<S>>, name: string, over: S) => {
+  specs[name] = Option.some(mergeSpec(specs[name] ?? Option.none(), over))
+}
+
+const mergeSpec = <S extends NodeSpec | MarkSpec>(prev: Option.Option<S>, over: S): S => {
+  if (Option.isNone(prev)) return over
+  const base = prev.value
   const attrs = base.attrs || over.attrs ? { ...base.attrs, ...over.attrs } : undefined
   const merged = { ...base, ...over }
   return attrs ? { ...merged, attrs } : merged
@@ -547,25 +554,25 @@ export const flatten = (extension: AnyExtension): Flattened => {
   // `Arr.sort` is stable, so equal priorities keep declaration order.
   const facets = Arr.sort(collected, byPriorityDesc)
 
-  const nodes: Record<string, NodeSpec> = {}
-  const marks: Record<string, MarkSpec> = {}
+  const nodes: Record<string, Option.Option<NodeSpec>> = {}
+  const marks: Record<string, Option.Option<MarkSpec>> = {}
   const plugins: Array<PluginInput> = []
   const commands: Record<string, CommandCreator> = {}
   // Iterate from lowest to highest priority when merging specs, so the
   // higher-priority spec wins, but keep the key order of the sorted
   // (highest first) facets.
   for (const { spec } of facets) {
-    for (const name in spec.nodes) if (!(name in nodes)) nodes[name] = undefined as any
-    for (const name in spec.marks) if (!(name in marks)) marks[name] = undefined as any
+    for (const name in spec.nodes) if (!(name in nodes)) nodes[name] = Option.none()
+    for (const name in spec.marks) if (!(name in marks)) marks[name] = Option.none()
     if (spec.plugins) plugins.push(...spec.plugins)
     for (const name in spec.commands) if (!(name in commands)) commands[name] = spec.commands[name]!
   }
   for (let i = facets.length - 1; i >= 0; i--) {
     const spec = facets[i]!.spec
-    for (const name in spec.nodes) nodes[name] = mergeSpec(nodes[name], spec.nodes[name]!)
-    for (const name in spec.marks) marks[name] = mergeSpec(marks[name], spec.marks[name]!)
+    for (const name in spec.nodes) mergeInto(nodes, name, spec.nodes[name]!)
+    for (const name in spec.marks) mergeInto(marks, name, spec.marks[name]!)
   }
-  return { nodes, marks, plugins, commands }
+  return { nodes: Rec.getSomes(nodes), marks: Rec.getSomes(marks), plugins, commands }
 }
 
 /**

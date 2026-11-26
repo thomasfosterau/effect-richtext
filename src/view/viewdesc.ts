@@ -1260,8 +1260,8 @@ class TextViewDesc extends NodeViewDesc {
 
   override parseRule() {
     let skip = this.nodeDOM.parentNode
-    while (skip && skip != this.dom && !(skip as any).pmIsDeco) skip = skip.parentNode
-    return { skip: (skip || true) as any }
+    while (skip && skip != this.dom && !isDecoWrapper(skip)) skip = skip.parentNode
+    return { skip: skip || true }
   }
 
   override update(
@@ -1451,35 +1451,44 @@ function renderDescs(parentDOM: HTMLElement, descs: ReadonlyArray<ViewDesc>, vie
 
 type OuterDecoLevel = { [attr: string]: string }
 
-interface OuterDecoLevelConstructor {
-  new (nodeName?: string): OuterDecoLevel
+// Without a prototype, so that any attribute name reads as unset.
+const outerDecoLevel = (nodeName?: string): OuterDecoLevel => {
+  const level: OuterDecoLevel = Object.create(null)
+  if (nodeName) level.nodeName = nodeName
+  return level
 }
 
-const OuterDecoLevel: OuterDecoLevelConstructor = function (this: any, nodeName?: string) {
-  if (nodeName) this.nodeName = nodeName
-} as any
-OuterDecoLevel.prototype = Object.create(null)
+// Whether a widget's DOM is not in the document (or is built on demand).
+const isDetachedWidget = (widget: Decoration): boolean => {
+  const toDOM: unknown = Predicate.hasProperty(widget.type, "toDOM") ? widget.type.toDOM : undefined
+  return !(Predicate.hasProperty(toDOM, "parentNode") && toDOM.parentNode)
+}
 
-const noDeco = [new OuterDecoLevel()]
+// Elements wrapping a node for its outer decorations are flagged.
+type DecoWrapper = DOMNode & { pmIsDeco?: boolean }
+
+const isDecoWrapper = (node: DecoWrapper): boolean => node.pmIsDeco === true
+
+const noDeco = [outerDecoLevel()]
 
 function computeOuterDeco(outerDeco: ReadonlyArray<Decoration>, node: Node<any, any>, needsWrap: boolean) {
   if (Arr.isReadonlyArrayEmpty(outerDeco)) return noDeco
 
-  let top = needsWrap ? noDeco[0]! : new OuterDecoLevel()
+  let top = needsWrap ? noDeco[0]! : outerDecoLevel()
   const result = [top]
 
   for (let i = 0; i < outerDeco.length; i++) {
     const attrs = (outerDeco[i]!.type as NodeType).attrs
     if (!attrs) continue
     if (attrs.nodeName) {
-      result.push((top = new OuterDecoLevel(attrs.nodeName)))
+      result.push((top = outerDecoLevel(attrs.nodeName)))
     }
 
     for (const name in attrs) {
       const val = attrs[name]
       if (val == null) continue
       if (needsWrap && result.length == 1) {
-        result.push((top = new OuterDecoLevel(node.isInline ? "span" : "div")))
+        result.push((top = outerDecoLevel(node.isInline ? "span" : "div")))
       }
       if (name == "class") top.class = (top.class ? top.class + " " : "") + val
       else if (name == "style") top.style = (top.style ? top.style + ";" : "") + val
@@ -1514,9 +1523,10 @@ function patchOuterDeco(
       ) {
         curDOM = parent
       } else {
-        parent = document.createElement(deco.nodeName!)
-        ;(parent as any).pmIsDeco = true
-        parent.appendChild(curDOM)
+        const wrapper: HTMLElement & DecoWrapper = document.createElement(deco.nodeName!)
+        wrapper.pmIsDeco = true
+        wrapper.appendChild(curDOM)
+        parent = wrapper
         prev = noDeco[0]
         curDOM = parent
       }
@@ -1856,7 +1866,7 @@ class ViewTreeUpdater {
     if (
       next &&
       next.matchesWidget(widget) &&
-      (widget == (next as WidgetViewDesc).widget || !(next as any).widget.type.toDOM.parentNode)
+      (widget == (next as WidgetViewDesc).widget || isDetachedWidget((next as WidgetViewDesc).widget))
     ) {
       this.index++
     } else {

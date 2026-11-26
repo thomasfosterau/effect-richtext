@@ -18,7 +18,7 @@ function mapFragment<Sc extends AnySchema>(
   const mapped: Array<Node<Sc>> = []
   for (let i = 0; i < fragment.childCount; i++) {
     let child = fragment.content[i]!
-    if (child.content.size) child = child.copy(mapFragment(child.content, f, child) as any)
+    if (child.content.size) child = child.copy(mapFragment(child.content, f, child))
     if (child.isInline) child = f(child, parent, i)
     mapped.push(child)
   }
@@ -206,7 +206,7 @@ export class AddNodeMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> 
   apply(doc: Node<Sc>): StepResult<Sc> {
     const node = doc.nodeAtOrNull(this.pos)
     if (!node) return StepResult.fail("No node at mark step's position")
-    const updated = node.type.createUnsafe(node.attrs as any, null, this.mark.addToSet(node.marks))
+    const updated = node.type.createUnsafe(node.attrs, null, this.mark.addToSet(node.marks))
     return StepResult.fromReplace(
       doc,
       this.pos,
@@ -267,7 +267,7 @@ export class RemoveNodeMarkStep<Sc extends AnySchema = AnySchema> extends Step<S
   apply(doc: Node<Sc>): StepResult<Sc> {
     const node = doc.nodeAtOrNull(this.pos)
     if (!node) return StepResult.fail("No node at mark step's position")
-    const updated = node.type.createUnsafe(node.attrs as any, null, this.mark.removeFromSet(node.marks))
+    const updated = node.type.createUnsafe(node.attrs, null, this.mark.removeFromSet(node.marks))
     return StepResult.fromReplace(
       doc,
       this.pos,

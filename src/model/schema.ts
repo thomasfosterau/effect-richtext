@@ -656,7 +656,7 @@ export class Attribute {
     this.hasDefault = Object.prototype.hasOwnProperty.call(options, "default")
     this.default = options.default
     this.schema = options.schema
-    this.is = options.schema ? (S.is(options.schema as any) as (value: unknown) => boolean) : undefined
+    this.is = options.schema ? S.is(options.schema) : undefined
     this.identityCodec = !options.schema || SchemaAST.toEncoded(options.schema.ast) === options.schema.ast
     this.validate = Predicate.isString(options.validate)
       ? validateType(typeName, attrName, options.validate)
@@ -887,7 +887,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     content?: FragmentInput<Sc, ChildNames<Sc, N>>,
     marks?: MarksInput<Sc>
   ): Effect.Effect<Node<Sc, N>, AttributeError | ContentError> {
-    return attempt(() => this.createUnsafe(attrs, content, marks), isModelError as any)
+    return attempt(() => this.createUnsafe(attrs, content, marks), isModelError)
   }
 
   /** Like `create`, but throws an `AttributeError` on failure. */
@@ -908,7 +908,13 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     marks?: MarksInput<Sc>
   ): Node<Sc, N> {
     if (this.isText) throw new ContentError({ message: "NodeType.create can't construct text nodes" })
-    return new Node(this, this.computeAttrs(attrs) as any, Fragment.from(content), Mark.setFrom(marks)) as any
+    return this.build(this.computeAttrs(attrs), Fragment.from(content), Mark.setFrom(marks))
+  }
+
+  private build(attrs: Attrs, content: Fragment<Sc>, marks: ReadonlyArray<Mark<Sc>>): Node<Sc, N> {
+    // SAFETY: callers pass attrs computed for this type, and content
+    // they checked or filled for it.
+    return new Node(this, attrs as NodeAttrs<Sc, N>, content as Fragment<Sc, ChildNames<Sc, N>>, marks)
   }
 
   /**
@@ -918,7 +924,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
    */
   createDecodedUnsafe(attrs: Option.Option<Attrs>, content: Fragment<Sc>, marks: ReadonlyArray<Mark<Sc>>): Node<Sc, N> {
     if (this.isText) throw new ContentError({ message: "NodeType.create can't construct text nodes" })
-    return new Node(this, this.computeDecodedAttrs(attrs) as any, content, Mark.setFrom(marks)) as any
+    return this.build(this.computeDecodedAttrs(attrs), content, Mark.setFrom(marks))
   }
 
   // Without a decoded attrs object nothing was decoded: compute as usual.
@@ -948,7 +954,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     content?: FragmentInput<Sc, ChildNames<Sc, N>>,
     marks?: MarksInput<Sc>
   ): Effect.Effect<Node<Sc, N>, AttributeError | ContentError> {
-    return attempt(() => this.createCheckedUnsafe(attrs, content, marks), isModelError as any)
+    return attempt(() => this.createCheckedUnsafe(attrs, content, marks), isModelError)
   }
 
   /** Like `createChecked`, but throws on failure. */
@@ -970,7 +976,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   ): Node<Sc, N> {
     const frag = Fragment.from(content)
     this.checkContent(frag)
-    return new Node(this, this.computeAttrs(attrs) as any, frag, Mark.setFrom(marks)) as any
+    return this.build(this.computeAttrs(attrs), frag, Mark.setFrom(marks))
   }
 
   /**
@@ -1002,7 +1008,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
         throw new ContentError({ message: `Content does not fit node type ${this.name} and cannot be filled` })
       }
       return node
-    }, isModelError as any)
+    }, isModelError)
   }
 
   /** @internal */
@@ -1021,7 +1027,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     const matched = this.contentMatch.matchFragmentOrNull(frag)
     const after = matched && matched.fillBeforeOrNull(Fragment.empty, true)
     if (!after) return null
-    return new Node(this, computed as any, frag.append(after), Mark.setFrom(marks)) as any
+    return this.build(computed, frag.append(after), Mark.setFrom(marks))
   }
 
   /** Returns true if the given fragment is valid content for this node type. */
@@ -1109,7 +1115,7 @@ export class MarkType<Sc extends AnySchema = AnySchema, out M extends MarkNames<
   ) {
     this.attrs = initAttrs(name, spec.attrs)
     this.identityAttrs = identityAttrs(this.attrs)
-    this.instance = Option.map(defaultAttrs(this.attrs), (defaults) => new Mark(this, defaults as any))
+    this.instance = Option.map(defaultAttrs(this.attrs), (defaults) => this.build(defaults))
   }
 
   /**
@@ -1131,7 +1137,12 @@ export class MarkType<Sc extends AnySchema = AnySchema, out M extends MarkNames<
   createUnsafe(attrs: MarkAttrsInput<Sc, M>): Mark<Sc, M>
   createUnsafe(attrs?: MarkAttrsInput<Sc, M>): Mark<Sc, M> {
     if (!attrs && Option.isSome(this.instance)) return this.instance.value
-    return new Mark(this, computeAttrs(this.attrs, attrs, "mark", this.name) as any)
+    return this.build(computeAttrs(this.attrs, attrs, "mark", this.name))
+  }
+
+  private build(attrs: Attrs): Mark<Sc, M> {
+    // SAFETY: callers pass attrs computed for this type.
+    return new Mark(this, attrs as MarkAttrs<Sc, M>)
   }
 
   /**
@@ -1141,7 +1152,7 @@ export class MarkType<Sc extends AnySchema = AnySchema, out M extends MarkNames<
    */
   createDecodedUnsafe(attrs: Option.Option<Attrs>): Mark<Sc, M> {
     return Option.isSome(attrs)
-      ? new Mark(this, computeAttrs(this.attrs, attrs.value, "mark", this.name, true) as any)
+      ? this.build(computeAttrs(this.attrs, attrs.value, "mark", this.name, true))
       : this.createUnsafe()
   }
 
@@ -1260,7 +1271,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
   constructor(spec: SchemaSpec<N, M>) {
     this.spec = { ...spec, nodes: spec.nodes, marks: (spec.marks ?? {}) as M }
     const nodes: Record<string, NodeType<any, any>> = Object.create(null)
-    for (const name in this.spec.nodes) nodes[name] = new NodeType(name, this, this.spec.nodes[name] as any)
+    for (const name in this.spec.nodes) nodes[name] = new NodeType<AnySchema, string>(name, this, this.spec.nodes[name])
     const topType = this.spec.topNode || "doc"
     if (!nodes[topType]) {
       throw new SchemaDefinitionError({ message: "Schema is missing its top node type ('" + topType + "')" })
@@ -1271,9 +1282,12 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
     }
     const marks: Record<string, MarkType<any, any>> = Object.create(null)
     let rank = 0
-    for (const name in this.spec.marks) marks[name] = new MarkType(name, rank++, this, this.spec.marks[name] as any)
-    this.nodes = nodes as any
-    this.marks = marks as any
+    for (const name in this.spec.marks)
+      marks[name] = new MarkType<AnySchema, string>(name, rank++, this, this.spec.marks[name])
+    // SAFETY: built with one type per name in the spec.
+    this.nodes = nodes as DocSchema<N, M>["nodes"]
+    // SAFETY: as above.
+    this.marks = marks as DocSchema<N, M>["marks"]
 
     let linebreak = Option.none<NodeType<any, any>>()
     for (const prop in nodes) {
@@ -1356,7 +1370,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
     content?: FragmentInput<DocSchema<N, M>, ChildNames<DocSchema<N, M>, K>>,
     marks?: MarksInput<DocSchema<N, M>>
   ): Effect.Effect<Node<DocSchema<N, M>, K>, AttributeError | ContentError> {
-    return attempt(() => this.nodeUnsafe(type, attrs, content, marks), isModelError as any)
+    return attempt(() => this.nodeUnsafe(type, attrs, content, marks), isModelError)
   }
 
   /** Like `node`, but throws on failure. */
@@ -1384,7 +1398,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
     else if (type.schema !== this) {
       throw new ContentError({ message: "Node type from different schema used (" + type.name + ")" })
     } else nodeType = type
-    return nodeType.createCheckedUnsafe(attrs, content, marks) as any
+    return nodeType.createCheckedUnsafe(attrs, content, marks)
   }
 
   /**
@@ -1401,7 +1415,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
   /** Like `text`, but throws a `ContentError` for empty strings. */
   textUnsafe(text: string, marks?: ReadonlyArray<Mark<DocSchema<N, M>>> | null): TextNode<this> {
     const type = this.nodes.text as NodeType<any, any>
-    return new TextNode(type, type.defaultAttrs!, text, Mark.setFrom(marks)) as any
+    return new TextNode(type, type.defaultAttrs!, text, Mark.setFrom(marks))
   }
 
   /** Create a mark with the given type and attributes. */
@@ -1435,7 +1449,8 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
   ): Mark<DocSchema<N, M>, K> {
     const markType = Predicate.isString(type) ? this.marks[type] : type
     if (!markType) throw new AttributeError({ message: "Unknown mark type: " + String(type) })
-    return markType.createUnsafe(attrs as any) as any
+    // SAFETY: `markType` is the type named by (or given as) `type`.
+    return markType.createUnsafe(attrs) as Mark<DocSchema<N, M>, K>
   }
 
   /** Deserialize a node from its JSON representation. */

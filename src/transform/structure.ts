@@ -151,9 +151,10 @@ export function findWrappingOrNull<Sc extends AnySchema>(
   const around = findWrappingOutside(range, nodeType)
   const inner = around && findWrappingInside(innerRange, nodeType)
   if (!inner) return null
+  // SAFETY: each wrapper is a type of `Sc`; only `nodeType` gets attrs.
   return (around!.map(withAttrs) as Array<AnyWrapper>)
     .concat({ type: nodeType, attrs })
-    .concat(inner.map(withAttrs)) as any
+    .concat(inner.map(withAttrs)) as ReadonlyArray<NodeTypeWithAttrs<Sc>>
 }
 
 const withAttrs = (type: NodeType<any, any>): AnyWrapper => ({ type, attrs: null })

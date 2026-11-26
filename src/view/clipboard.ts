@@ -309,7 +309,8 @@ function detachedDoc() {
 let _policy: any = null
 
 function maybeWrapTrusted(html: string): string {
-  const trustedTypes = (window as any).trustedTypes
+  const win: Window & { readonly trustedTypes?: any } = window
+  const trustedTypes = win.trustedTypes
   if (!trustedTypes) return html
   // With the require-trusted-types-for CSP, Chrome will block
   // innerHTML, even on a detached document. This wraps the string in
