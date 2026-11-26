@@ -113,15 +113,14 @@ export default defineConfig({
       // `warn`, with the site count when added: a new site is a defect, not
       // headroom. Lower the count as sites go; delete the line at zero.
       "effect/avoid-non-null-assertion": "warn", // 1295
-      "effect/require-safety-comment-for-type-assertion": "warn", // 984
+      "effect/require-safety-comment-for-type-assertion": "warn", // 983
       "effect/prefer-option-over-null": "warn", // 989
       "effect/imperative-loops": "warn", // 599
       "effect/avoid-any": "warn", // 423
       "effect/no-runtime-typeof": "warn", // 28
-      "effect/no-unsafe-dictionary-type": "warn", // 73
+      "effect/no-unsafe-dictionary-type": "warn", // 68
       "effect/no-unknown-parameters": "warn", // 59
       "effect/avoid-object-type": "warn", // 33
-      "effect/no-known-value-widening": "warn", // 36
       "effect/no-chained-type-assertions": "warn", // 9
       "effect/use-clock-service": "warn", // 20
       "effect/no-unknown-returns": "warn", // 22
@@ -130,7 +129,7 @@ export default defineConfig({
       // ---- Type-aware allowances (same rules as above) ---------------------
       // tsrs's "unnecessary" verdict differs from the `check` task's tsc,
       // so remove those sites by hand, against `vp run check`, never by autofix.
-      "typescript/no-unsafe-type-assertion": "warn", // 858
+      "typescript/no-unsafe-type-assertion": "warn", // 857
       "typescript/no-unnecessary-type-assertion": "warn", // 672
       "typescript/no-unnecessary-type-arguments": "warn", // 54
       "effecttsgo/any-unknown-in-error-context": "warn", // 51
@@ -276,6 +275,16 @@ export default defineConfig({
         files: ["src/compat/internal/core.ts", "src/compat/state.ts"],
         rules: {
           "effect/no-object-parameters": "off"
+        }
+      },
+      // The facade keeps ProseMirror's inline result types (`childAfter`,
+      // `applyTransaction`, `serializeForClipboard`, …) rather than adding
+      // names ProseMirror doesn't export, and converts specs and configs
+      // to the core's shapes key by key in open dictionaries.
+      {
+        files: ["src/compat/**"],
+        rules: {
+          "effect/no-known-value-widening": "off"
         }
       },
       // These ported prosemirror-state suites assert that `JSON.stringify`

@@ -117,6 +117,18 @@ export interface MarkdownSerializerStateOptions extends MarkdownSerializerOption
   readonly hardBreakNodeName: string
 }
 
+/**
+ * The result of `MarkdownSerializerState.getEnclosingWhitespace`: the
+ * leading and trailing whitespace of a string, when there is any.
+ *
+ * @since 0.4.0
+ * @category models
+ */
+export interface EnclosingWhitespace {
+  readonly leading?: string | undefined
+  readonly trailing?: string | undefined
+}
+
 const blankMark: MarkSerializerSpec<any> = { open: "", close: "", mixable: true }
 
 /**
@@ -654,7 +666,7 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
    * or trailing property of the return object will be undefined if there
    * is no match.
    */
-  getEnclosingWhitespace(text: string): { leading?: string | undefined; trailing?: string | undefined } {
+  getEnclosingWhitespace(text: string): EnclosingWhitespace {
     return {
       leading: (text.match(/^(\s+)/) || [undefined])[0],
       trailing: (text.match(/(\s+)$/) || [undefined])[0]

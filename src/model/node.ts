@@ -7,6 +7,7 @@ import type * as Effect from "effect/Effect"
 import * as Equal from "effect/Equal"
 import * as Hash from "effect/Hash"
 import * as Option from "effect/Option"
+import type * as Types from "effect/Types"
 import { attempt } from "../internal/attempt.ts"
 import { showJson } from "../internal/json.ts"
 import { encodeAttrs } from "./attrsCodec.ts"
@@ -507,12 +508,7 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
 
   /** Return a JSON-serializable representation of this node. */
   toJSON(): NodeJSON {
-    const obj: {
-      type: string
-      attrs?: { readonly [name: string]: unknown }
-      content?: ReadonlyArray<NodeJSON>
-      marks?: ReadonlyArray<MarkJSON>
-    } = { type: this.type.name }
+    const obj: Types.Mutable<NodeJSON> = { type: this.type.name }
     for (const _ in this.attrs) {
       obj.attrs = this.type.identityAttrs ? this.attrs : encodeAttrs(this.type.attrs, this.attrs as Attrs)
       break

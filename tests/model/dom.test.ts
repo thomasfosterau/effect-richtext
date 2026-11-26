@@ -9,6 +9,7 @@ import {
   DocSchema,
   type DOMOutputSpec,
   DOMParser,
+  type DOMPosition,
   DOMSerializer,
   Fragment,
   type Mark,
@@ -103,7 +104,7 @@ function find(html: string, doc: PMNode<any> & { readonly tag: { readonly [tag: 
     const tag = dom.querySelector("var")!,
       prev = tag.previousSibling!,
       next = tag.nextSibling
-    let pos: { node: Node; offset: number; pos?: number }
+    let pos: DOMPosition
     if (prev && next && prev.nodeType == 3 && next.nodeType == 3) {
       pos = { node: prev, offset: prev.nodeValue!.length }
       prev.nodeValue += next.nodeValue!

@@ -9,15 +9,12 @@ import * as Predicate from "effect/Predicate"
 import { DOMParser, DOMSerializer, Fragment, type Node, type NodeType, type ResolvedPos, Slice } from "../Model.ts"
 import { parseJson, stringifyJson } from "../internal/json.ts"
 import * as browser from "./browser.ts"
-import type { EditorView } from "./view.ts"
+import type { ClipboardSerialization, EditorView } from "./view.ts"
 
 type AnyView = EditorView<any, any, any>
 
 /** @internal */
-export function serializeForClipboard(
-  view: AnyView,
-  slice: Slice<any>
-): { dom: HTMLElement; text: string; slice: Slice<any> } {
+export function serializeForClipboard(view: AnyView, slice: Slice<any>): ClipboardSerialization<any> {
   view.someProp("transformCopied", (f) => {
     slice = f(slice!, view)
   })
@@ -40,7 +37,7 @@ export function serializeForClipboard(
   let firstChild = wrap.firstChild,
     needsWrap,
     wrappers = 0
-  while (firstChild && firstChild.nodeType == 1 && (needsWrap = wrapMap[firstChild.nodeName.toLowerCase()])) {
+  while (firstChild && firstChild.nodeType == 1 && (needsWrap = wrapFor(wrapMap, firstChild.nodeName.toLowerCase()))) {
     for (let i = needsWrap.length - 1; i >= 0; i--) {
       const wrapper = doc.createElement(needsWrap[i]!)
       while (wrap.firstChild) wrapper.appendChild(wrap.firstChild)
@@ -287,7 +284,11 @@ function closeSlice(slice: Slice<any>, openStart: number, openEnd: number) {
 // Trick from jQuery -- some elements must be wrapped in other
 // elements for innerHTML to work. I.e. if you do `div.innerHTML =
 // "<td>..</td>"` the table cells are ignored.
-const wrapMap: { [node: string]: Array<string> } = {
+type WrapTable = { readonly [node: string]: ReadonlyArray<string> }
+
+const wrapFor = (table: WrapTable, node: string) => table[node]
+
+const wrapMap = {
   thead: ["table"],
   tbody: ["table"],
   tfoot: ["table"],
@@ -297,7 +298,7 @@ const wrapMap: { [node: string]: Array<string> } = {
   tr: ["table", "tbody"],
   td: ["table", "tbody", "tr"],
   th: ["table", "tbody", "tr"]
-}
+} satisfies WrapTable
 
 // A fresh document per read, so style sheets from earlier pastes don't
 // apply to later ones (prosemirror-view 1.42.0).
@@ -332,7 +333,7 @@ function readHTML(html: string) {
   let elt: HTMLElement = doc.body
   const firstTag = /<([a-z][^>\s]+)/i.exec(html)
   let wrap
-  if ((wrap = firstTag && wrapMap[firstTag[1]!.toLowerCase()])) {
+  if ((wrap = firstTag && wrapFor(wrapMap, firstTag[1]!.toLowerCase()))) {
     html =
       wrap.map((n) => "<" + n + ">").join("") +
       html +
