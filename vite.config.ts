@@ -120,13 +120,12 @@ export default defineConfig({
       "effect/no-runtime-typeof": "warn", // 27
       "effect/no-unsafe-dictionary-type": "warn", // 68
       "effect/no-unknown-parameters": "warn", // 59
-      "effect/avoid-object-type": "warn", // 33
       // The ported suites shadow the test-builder's `doc` / `schema`.
       "eslint/no-shadow": "warn", // 312
       // ---- Type-aware allowances (same rules as above) ---------------------
       // tsrs's "unnecessary" verdict differs from the `check` task's tsc,
       // so remove those sites by hand, against `vp run check`, never by autofix.
-      "typescript/no-unsafe-type-assertion": "warn", // 851
+      "typescript/no-unsafe-type-assertion": "warn", // 850
       "typescript/no-unnecessary-type-assertion": "warn", // 670
       "typescript/no-unnecessary-type-arguments": "warn", // 54
       "effecttsgo/any-unknown-in-error-context": "warn", // 50

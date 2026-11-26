@@ -4,6 +4,8 @@
  *
  * @since 0.1.0
  */
+import type { NoKeys } from "../internal/types.ts"
+import type * as Types from "effect/Types"
 import * as Arr from "effect/Array"
 import type * as Effect from "effect/Effect"
 import * as Order from "effect/Order"
@@ -107,14 +109,12 @@ export interface ExtensionTypes {
  * @category type-level
  */
 export interface EmptyTypes {
-  readonly nodes: {}
-  readonly marks: {}
-  readonly commands: {}
+  readonly nodes: NoKeys
+  readonly marks: NoKeys
+  readonly commands: NoKeys
   readonly E: never
   readonly R: never
 }
-
-type Simplify<A> = { [K in keyof A]: A[K] } & {}
 
 type Cast<A, B> = A extends B ? A : never
 
@@ -128,9 +128,9 @@ type UnionToIntersection<U> = (U extends any ? (u: U) => void : never) extends (
  * @category type-level
  */
 export type MergeTypes<T extends ExtensionTypes> = {
-  readonly nodes: Cast<Simplify<UnionToIntersection<T["nodes"]>>, NodeSpecs>
-  readonly marks: Cast<Simplify<UnionToIntersection<T["marks"]>>, MarkSpecs>
-  readonly commands: Cast<Simplify<UnionToIntersection<T["commands"]>>, CommandTypes>
+  readonly nodes: Cast<Types.Simplify<UnionToIntersection<T["nodes"]>>, NodeSpecs>
+  readonly marks: Cast<Types.Simplify<UnionToIntersection<T["marks"]>>, MarkSpecs>
+  readonly commands: Cast<Types.Simplify<UnionToIntersection<T["commands"]>>, CommandTypes>
   readonly E: T["E"]
   readonly R: T["R"]
 }
@@ -356,11 +356,11 @@ export interface SpecTypes<
  * @category constructors
  */
 export const defineExtension = <
-  const N extends NodeSpecs = {},
-  const M extends MarkSpecs = {},
+  const N extends NodeSpecs = NoKeys,
+  const M extends MarkSpecs = NoKeys,
   const P extends ReadonlyArray<PluginInput> = readonly [],
-  const B extends Bindings = {},
-  const C extends CommandCreators = {}
+  const B extends Bindings = NoKeys,
+  const C extends CommandCreators = NoKeys
 >(spec: {
   readonly nodes?: N | undefined
   readonly marks?: M | undefined
@@ -417,7 +417,7 @@ export const withPriority = <T extends ExtensionTypes>(extension: Extension<T>, 
 export const defineNodeSpec = <const Name extends string, const Spec extends NodeSpec>(
   name: Name,
   spec: Spec
-): Extension<SpecTypes<{ readonly [K in Name]: Spec }, {}, readonly [], {}, {}>> =>
+): Extension<SpecTypes<{ readonly [K in Name]: Spec }, NoKeys, readonly [], NoKeys, NoKeys>> =>
   new Extension({ nodes: { [name]: spec } }, [], undefined)
 
 /**
@@ -429,7 +429,7 @@ export const defineNodeSpec = <const Name extends string, const Spec extends Nod
 export const defineMarkSpec = <const Name extends string, const Spec extends MarkSpec>(
   name: Name,
   spec: Spec
-): Extension<SpecTypes<{}, { readonly [K in Name]: Spec }, readonly [], {}, {}>> =>
+): Extension<SpecTypes<NoKeys, { readonly [K in Name]: Spec }, readonly [], NoKeys, NoKeys>> =>
   new Extension({ marks: { [name]: spec } }, [], undefined)
 
 /**
@@ -441,7 +441,8 @@ export const defineMarkSpec = <const Name extends string, const Spec extends Mar
  */
 export const definePlugin = <const P extends PluginInput>(
   plugin: P
-): Extension<SpecTypes<{}, {}, readonly [P], {}, {}>> => new Extension({ plugins: [plugin] }, [], undefined)
+): Extension<SpecTypes<NoKeys, NoKeys, readonly [P], NoKeys, NoKeys>> =>
+  new Extension({ plugins: [plugin] }, [], undefined)
 
 /**
  * Define an extension adding a keymap (see `keymap`). Throws a
@@ -450,8 +451,9 @@ export const definePlugin = <const P extends PluginInput>(
  * @since 0.1.0
  * @category constructors
  */
-export const defineKeymap = <const B extends Bindings>(bindings: B): Extension<SpecTypes<{}, {}, readonly [], B, {}>> =>
-  defineExtension({ keymap: bindings }) as any
+export const defineKeymap = <const B extends Bindings>(
+  bindings: B
+): Extension<SpecTypes<NoKeys, NoKeys, readonly [], B, NoKeys>> => defineExtension({ keymap: bindings }) as any
 
 /**
  * Define an extension adding commands. Each command is given as a
@@ -473,7 +475,7 @@ export const defineKeymap = <const B extends Bindings>(bindings: B): Extension<S
  */
 export const defineCommands = <const C extends CommandCreators>(
   commands: C
-): Extension<SpecTypes<{}, {}, readonly [], {}, C>> => new Extension({ commands }, [], undefined)
+): Extension<SpecTypes<NoKeys, NoKeys, readonly [], NoKeys, C>> => new Extension({ commands }, [], undefined)
 
 /**
  * The type of an extension that only contributes commands, described
@@ -483,8 +485,8 @@ export const defineCommands = <const C extends CommandCreators>(
  * @category type-level
  */
 export type CommandsExtension<C extends CommandTypes, E = never, R = never> = Extension<{
-  readonly nodes: {}
-  readonly marks: {}
+  readonly nodes: NoKeys
+  readonly marks: NoKeys
   readonly commands: C
   readonly E: E
   readonly R: R

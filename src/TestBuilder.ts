@@ -10,6 +10,7 @@
  *
  * @since 0.1.0
  */
+import type { NoKeys } from "./internal/types.ts"
 import * as Predicate from "effect/Predicate"
 import * as Result from "effect/Result"
 import {
@@ -210,7 +211,7 @@ function mark<Sc extends AnySchema>(type: MarkType<Sc>, attrs: Attrs | null): Ma
  * @since 0.1.0
  * @category models
  */
-export type Builders<Sc extends AnySchema, Extra extends Record<string, Attrs> = {}> = { readonly schema: Sc } & {
+export type Builders<Sc extends AnySchema, Extra extends Record<string, Attrs> = NoKeys> = { readonly schema: Sc } & {
   readonly [K in NodeNames<Sc>]: NodeBuilder<Sc, K>
 } & { readonly [K in MarkNames<Sc>]: MarkBuilder<Sc> } & {
   readonly [K in keyof Extra]: Extra[K] extends { readonly nodeType: infer T extends NodeNames<Sc> }
@@ -240,7 +241,7 @@ export type Builders<Sc extends AnySchema, Extra extends Record<string, Attrs> =
  * @since 0.1.0
  * @category constructors
  */
-export function builders<Sc extends AnySchema, const Extra extends Record<string, Attrs> = {}>(
+export function builders<Sc extends AnySchema, const Extra extends Record<string, Attrs> = NoKeys>(
   schema: Sc,
   names?: Extra
 ): Builders<Sc, Extra> {
