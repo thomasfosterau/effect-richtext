@@ -127,8 +127,8 @@ export default defineConfig({
       // so remove those sites by hand, against `vp run check`, never by autofix.
       "typescript/no-unsafe-type-assertion": "warn", // 848
       "typescript/no-unnecessary-type-assertion": "warn", // 670
-      "effecttsgo/any-unknown-in-error-context": "warn", // 22
       // `@effect/tsgo`'s preset warns on these; they have no sites left.
+      "effecttsgo/any-unknown-in-error-context": "error",
       "effecttsgo/unnecessary-fail-yieldable-error": "error",
       "effecttsgo/unsafe-effect-type-assertion": "error",
       "effecttsgo/lazy-effect": "error",
@@ -288,8 +288,25 @@ export default defineConfig({
       {
         files: ["src/compat/**"],
         rules: {
+          "effecttsgo/any-unknown-in-error-context": "off",
           "effect/no-known-value-widening": "off",
           "effect/no-unknown-returns": "off"
+        }
+      },
+      // These run commands, handlers and input rules whose types are erased
+      // at run time (the editor's command maps, the view's handler results,
+      // effectful input rules, the ported test helpers that take any
+      // command), so their error channel is `unknown` or `any`.
+      {
+        files: [
+          "src/InputRules.ts",
+          "src/extensions/editor.ts",
+          "src/view/view.ts",
+          "tests/commands/apply.ts",
+          "tests/inputrules/inputrules.test.ts"
+        ],
+        rules: {
+          "effecttsgo/any-unknown-in-error-context": "off"
         }
       },
       // The attribute codecs encode and decode values of any schema, whose
