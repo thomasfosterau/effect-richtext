@@ -4,12 +4,12 @@
  *
  * @internal
  */
-import { defined } from "../internal/defined.ts"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import { DOMParser, DOMSerializer, Fragment, type Node, type NodeType, type ResolvedPos, Slice } from "../Model.ts"
 import { parseJson, stringifyJson } from "../internal/json.ts"
 import * as browser from "./browser.ts"
+import { ViewError } from "./errors.ts"
 import type { ClipboardSerialization, EditorView } from "./view.ts"
 
 type AnyView = EditorView<any, any, any>
@@ -104,8 +104,8 @@ export function parseFromClipboard(
         if (block) p.appendChild(serializer.serializeNode(schema.textUnsafe(block, marks)))
       })
     }
-  } else {
-    let source: string = defined(html, "clipboard HTML")
+  } else if (html) {
+    let source = html
     view.someProp("transformPastedHTML", (f) => {
       source = f(source, view)
     })
@@ -125,9 +125,10 @@ export function parseFromClipboard(
   }
 
   if (!slice) {
+    if (!dom) return null
     const parser =
       view.someProp("clipboardParser") || view.someProp("domParser") || DOMParser.fromSchema(view.state.schema)
-    slice = parser.parseSliceUnsafe(defined(dom, "the pasted DOM"), {
+    slice = parser.parseSliceUnsafe(dom, {
       preserveWhitespace: !!(asText || sliceData),
       context: $context,
       ruleFromNode(el) {
@@ -163,7 +164,7 @@ export function parseFromClipboard(
     }
   }
 
-  let pasted: Slice<any> = defined(slice, "a pasted slice")
+  let pasted: Slice<any> = slice
   view.someProp("transformPasted", (f) => {
     pasted = f(pasted, view, asText)
   })
@@ -209,7 +210,12 @@ function normalizeSiblings(fragment: Fragment<any, any>, $context: ResolvedPos<a
           result[result.length - 1] = closeRight(result[result.length - 1], lastWrap.length)
         const wrapped = withWrappers(node, wrap)
         result.push(wrapped)
-        match = defined(match.matchTypeOrNull(wrapped.type), "a match for the wrapped node")
+        const next = match.matchTypeOrNull(wrapped.type)
+        if (!next) {
+          result = null
+          return
+        }
+        match = next
         lastWrap = wrap
       }
     })
@@ -251,11 +257,14 @@ function closeRight(node: Node<any, any>, depth: number): Node<any, any> {
     node.childCount - 1,
     closeRight(node.content.content[node.childCount - 1], depth - 1)
   )
-  const fill = defined(
-    node.contentMatchAtUnsafe(node.childCount).fillBeforeOrNull(Fragment.empty, true),
-    "a fill to the end"
-  )
-  return node.copy(fragment.append(fill))
+  return node.copy(fragment.append(fillToEnd(node)))
+}
+
+// The content that closes `node` after its last child.
+function fillToEnd(node: Node<any, any>): Fragment<any, any> {
+  const fill = node.contentMatchAtUnsafe(node.childCount).fillBeforeOrNull(Fragment.empty, true)
+  if (!fill) throw new ViewError({ message: "Can't complete the content of " + node.type.name })
+  return fill
 }
 
 function closeRange(
@@ -271,18 +280,13 @@ function closeRange(
   if (fragment.childCount > 1) openEnd = 0
   if (depth < to - 1) inner = closeRange(inner, side, from, to, depth + 1, openEnd)
   if (depth >= from) {
-    inner =
-      side < 0
-        ? defined(
-            node.contentMatchAtUnsafe(0).fillBeforeOrNull(inner, openEnd <= depth),
-            "a fill before the content"
-          ).append(inner)
-        : inner.append(
-            defined(
-              node.contentMatchAtUnsafe(node.childCount).fillBeforeOrNull(Fragment.empty, true),
-              "a fill to the end"
-            )
-          )
+    if (side < 0) {
+      const before = node.contentMatchAtUnsafe(0).fillBeforeOrNull(inner, openEnd <= depth)
+      if (!before) throw new ViewError({ message: "Can't open the start of " + node.type.name })
+      inner = before.append(inner)
+    } else {
+      inner = inner.append(fillToEnd(node))
+    }
   }
   return fragment.replaceChild(side < 0 ? 0 : fragment.childCount - 1, node.copy(inner))
 }

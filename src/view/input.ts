@@ -4,15 +4,15 @@
  *
  * @internal
  */
-import { defined } from "../internal/defined.ts"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import * as Result from "effect/Result"
-import { type Node, Slice } from "../Model.ts"
+import { type Node, type ResolvedPos, Slice } from "../Model.ts"
 import { NodeSelection, Selection, TextSelection } from "../State.ts"
 import { dropPoint } from "../Transform.ts"
 import * as browser from "./browser.ts"
 import { captureKeyDown } from "./capturekeys.ts"
+import { ViewError } from "./errors.ts"
 import { parseFromClipboard, serializeForClipboard } from "./clipboard.ts"
 import { type DOMNode, keyEvent, textNodeAfter, textNodeBefore } from "./dom.ts"
 import { selectionBetween, selectionFromDOM, selectionToDOM } from "./selection.ts"
@@ -238,13 +238,8 @@ function runHandlerOnContext(
   if (inside == -1) return false
   const $pos = view.state.doc.resolveUnsafe(inside)
   for (let i = $pos.depth + 1; i > 0; i--) {
-    if (
-      view.someHandler(propName, (f) =>
-        i > $pos.depth
-          ? f(view, pos, defined($pos.nodeAfterOrNull, "the clicked node"), $pos.beforeUnsafe(i), event, true)
-          : f(view, pos, $pos.node(i), $pos.beforeUnsafe(i), event, false)
-      )
-    ) {
+    const node = nodeAround($pos, i)
+    if (view.someHandler(propName, (f) => f(view, pos, node, $pos.beforeUnsafe(i), event, i > $pos.depth))) {
       return true
     }
   }
@@ -270,6 +265,15 @@ function selectClickedLeaf(view: AnyView, inside: number) {
   return false
 }
 
+// The ancestor of `$pos` at depth `depth`, or at `$pos.depth + 1` the
+// clicked node directly after it.
+function nodeAround($pos: ResolvedPos<any>, depth: number): Node<any, any> {
+  if (depth <= $pos.depth) return $pos.node(depth)
+  const node = $pos.nodeAfterOrNull
+  if (!node) throw new ViewError({ message: "No node after position " + $pos.pos })
+  return node
+}
+
 function selectClickedNode(view: AnyView, inside: number) {
   if (inside == -1) return false
   const sel = view.state.selection
@@ -278,7 +282,7 @@ function selectClickedNode(view: AnyView, inside: number) {
 
   const $pos = view.state.doc.resolveUnsafe(inside)
   for (let i = $pos.depth + 1; i > 0; i--) {
-    const node = i > $pos.depth ? defined($pos.nodeAfterOrNull, "the clicked node") : $pos.node(i)
+    const node = nodeAround($pos, i)
     if (NodeSelection.isSelectable(node)) {
       if (
         selectedNode &&
@@ -348,7 +352,7 @@ function selectionForTripleClick(view: AnyView, inside: number, selectNodes: boo
 
   const $pos = doc.resolveUnsafe(inside)
   for (let i = $pos.depth + 1; i > 0; i--) {
-    const node = i > $pos.depth ? defined($pos.nodeAfterOrNull, "the clicked node") : $pos.node(i)
+    const node = nodeAround($pos, i)
     const nodePos = $pos.beforeUnsafe(i)
     if (node.inlineContent) {
       return Option.some(TextSelection.createUnsafe(doc, nodePos + 1, nodePos + 1 + node.content.size))
@@ -450,8 +454,9 @@ class LeftMouseDown extends MouseDown {
     this.allowDefault = event.shiftKey
 
     let targetNode: Node<any, any>, targetPos
-    if (pos.inside > -1) {
-      targetNode = defined(view.state.doc.nodeAtOrNull(pos.inside), "the clicked node")
+    const clicked = pos.inside > -1 ? view.state.doc.nodeAtOrNull(pos.inside) : null
+    if (clicked) {
+      targetNode = clicked
       targetPos = pos.inside
     } else {
       const $pos = view.state.doc.resolveUnsafe(pos.pos)
@@ -773,12 +778,12 @@ export function endComposition(view: AnyView, restarting = false): boolean {
 function captureCopy(view: AnyView, dom: HTMLElement) {
   // The extra wrapper is somehow necessary on IE/Edge to prevent the
   // content from being mangled when it is put onto the clipboard
-  if (!view.dom.parentNode) return
+  const sel = getSelection()
+  if (!view.dom.parentNode || !sel) return
   const wrap = view.dom.parentNode.appendChild(document.createElement("div"))
   wrap.appendChild(dom)
   wrap.style.cssText = "position: fixed; left: -10000px; top: 10px"
-  const sel = defined(getSelection(), "a DOM selection"),
-    range = document.createRange()
+  const range = document.createRange()
   range.selectNodeContents(dom)
   // Done because IE will fire a selectionchange moving the selection
   // to its start when removeAllRanges is called and the editor still

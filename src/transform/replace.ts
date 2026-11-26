@@ -4,7 +4,6 @@
  *
  * @since 0.1.0
  */
-import { defined } from "../internal/defined.ts"
 import * as Option from "effect/Option"
 import {
   type AnySchema,
@@ -16,6 +15,7 @@ import {
   type ResolvedPos,
   Slice
 } from "../Model.ts"
+import { TransformError } from "./errors.ts"
 import { ReplaceAroundStep, ReplaceStep } from "./replace_step.ts"
 import type { Step } from "./step.ts"
 import { insertPointOrNull } from "./structure.ts"
@@ -178,7 +178,7 @@ class Fitter {
         let fragment: Fragment<any>,
           parent: Node<any> | null = null
         if (sliceDepth) {
-          parent = defined(contentAt(this.unplaced.content, sliceDepth - 1).content[0], "an open node in the slice")
+          parent = openNodeAt(this.unplaced.content, sliceDepth - 1)
           fragment = parent.content
         } else {
           fragment = this.unplaced.content
@@ -254,7 +254,9 @@ class Fitter {
     const { type } = this.frontier[frontierDepth]
     if (inject) {
       for (let i = 0; i < inject.childCount; i++) add.push(inject.content[i])
-      match = defined(match.matchFragmentOrNull(inject), "a match after the injected fill")
+      const afterInject = match.matchFragmentOrNull(inject)
+      if (!afterInject) throw new TransformError({ message: "Injected content doesn't fit " + type.name })
+      match = afterInject
     }
     // Computes the amount of (end) open nodes at the end of the
     // fragment. When 0, the parent is open, but no more. When
@@ -357,11 +359,9 @@ class Fitter {
     if (close.fit.childCount) this.placed = addToFragment(this.placed, close.depth, close.fit)
     $to = close.move
     for (let d = close.depth + 1; d <= $to.depth; d++) {
-      const node = $to.node(d),
-        add = defined(
-          node.type.contentMatch.fillBeforeOrNull(node.content, true, $to.index(d)),
-          "a fill for the open end"
-        )
+      const node = $to.node(d)
+      const add = node.type.contentMatch.fillBeforeOrNull(node.content, true, $to.index(d))
+      if (!add) throw new TransformError({ message: "Can't complete the content of " + node.type.name })
       this.openFrontierNode(node.type, node.attrs, add)
     }
     return $to
@@ -369,14 +369,18 @@ class Fitter {
 
   openFrontierNode(type: NodeType<any, any>, attrs: Attrs | null = null, content?: Fragment<any>): void {
     const top = this.frontier[this.depth]
-    top.match = defined(top.match.matchTypeOrNull(type), "a match for the opened node")
+    const match = top.match.matchTypeOrNull(type)
+    if (!match) throw new TransformError({ message: type.name + " doesn't fit in " + top.type.name })
+    top.match = match
     this.placed = addToFragment(this.placed, this.depth, Fragment.from(type.createUnsafe(attrs, content)))
     this.frontier.push({ type, match: type.contentMatch })
   }
 
   closeFrontierNode(): void {
-    const open = defined(this.frontier.pop(), "an open frontier node")
-    const add = defined(open.match.fillBeforeOrNull(Fragment.empty, true), "a fill to close the node")
+    const open = this.frontier.pop()
+    if (!open) throw new TransformError({ message: "No open node to close" })
+    const add = open.match.fillBeforeOrNull(Fragment.empty, true)
+    if (!add) throw new TransformError({ message: "Can't complete the content of " + open.type.name })
     if (add.childCount) this.placed = addToFragment(this.placed, this.frontier.length, add)
   }
 }
@@ -395,13 +399,21 @@ function addToFragment(fragment: Fragment<any>, depth: number, content: Fragment
 
 // The content that completes `fragment`, which is known to fit `match`.
 function closeFill(match: ContentMatch, fragment: Fragment<any>): Fragment<any> {
-  const after = defined(match.matchFragmentOrNull(fragment), "a match after the content")
-  return defined(after.fillBeforeOrNull(Fragment.empty, true), "a fill to the end")
+  const fill = match.matchFragmentOrNull(fragment)?.fillBeforeOrNull(Fragment.empty, true)
+  if (!fill) throw new TransformError({ message: "Can't complete the content" })
+  return fill
 }
 
 function contentAt(fragment: Fragment<any>, depth: number): Fragment<any> {
   for (let i = 0; i < depth; i++) fragment = fragment.content[0].content
   return fragment
+}
+
+// The first node of `fragment` at `depth`, which the slice leaves open.
+function openNodeAt(fragment: Fragment<any>, depth: number): Node<any> {
+  const node = contentAt(fragment, depth).content[0]
+  if (!node) throw new TransformError({ message: "Slice has no open node at depth " + (depth + 1) })
+  return node
 }
 
 function closeNodeStart(node: Node<any>, openStart: number, openEnd: number): Node<any> {
@@ -411,7 +423,9 @@ function closeNodeStart(node: Node<any>, openStart: number, openEnd: number): No
     frag = frag.replaceChild(0, closeNodeStart(frag.content[0], openStart - 1, frag.childCount === 1 ? openEnd - 1 : 0))
   }
   if (openStart > 0) {
-    frag = defined(node.type.contentMatch.fillBeforeOrNull(frag), "a fill before the content").append(frag)
+    const before = node.type.contentMatch.fillBeforeOrNull(frag)
+    if (!before) throw new TransformError({ message: "Can't open the start of " + node.type.name })
+    frag = before.append(frag)
     if (openEnd <= 0) {
       frag = frag.append(closeFill(node.type.contentMatch, frag))
     }
@@ -553,8 +567,11 @@ function closeFragment(
     fragment = fragment.replaceChild(0, first.copy(closeFragment(first.content, depth + 1, oldOpen, newOpen, first)))
   }
   if (depth > newOpen) {
-    const match = defined(parent, "a parent for the open depth").contentMatchAtUnsafe(0)
-    const start = defined(match.fillBeforeOrNull(fragment), "a fill before the content").append(fragment)
+    if (!parent) throw new TransformError({ message: "No parent node at depth " + depth })
+    const match = parent.contentMatchAtUnsafe(0)
+    const before = match.fillBeforeOrNull(fragment)
+    if (!before) throw new TransformError({ message: "Can't open the start of " + parent.type.name })
+    const start = before.append(fragment)
     fragment = start.append(closeFill(match, start))
   }
   return fragment

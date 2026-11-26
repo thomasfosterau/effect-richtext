@@ -4,7 +4,6 @@
  *
  * @internal
  */
-import { defined } from "../internal/defined.ts"
 import { Selection } from "../State.ts"
 import * as browser from "./browser.ts"
 import {
@@ -213,7 +212,7 @@ export class DOMObserver {
       desc &&
       desc.ignoreMutation({
         type: "selection",
-        target: container.nodeType == 3 ? defined(container.parentNode, "a parent for the text node") : container
+        target: (container.nodeType == 3 && container.parentNode) || container
       })
     ) {
       this.setCurSelection()
@@ -488,7 +487,7 @@ function fixUpBadSafariComposition(view: AnyView, addedNodes: ReadonlyArray<DOMN
           parent = first
         }
         parent.insertBefore(node, parent.firstChild)
-        if (focusNode == node) defined(view.domSelection(), "a DOM selection").collapse(node, focusOffset)
+        if (focusNode == node) view.domSelection()?.collapse(node, focusOffset)
       } else {
         node.parentNode.removeChild(node)
       }

@@ -34,10 +34,10 @@ import * as Option from "effect/Option"
 import * as Order from "effect/Order"
 import * as Predicate from "effect/Predicate"
 import * as Rec from "effect/Record"
-import { defined } from "../internal/defined.ts"
 import { SchemaDefinitionError } from "./errors.ts"
 import { Fragment } from "./fragment.ts"
 import type { NodeType } from "./schema.ts"
+import type { Node } from "./node.ts"
 
 const TypeId = "~effect-richtext/model/ContentExpr"
 
@@ -467,7 +467,7 @@ export class ContentMatch {
     function search(match: ContentMatch, types: ReadonlyArray<NodeType>): Fragment | null {
       const finished = match.matchFragmentOrNull(after, startIndex)
       if (finished && (!toEnd || finished.validEnd)) {
-        return Fragment.fromArray(types.map((tp) => defined(tp.createAndFillOrNull(), "a node that can be filled")))
+        return createAndFillAll(types)
       }
       for (let i = 0; i < match.next.length; i++) {
         const { next, type } = match.next[i]
@@ -691,6 +691,17 @@ const descending: Order.Order<number> = Order.flip(Order.Number)
 // Get the set of nodes reachable by null edges from `node`. Omit
 // nodes with only a single null-out-edge, since they may lead to
 // needless duplicated nodes.
+// A default node of each of `types`, or null when one can't be created.
+function createAndFillAll(types: ReadonlyArray<NodeType>) {
+  const nodes: Array<Node> = []
+  for (const type of types) {
+    const filled = type.createAndFillOrNull()
+    if (!filled) return null
+    nodes.push(filled)
+  }
+  return Fragment.fromArray(nodes)
+}
+
 function nullFrom(graph: Array<Array<Edge>>, node: number): ReadonlyArray<number> {
   const result: Array<number> = []
   scan(node)
@@ -698,7 +709,8 @@ function nullFrom(graph: Array<Array<Edge>>, node: number): ReadonlyArray<number
 
   function scan(n: number): void {
     const edges = graph[n]
-    if (edges.length === 1 && !edges[0].term) return scan(defined(edges[0].to, "an epsilon edge target"))
+    const only = edges.length === 1 ? edges[0] : undefined
+    if (only && !only.term && only.to !== undefined) return scan(only.to)
     result.push(n)
     for (let i = 0; i < edges.length; i++) {
       const { term, to } = edges[i]
@@ -718,10 +730,10 @@ function dfa(graph: Array<Array<Edge>>): ContentMatch {
     const out: Array<[NodeType, Array<number>]> = []
     states.forEach((node) => {
       graph[node].forEach(({ term, to }) => {
-        if (!term) return
+        if (!term || to === undefined) return
         let set: Array<number> | undefined
         for (let i = 0; i < out.length; i++) if (out[i][0] === term) set = out[i][1]
-        nullFrom(graph, defined(to, "a term edge target")).forEach((n) => {
+        nullFrom(graph, to).forEach((n) => {
           if (!set) out.push([term, (set = [])])
           if (set.indexOf(n) === -1) set.push(n)
         })

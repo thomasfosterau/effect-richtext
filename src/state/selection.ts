@@ -3,7 +3,6 @@
  *
  * @since 0.1.0
  */
-import { defined } from "../internal/defined.ts"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
@@ -159,10 +158,9 @@ export abstract class Selection<Sc extends AnySchema = AnySchema> {
     // to get the position after that node. If not, search forward.
     let lastNode: Node<Sc> | undefined = content.content.content[content.content.childCount - 1]
     let lastParent: Node<Sc> | null = null
-    for (let i = 0; i < content.openEnd; i++) {
-      const node: Node<Sc> = defined(lastNode, "the slice's open end node")
-      lastParent = node
-      lastNode = node.content.content[node.childCount - 1]
+    for (let i = 0; i < content.openEnd && lastNode; i++) {
+      lastParent = lastNode
+      lastNode = lastNode.content.content[lastNode.childCount - 1]
     }
 
     const mapFrom = tr.steps.length,
@@ -476,10 +474,9 @@ export class TextSelection<Sc extends AnySchema = AnySchema> extends Selection<S
       if (dPos === 0) {
         $anchor = $head
       } else {
-        $anchor = defined(
-          Selection.findFromOrNull($anchor, -bias, true) || Selection.findFromOrNull($anchor, bias, true),
-          "a selectable position in the document"
-        ).$anchor
+        const found = Selection.findFromOrNull($anchor, -bias, true) || Selection.findFromOrNull($anchor, bias, true)
+        if (!found) throw new SelectionError({ message: "No selectable position in the document" })
+        $anchor = found.$anchor
         if ($anchor.pos < $head.pos !== dPos < 0) $anchor = $head
       }
     }
@@ -695,7 +692,8 @@ function selectionToInsertionEnd(tr: Transaction<any>, startLen: number, bias: n
   map.forEach((_from, _to, _newFrom, newTo) => {
     if (end == null) end = newTo
   })
-  tr.setSelectionUnsafe(Selection.near(tr.doc.resolveUnsafe(defined(end, "a replaced range")), bias))
+  if (end === undefined) return
+  tr.setSelectionUnsafe(Selection.near(tr.doc.resolveUnsafe(end), bias))
 }
 
 const SelectionJSONSchema = S.declare(

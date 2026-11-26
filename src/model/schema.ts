@@ -20,7 +20,6 @@ import * as S from "effect/Schema"
 import * as SchemaAST from "effect/SchemaAST"
 import * as Predicate from "effect/Predicate"
 import { attempt } from "../internal/attempt.ts"
-import { defined } from "../internal/defined.ts"
 import { showJson } from "../internal/json.ts"
 import { type ContentInput, ContentMatch, type SpecRefs } from "./content.ts"
 import type { DOMOutputSpec, ParseRule, TagParseRule } from "./dom.ts"
@@ -1414,7 +1413,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
   /** Like `text`, but throws a `ContentError` for empty strings. */
   textUnsafe(text: string, marks?: ReadonlyArray<Mark<DocSchema<N, M>>> | null): TextNode<this> {
     const type = this.nodes.text as NodeType<any, any>
-    return new TextNode(type, defined(type.defaultAttrs, "the text type's default attrs"), text, Mark.setFrom(marks))
+    return new TextNode(type, type.computeAttrs(null), text, Mark.setFrom(marks))
   }
 
   /** Create a mark with the given type and attributes. */

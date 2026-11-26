@@ -9,7 +9,6 @@ import * as Hash from "effect/Hash"
 import * as Option from "effect/Option"
 import type * as Types from "effect/Types"
 import { attempt } from "../internal/attempt.ts"
-import { defined } from "../internal/defined.ts"
 import { showJson } from "../internal/json.ts"
 import { writeAttrsJSON } from "./attrsCodec.ts"
 import { compareDeep } from "./comparedeep.ts"
@@ -512,7 +511,7 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
   toJSON(): NodeJSON {
     const obj: Types.Mutable<NodeJSON> = { type: this.type.name }
     writeAttrsJSON(obj, this.type, this.attrs)
-    if (this.content.size) obj.content = defined(this.content.toJSON(), "non-empty content JSON")
+    if (this.content.size) obj.content = this.content.content.map((n) => n.toJSON())
     if (this.marks.length) obj.marks = this.marks.map((n) => n.toJSON())
     return obj
   }

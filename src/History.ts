@@ -5,7 +5,6 @@
  * @since 0.1.0
  */
 // Ported from prosemirror-history (MIT, Marijn Haverbeke and others)
-import { defined } from "./internal/defined.ts"
 import * as Arr from "effect/Array"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
@@ -122,11 +121,8 @@ export class Branch {
       0
     )
 
-    return {
-      remaining: defined(remaining, "a remaining branch"),
-      transform,
-      selection: defined(selection, "a selection for the event")
-    }
+    if (!remaining || !selection) return null
+    return { remaining, transform, selection }
   }
 
   // Create a new branch with the given transform added.

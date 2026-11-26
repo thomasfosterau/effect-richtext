@@ -5,7 +5,6 @@
  * @internal
  */
 import * as Option from "effect/Option"
-import { defined } from "../internal/defined.ts"
 import * as Predicate from "effect/Predicate"
 import type { EditorState } from "../State.ts"
 import * as browser from "./browser.ts"
@@ -255,10 +254,10 @@ function findOffsetInNode(node: HTMLElement, coords: { top: number; left: number
     coordsClosest = coordsBelow
     dxClosest = 0
   }
-  if (closest && closest.nodeType == 3)
-    return findOffsetInText(closest as Text, defined(coordsClosest, "the closest node's rect"))
-  if (!closest || (dxClosest && closest.nodeType == 1)) return { node, offset }
-  return findOffsetInNode(closest as HTMLElement, defined(coordsClosest, "the closest node's rect"))
+  if (!closest || !coordsClosest) return { node, offset }
+  if (closest.nodeType == 3) return findOffsetInText(closest as Text, coordsClosest)
+  if (dxClosest && closest.nodeType == 1) return { node, offset }
+  return findOffsetInNode(closest as HTMLElement, coordsClosest)
 }
 
 function findOffsetInText(node: Text, coords: { top: number; left: number }) {

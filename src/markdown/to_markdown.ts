@@ -4,7 +4,6 @@
  * @since 0.1.0
  */
 // Ported from prosemirror-markdown (MIT, Marijn Haverbeke and others)
-import { defined } from "../internal/defined.ts"
 import * as Predicate from "effect/Predicate"
 import * as Arr from "effect/Array"
 import type * as Effect from "effect/Effect"
@@ -535,7 +534,7 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
           return info && info.expelEnclosingWhitespace && !active.some((m, i) => i < keep && m.eq(mark))
         })
       ) {
-        const [_, lead, rest] = defined(/^(\s*)(.*)$/m.exec((node as TextNode<Sc>).text), "a leading-whitespace match")
+        const [_, lead, rest] = /^(\s*)(.*)$/m.exec((node as TextNode<Sc>).text) ?? []
         if (lead) {
           leading += lead
           node = rest ? (node as TextNode<Sc>).withText(rest) : null
@@ -550,10 +549,7 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
           return info && info.expelEnclosingWhitespace && !this.isMarkAhead(parent, index + 1, marks.slice(0, i + 1))
         })
       ) {
-        const [_, rest, trail] = defined(
-          /^(.*?)(\s*)$/m.exec((node as TextNode<Sc>).text),
-          "a trailing-whitespace match"
-        )
+        const [_, rest, trail] = /^(.*?)(\s*)$/m.exec((node as TextNode<Sc>).text) ?? []
         if (trail) {
           trailing = trail
           node = rest ? (node as TextNode<Sc>).withText(rest) : null
@@ -563,8 +559,7 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
 
       // Close the marks that need to be closed
       if (node || index == parent.childCount) {
-        while (keep < active.length)
-          this.text(this.markString(defined(active.pop(), "an open mark"), false, parent, index), false)
+        for (const mark of active.splice(keep).reverse()) this.text(this.markString(mark, false, parent, index), false)
       }
 
       // Output any previously expelled trailing whitespace outside the marks

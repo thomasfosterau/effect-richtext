@@ -4,7 +4,6 @@
  *
  * @since 0.1.0
  */
-import { defined } from "../internal/defined.ts"
 import * as Predicate from "effect/Predicate"
 import * as Arr from "effect/Array"
 import * as Order from "effect/Order"
@@ -23,6 +22,7 @@ import { TextSelection } from "../State.ts"
 import * as browser from "./browser.ts"
 import type { Decoration, DecorationSource, NodeType, WidgetType } from "./decoration.ts"
 import { domIndex, type DOMNode, isElt, isEquivalentPosition } from "./dom.ts"
+import { ViewError } from "./errors.ts"
 import type { EditorView } from "./view.ts"
 
 type AnyView = EditorView<any, any, any>
@@ -322,8 +322,19 @@ export class ViewDesc {
     }
   }
 
+  // The ancestor of `dom` that is a direct child of the content DOM.
+  private childOfContent(dom: DOMNode): DOMNode {
+    while (dom.parentNode != this.contentDOM) {
+      const up = dom.parentNode
+      if (!up) throw new ViewError({ message: "DOM position outside the view desc's content" })
+      dom = up
+    }
+    return dom
+  }
+
   get posBefore(): number {
-    return defined(this.parent, "a parent view desc").posBeforeChild(this)
+    if (!this.parent) throw new ViewError({ message: "A detached view desc has no position" })
+    return this.parent.posBeforeChild(this)
   }
 
   get posAtStart(): number {
@@ -347,7 +358,7 @@ export class ViewDesc {
         if (dom == this.contentDOM) {
           domBefore = dom.childNodes[offset - 1]
         } else {
-          while (dom.parentNode != this.contentDOM) dom = defined(dom.parentNode, "a DOM ancestor in the content")
+          dom = this.childOfContent(dom)
           domBefore = dom.previousSibling
         }
         while (domBefore && !((desc = domBefore.pmViewDesc) && desc.parent == this)) {
@@ -359,7 +370,7 @@ export class ViewDesc {
         if (dom == this.contentDOM) {
           domAfter = dom.childNodes[offset]
         } else {
-          while (dom.parentNode != this.contentDOM) dom = defined(dom.parentNode, "a DOM ancestor in the content")
+          dom = this.childOfContent(dom)
           domAfter = dom.nextSibling
         }
         while (domAfter && !((desc = domAfter.pmViewDesc) && desc.parent == this)) domAfter = domAfter.nextSibling
@@ -516,7 +527,8 @@ export class ViewDesc {
   // Used to find a DOM range in a single parent for a given changed
   // range.
   parseRange(from: number, to: number, base = 0): ParsedRange {
-    const contentDOM = defined(this.contentDOM, "a content DOM for the range")
+    const contentDOM = this.contentDOM
+    if (!contentDOM) throw new ViewError({ message: "Can't parse a range in a node without content" })
     if (Arr.isReadonlyArrayEmpty(this.children)) {
       return { node: contentDOM, from, to, fromOffset: 0, toOffset: contentDOM.childNodes.length }
     }
@@ -602,7 +614,8 @@ export class ViewDesc {
 
     let anchorDOM = this.domFromPos(anchor, anchor ? -1 : 1)
     let headDOM = head == anchor ? anchorDOM : this.domFromPos(head, head ? -1 : 1)
-    const domSel = defined((view.root as Document).getSelection(), "a DOM selection")
+    const domSel = (view.root as Document).getSelection()
+    if (!domSel) return
     const selRange = view.domSelectionRange()
 
     let brKludge = false
@@ -618,11 +631,8 @@ export class ViewDesc {
         if (brKludge && offset == text.length) {
           for (let scan: DOMNode | null = node, after; scan; scan = scan.parentNode) {
             if ((after = scan.nextSibling)) {
-              if (after.nodeName == "BR") {
-                anchorDOM = headDOM = {
-                  node: defined(after.parentNode, "a parent for the BR"),
-                  offset: domIndex(after) + 1
-                }
+              if (after.nodeName == "BR" && after.parentNode) {
+                anchorDOM = headDOM = { node: after.parentNode, offset: domIndex(after) + 1 }
               }
               break
             }
@@ -871,19 +881,16 @@ class MarkViewDesc extends ViewDesc {
     let spec: { dom: DOMNode; contentDOM?: HTMLElement | null | undefined } =
       custom && (custom as MarkViewConstructor<any, any>)(mark, view, inline)
     if (!spec || !spec.dom) {
-      const toDOM = defined(mark.type.spec.toDOM, "a toDOM method for mark type " + mark.type.name)
+      const toDOM = mark.type.spec.toDOM
+      if (!toDOM) throw new ViewError({ message: "Mark type " + mark.type.name + " has no toDOM method" })
       spec = DOMSerializer.renderSpecUnsafe(document, toDOM(mark, inline), null, mark.attrs)
     }
     return new MarkViewDesc(parent, mark, spec.dom, spec.contentDOM || (spec.dom as HTMLElement), spec as MarkView)
   }
 
   override parseRule() {
-    if (this.dirty & NODE_DIRTY || this.mark.type.spec.reparseInView) return null
-    return {
-      mark: this.mark.type.name,
-      attrs: this.mark.attrs,
-      contentElement: defined(this.contentDOM, "a mark view's content DOM")
-    }
+    if (this.dirty & NODE_DIRTY || this.mark.type.spec.reparseInView || !this.contentDOM) return null
+    return { mark: this.mark.type.name, attrs: this.mark.attrs, contentElement: this.contentDOM }
   }
 
   override matchesMark(mark: Mark<any, any>) {
@@ -894,15 +901,16 @@ class MarkViewDesc extends ViewDesc {
     super.markDirty(from, to)
     // Move dirty info to nearest node view
     if (this.dirty != NOT_DIRTY) {
-      let parent = defined(this.parent, "a parent view desc")
-      while (!parent.node) parent = defined(parent.parent, "a node view above the mark")
-      if (parent.dirty < this.dirty) parent.dirty = this.dirty
+      let parent = this.parent
+      while (parent && !parent.node) parent = parent.parent
+      if (parent && parent.dirty < this.dirty) parent.dirty = this.dirty
       this.dirty = NOT_DIRTY
     }
   }
 
   slice(from: number, to: number, view: AnyView) {
-    const copy = MarkViewDesc.create(defined(this.parent, "a parent view desc"), this.mark, true, view)
+    if (!this.parent) throw new ViewError({ message: "Can't slice a detached mark view" })
+    const copy = MarkViewDesc.create(this.parent, this.mark, true, view)
     let nodes = this.children
     const size = this.size
     if (to < size) nodes = replaceNodes(nodes, to, size, view)
@@ -982,7 +990,8 @@ export class NodeViewDesc extends ViewDesc {
       if (!dom) dom = document.createTextNode(textOf(node))
       else if (dom.nodeType != 3) throw new RangeError("Text must be rendered as a DOM text node")
     } else if (!dom) {
-      const toDOM = defined(node.type.spec.toDOM, "a toDOM method for node type " + node.type.name)
+      const toDOM = node.type.spec.toDOM
+      if (!toDOM) throw new ViewError({ message: "Node type " + node.type.name + " has no toDOM method" })
       const rendered = DOMSerializer.renderSpecUnsafe(document, toDOM(node), null, node.attrs)
       ;({ dom, contentDOM } = rendered)
     }
@@ -1139,7 +1148,7 @@ export class NodeViewDesc extends ViewDesc {
     if (updater.changed || this.dirty == CONTENT_DIRTY) {
       // May have to protect focused DOM from being changed if a composition is active
       if (localComposition) this.protectLocalComposition(view, localComposition)
-      renderDescs(defined(this.contentDOM, "a content DOM"), this.children, view)
+      if (this.contentDOM) renderDescs(this.contentDOM, this.children, view)
       if (browser.ios) iosHacks(this.dom as HTMLElement)
     }
   }
@@ -1173,8 +1182,8 @@ export class NodeViewDesc extends ViewDesc {
     // Create a composition view for the orphaned nodes
     let topNode: DOMNode = node
     for (;;) {
-      const parent = defined(topNode.parentNode, "a DOM parent above the composition")
-      if (parent == this.contentDOM) break
+      const parent = topNode.parentNode
+      if (!parent || parent == this.contentDOM) break
       while (topNode.previousSibling) parent.removeChild(topNode.previousSibling)
       while (topNode.nextSibling) parent.removeChild(topNode.nextSibling)
       if (topNode.pmViewDesc) topNode.pmViewDesc = undefined
@@ -1305,7 +1314,8 @@ class TextViewDesc extends NodeViewDesc {
   }
 
   inParent() {
-    const parentDOM = defined(this.parent, "a parent view desc").contentDOM
+    if (!this.parent) return false
+    const parentDOM = this.parent.contentDOM
     for (let n: DOMNode | null = this.nodeDOM; n; n = n.parentNode) if (n == parentDOM) return true
     return false
   }
@@ -1449,18 +1459,18 @@ function renderDescs(parentDOM: HTMLElement, descs: ReadonlyArray<ViewDesc>, vie
     const desc = descs[i],
       childDOM = desc.dom
     if (childDOM.parentNode == parentDOM) {
-      while (childDOM != dom) {
-        dom = rm(defined(dom, "a DOM node before the child"))
+      while (dom && childDOM != dom) {
+        dom = rm(dom)
         written = true
       }
-      dom = dom.nextSibling
+      dom = childDOM.nextSibling
     } else {
       written = true
       parentDOM.insertBefore(childDOM, dom)
     }
-    if (desc instanceof MarkViewDesc) {
+    if (desc instanceof MarkViewDesc && desc.contentDOM) {
       const pos = dom ? dom.previousSibling : parentDOM.lastChild
-      renderDescs(defined(desc.contentDOM, "a mark view's content DOM"), desc.children, view)
+      renderDescs(desc.contentDOM, desc.children, view)
       dom = pos ? pos.nextSibling : parentDOM.firstChild
     }
   }
@@ -1987,7 +1997,8 @@ function preMatch(frag: Fragment<any, any>, parentDesc: ViewDesc): PreMatch {
       } else if (curDesc == parentDesc) {
         break outer
       } else {
-        const parent = defined(curDesc.parent, "a parent view desc")
+        const parent = curDesc.parent
+        if (!parent) break outer
         descI = parent.children.indexOf(curDesc)
         curDesc = parent
       }

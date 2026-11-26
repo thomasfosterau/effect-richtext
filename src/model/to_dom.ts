@@ -7,7 +7,6 @@ import type * as Effect from "effect/Effect"
 import * as Predicate from "effect/Predicate"
 import * as Option from "effect/Option"
 import { attempt } from "../internal/attempt.ts"
-import { defined } from "../internal/defined.ts"
 import { DOMSpecError } from "./errors.ts"
 import type { Fragment } from "./fragment.ts"
 import type { Mark } from "./mark.ts"
@@ -145,7 +144,10 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
           keep++
           rendered++
         }
-        while (keep < active.length) top = defined(active.pop(), "an open mark")[1]
+        if (keep < active.length) {
+          top = active[keep][1]
+          active.length = keep
+        }
         while (rendered < node.marks.length) {
           const add = node.marks[rendered++]
           const markDOM = this.serializeMarkOrNull(add, node.isInline, options)

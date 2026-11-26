@@ -4,7 +4,6 @@
  * @since 0.1.0
  */
 // Ported from prosemirror-markdown (MIT, Marijn Haverbeke and others)
-import { defined } from "../internal/defined.ts"
 import type * as Effect from "effect/Effect"
 import * as Predicate from "effect/Predicate"
 import MarkdownIt, { type Env, type MarkdownIt as Tokenizer, type Token } from "markdown-it"
@@ -141,7 +140,8 @@ export class MarkdownParseState<Sc extends AnySchema = AnySchema> {
 
   /** Close and return the node that is currently on top of the stack. */
   closeNode(): Node<Sc, any> | null {
-    const info = defined(this.stack.pop(), "an open node")
+    const info = this.stack.pop()
+    if (!info) return null
     return this.addNode(info.type, info.attrs, info.content)
   }
 }
@@ -335,7 +335,9 @@ export class MarkdownParser<Sc extends AnySchema = AnySchema> {
     do {
       doc = state.closeNode()
     } while (state.stack.length)
-    return (doc || defined(this.schema.topNodeType.createAndFillOrNull(), "a default document")) as Node<Sc>
+    const result = doc || this.schema.topNodeType.createAndFillOrNull()
+    if (!result) throw new MarkdownError({ message: "Can't create an empty document for the schema" })
+    return result as Node<Sc>
   }
 }
 

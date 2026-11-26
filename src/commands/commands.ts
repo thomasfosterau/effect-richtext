@@ -5,7 +5,6 @@
  *
  * @since 0.1.0
  */
-import { defined } from "../internal/defined.ts"
 import * as Arr from "effect/Array"
 import * as Effect from "effect/Effect"
 import * as Num from "effect/Number"
@@ -163,7 +162,8 @@ function defaultBlockAt(match: ContentMatch): NodeType<any, any> | null {
 }
 
 function joinTextblocksAround(state: EditorState<any, any, any>, $cut: ResolvedPos<any>, dispatching: boolean) {
-  const before = defined($cut.nodeBeforeOrNull, "a node before the cut")
+  const before = $cut.nodeBeforeOrNull
+  if (!before) return false
   let beforeText = before,
     beforePos = $cut.pos - 1
   for (; !beforeText.isTextblock; beforePos--) {
@@ -172,7 +172,8 @@ function joinTextblocksAround(state: EditorState<any, any, any>, $cut: ResolvedP
     if (!child) return false
     beforeText = child
   }
-  const after = defined($cut.nodeAfterOrNull, "a node after the cut")
+  const after = $cut.nodeAfterOrNull
+  if (!after) return false
   let afterText = after,
     afterPos = $cut.pos + 1
   for (; !afterText.isTextblock; afterPos++) {
@@ -211,8 +212,9 @@ function deleteBarrier(
   dispatching: boolean,
   dir: number
 ): SyncResult {
-  const before = defined($cut.nodeBeforeOrNull, "a node before the cut"),
-    after = defined($cut.nodeAfterOrNull, "a node after the cut")
+  const before = $cut.nodeBeforeOrNull,
+    after = $cut.nodeAfterOrNull
+  if (!before || !after) return false
   let conn: ReadonlyArray<NodeType<any, any>> | null, match: ContentMatch
   const isolated = before.type.spec.isolating || after.type.spec.isolating
   if (!isolated) {
@@ -224,7 +226,7 @@ function deleteBarrier(
   if (
     canDelAfter &&
     (conn = (match = before.contentMatchAtUnsafe(before.childCount)).findWrappingOrNull(after.type)) &&
-    defined(match.matchTypeOrNull(conn[0] || after.type), "a match for the wrapper").validEnd
+    match.matchTypeOrNull(conn[0] || after.type)?.validEnd
   ) {
     const wrappers = conn
     return done(dispatching, () => {
@@ -255,12 +257,17 @@ function deleteBarrier(
     for (;;) {
       wrap.push(at)
       if (at.isTextblock) break
-      at = defined(lastChildOf(at), "a last child of a non-textblock")
+      const child = lastChildOf(at)
+      if (!child) return false
+      at = child
     }
     let afterText = after,
       afterDepth = 1
-    for (; !afterText.isTextblock; afterText = defined(firstChildOf(afterText), "a first child of a non-textblock"))
-      afterDepth++
+    for (; !afterText.isTextblock; afterDepth++) {
+      const child = firstChildOf(afterText)
+      if (!child) return false
+      afterText = child
+    }
     if (at.canReplace(at.childCount, at.childCount, afterText.content)) {
       return done(dispatching, () => {
         let end: Fragment<any> = Fragment.empty
@@ -326,7 +333,8 @@ export const joinBackward: Command = syncCommand((state, dispatching, view) => {
     return done(dispatching, () => state.tr.liftUnsafe(range, target).scrollIntoView())
   }
 
-  const before = defined($cut.nodeBeforeOrNull, "a node before the cut")
+  const before = $cut.nodeBeforeOrNull
+  if (!before) return false
   // Apply the joining algorithm
   const barrier = deleteBarrier(state, $cut, dispatching, -1)
   if (barrier !== false) return barrier
@@ -341,10 +349,8 @@ export const joinBackward: Command = syncCommand((state, dispatching, view) => {
           const tr = state.tr.stepUnsafe(delStep)
           tr.setSelectionUnsafe(
             textblockAt(before, "end")
-              ? defined(
-                  Selection.findFromOrNull(tr.doc.resolveUnsafe(tr.mapping.map($cut.pos, -1)), -1),
-                  "a selection at the joined end"
-                )
+              ? Selection.findFromOrNull(tr.doc.resolveUnsafe(tr.mapping.map($cut.pos, -1)), -1) ||
+                  Selection.near(tr.doc.resolveUnsafe(tr.mapping.map($cut.pos, -1)), -1)
               : NodeSelection.createUnsafe(tr.doc, $cut.pos - before.nodeSize)
           )
           return tr.scrollIntoView()
@@ -439,7 +445,8 @@ export const joinForward: Command = syncCommand((state, dispatching, view) => {
   // If there is no node after this, there's nothing to do
   if (!$cut) return false
 
-  const after = defined($cut.nodeAfterOrNull, "a node after the cut")
+  const after = $cut.nodeAfterOrNull
+  if (!after) return false
   // Try the joining algorithm
   const barrier = deleteBarrier(state, $cut, dispatching, 1)
   if (barrier !== false) return barrier
@@ -453,10 +460,8 @@ export const joinForward: Command = syncCommand((state, dispatching, view) => {
         const tr = state.tr.stepUnsafe(delStep)
         tr.setSelectionUnsafe(
           textblockAt(after, "start")
-            ? defined(
-                Selection.findFromOrNull(tr.doc.resolveUnsafe(tr.mapping.map($cut.pos)), 1),
-                "a selection at the joined start"
-              )
+            ? Selection.findFromOrNull(tr.doc.resolveUnsafe(tr.mapping.map($cut.pos)), 1) ||
+                Selection.near(tr.doc.resolveUnsafe(tr.mapping.map($cut.pos)), 1)
             : NodeSelection.createUnsafe(tr.doc, tr.mapping.map($cut.pos))
         )
         return tr.scrollIntoView()
@@ -523,16 +528,10 @@ export const joinUp: Command = syncCommand((state, dispatching) => {
     if (found == null) return false
     point = found
   }
+  const joined = nodeSel ? state.doc.resolveUnsafe(point).nodeBeforeOrNull : null
   return done(dispatching, () => {
     const tr = state.tr.joinUnsafe(point)
-    if (nodeSel) {
-      tr.setSelectionUnsafe(
-        NodeSelection.createUnsafe(
-          tr.doc,
-          point - defined(state.doc.resolveUnsafe(point).nodeBeforeOrNull, "a node before the join").nodeSize
-        )
-      )
-    }
+    if (joined) tr.setSelectionUnsafe(NodeSelection.createUnsafe(tr.doc, point - joined.nodeSize))
     return tr.scrollIntoView()
   })
 })
@@ -601,9 +600,11 @@ export const exitCode: Command = syncCommand((state, dispatching) => {
     after = $head.indexAfter(-1)
   const type = defaultBlockAt(above.contentMatchAtUnsafe(after))
   if (!type || !above.canReplaceWith(after, after, type)) return false
+  const block = type.createAndFillOrNull()
+  if (!block) return false
   return done(dispatching, () => {
     const pos = $head.afterUnsafe(),
-      tr = state.tr.replaceWithUnsafe(pos, pos, defined(type.createAndFillOrNull(), "a default block"))
+      tr = state.tr.replaceWithUnsafe(pos, pos, block)
     tr.setSelectionUnsafe(Selection.near(tr.doc.resolveUnsafe(pos), 1))
     return tr.scrollIntoView()
   })
@@ -622,9 +623,11 @@ export const createParagraphNear: Command = syncCommand((state, dispatching) => 
   if (sel instanceof AllSelection || $from.parent.inlineContent || $to.parent.inlineContent) return false
   const type = defaultBlockAt($to.parent.contentMatchAtUnsafe($to.indexAfter()))
   if (!type || !type.isTextblock) return false
+  const block = type.createAndFillOrNull()
+  if (!block) return false
   return done(dispatching, () => {
     const side = (!$from.parentOffset && $to.index() < $to.parent.childCount ? $from : $to).pos
-    const tr = state.tr.insertUnsafe(side, defined(type.createAndFillOrNull(), "a default textblock"))
+    const tr = state.tr.insertUnsafe(side, block)
     tr.setSelectionUnsafe(TextSelection.createUnsafe(tr.doc, side + 1))
     return tr.scrollIntoView()
   })

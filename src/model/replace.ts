@@ -3,7 +3,6 @@
  *
  * @since 0.1.0
  */
-import { defined } from "../internal/defined.ts"
 import * as Equal from "effect/Equal"
 import * as Hash from "effect/Hash"
 import * as Predicate from "effect/Predicate"
@@ -99,7 +98,7 @@ export class Slice<Sc extends AnySchema = AnySchema> implements Equal.Equal {
   toJSON(): SliceJSON | null {
     if (!this.content.size) return null
     const json: Types.Mutable<SliceJSON> = {
-      content: defined(this.content.toJSON(), "non-empty content JSON")
+      content: this.content.content.map((n) => n.toJSON())
     }
     if (this.openStart > 0) json.openStart = this.openStart
     if (this.openEnd > 0) json.openEnd = this.openEnd
@@ -254,7 +253,9 @@ function addRange<Sc extends AnySchema>(
   depth: number,
   target: Array<Node<Sc>>
 ) {
-  const node = defined($end || $start, "a range endpoint").node(depth)
+  const anchor = $end || $start
+  if (!anchor) return
+  const node = anchor.node(depth)
   let startIndex = 0
   const endIndex = $end ? $end.index(depth) : node.childCount
   if ($start) {
@@ -262,13 +263,14 @@ function addRange<Sc extends AnySchema>(
     if ($start.depth > depth) {
       startIndex++
     } else if ($start.textOffset) {
-      addNode(defined($start.nodeAfterOrNull, "a text node after the range start"), target)
+      const text = $start.nodeAfterOrNull
+      if (text) addNode(text, target)
       startIndex++
     }
   }
   for (let i = startIndex; i < endIndex; i++) addNode(node.content.content[i], target)
-  if ($end && $end.depth === depth && $end.textOffset)
-    addNode(defined($end.nodeBeforeOrNull, "a text node before the range end"), target)
+  const textBefore = $end && $end.depth === depth && $end.textOffset ? $end.nodeBeforeOrNull : null
+  if (textBefore) addNode(textBefore, target)
 }
 
 function close<Sc extends AnySchema>(node: Node<Sc>, content: Fragment<Sc>): Node<Sc> {

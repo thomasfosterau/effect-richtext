@@ -9,7 +9,6 @@ import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import type * as Types from "effect/Types"
 import { attempt } from "../internal/attempt.ts"
-import { defined } from "../internal/defined.ts"
 import type { ContentMatch } from "./content.ts"
 import { isModelError, type ModelError, SchemaDefinitionError } from "./errors.ts"
 import { Fragment } from "./fragment.ts"
@@ -554,16 +553,16 @@ class NodeContext {
     match: ContentMatch | null,
     public options: number
   ) {
-    this.match =
-      match || (options & OPT_OPEN_LEFT ? null : defined(type, "a node type for a closed context").contentMatch)
+    this.match = match || (options & OPT_OPEN_LEFT || !type ? null : type.contentMatch)
   }
 
   findWrapping(node: Node): ReadonlyArray<NodeType> | null {
     if (!this.match) {
       if (!this.type) return []
       const fill = this.type.contentMatch.fillBeforeOrNull(Fragment.from(node))
-      if (fill) {
-        this.match = defined(this.type.contentMatch.matchFragmentOrNull(fill), "a match after the fill")
+      const afterFill = fill && this.type.contentMatch.matchFragmentOrNull(fill)
+      if (afterFill) {
+        this.match = afterFill
       } else {
         const start = this.type.contentMatch
         const wrap = start.findWrappingOrNull(node.type)
@@ -590,8 +589,8 @@ class NodeContext {
       }
     }
     let content: Fragment = Fragment.from(this.content)
-    if (!openEnd && this.match)
-      content = content.append(defined(this.match.fillBeforeOrNull(Fragment.empty, true), "a fill to the end"))
+    const endFill = !openEnd && this.match ? this.match.fillBeforeOrNull(Fragment.empty, true) : null
+    if (endFill) content = content.append(endFill)
     return this.type ? this.type.createUnsafe(this.attrs, content, this.marks) : content
   }
 
@@ -745,8 +744,9 @@ class ParseContext implements RuleContext {
 
   // Called for leaf DOM nodes that would otherwise be ignored
   leafFallback(dom: globalThis.Node, marks: ReadonlyArray<Mark>) {
-    if (dom.nodeName == "BR" && this.top.type && this.top.type.inlineContent) {
-      this.addTextNode(defined(dom.ownerDocument, "an owner document").createTextNode("\n"), marks)
+    const doc = dom.ownerDocument
+    if (doc && dom.nodeName == "BR" && this.top.type && this.top.type.inlineContent) {
+      this.addTextNode(doc.createTextNode("\n"), marks)
     }
   }
 
@@ -820,8 +820,8 @@ class ParseContext implements RuleContext {
       rule.getContent(dom, this.parser.schema).forEach((node) => this.insertNode(node, marks, false))
     } else {
       let contentDOM = dom
-      if (Predicate.isString(rule.contentElement))
-        contentDOM = defined(dom.querySelector(rule.contentElement), "the rule's contentElement")
+      // A selector that matches nothing parses the whole element.
+      if (Predicate.isString(rule.contentElement)) contentDOM = dom.querySelector(rule.contentElement) ?? dom
       else if (Predicate.isFunction(rule.contentElement)) contentDOM = rule.contentElement(dom)
       else if (rule.contentElement) contentDOM = rule.contentElement
       this.findAround(dom, contentDOM, true)
@@ -837,11 +837,10 @@ class ParseContext implements RuleContext {
   addAll(parent: globalThis.Node, marks: ReadonlyArray<Mark>, startIndex?: number, endIndex?: number) {
     let index = startIndex || 0
     const end = endIndex == null ? null : parent.childNodes[endIndex]
-    for (let dom = startIndex ? parent.childNodes[startIndex] : parent.firstChild; dom != end; ++index) {
-      const node = defined(dom, "a DOM child before the end")
+    for (let dom = startIndex ? parent.childNodes[startIndex] : parent.firstChild; dom && dom != end; ++index) {
       this.findAtPoint(parent, index)
-      this.addDOM(node, marks)
-      dom = node.nextSibling
+      this.addDOM(dom, marks)
+      dom = dom.nextSibling
     }
     this.findAtPoint(parent, index)
   }

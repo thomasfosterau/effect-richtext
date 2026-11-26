@@ -5,7 +5,6 @@
  *
  * @since 0.1.0
  */
-import { defined } from "../internal/defined.ts"
 import { done, keepMarks, syncCommand, type SyncResult } from "../commands/internal.ts"
 import {
   type AnySchema,
@@ -286,8 +285,9 @@ function liftOutOfList<Sc extends AnySchema>(state: EditorState<Sc, any, any>, r
     pos -= list.childUnsafe(i).nodeSize
     tr.deleteUnsafe(pos - 1, pos + 1)
   }
-  const $start = tr.doc.resolveUnsafe(range.start),
-    item = defined($start.nodeAfterOrNull, "a list item at the range start")
+  const $start = tr.doc.resolveUnsafe(range.start)
+  const item = $start.nodeAfterOrNull
+  if (!item) return false
   if (tr.mapping.map(range.end) !== range.start + item.nodeSize) return false
   const atStart = range.startIndex === 0,
     atEnd = range.endIndex === list.childCount

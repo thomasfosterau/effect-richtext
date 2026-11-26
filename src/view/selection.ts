@@ -4,7 +4,6 @@
  *
  * @internal
  */
-import { defined } from "../internal/defined.ts"
 import * as Option from "effect/Option"
 import type { ResolvedPos } from "../Model.ts"
 import { NodeSelection, Selection, TextSelection } from "../State.ts"
@@ -99,7 +98,8 @@ export function selectionFromDOM(view: AnyView, origin: string | null = null): S
       ;[anchor, head] = max == view.state.selection.anchor ? [max, min] : [min, max]
       $head = doc.resolveUnsafe(head)
     } else {
-      anchor = view.docView.posFromDOM(defined(domSel.anchorNode, "a selection anchor"), domSel.anchorOffset, 1)
+      if (!domSel.anchorNode) return null
+      anchor = view.docView.posFromDOM(domSel.anchorNode, domSel.anchorOffset, 1)
     }
     if (anchor < 0) return null
   }
@@ -242,7 +242,8 @@ function removeClassOnSelectionChange(view: AnyView) {
 function selectCursorWrapper(view: AnyView) {
   const domSel = view.domSelection()
   if (!domSel) return
-  const node = defined(view.cursorWrapper, "a cursor wrapper").dom,
+  if (!view.cursorWrapper) return
+  const node = view.cursorWrapper.dom,
     img = node.nodeName == "IMG"
   if (img) domSel.collapse(node.parentNode, domIndex(node) + 1)
   else domSel.collapse(node, 0)
