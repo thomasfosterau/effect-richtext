@@ -248,6 +248,7 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
    */
   static fromSchema<Sc extends AnySchema>(schema: Sc): DOMSerializer<Sc> {
     return (
+      // SAFETY: only this method writes `domSerializer`, with a serializer for this schema.
       (schema.cached.domSerializer as DOMSerializer<Sc> | undefined) ||
       (schema.cached.domSerializer = new DOMSerializer<Sc>(
         DOMSerializer.nodesFromSchema(schema),
@@ -261,6 +262,7 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
    * This can be useful as a base to build a custom serializer from.
    */
   static nodesFromSchema<Sc extends AnySchema>(schema: Sc): { [node: string]: NodeSerializer<Sc> } {
+    // SAFETY: each node type's `toDOM` takes nodes of that type, from this schema.
     const result = gatherToDOM(schema.nodes) as { [node: string]: NodeSerializer<Sc> }
     if (!result.text) result.text = (node) => node.textContent
     return result
@@ -277,6 +279,7 @@ const isDOMSpecError = (u: unknown): u is DOMSpecError => u instanceof DOMSpecEr
 function gatherToDOM(obj: { readonly [name: string]: NodeType<any, any> | MarkType<any, any> }) {
   const result: { [name: string]: (value: any, inline: boolean) => DOMOutputSpec } = {}
   for (const name in obj) {
+    // SAFETY: node and mark specs' `toDOM` share this shape; `inline` is ignored by node serializers.
     const toDOM = obj[name].spec.toDOM as ((value: any, inline: boolean) => DOMOutputSpec) | undefined
     if (toDOM) result[name] = toDOM
   }
@@ -315,6 +318,9 @@ function suspiciousAttributesInner(attrs: Attrs): ReadonlyArray<unknown> | null 
   return result
 }
 
+const isElementSpec = (structure: DOMOutputSpec): structure is Element =>
+  Predicate.hasProperty(structure, "nodeType") && structure.nodeType === 1
+
 function renderSpecInner(
   doc: Document,
   structure: DOMOutputSpec,
@@ -325,16 +331,18 @@ function renderSpecInner(
   if (Predicate.isString(structure)) return { dom: doc.createTextNode(structure) }
   // Only elements may be returned directly; anything else is read as an
   // array spec (prosemirror-model 1.25.5 / 1.25.7).
-  if ((structure as globalThis.Node).nodeType === 1) return { dom: structure as Element }
+  if (isElementSpec(structure)) return { dom: structure }
   if (
     Predicate.hasProperty(structure, "dom") &&
     Predicate.hasProperty(structure.dom, "nodeType") &&
     structure.dom.nodeType === 1
   )
     return structure
-  let tagName = (structure as ReadonlyArray<unknown>)[0],
+  // SAFETY: any other spec is an array; its first item is checked below.
+  const first = (structure as ReadonlyArray<unknown>)[0]
+  if (!Predicate.isString(first)) throw new DOMSpecError({ message: "Invalid array passed to renderSpec" })
+  let tagName = first,
     suspicious
-  if (!Predicate.isString(tagName)) throw new DOMSpecError({ message: "Invalid array passed to renderSpec" })
   if (blockArraysIn && (suspicious = suspiciousAttributes(blockArraysIn)) && suspicious.indexOf(structure) > -1) {
     throw new DOMSpecError({
       message:
@@ -347,9 +355,9 @@ function renderSpecInner(
     tagName = tagName.slice(space + 1)
   }
   let contentDOM: HTMLElement | undefined
-  const dom = (
-    xmlNS ? doc.createElementNS(xmlNS, tagName as string) : doc.createElement(tagName as string)
-  ) as HTMLElement
+  // SAFETY: node views treat rendered elements as HTML elements, as ProseMirror does.
+  const dom = (xmlNS ? doc.createElementNS(xmlNS, tagName) : doc.createElement(tagName)) as HTMLElement
+  // SAFETY: checked to be an array by its string tag name above.
   const spec = structure as ReadonlyArray<any>
   const attrs = spec[1]
   let start = 1
@@ -366,7 +374,7 @@ function renderSpecInner(
     }
   }
   for (let i = start; i < spec.length; i++) {
-    const child = spec[i] as DOMOutputSpec | 0
+    const child: DOMOutputSpec | 0 = spec[i]
     if (child === 0) {
       if (i < spec.length - 1 || i > start) {
         throw new DOMSpecError({ message: "Content hole must be the only child of its parent node" })

@@ -11,7 +11,7 @@ import * as Predicate from "effect/Predicate"
 import { attempt } from "../internal/attempt.ts"
 import { findDiffEnd, findDiffStart } from "./diff.ts"
 import { PositionError } from "./errors.ts"
-import type { Node, NodeJSON, TextNode } from "./node.ts"
+import type { Node, NodeJSON } from "./node.ts"
 import type { AnySchema, NodeNames } from "./schema.ts"
 
 const isPositionError = (u: unknown): u is PositionError => u instanceof PositionError
@@ -119,8 +119,8 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
       from,
       to,
       (node, pos) => {
-        const nodeText = node.isText
-          ? (node as TextNode<Sc>).text.slice(Math.max(from, pos) - pos, to - pos)
+        const nodeText = node.isTextNode()
+          ? node.text.slice(Math.max(from, pos) - pos, to - pos)
           : !node.isLeaf
             ? ""
             : leafText
@@ -149,9 +149,8 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
       first = other.content[0]
     const content: Array<Node<Sc, N | N2>> = this.content.slice()
     let i = 0
-    if (last.isText && last.sameMarkup(first)) {
-      const lastText: Node<Sc> = last
-      const joinedText: Node<Sc> = (lastText as TextNode<Sc>).withText(lastText.textContent + first.textContent)
+    if (last.isTextNode() && last.sameMarkup(first)) {
+      const joinedText: Node<Sc> = last.withText(last.textContent + first.textContent)
       // SAFETY: the joined node keeps `last`'s type, one of `N`.
       content[content.length - 1] = joinedText as Node<Sc, N>
       i = 1
@@ -195,8 +194,8 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
 
   /** Create a new fragment in which the node at the given index is replaced by the given node. */
   replaceChild<N2 extends NodeNames<Sc>>(index: number, node: Node<Sc, N2>): Fragment<Sc, N | N2> {
-    const current = this.content[index]
-    if ((current as Node<any, any>) === node) return this
+    const current: Node<Sc, N | N2> = this.content[index]
+    if (current === node) return this
     const copy: Array<Node<Sc, N | N2>> = this.content.slice()
     const size = this.size + node.nodeSize - current.nodeSize
     copy[index] = node
@@ -205,15 +204,14 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
 
   /** Create a new fragment by prepending the given node to this fragment. */
   addToStart<N2 extends NodeNames<Sc>>(node: Node<Sc, N2>): Fragment<Sc, N | N2> {
-    return new Fragment<Sc, N | N2>([node as Node<Sc, N | N2>].concat(this.content), this.size + node.nodeSize)
+    const added: Array<Node<Sc, N | N2>> = [node]
+    return new Fragment<Sc, N | N2>(added.concat(this.content), this.size + node.nodeSize)
   }
 
   /** Create a new fragment by appending the given node to this fragment. */
   addToEnd<N2 extends NodeNames<Sc>>(node: Node<Sc, N2>): Fragment<Sc, N | N2> {
-    return new Fragment<Sc, N | N2>(
-      (this.content as ReadonlyArray<Node<Sc, N | N2>>).concat(node),
-      this.size + node.nodeSize
-    )
+    const content: ReadonlyArray<Node<Sc, N | N2>> = this.content
+    return new Fragment<Sc, N | N2>(content.concat(node), this.size + node.nodeSize)
   }
 
   /** Compare this fragment to another one. */
@@ -343,12 +341,9 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     for (let i = 0; i < array.length; i++) {
       const node = array[i]
       size += node.nodeSize
-      if (i && node.isText && array[i - 1].sameMarkup(node)) {
+      if (i && node.isTextNode() && array[i - 1].sameMarkup(node)) {
         if (!joined) joined = array.slice(0, i)
-        const text: Node<Sc> = node
-        const joinedText: Node<Sc> = (text as TextNode<Sc>).withText(
-          joined[joined.length - 1].textContent + text.textContent
-        )
+        const joinedText: Node<Sc> = node.withText(joined[joined.length - 1].textContent + node.textContent)
         // SAFETY: the joined node keeps `node`'s type, one of `N`.
         joined[joined.length - 1] = joinedText as Node<Sc, N>
       } else if (joined) {
@@ -370,7 +365,9 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     if (!nodes) return Fragment.empty
     if (nodes instanceof Fragment) return nodes
     if (Array.isArray(nodes)) return this.fromArray(nodes)
-    if ((nodes as Node<Sc, N>).attrs) return new Fragment([nodes as Node<Sc, N>], (nodes as Node<Sc, N>).nodeSize)
+    // SAFETY: not empty, a fragment or an array, so a node; `attrs` checks it at runtime.
+    const node = nodes as Node<Sc, N>
+    if (node.attrs) return new Fragment([node], node.nodeSize)
     throw new PositionError({ message: "Can not convert " + nodes + " to a Fragment" })
   }
 

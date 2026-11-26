@@ -291,6 +291,7 @@ const dieOnStateFailure = <A, E, R>(effect: Effect.Effect<A, E, R>): Effect.Effe
  * @since 0.1.0
  * @category symbols
  */
+// SAFETY: `Symbol.for` is typed `symbol`; its registered key makes this one unique.
 export const EditorTypeId: unique symbol = Symbol.for("effect-richtext/extensions/Editor") as never
 
 /**

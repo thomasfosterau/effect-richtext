@@ -495,7 +495,10 @@ export class ContentMatch {
   /** @internal */
   findWrappingOrNull(target: NodeType): ReadonlyArray<NodeType> | null {
     for (let i = 0; i < this.wrapCache.length; i += 2) {
-      if (this.wrapCache[i] === target) return this.wrapCache[i + 1] as ReadonlyArray<NodeType> | null
+      if (this.wrapCache[i] === target) {
+        // SAFETY: the cache alternates targets and their wrappings.
+        return this.wrapCache[i + 1] as ReadonlyArray<NodeType> | null
+      }
     }
     const computed = this.computeWrapping(target)
     this.wrapCache.push(target, computed)
@@ -638,7 +641,7 @@ function nfa(root: Expr): Array<Array<Edge>> {
   function compile(expr: Expr, from: number): Array<Edge> {
     return Match.value(expr).pipe(
       Match.discriminatorsExhaustive("type")({
-        choice: (x) => x.exprs.reduce((out, e) => out.concat(compile(e, from)), [] as Array<Edge>),
+        choice: (x) => x.exprs.reduce<Array<Edge>>((out, e) => out.concat(compile(e, from)), []),
         seq: (x) => {
           if (Arr.isReadonlyArrayEmpty(x.exprs)) return [edge(from)]
           let cur = from

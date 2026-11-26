@@ -204,6 +204,7 @@ function createKey(name: string): string {
  * @since 0.1.0
  * @category symbols
  */
+// SAFETY: `Symbol.for` is typed `symbol`; its registered key makes this one unique.
 export const PluginTypeId: unique symbol = Symbol.for("effect-richtext/state/Plugin") as never
 
 /**

@@ -58,6 +58,7 @@ export type Attrs = { readonly [attr: string]: any }
  */
 export type DOMOutputSpec = M.DOMOutputSpec
 
+// SAFETY: `Symbol.for` is typed `symbol`; its registered key makes this one unique.
 const ORIGINAL: unique symbol = Symbol.for("effect-richtext/compat/original") as never
 
 // -----------------------------------------------------------------------------

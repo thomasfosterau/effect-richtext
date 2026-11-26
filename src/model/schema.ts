@@ -652,6 +652,7 @@ export class Attribute {
   readonly identityCodec: boolean
 
   constructor(typeName: string, attrName: string, definition: AttributeDefinition) {
+    // SAFETY: attribute schemas decode the JSON values stored in attributes.
     const options: AttributeSpec = S.isSchema(definition) ? { schema: definition as S.Codec<any, any> } : definition
     this.hasDefault = Object.prototype.hasOwnProperty.call(options, "default")
     this.default = options.default
@@ -1068,6 +1069,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   allowedMarks<M extends Mark<any>>(marks: ReadonlyArray<M>): ReadonlyArray<M> {
     if (this.allowsMarks(marks)) return marks
     const kept = marks.filter((mark) => this.allowsMarkType(mark.type))
+    // SAFETY: the empty set holds no mark of any other type.
     return kept.length ? kept : (Mark.none as ReadonlyArray<M>)
   }
 
@@ -1174,7 +1176,12 @@ export class MarkType<Sc extends AnySchema = AnySchema, out M extends MarkNames<
 
   /** @internal */
   findInSet(set: ReadonlyArray<Mark<any>>): Mark<Sc, M> | undefined {
-    for (let i = 0; i < set.length; i++) if (set[i].type === this) return set[i] as Mark<Sc, M>
+    for (let i = 0; i < set.length; i++) {
+      if (set[i].type === this) {
+        // SAFETY: a mark of this type is a `Mark<Sc, M>`.
+        return set[i] as Mark<Sc, M>
+      }
+    }
     return undefined
   }
 
@@ -1266,6 +1273,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
 
   /** @internal */
   constructor(spec: SchemaSpec<N, M>) {
+    // SAFETY: a spec without marks declares none, so `M` is empty.
     this.spec = { ...spec, nodes: spec.nodes, marks: (spec.marks ?? {}) as M }
     const nodes: Record<string, NodeType<any, any>> = Object.create(null)
     for (const name in this.spec.nodes) nodes[name] = new NodeType<AnySchema, string>(name, this, this.spec.nodes[name])
@@ -1412,6 +1420,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
 
   /** Like `text`, but throws a `ContentError` for empty strings. */
   textUnsafe(text: string, marks?: ReadonlyArray<Mark<DocSchema<N, M>>> | null): TextNode<this> {
+    // SAFETY: `DocSchema` requires a `text` node type.
     const type = this.nodes.text as NodeType<any, any>
     return new TextNode(type, type.computeAttrs(null), text, Mark.setFrom(marks))
   }

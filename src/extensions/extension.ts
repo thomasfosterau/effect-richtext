@@ -219,6 +219,7 @@ export interface ExtensionSpec {
  * @since 0.1.0
  * @category symbols
  */
+// SAFETY: `Symbol.for` is typed `symbol`; its registered key makes this one unique.
 export const ExtensionTypeId: unique symbol = Symbol.for("effect-richtext/extensions/Extension") as never
 
 /**
