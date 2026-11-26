@@ -69,7 +69,8 @@ export class Branch {
       }
     }
 
-    let remap: Mapping | undefined, mapFrom: number | undefined
+    let remap: Mapping | undefined,
+      mapFrom = 0
     if (preserveItems) {
       remap = this.remapping(end, this.items.length)
       mapFrom = remap.maps.length
@@ -86,7 +87,7 @@ export class Branch {
             remap = this.remapping(end, i + 1)
             mapFrom = remap.maps.length
           }
-          mapFrom!--
+          mapFrom--
           addBefore.push(item)
           return true
         }
@@ -100,7 +101,7 @@ export class Branch {
             map = transform.mapping.maps[transform.mapping.maps.length - 1]
             addAfter.push(new Item(map, undefined, undefined, addAfter.length + addBefore.length))
           }
-          mapFrom!--
+          mapFrom--
           if (map) remap.appendMap(map, mapFrom)
         } else {
           transform.maybeStep(item.step)
@@ -120,7 +121,8 @@ export class Branch {
       0
     )
 
-    return { remaining: remaining!, transform, selection: selection! }
+    if (!remaining || !selection) return null
+    return { remaining, transform, selection }
   }
 
   // Create a new branch with the given transform added.
@@ -254,10 +256,10 @@ export class Branch {
             map = step && step.getMap()
           mapFrom--
           if (map) remap.appendMap(map, mapFrom)
-          if (step) {
+          if (step && map) {
             const selection = item.selection && item.selection.map(remap.slice(mapFrom))
             if (selection) events++
-            const newItem = new Item(map!.invert(), step, selection),
+            const newItem = new Item(map.invert(), step, selection),
               last = items.length - 1
             const merged = items.length ? items[last].merge(newItem) : undefined
             if (merged) items[last] = merged
@@ -285,7 +287,7 @@ function cutOffEvents(items: RopeSequence<Item>, n: number): RopeSequence<Item> 
     }
     return undefined
   })
-  return items.slice(cutPoint!)
+  return items.slice(cutPoint ?? 0)
 }
 
 /** @internal */
@@ -368,7 +370,7 @@ function applyTransaction(
   if (Arr.isReadonlyArrayEmpty(tr.steps)) {
     return history
   } else if (appended && hasMeta(appended, historyKey)) {
-    if (Option.getOrUndefined(appended.getMeta<HistoryMeta>(historyKey))!.redo) {
+    if (Option.exists(appended.getMeta<HistoryMeta>(historyKey), (meta) => meta.redo)) {
       return new HistoryState(
         history.done.addTransform(tr, undefined, options, mustPreserveItems(state)),
         history.undone,

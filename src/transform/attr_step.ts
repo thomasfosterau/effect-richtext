@@ -6,6 +6,7 @@
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import { type AnySchema, type Attrs, Fragment, JSONError, type Node, Slice } from "../Model.ts"
+import { StepError } from "./errors.ts"
 import { type Mappable, StepMap } from "./map.ts"
 import { Step, type StepJSON, StepResult } from "./step.ts"
 
@@ -48,7 +49,9 @@ export class AttrStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
   }
 
   invert(doc: Node<Sc>): Step<Sc> {
-    const attrs: Attrs = doc.nodeAtOrNull(this.pos)!.attrs
+    const node = doc.nodeAtOrNull(this.pos)
+    if (!node) throw new StepError({ message: "No node at attribute step's position" })
+    const attrs: Attrs = node.attrs
     return new AttrStep(this.pos, this.attr, attrs[this.attr])
   }
 

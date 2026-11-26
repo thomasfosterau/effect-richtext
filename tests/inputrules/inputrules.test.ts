@@ -13,6 +13,7 @@ import type { Node } from "@thomasfosterau/effect-richtext/Model"
 import { EditorState, TextSelection, type Transaction } from "@thomasfosterau/effect-richtext/State"
 import { blockquote, doc, eq, h1, h3, li, ol, p, pre, schema, ul } from "@thomasfosterau/effect-richtext/TestBuilder"
 import ist from "../utils/ist.ts"
+import { present } from "../utils/present.ts"
 
 const nodes = schema.nodes
 
@@ -41,33 +42,33 @@ describe("wrappingInputRule", () => {
   const bullets = wrappingInputRule(/^\s*([-+*])\s$/, nodes.bullet_list)
 
   it("wraps the textblock", () => {
-    const tr = apply(quote, doc(p(">", "<a>")), " ")!
+    const tr = present(apply(quote, doc(p(">", "<a>")), " "))
     ist(tr.doc, doc(blockquote(p())), eq)
   })
 
   it("keeps the rest of the textblock", () => {
-    const tr = apply(quote, doc(p(">", "<a>", "hello")), " ")!
+    const tr = present(apply(quote, doc(p(">", "<a>", "hello")), " "))
     ist(tr.doc, doc(blockquote(p("hello"))), eq)
   })
 
   it("adds the needed inner wrappers", () => {
-    const tr = apply(bullets, doc(p("-<a>")), " ")!
+    const tr = present(apply(bullets, doc(p("-<a>")), " "))
     ist(tr.doc, doc(ul(li(p()))), eq)
   })
 
   it("computes attributes from the match", () => {
-    const tr = apply(list, doc(p("4.<a>")), " ")!
+    const tr = present(apply(list, doc(p("4.<a>")), " "))
     ist(tr.doc, doc(ol({ order: 4 }, li(p()))), eq)
   })
 
   it("joins with a preceding node of the same type", () => {
-    const tr = apply(bullets, doc(ul(li(p("a"))), p("*<a>")), " ")!
+    const tr = present(apply(bullets, doc(ul(li(p("a"))), p("*<a>")), " "))
     ist(tr.doc, doc(ul(li(p("a")), li(p()))), eq)
   })
 
   it("respects the join predicate", () => {
     const noJoin = wrappingInputRule(/^\s*([-+*])\s$/, nodes.bullet_list, null, () => false)
-    const tr = apply(noJoin, doc(ul(li(p("a"))), p("*<a>")), " ")!
+    const tr = present(apply(noJoin, doc(ul(li(p("a"))), p("*<a>")), " "))
     ist(tr.doc, doc(ul(li(p("a"))), ul(li(p()))), eq)
   })
 
@@ -82,17 +83,17 @@ describe("textblockTypeInputRule", () => {
   const code = textblockTypeInputRule(/^```$/, nodes.code_block)
 
   it("changes the textblock's type", () => {
-    const tr = apply(heading, doc(p("###<a>")), " ")!
+    const tr = present(apply(heading, doc(p("###<a>")), " "))
     ist(tr.doc, doc(h3()), eq)
   })
 
   it("keeps the textblock's content", () => {
-    const tr = apply(heading, doc(p("#<a>", "Title")), " ")!
+    const tr = present(apply(heading, doc(p("#<a>", "Title")), " "))
     ist(tr.doc, doc(h1("Title")), eq)
   })
 
   it("works without attributes", () => {
-    const tr = apply(code, doc(p("``<a>")), "`")!
+    const tr = present(apply(code, doc(p("``<a>")), "`"))
     ist(tr.doc, doc(pre()), eq)
   })
 
@@ -103,18 +104,18 @@ describe("textblockTypeInputRule", () => {
 
 describe("string rules", () => {
   it("replace the matched text", () => {
-    const tr = apply(emDash, doc(p("a-<a>")), "-")!
+    const tr = present(apply(emDash, doc(p("a-<a>")), "-"))
     ist(tr.doc, doc(p("a—")), eq)
   })
 
   it("replace only the first group", () => {
-    const tr = apply(openDoubleQuote, doc(p("a <a>")), '"')!
+    const tr = present(apply(openDoubleQuote, doc(p("a <a>")), '"'))
     ist(tr.doc, doc(p("a “")), eq)
   })
 
   it("replace a group with a suffix", () => {
     const rule = new InputRule(/(:)\)$/, "☺")
-    const tr = apply(rule, doc(p("x:<a>")), ")")!
+    const tr = present(apply(rule, doc(p("x:<a>")), ")"))
     ist(tr.doc, doc(p("x☺)")), eq)
   })
 })

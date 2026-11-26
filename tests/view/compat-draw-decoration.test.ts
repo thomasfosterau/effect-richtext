@@ -3,6 +3,7 @@
 // ../utils/ist.ts, ./view.js -> ./compat-view.ts, mocha describe/it ->
 // @effect/vitest; type-only imports marked as such) and dprint formatting
 import { describe, it } from "@effect/vitest"
+import { constUndefined } from "effect/Function"
 import * as Arr from "effect/Array"
 import * as Order from "effect/Order"
 import * as Predicate from "effect/Predicate"
@@ -22,11 +23,12 @@ import {
 import type { EditorView } from "@thomasfosterau/effect-richtext/compat/view"
 import { Decoration, DecorationSet, type DecorationSource } from "@thomasfosterau/effect-richtext/compat/view"
 import ist from "../utils/ist.ts"
+import { present } from "../utils/present.ts"
 import { tempEditor } from "./compat-view.ts"
 
 function make(str: string | Decoration): Decoration {
   if (!Predicate.isString(str)) return str
-  const match = /^(\d+)(?:-(\d+))?-(.+)$/.exec(str)!
+  const match = present(/^(\d+)(?:-(\d+))?-(.+)$/.exec(str), "a decoration spec like 1-2-class")
   if (match[3] == "widget") {
     const widget = document.createElement("button")
     widget.textContent = "ω"
@@ -39,7 +41,7 @@ function decoPlugin(decos: readonly (string | Decoration)[]) {
   return new Plugin({
     state: {
       init(config) {
-        return DecorationSet.create(config.doc!, decos.map(make))
+        return DecorationSet.create(present(config.doc), decos.map(make))
       },
       apply(tr, set, state) {
         if (tr.docChanged) set = set.map(tr.mapping, tr.doc)
@@ -84,7 +86,7 @@ function thingSchema() {
 describe("Decoration drawing", () => {
   it("draws inline decorations", () => {
     const view = tempEditor({ doc: doc(p("foobar")), plugins: [decoPlugin(["2-5-foo"])] })
-    const found = view.dom.querySelector(".foo")!
+    const found = present(view.dom.querySelector(".foo"))
     ist(found)
     ist(found.textContent, "oob")
   })
@@ -103,7 +105,7 @@ describe("Decoration drawing", () => {
     const found = view.dom.querySelectorAll(".cls")
     ist(found.length, 1)
     ist(found[0].nodeName, "P")
-    ist(found[0].previousSibling!.nodeName, "P")
+    ist(present(found[0].previousSibling).nodeName, "P")
   })
 
   it("can update multi-level wrapping decorations", () => {
@@ -139,9 +141,9 @@ describe("Decoration drawing", () => {
     const view = tempEditor({ doc: doc(p("foobar")), plugins: [decoPlugin(["1-widget", "4-widget", "7-widget"])] })
     const found = Array.from(view.dom.querySelectorAll("button"))
     ist(found.length, 3)
-    ist(found[0].nextSibling!.textContent, "foo")
-    ist(found[1].nextSibling!.textContent, "bar")
-    ist(found[2].previousSibling!.textContent, "bar")
+    ist(present(found[0].nextSibling).textContent, "foo")
+    ist(present(found[1].nextSibling).textContent, "bar")
+    ist(present(found[2].previousSibling).textContent, "bar")
   })
 
   it("orders widgets by their side option", () => {
@@ -313,7 +315,7 @@ describe("Decoration drawing", () => {
     const foo = view.dom.querySelector(".foo") as HTMLElement
     ist(foo)
     ist(foo.textContent, "a")
-    ist(foo.nextSibling!.textContent, "r")
+    ist(present(foo.nextSibling).textContent, "r")
   })
 
   it("correctly redraws a partially decorated node when a widget is added", () => {
@@ -351,9 +353,9 @@ describe("Decoration drawing", () => {
   it("can add and remove CSS custom properties from a node", () => {
     const deco = Decoration.node(0, 5, { style: "--my-custom-property:36px" })
     const view = tempEditor({ doc: doc(p("foo")), plugins: [decoPlugin([deco])] })
-    ist(view.dom.querySelector("p")!.style.getPropertyValue("--my-custom-property"), "36px")
+    ist(present(view.dom.querySelector("p")).style.getPropertyValue("--my-custom-property"), "36px")
     updateDeco(view, null, [deco])
-    ist(view.dom.querySelector("p")!.style.getPropertyValue("--my-custom-property"), "")
+    ist(present(view.dom.querySelector("p")).style.getPropertyValue("--my-custom-property"), "")
   })
 
   it("updates decorated nodes even if a widget is added before them", () => {
@@ -376,11 +378,11 @@ describe("Decoration drawing", () => {
   it("can add and remove inline style", () => {
     const deco = Decoration.inline(1, 6, { style: "color: rgba(0,10,200,.4); text-decoration: underline" })
     const view = tempEditor({ doc: doc(p("al", img(), "lo")), plugins: [decoPlugin([deco])] })
-    ist(/rgba/.test(view.dom.querySelector("img")!.style.color))
-    ist((view.dom.querySelector("img")!.previousSibling as HTMLElement).style.textDecoration, "underline")
+    ist(/rgba/.test(present(view.dom.querySelector("img")).style.color))
+    ist((present(view.dom.querySelector("img")).previousSibling as HTMLElement).style.textDecoration, "underline")
     updateDeco(view, null, [deco])
-    ist(view.dom.querySelector("img")!.style.color, "")
-    ist(view.dom.querySelector("img")!.style.textDecoration, "")
+    ist(present(view.dom.querySelector("img")).style.color, "")
+    ist(present(view.dom.querySelector("img")).style.textDecoration, "")
   })
 
   it("passes decorations to a node view", () => {
@@ -461,7 +463,7 @@ describe("Decoration drawing", () => {
   })
 
   it("supports widgets querying their own position", () => {
-    let get: () => number | undefined
+    let get: () => number | undefined = constUndefined
     tempEditor({
       doc: doc(p("hi")),
       decorations(state) {
@@ -474,7 +476,7 @@ describe("Decoration drawing", () => {
         ])
       }
     })
-    ist(get!(), 3)
+    ist(get(), 3)
   })
 
   it("doesn't redraw widgets with matching keys", () => {
@@ -526,7 +528,7 @@ describe("Decoration drawing", () => {
     const styled = view.dom.querySelectorAll(".dec")
     ist(styled.length, 3)
     ist(Array.prototype.map.call(styled, (n) => n.textContent).join(), "bc,def,gh")
-    ist(styled[1].parentNode!.nodeName, "STRONG")
+    ist(present(styled[1].parentNode).nodeName, "STRONG")
   })
 
   it("can handle inline decorations ending on inline node boundaries", () => {

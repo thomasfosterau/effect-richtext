@@ -33,9 +33,11 @@ import * as Match from "effect/Match"
 import * as Option from "effect/Option"
 import * as Order from "effect/Order"
 import * as Predicate from "effect/Predicate"
+import * as Rec from "effect/Record"
 import { SchemaDefinitionError } from "./errors.ts"
 import { Fragment } from "./fragment.ts"
 import type { NodeType } from "./schema.ts"
+import type { Node } from "./node.ts"
 
 const TypeId = "~effect-richtext/model/ContentExpr"
 
@@ -336,6 +338,19 @@ export interface MatchEdge {
   readonly next: ContentMatch
 }
 
+// A step in the breadth-first search of `computeWrapping`: the wrapper
+// entered to reach `match`, and the step it was entered from.
+type WrapStep = { match: ContentMatch; type: NodeType | null; via: WrapStep | null }
+
+// The wrapper types on the path to `step`, outermost first.
+function wrapPath(step: WrapStep, out: Array<NodeType>): Array<NodeType> {
+  if (step.type) {
+    if (step.via) wrapPath(step.via, out)
+    out.push(step.type)
+  }
+  return out
+}
+
 /**
  * Instances of this class represent a match state of a node type's
  * content expression, and can be used to find out whether further
@@ -452,7 +467,7 @@ export class ContentMatch {
     function search(match: ContentMatch, types: ReadonlyArray<NodeType>): Fragment | null {
       const finished = match.matchFragmentOrNull(after, startIndex)
       if (finished && (!toEnd || finished.validEnd)) {
-        return Fragment.fromArray(types.map((tp) => tp.createAndFillOrNull()!))
+        return createAndFillAll(types)
       }
       for (let i = 0; i < match.next.length; i++) {
         const { next, type } = match.next[i]
@@ -489,17 +504,12 @@ export class ContentMatch {
 
   /** @internal */
   computeWrapping(target: NodeType): ReadonlyArray<NodeType> | null {
-    type Active = { match: ContentMatch; type: NodeType | null; via: Active | null }
     const seen: Record<string, boolean> = Object.create(null)
-    const active: Array<Active> = [{ match: this, type: null, via: null }]
-    while (active.length) {
-      const current = active.shift()!
+    const active: Array<WrapStep> = [{ match: this, type: null, via: null }]
+    for (let head = 0; head < active.length; head++) {
+      const current = active[head]
       const match = current.match
-      if (match.matchTypeOrNull(target)) {
-        const result: Array<NodeType> = []
-        for (let obj: Active = current; obj.type; obj = obj.via!) result.push(obj.type)
-        return result.reverse()
-      }
+      if (match.matchTypeOrNull(target)) return wrapPath(current, [])
       for (let i = 0; i < match.next.length; i++) {
         const { next, type } = match.next[i]
         if (!type.isLeaf && !type.hasRequiredAttrs() && !(type.name in seen) && (!current.type || next.validEnd)) {
@@ -564,9 +574,8 @@ function resolveName(ctx: ResolveContext, name: string): ReadonlyArray<NodeType>
   const type = types[name]
   if (type) return [type]
   const result: Array<NodeType> = []
-  for (const typeName in types) {
-    const t = types[typeName]!
-    if (t.isInGroup(name)) result.push(t)
+  for (const t of Rec.values(types)) {
+    if (t && t.isInGroup(name)) result.push(t)
   }
   if (Arr.isArrayEmpty(result)) fail(ctx, "No node type or group '" + name + "' found")
   return result
@@ -682,6 +691,17 @@ const descending: Order.Order<number> = Order.flip(Order.Number)
 // Get the set of nodes reachable by null edges from `node`. Omit
 // nodes with only a single null-out-edge, since they may lead to
 // needless duplicated nodes.
+// A default node of each of `types`, or null when one can't be created.
+function createAndFillAll(types: ReadonlyArray<NodeType>) {
+  const nodes: Array<Node> = []
+  for (const type of types) {
+    const filled = type.createAndFillOrNull()
+    if (!filled) return null
+    nodes.push(filled)
+  }
+  return Fragment.fromArray(nodes)
+}
+
 function nullFrom(graph: Array<Array<Edge>>, node: number): ReadonlyArray<number> {
   const result: Array<number> = []
   scan(node)
@@ -689,11 +709,12 @@ function nullFrom(graph: Array<Array<Edge>>, node: number): ReadonlyArray<number
 
   function scan(n: number): void {
     const edges = graph[n]
-    if (edges.length === 1 && !edges[0].term) return scan(edges[0].to!)
+    const only = edges.length === 1 ? edges[0] : undefined
+    if (only && !only.term && only.to !== undefined) return scan(only.to)
     result.push(n)
     for (let i = 0; i < edges.length; i++) {
       const { term, to } = edges[i]
-      if (!term && result.indexOf(to!) === -1) scan(to!)
+      if (!term && to !== undefined && result.indexOf(to) === -1) scan(to)
     }
   }
 }
@@ -709,10 +730,10 @@ function dfa(graph: Array<Array<Edge>>): ContentMatch {
     const out: Array<[NodeType, Array<number>]> = []
     states.forEach((node) => {
       graph[node].forEach(({ term, to }) => {
-        if (!term) return
+        if (!term || to === undefined) return
         let set: Array<number> | undefined
         for (let i = 0; i < out.length; i++) if (out[i][0] === term) set = out[i][1]
-        nullFrom(graph, to!).forEach((n) => {
+        nullFrom(graph, to).forEach((n) => {
           if (!set) out.push([term, (set = [])])
           if (set.indexOf(n) === -1) set.push(n)
         })

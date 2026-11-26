@@ -20,13 +20,14 @@ import {
 } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import type { Step } from "@thomasfosterau/effect-richtext/compat/transform"
 import ist from "../utils/ist.ts"
+import { present } from "../utils/present.ts"
 import { findTextNode, flush, tempEditor } from "./compat-view.ts"
 
 const img = img_({ src: "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" })
 
 function setSel(aNode: Node, aOff: number, fNode?: Node, fOff = 0) {
   const r = document.createRange(),
-    s = window.getSelection()!
+    s = present(window.getSelection())
   r.setEnd(fNode || aNode, fNode ? fOff : aOff)
   r.setStart(aNode, aOff)
   s.removeAllRanges()
@@ -36,21 +37,21 @@ function setSel(aNode: Node, aOff: number, fNode?: Node, fOff = 0) {
 describe("DOM change", () => {
   it("notices when text is added", () => {
     const view = tempEditor({ doc: doc(p("hello")) })
-    findTextNode(view.dom, "hello")!.nodeValue = "heLllo"
+    present(findTextNode(view.dom, "hello")).nodeValue = "heLllo"
     flush(view)
     ist(view.state.doc, doc(p("heLllo")), eq)
   })
 
   it("notices when text is removed", () => {
     const view = tempEditor({ doc: doc(p("hello")) })
-    findTextNode(view.dom, "hello")!.nodeValue = "heo"
+    present(findTextNode(view.dom, "hello")).nodeValue = "heo"
     flush(view)
     ist(view.state.doc, doc(p("heo")), eq)
   })
 
   it("handles ambiguous changes", () => {
     const view = tempEditor({ doc: doc(p("hello")) })
-    findTextNode(view.dom, "hello")!.nodeValue = "helo"
+    present(findTextNode(view.dom, "hello")).nodeValue = "helo"
     flush(view)
     ist(view.state.doc, doc(p("helo")), eq)
   })
@@ -58,23 +59,23 @@ describe("DOM change", () => {
   it("respects stored marks", () => {
     const view = tempEditor({ doc: doc(p("hello")) })
     view.dispatch(view.state.tr.addStoredMark(view.state.schema.marks.em.create()))
-    findTextNode(view.dom, "hello")!.nodeValue = "helloo"
+    present(findTextNode(view.dom, "hello")).nodeValue = "helloo"
     flush(view)
     ist(view.state.doc, doc(p("hello", em("o"))), eq)
   })
 
   it("can add a node", () => {
     const view = tempEditor({ doc: doc(p("hello")) })
-    const txt = findTextNode(view.dom, "hello")!
-    txt.parentNode!.appendChild(document.createTextNode("!"))
+    const txt = present(findTextNode(view.dom, "hello"))
+    present(txt.parentNode).appendChild(document.createTextNode("!"))
     flush(view)
     ist(view.state.doc, doc(p("hello!")), eq)
   })
 
   it("can remove a text node", () => {
     const view = tempEditor({ doc: doc(p("hello")) })
-    const txt = findTextNode(view.dom, "hello")!
-    txt.parentNode!.removeChild(txt)
+    const txt = present(findTextNode(view.dom, "hello"))
+    present(txt.parentNode).removeChild(txt)
     flush(view)
     ist(view.state.doc, doc(p()), eq)
   })
@@ -97,7 +98,7 @@ describe("DOM change", () => {
 
   it("support inserting repeated text", () => {
     const view = tempEditor({ doc: doc(p("hello")) })
-    findTextNode(view.dom, "hello")!.nodeValue = "helhello"
+    present(findTextNode(view.dom, "hello")).nodeValue = "helhello"
     flush(view)
     ist(view.state.doc, doc(p("helhello")), eq)
   })
@@ -111,7 +112,7 @@ describe("DOM change", () => {
         return false
       }
     })
-    const bq = view.dom.querySelector("blockquote")!
+    const bq = present(view.dom.querySelector("blockquote"))
     bq.appendChild(document.createElement("p"))
     flush(view)
     ist(enterPressed)
@@ -141,8 +142,8 @@ describe("DOM change", () => {
         return false
       }
     })
-    view.dom.removeChild(view.dom.lastChild!)
-    view.dom.firstChild!.textContent = "foobar"
+    view.dom.removeChild(present(view.dom.lastChild))
+    present(view.dom.firstChild).textContent = "foobar"
     flush(view)
     ist(backspacePressed)
   })
@@ -156,9 +157,9 @@ describe("DOM change", () => {
         return false
       }
     })
-    const bq = view.dom.firstChild!
-    bq.removeChild(bq.lastChild!)
-    ;(bq.firstChild!.firstChild as HTMLElement).innerHTML = "foo<br>bar"
+    const bq = present(view.dom.firstChild)
+    bq.removeChild(present(bq.lastChild))
+    ;(present(bq.firstChild).firstChild as HTMLElement).innerHTML = "foo<br>bar"
     flush(view)
     ist(backspacePressed)
   })
@@ -172,15 +173,15 @@ describe("DOM change", () => {
         return false
       }
     })
-    view.dom.removeChild(view.dom.lastChild!)
-    view.dom.firstChild!.textContent = "foobar"
+    view.dom.removeChild(present(view.dom.lastChild))
+    present(view.dom.firstChild).textContent = "foobar"
     flush(view)
     ist(!backspacePressed)
   })
 
   it("correctly adjusts the selection", () => {
     const view = tempEditor({ doc: doc(p("abc<a>")) })
-    const textNode = findTextNode(view.dom, "abc")!
+    const textNode = present(findTextNode(view.dom, "abc"))
     textNode.nodeValue = "abcd"
     setSel(textNode, 3)
     flush(view)
@@ -191,11 +192,11 @@ describe("DOM change", () => {
 
   it("handles splitting of a textblock", () => {
     const view = tempEditor({ doc: doc(h1("abc"), p("defg<a>")) })
-    const para = view.dom.querySelector("p")!
-    const split = para.parentNode!.appendChild(para.cloneNode()) as HTMLElement
+    const para = present(view.dom.querySelector("p"))
+    const split = present(para.parentNode).appendChild(para.cloneNode()) as HTMLElement
     split.innerHTML = "fg"
-    findTextNode(para, "defg")!.nodeValue = "dexy"
-    setSel(split.firstChild!, 1)
+    present(findTextNode(para, "defg")).nodeValue = "dexy"
+    setSel(present(split.firstChild), 1)
     flush(view)
     ist(view.state.doc, doc(h1("abc"), p("dexy"), p("fg")), eq)
     ist(view.state.selection.anchor, 13)
@@ -203,12 +204,12 @@ describe("DOM change", () => {
 
   it("handles a deep split of nodes", () => {
     const view = tempEditor({ doc: doc(blockquote(p("ab<a>cd"))) })
-    const quote = view.dom.querySelector("blockquote")!
+    const quote = present(view.dom.querySelector("blockquote"))
     const quote2 = view.dom.appendChild(quote.cloneNode(true))
-    findTextNode(quote, "abcd")!.nodeValue = "abx"
-    const text2 = findTextNode(quote2, "abcd")!
+    present(findTextNode(quote, "abcd")).nodeValue = "abx"
+    const text2 = present(findTextNode(quote2, "abcd"))
     text2.nodeValue = "cd"
-    setSel(text2.parentNode!, 0)
+    setSel(present(text2.parentNode), 0)
     flush(view)
     ist(view.state.doc, doc(blockquote(p("abx")), blockquote(p("cd"))), eq)
     ist(view.state.selection.anchor, 9)
@@ -216,28 +217,28 @@ describe("DOM change", () => {
 
   it("can delete the third instance of a character", () => {
     const view = tempEditor({ doc: doc(p("foo xxx<a> bar")) })
-    findTextNode(view.dom, "foo xxx bar")!.nodeValue = "foo xx bar"
+    present(findTextNode(view.dom, "foo xxx bar")).nodeValue = "foo xx bar"
     flush(view)
     ist(view.state.doc, doc(p("foo xx bar")), eq)
   })
 
   it("can read a simple composition", () => {
     const view = tempEditor({ doc: doc(p("hello")) })
-    findTextNode(view.dom, "hello")!.nodeValue = "hellox"
+    present(findTextNode(view.dom, "hello")).nodeValue = "hellox"
     flush(view)
     ist(view.state.doc, doc(p("hellox")), eq)
   })
 
   it("can delete text in markup", () => {
     const view = tempEditor({ doc: doc(p("a", em("b", img, strong("cd<a>")), "e")) })
-    findTextNode(view.dom, "cd")!.nodeValue = "c"
+    present(findTextNode(view.dom, "cd")).nodeValue = "c"
     flush(view)
     ist(view.state.doc, doc(p("a", em("b", img, strong("c")), "e")), eq)
   })
 
   it("recognizes typing inside markup", () => {
     const view = tempEditor({ doc: doc(p("a", em("b", img, strong("cd<a>")), "e")) })
-    findTextNode(view.dom, "cd")!.nodeValue = "cdxy"
+    present(findTextNode(view.dom, "cd")).nodeValue = "cdxy"
     flush(view)
     ist(view.state.doc, doc(p("a", em("b", img, strong("cdxy")), "e")), eq)
   })
@@ -245,14 +246,14 @@ describe("DOM change", () => {
   it("resolves ambiguous text input", () => {
     const view = tempEditor({ doc: doc(p("fo<a>o")) })
     view.dispatch(view.state.tr.addStoredMark(view.state.schema.marks.strong.create()))
-    findTextNode(view.dom, "foo")!.nodeValue = "fooo"
+    present(findTextNode(view.dom, "foo")).nodeValue = "fooo"
     flush(view)
     ist(view.state.doc, doc(p("fo", strong("o"), "o")), eq)
   })
 
   it("does not repaint a text node when it's typed into", () => {
     const view = tempEditor({ doc: doc(p("fo<a>o")) })
-    findTextNode(view.dom, "foo")!.nodeValue = "fojo"
+    present(findTextNode(view.dom, "foo")).nodeValue = "fojo"
     let mutated = false
     const observer = new MutationObserver(() => (mutated = true))
     observer.observe(view.dom, { subtree: true, characterData: true, childList: true })
@@ -264,36 +265,36 @@ describe("DOM change", () => {
 
   it("understands text typed into an empty paragraph", () => {
     const view = tempEditor({ doc: doc(p("<a>")) })
-    view.dom.querySelector("p")!.textContent = "i"
+    present(view.dom.querySelector("p")).textContent = "i"
     flush(view)
     ist(view.state.doc, doc(p("i")), eq)
   })
 
   it("doesn't treat a placeholder BR as real content", () => {
     const view = tempEditor({ doc: doc(p("i<a>")) })
-    view.dom.querySelector("p")!.innerHTML = "<br>"
+    present(view.dom.querySelector("p")).innerHTML = "<br>"
     flush(view)
     ist(view.state.doc, doc(p()), eq)
   })
 
   it("fixes text changes when input is ignored", () => {
     const view = tempEditor({ doc: doc(p("foo")), dispatchTransaction: () => undefined })
-    findTextNode(view.dom, "foo")!.nodeValue = "food"
+    present(findTextNode(view.dom, "foo")).nodeValue = "food"
     flush(view)
     ist(view.dom.textContent, "foo")
   })
 
   it("fixes structure changes when input is ignored", () => {
     const view = tempEditor({ doc: doc(p("foo", br(), "bar")), dispatchTransaction: () => null })
-    const para = view.dom.querySelector("p")!
-    para.replaceChild(document.createElement("img"), para.lastChild!)
+    const para = present(view.dom.querySelector("p"))
+    para.replaceChild(document.createElement("img"), present(para.lastChild))
     flush(view)
     ist(view.dom.textContent, "foobar")
   })
 
   it("aborts when an incompatible state is set", () => {
     const view = tempEditor({ doc: doc(p("abcde")) })
-    findTextNode(view.dom, "abcde")!.nodeValue = "xabcde"
+    present(findTextNode(view.dom, "abcde")).nodeValue = "xabcde"
     view.dispatchEvent({ type: "input" } as Event)
     view.updateState(EditorState.create({ doc: doc(p("uvw")) }))
     flush(view)
@@ -309,14 +310,14 @@ describe("DOM change", () => {
         view.updateState(view.state.apply(tr))
       }
     })
-    view.dom.querySelector("p")!.innerHTML = "<b>one</b>"
+    present(view.dom.querySelector("p")).innerHTML = "<b>one</b>"
     flush(view)
     ist(view.state.doc, doc(p(strong("one"))), eq)
   })
 
   it("preserves marks on deletion", () => {
     const view = tempEditor({ doc: doc(p("one", em("x<a>"))) })
-    view.dom.querySelector("em")!.innerText = ""
+    present(view.dom.querySelector("em")).innerText = ""
     view.dispatchEvent({ type: "input" } as Event)
     flush(view)
     view.dispatch(view.state.tr.insertText("y"))
@@ -325,7 +326,7 @@ describe("DOM change", () => {
 
   it("works when a node's contentDOM is deleted", () => {
     const view = tempEditor({ doc: doc(p("one"), pre("two<a>")) })
-    view.dom.querySelector("pre")!.innerText = ""
+    present(view.dom.querySelector("pre")).innerText = ""
     view.dispatchEvent({ type: "input" } as Event)
     flush(view)
     ist(view.state.doc, doc(p("one"), pre()), eq)
@@ -334,8 +335,8 @@ describe("DOM change", () => {
 
   it("doesn't redraw content with marks when typing in front", () => {
     const view = tempEditor({ doc: doc(p("foo", em("bar"), strong("baz"))) })
-    const bar = findTextNode(view.dom, "bar")!,
-      foo = findTextNode(view.dom, "foo")!
+    const bar = present(findTextNode(view.dom, "bar")),
+      foo = present(findTextNode(view.dom, "foo"))
     foo.nodeValue = "froo"
     flush(view)
     ist(view.state.doc, doc(p("froo", em("bar"), strong("baz"))), eq)
@@ -345,8 +346,8 @@ describe("DOM change", () => {
 
   it("doesn't redraw content with marks when typing inside mark", () => {
     const view = tempEditor({ doc: doc(p("foo", em("bar"), strong("baz"))) })
-    const bar = findTextNode(view.dom, "bar")!,
-      foo = findTextNode(view.dom, "foo")!
+    const bar = present(findTextNode(view.dom, "bar")),
+      foo = present(findTextNode(view.dom, "foo"))
     bar.nodeValue = "baar"
     flush(view)
     ist(view.state.doc, doc(p("foo", em("baar"), strong("baz"))), eq)
@@ -363,21 +364,21 @@ describe("DOM change", () => {
 
   it("notices text added to a cursor wrapper at the start of a mark", () => {
     const view = tempEditor({ doc: doc(p(strong(a("foo<a>"), "bar"))) })
-    findTextNode(view.dom, "foo")!.nodeValue = "fooxy"
+    present(findTextNode(view.dom, "foo")).nodeValue = "fooxy"
     flush(view)
     ist(view.state.doc, doc(p(strong(a("foo"), "xybar"))), eq)
   })
 
   it("removes cursor wrapper text when the wrapper otherwise remains valid", () => {
     const view = tempEditor({ doc: doc(p(a(strong("foo<a>"), "bar"))) })
-    findTextNode(view.dom, "foo")!.nodeValue = "fooq"
+    present(findTextNode(view.dom, "foo")).nodeValue = "fooq"
     flush(view)
     ist(view.state.doc, doc(p(a(strong("fooq"), "bar"))), eq)
     ist(!findTextNode(view.dom, "\ufeffq"))
   })
 
   it("doesn't confuse backspace with delete", () => {
-    let steps: Step[]
+    let steps: Step[] = []
     const view = tempEditor({
       doc: doc(p("a<a>a")),
       dispatchTransaction(tr) {
@@ -388,16 +389,16 @@ describe("DOM change", () => {
 
     view.input.lastKeyCode = 8
     view.input.lastKeyCodeTime = Clock.Clock.defaultValue().currentTimeMillisUnsafe()
-    findTextNode(view.dom, "aa")!.nodeValue = "a"
+    present(findTextNode(view.dom, "aa")).nodeValue = "a"
     flush(view)
 
-    ist(steps!.length, 1)
-    ist((steps![0] as any).from, 1)
-    ist((steps![0] as any).to, 2)
+    ist(steps.length, 1)
+    ist((steps[0] as any).from, 1)
+    ist((steps[0] as any).to, 2)
   })
 
   it("can disambiguate a multiple-character backspace event", () => {
-    let steps: Step[]
+    let steps: Step[] = []
     const view = tempEditor({
       doc: doc(p("foo<a>foo")),
       dispatchTransaction(tr) {
@@ -408,16 +409,16 @@ describe("DOM change", () => {
 
     view.input.lastKeyCode = 8
     view.input.lastKeyCodeTime = Clock.Clock.defaultValue().currentTimeMillisUnsafe()
-    findTextNode(view.dom, "foofoo")!.nodeValue = "foo"
+    present(findTextNode(view.dom, "foofoo")).nodeValue = "foo"
     flush(view)
 
-    ist(steps!.length, 1)
-    ist((steps![0] as any).from, 1)
-    ist((steps![0] as any).to, 4)
+    ist(steps.length, 1)
+    ist((steps[0] as any).from, 1)
+    ist((steps[0] as any).to, 4)
   })
 
   it("doesn't confuse delete with backspace", () => {
-    let steps: Step[]
+    let steps: Step[] = []
     const view = tempEditor({
       doc: doc(p("a<a>a")),
       dispatchTransaction(tr) {
@@ -426,16 +427,16 @@ describe("DOM change", () => {
       }
     })
 
-    findTextNode(view.dom, "aa")!.nodeValue = "a"
+    present(findTextNode(view.dom, "aa")).nodeValue = "a"
     flush(view)
 
-    ist(steps!.length, 1)
-    ist((steps![0] as any).from, 2)
-    ist((steps![0] as any).to, 3)
+    ist(steps.length, 1)
+    ist((steps[0] as any).from, 2)
+    ist((steps[0] as any).to, 3)
   })
 
   it("doesn't confuse delete with backspace for multi-character deletions", () => {
-    let steps: Step[]
+    let steps: Step[] = []
     const view = tempEditor({
       doc: doc(p("one foo<a>foo three")),
       dispatchTransaction(tr) {
@@ -444,16 +445,16 @@ describe("DOM change", () => {
       }
     })
 
-    findTextNode(view.dom, "one foofoo three")!.nodeValue = "one foo three"
+    present(findTextNode(view.dom, "one foofoo three")).nodeValue = "one foo three"
     flush(view)
 
-    ist(steps!.length, 1)
-    ist((steps![0] as any).from, 8)
-    ist((steps![0] as any).to, 11)
+    ist(steps.length, 1)
+    ist((steps[0] as any).from, 8)
+    ist((steps[0] as any).to, 11)
   })
 
   it("creates a correct step for an ambiguous selection-deletion", () => {
-    let steps: Step[]
+    let steps: Step[] = []
     const view = tempEditor({
       doc: doc(p("la<a>la<b>la")),
       dispatchTransaction(tr) {
@@ -464,16 +465,16 @@ describe("DOM change", () => {
 
     view.input.lastKeyCode = 8
     view.input.lastKeyCodeTime = Clock.Clock.defaultValue().currentTimeMillisUnsafe()
-    findTextNode(view.dom, "lalala")!.nodeValue = "lala"
+    present(findTextNode(view.dom, "lalala")).nodeValue = "lala"
     flush(view)
 
-    ist(steps!.length, 1)
-    ist((steps![0] as any).from, 3)
-    ist((steps![0] as any).to, 5)
+    ist(steps.length, 1)
+    ist((steps[0] as any).from, 3)
+    ist((steps[0] as any).to, 5)
   })
 
   it("creates a step that covers the entire selection for partially-matching replacement", () => {
-    let steps: Step[]
+    let steps: Step[] = []
     const view = tempEditor({
       doc: doc(p("one <a>two<b> three")),
       dispatchTransaction(tr) {
@@ -482,20 +483,20 @@ describe("DOM change", () => {
       }
     })
 
-    findTextNode(view.dom, "one two three")!.nodeValue = "one t three"
+    present(findTextNode(view.dom, "one two three")).nodeValue = "one t three"
     flush(view)
-    ist(steps!.length, 1)
-    ist((steps![0] as any).from, 5)
-    ist((steps![0] as any).to, 8)
-    ist((steps![0] as any).slice.content.toString(), '<"t">')
+    ist(steps.length, 1)
+    ist((steps[0] as any).from, 5)
+    ist((steps[0] as any).to, 8)
+    ist((steps[0] as any).slice.content.toString(), '<"t">')
 
     view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 7, 12)))
-    findTextNode(view.dom, "one t three")!.nodeValue = "one t e"
+    present(findTextNode(view.dom, "one t three")).nodeValue = "one t e"
     flush(view)
-    ist(steps!.length, 1)
-    ist((steps![0] as any).from, 7)
-    ist((steps![0] as any).to, 12)
-    ist((steps![0] as any).slice.content.toString(), '<"e">')
+    ist(steps.length, 1)
+    ist((steps[0] as any).from, 7)
+    ist((steps[0] as any).to, 12)
+    ist((steps[0] as any).slice.content.toString(), '<"e">')
   })
 
   it("doesn't create steps in the middle of surrogate pairs", () => {
@@ -507,7 +508,7 @@ describe("DOM change", () => {
         view.updateState(view.state.apply(tr))
       }
     })
-    findTextNode(view.dom, "👽")!.nodeValue = "💎👽"
+    present(findTextNode(view.dom, "👽")).nodeValue = "💎👽"
     flush(view)
     ist(steps.length, 1)
     ist((steps[0] as any).from, 1)

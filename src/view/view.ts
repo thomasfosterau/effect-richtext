@@ -958,7 +958,8 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
   }
 
   private updateDraggedNode(dragging: Dragging, prev: EditorState<Sc, R, E>) {
-    const sel = dragging.node!
+    const sel = dragging.node
+    if (!sel) return
     let found = -1
     if (sel.from < this.state.doc.content.size && this.state.doc.nodeAtOrNull(sel.from) == sel.node) {
       found = sel.from
@@ -1122,7 +1123,8 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
       for (let search = this.dom.parentNode; search; search = search.parentNode) {
         if (search.nodeType == 9 || (search.nodeType == 11 && Predicate.hasProperty(search, "host") && search.host)) {
           if (!Predicate.hasProperty(search, "getSelection") || !search.getSelection) {
-            Object.getPrototypeOf(search).getSelection = () => (search as DOMNode).ownerDocument!.getSelection()
+            const doc = search.ownerDocument
+            Object.getPrototypeOf(search).getSelection = () => (doc ? doc.getSelection() : null)
           }
           return (this._root = search as Document | ShadowRoot)
         }

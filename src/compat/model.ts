@@ -1175,16 +1175,16 @@ const translateRule = (rule: any): any => {
 
 const translateNodeSpec = (spec: NodeSpec): M.NodeSpec => {
   const copy: any = { ...spec, [ORIGINAL]: spec }
-  if (spec.toDOM) copy.toDOM = (node: M.Node) => spec.toDOM!(wrap(node))
-  if (spec.toDebugString) copy.toDebugString = (node: M.Node) => spec.toDebugString!(wrap(node))
-  if (spec.leafText) copy.leafText = (node: M.Node) => spec.leafText!(wrap(node))
+  if (spec.toDOM) copy.toDOM = (node: M.Node) => spec.toDOM?.(wrap(node))
+  if (spec.toDebugString) copy.toDebugString = (node: M.Node) => spec.toDebugString?.(wrap(node))
+  if (spec.leafText) copy.leafText = (node: M.Node) => spec.leafText?.(wrap(node))
   if (spec.parseDOM) copy.parseDOM = spec.parseDOM.map(translateRule)
   return copy
 }
 
 const translateMarkSpec = (spec: MarkSpec): M.MarkSpec => {
   const copy: any = { ...spec, [ORIGINAL]: spec }
-  if (spec.toDOM) copy.toDOM = (mark: M.Mark, inline: boolean) => spec.toDOM!(wrap(mark), inline)
+  if (spec.toDOM) copy.toDOM = (mark: M.Mark, inline: boolean) => spec.toDOM?.(wrap(mark), inline)
   if (spec.parseDOM) copy.parseDOM = spec.parseDOM.map(translateRule)
   return copy
 }

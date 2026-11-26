@@ -7,40 +7,40 @@ import { code, doc, em, eq, p, schema, strong } from "@thomasfosterau/effect-ric
 import type { EditorView } from "@thomasfosterau/effect-richtext/View"
 import { __endComposition, Decoration, DecorationSet } from "@thomasfosterau/effect-richtext/View"
 import ist from "../utils/ist.ts"
+import { present } from "../utils/present.ts"
 import { findTextNode, flush, requireFocus, tempEditor } from "./helpers.ts"
 
 function event(pm: EditorView, type: string) {
   pm.dom.dispatchEvent(new CompositionEvent(type))
 }
 
-function edit(node: Text, text = "", from = node.nodeValue!.length, to = from) {
-  const val = node.nodeValue!
+function edit(node: Text, text = "", from = node.data.length, to = from) {
+  const val = node.data
   node.nodeValue = val.slice(0, from) + text + val.slice(to)
-  document.getSelection()!.collapse(node, from + text.length)
+  present(document.getSelection()).collapse(node, from + text.length)
   return node
 }
 
 function hasCompositionNode(_pm: EditorView) {
-  let { focusNode } = document.getSelection()!
+  let { focusNode } = present(document.getSelection())
   while (focusNode && !focusNode.pmViewDesc) focusNode = focusNode.parentNode
-  return focusNode && focusNode.pmViewDesc!.constructor.name == "CompositionViewDesc"
+  return focusNode?.pmViewDesc?.constructor.name == "CompositionViewDesc"
 }
 
 function compose(pm: EditorView, start: () => Text, update: ((node: Text) => void)[], options: any = {}) {
   event(pm, "compositionstart")
   ist(pm.composing)
-  let node: Text
-  const sel = document.getSelection()!
+  const sel = present(document.getSelection())
+  const node = start()
   for (let i = -1; i < update.length; i++) {
-    if (i < 0) node = start()
-    else update[i](node!)
+    if (i >= 0) update[i](node)
     const { focusNode, focusOffset } = sel
     flush(pm)
 
     if (options.cancel && i == update.length - 1) {
       ist(!hasCompositionNode(pm))
     } else {
-      ist(node!.parentNode && pm.dom.contains(node!.parentNode))
+      ist(node.parentNode && pm.dom.contains(node.parentNode))
       ist(sel.focusNode, focusNode)
       ist(sel.focusOffset, focusOffset)
       if (options.node) ist(hasCompositionNode(pm))
@@ -48,7 +48,7 @@ function compose(pm: EditorView, start: () => Text, update: ((node: Text) => voi
   }
   event(pm, "compositionend")
   if (options.end) {
-    options.end(node!)
+    options.end(node)
     flush(pm)
   }
   __endComposition(pm)
@@ -88,7 +88,7 @@ function widgets(positions: number[], sides: number[]) {
             { side: sides[i] }
           )
         )
-        return DecorationSet.create(state.doc!, deco)
+        return DecorationSet.create(present(state.doc), deco)
       },
       apply(tr, deco) {
         return deco.map(tr.mapping, tr.doc)
@@ -107,7 +107,7 @@ describe("EditorView composition", () => {
     const pm = requireFocus(tempEditor({ doc: doc(p("<a>")) }))
     compose(
       pm,
-      () => edit(pm.dom.firstChild!.appendChild(document.createTextNode("a"))),
+      () => edit(present(pm.dom.firstChild).appendChild(document.createTextNode("a"))),
       [(n) => edit(n, "b"), (n) => edit(n, "c")],
       { node: true }
     )
@@ -116,15 +116,20 @@ describe("EditorView composition", () => {
 
   it("supports composition at end of block", () => {
     const pm = requireFocus(tempEditor({ doc: doc(p("foo")) }))
-    compose(pm, () => edit(findTextNode(pm.dom, "foo")!), [(n) => edit(n, "!"), (n) => edit(n, "?")])
+    compose(pm, () => edit(present(findTextNode(pm.dom, "foo"))), [(n) => edit(n, "!"), (n) => edit(n, "?")])
     ist(pm.state.doc, doc(p("foo!?")), eq)
   })
 
   it("supports composition at end of block in a new node", () => {
     const pm = requireFocus(tempEditor({ doc: doc(p("foo")) }))
-    compose(pm, () => edit(pm.dom.firstChild!.appendChild(document.createTextNode("!"))), [(n) => edit(n, "?")], {
-      node: true
-    })
+    compose(
+      pm,
+      () => edit(present(pm.dom.firstChild).appendChild(document.createTextNode("!"))),
+      [(n) => edit(n, "?")],
+      {
+        node: true
+      }
+    )
     ist(pm.state.doc, doc(p("foo!?")), eq)
   })
 
@@ -133,7 +138,7 @@ describe("EditorView composition", () => {
     compose(
       pm,
       () => {
-        const p = pm.dom.firstChild!
+        const p = present(pm.dom.firstChild)
         return edit(p.insertBefore(document.createTextNode("!"), p.firstChild))
       },
       [(n) => edit(n, "?")],
@@ -144,7 +149,7 @@ describe("EditorView composition", () => {
 
   it("supports composition inside existing text", () => {
     const pm = requireFocus(tempEditor({ doc: doc(p("foo")) }))
-    compose(pm, () => edit(findTextNode(pm.dom, "foo")!), [
+    compose(pm, () => edit(present(findTextNode(pm.dom, "foo"))), [
       (n) => edit(n, "x", 1),
       (n) => edit(n, "y", 2),
       (n) => edit(n, "z", 3)
@@ -154,12 +159,12 @@ describe("EditorView composition", () => {
 
   it("can deal with Android-style newline-after-composition", () => {
     const pm = requireFocus(tempEditor({ doc: doc(p("abcdef")) }))
-    compose(pm, () => edit(findTextNode(pm.dom, "abcdef")!), [(n) => edit(n, "x", 3), (n) => edit(n, "y", 4)], {
+    compose(pm, () => edit(present(findTextNode(pm.dom, "abcdef"))), [(n) => edit(n, "x", 3), (n) => edit(n, "y", 4)], {
       end: (n: Text) => {
         const line = pm.dom.appendChild(document.createElement("div"))
         line.textContent = "def"
         n.nodeValue = "abcxy"
-        document.getSelection()!.collapse(line, 0)
+        present(document.getSelection()).collapse(line, 0)
       }
     })
     ist(pm.state.doc, doc(p("abcxy"), p("def")), eq)
@@ -167,7 +172,7 @@ describe("EditorView composition", () => {
 
   it("handles replacement of existing words", () => {
     const pm = requireFocus(tempEditor({ doc: doc(p("one two three")) }))
-    compose(pm, () => edit(findTextNode(pm.dom, "one two three")!, "five", 4, 7), [
+    compose(pm, () => edit(present(findTextNode(pm.dom, "one two three")), "five", 4, 7), [
       (n) => edit(n, "seven", 4, 8),
       (n) => edit(n, "zero", 4, 9)
     ])
@@ -176,13 +181,13 @@ describe("EditorView composition", () => {
 
   it("handles composition inside marks", () => {
     const pm = requireFocus(tempEditor({ doc: doc(p("one ", em("two"))) }))
-    compose(pm, () => edit(findTextNode(pm.dom, "two")!, "o"), [(n) => edit(n, "o"), (n) => edit(n, "w")])
+    compose(pm, () => edit(present(findTextNode(pm.dom, "two")), "o"), [(n) => edit(n, "o"), (n) => edit(n, "w")])
     ist(pm.state.doc, doc(p("one ", em("twooow"))), eq)
   })
 
   it("handles composition in a mark that has multiple children", () => {
     const pm = requireFocus(tempEditor({ doc: doc(p("one ", em("two", strong(" three")))) }))
-    compose(pm, () => edit(findTextNode(pm.dom, "two")!, "o"), [(n) => edit(n, "o"), (n) => edit(n, "w")])
+    compose(pm, () => edit(present(findTextNode(pm.dom, "two")), "o"), [(n) => edit(n, "o"), (n) => edit(n, "w")])
     ist(pm.state.doc, doc(p("one ", em("twooow", strong(" three")))), eq)
   })
 
@@ -191,7 +196,7 @@ describe("EditorView composition", () => {
     pm.dispatchUnsafe(pm.state.tr.addStoredMark(schema.marks.em.createUnsafe()))
     compose(
       pm,
-      () => edit(pm.dom.firstChild!.appendChild(document.createTextNode("")), "a"),
+      () => edit(present(pm.dom.firstChild).appendChild(document.createTextNode("")), "a"),
       [(n) => edit(n, "b"), (n) => edit(n, "c")],
       { node: true }
     )
@@ -201,7 +206,7 @@ describe("EditorView composition", () => {
   it("handles composition in a multi-child mark with a cursor wrapper", () => {
     const pm = requireFocus(tempEditor({ doc: doc(p("one ", em("two<a>", strong(" three")))) }))
     pm.dispatchUnsafe(pm.state.tr.addStoredMark(schema.marks.code.createUnsafe()))
-    const emNode = pm.dom.querySelector("em")!
+    const emNode = present(pm.dom.querySelector("em"))
     compose(
       pm,
       () => edit(emNode.insertBefore(document.createTextNode(""), emNode.querySelector("strong")), "o"),
@@ -213,22 +218,22 @@ describe("EditorView composition", () => {
 
   it("doesn't get interrupted by changes in decorations", () => {
     const pm = requireFocus(tempEditor({ doc: doc(p("foo ...")), plugins: [wordHighlighter] }))
-    compose(pm, () => edit(findTextNode(pm.dom, " ...")!), [(n) => edit(n, "hi", 1, 4)])
+    compose(pm, () => edit(present(findTextNode(pm.dom, " ..."))), [(n) => edit(n, "hi", 1, 4)])
     ist(pm.state.doc, doc(p("foo hi")), eq)
   })
 
   it("works inside highlighted text", () => {
     const pm = requireFocus(tempEditor({ doc: doc(p("one two")), plugins: [wordHighlighter] }))
-    compose(pm, () => edit(findTextNode(pm.dom, "one")!, "x"), [(n) => edit(n, "y"), (n) => edit(n, ".")])
+    compose(pm, () => edit(present(findTextNode(pm.dom, "one")), "x"), [(n) => edit(n, "y"), (n) => edit(n, ".")])
     ist(pm.state.doc, doc(p("onexy. two")), eq)
   })
 
   it("can handle compositions spanning multiple nodes", () => {
     const pm = requireFocus(tempEditor({ doc: doc(p("one two")), plugins: [wordHighlighter] }))
-    compose(pm, () => edit(findTextNode(pm.dom, "two")!, "a"), [(n) => edit(n, "b"), (n) => edit(n, "c")], {
+    compose(pm, () => edit(present(findTextNode(pm.dom, "two")), "a"), [(n) => edit(n, "b"), (n) => edit(n, "c")], {
       end: (n: Text) => {
-        n.parentNode!.previousSibling!.remove()
-        n.parentNode!.previousSibling!.remove()
+        present(present(n.parentNode).previousSibling).remove()
+        present(present(n.parentNode).previousSibling).remove()
         return edit(n, "xyzone ", 0)
       }
     })
@@ -240,7 +245,7 @@ describe("EditorView composition", () => {
     compose(
       pm,
       () => {
-        const p = pm.dom.firstChild!
+        const p = present(pm.dom.firstChild)
         return edit(p.insertBefore(document.createTextNode("a"), p.lastChild))
       },
       [(n) => edit(n, "b", 0, 1)],
@@ -257,7 +262,7 @@ describe("EditorView composition", () => {
     const pm = requireFocus(tempEditor({ doc: doc(p("one"), p("two"), p("three")) }))
     compose(
       pm,
-      () => edit(findTextNode(pm.dom, "two")!, "x"),
+      () => edit(present(findTextNode(pm.dom, "two")), "x"),
       [() => pm.dispatchUnsafe(pm.state.tr.insertTextUnsafe("---", 3, 13))],
       { cancel: true }
     )
@@ -268,7 +273,7 @@ describe("EditorView composition", () => {
     const pm = requireFocus(tempEditor({ doc: doc(p("one"), p("two"), p("three")) }))
     compose(
       pm,
-      () => edit(findTextNode(pm.dom, "two")!, "x", 0),
+      () => edit(present(findTextNode(pm.dom, "two")), "x", 0),
       [() => pm.dispatchUnsafe(pm.state.tr.insertTextUnsafe("---", 7, 15))],
       { cancel: true }
     )
@@ -279,7 +284,7 @@ describe("EditorView composition", () => {
     const pm = requireFocus(tempEditor({ doc: doc(p("one"), p("two"), p("three")) }))
     compose(
       pm,
-      () => edit(findTextNode(pm.dom, "two")!, "x", 0),
+      () => edit(present(findTextNode(pm.dom, "two")), "x", 0),
       [() => pm.dispatchUnsafe(pm.state.tr.insertTextUnsafe("!", 7, 8))],
       { cancel: true }
     )
@@ -288,7 +293,7 @@ describe("EditorView composition", () => {
 
   it("doesn't cancel composition when a change happens elsewhere", () => {
     const pm = requireFocus(tempEditor({ doc: doc(p("one"), p("two"), p("three")) }))
-    compose(pm, () => edit(findTextNode(pm.dom, "two")!, "x", 0), [
+    compose(pm, () => edit(present(findTextNode(pm.dom, "two")), "x", 0), [
       (n) => edit(n, "y", 1),
       () => pm.dispatchUnsafe(pm.state.tr.insertTextUnsafe("!", 2, 3)),
       (n) => edit(n, "z", 2)
@@ -299,19 +304,19 @@ describe("EditorView composition", () => {
   it("handles compositions rapidly following each other", () => {
     const pm = requireFocus(tempEditor({ doc: doc(p("one"), p("two")) }))
     event(pm, "compositionstart")
-    const one = findTextNode(pm.dom, "one")!
+    const one = present(findTextNode(pm.dom, "one"))
     edit(one, "!")
     flush(pm)
     event(pm, "compositionend")
     one.nodeValue = "one!!"
     const L2 = pm.dom.lastChild
     event(pm, "compositionstart")
-    const two = findTextNode(pm.dom, "two")!
+    const two = present(findTextNode(pm.dom, "two"))
     ist(pm.dom.lastChild, L2)
     edit(two, ".")
     flush(pm)
-    ist(document.getSelection()!.focusNode, two)
-    ist(document.getSelection()!.focusOffset, 4)
+    ist(present(document.getSelection()).focusNode, two)
+    ist(present(document.getSelection()).focusOffset, 4)
     ist(pm.composing)
     event(pm, "compositionend")
     flush(pm)
@@ -321,9 +326,9 @@ describe("EditorView composition", () => {
   it("can handle cross-paragraph compositions", () => {
     const pm = requireFocus(tempEditor({ doc: doc(p("one <a>two"), p("three"), p("four<b> five")) }))
     compose(pm, () => {
-      const target = pm.dom.firstChild!.firstChild as Text
+      const target = present(pm.dom.firstChild).firstChild as Text
       target.nodeValue = "one A five"
-      document.getSelection()!.collapse(target, 5)
+      present(document.getSelection()).collapse(target, 5)
       return target
     }, [(n) => edit(n, "B", 4, 5), (n) => edit(n, "C", 4, 5)])
     ist(pm.state.doc, doc(p("one C five")), eq)

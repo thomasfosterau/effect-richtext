@@ -9,6 +9,7 @@ import * as Predicate from "effect/Predicate"
 import { DOMParser, DOMSerializer, Fragment, type Node, type NodeType, type ResolvedPos, Slice } from "../Model.ts"
 import { parseJson, stringifyJson } from "../internal/json.ts"
 import * as browser from "./browser.ts"
+import { ViewError } from "./errors.ts"
 import type { ClipboardSerialization, EditorView } from "./view.ts"
 
 type AnyView = EditorView<any, any, any>
@@ -79,11 +80,15 @@ export function parseFromClipboard(
       text = f(text, inCode || plainText, view)
     })
     if (inCode) {
-      slice = new Slice(Fragment.from(view.state.schema.textUnsafe(text.replace(/\r\n?/g, "\n"))), 0, 0)
+      let codeSlice: Slice<any> = new Slice(
+        Fragment.from(view.state.schema.textUnsafe(text.replace(/\r\n?/g, "\n"))),
+        0,
+        0
+      )
       view.someProp("transformPasted", (f) => {
-        slice = f(slice!, view, true)
+        codeSlice = f(codeSlice, view, true)
       })
-      return slice
+      return codeSlice
     }
     const parsed = view.someProp("clipboardTextParser", (f) => f(text, $context, plainText, view))
     if (parsed) {
@@ -92,25 +97,27 @@ export function parseFromClipboard(
       const marks = $context.marks()
       const { schema } = view.state,
         serializer = DOMSerializer.fromSchema(schema)
-      dom = document.createElement("div")
+      const div = document.createElement("div")
+      dom = div
       text.split(/(?:\r\n?|\n)+/).forEach((block) => {
-        const p = dom!.appendChild(document.createElement("p"))
+        const p = div.appendChild(document.createElement("p"))
         if (block) p.appendChild(serializer.serializeNode(schema.textUnsafe(block, marks)))
       })
     }
-  } else {
+  } else if (html) {
+    let source = html
     view.someProp("transformPastedHTML", (f) => {
-      html = f(html!, view)
+      source = f(source, view)
     })
-    dom = readHTML(html!)
+    dom = readHTML(source)
     if (browser.webkit) restoreReplacedSpaces(dom)
   }
 
   const contextNode = dom && dom.querySelector("[data-pm-slice]")
   const sliceData = contextNode && /^(\d+) (\d+)(?: -(\d+))? (.*)/.exec(contextNode.getAttribute("data-pm-slice") || "")
-  if (sliceData && sliceData[3]) {
+  if (dom && sliceData && sliceData[3]) {
     for (let i = +sliceData[3]; i > 0; i--) {
-      let child = dom!.firstChild
+      let child = dom.firstChild
       while (child && child.nodeType != 1) child = child.nextSibling
       if (!child) break
       dom = child as HTMLElement
@@ -118,9 +125,10 @@ export function parseFromClipboard(
   }
 
   if (!slice) {
+    if (!dom) return null
     const parser =
       view.someProp("clipboardParser") || view.someProp("domParser") || DOMParser.fromSchema(view.state.schema)
-    slice = parser.parseSliceUnsafe(dom!, {
+    slice = parser.parseSliceUnsafe(dom, {
       preserveWhitespace: !!(asText || sliceData),
       context: $context,
       ruleFromNode(el) {
@@ -156,10 +164,11 @@ export function parseFromClipboard(
     }
   }
 
+  let pasted: Slice<any> = slice
   view.someProp("transformPasted", (f) => {
-    slice = f(slice!, view, asText)
+    pasted = f(pasted, view, asText)
   })
-  return slice
+  return pasted
 }
 
 const inlineParents =
@@ -190,14 +199,23 @@ function normalizeSiblings(fragment: Fragment<any, any>, $context: ResolvedPos<a
       }
       if (
         (inLast =
-          result.length && lastWrap!.length && addToSibling(wrap, lastWrap!, node, result[result.length - 1], 0))
+          result.length &&
+          lastWrap &&
+          lastWrap.length &&
+          addToSibling(wrap, lastWrap, node, result[result.length - 1], 0))
       ) {
         result[result.length - 1] = inLast
       } else {
-        if (result.length) result[result.length - 1] = closeRight(result[result.length - 1], lastWrap!.length)
+        if (result.length && lastWrap)
+          result[result.length - 1] = closeRight(result[result.length - 1], lastWrap.length)
         const wrapped = withWrappers(node, wrap)
         result.push(wrapped)
-        match = match.matchTypeOrNull(wrapped.type)!
+        const next = match.matchTypeOrNull(wrapped.type)
+        if (!next) {
+          result = null
+          return
+        }
+        match = next
         lastWrap = wrap
       }
     })
@@ -239,8 +257,14 @@ function closeRight(node: Node<any, any>, depth: number): Node<any, any> {
     node.childCount - 1,
     closeRight(node.content.content[node.childCount - 1], depth - 1)
   )
-  const fill = node.contentMatchAtUnsafe(node.childCount).fillBeforeOrNull(Fragment.empty, true)!
-  return node.copy(fragment.append(fill))
+  return node.copy(fragment.append(fillToEnd(node)))
+}
+
+// The content that closes `node` after its last child.
+function fillToEnd(node: Node<any, any>): Fragment<any, any> {
+  const fill = node.contentMatchAtUnsafe(node.childCount).fillBeforeOrNull(Fragment.empty, true)
+  if (!fill) throw new ViewError({ message: "Can't complete the content of " + node.type.name })
+  return fill
 }
 
 function closeRange(
@@ -256,13 +280,13 @@ function closeRange(
   if (fragment.childCount > 1) openEnd = 0
   if (depth < to - 1) inner = closeRange(inner, side, from, to, depth + 1, openEnd)
   if (depth >= from) {
-    inner =
-      side < 0
-        ? node
-            .contentMatchAtUnsafe(0)
-            .fillBeforeOrNull(inner, openEnd <= depth)!
-            .append(inner)
-        : inner.append(node.contentMatchAtUnsafe(node.childCount).fillBeforeOrNull(Fragment.empty, true)!)
+    if (side < 0) {
+      const before = node.contentMatchAtUnsafe(0).fillBeforeOrNull(inner, openEnd <= depth)
+      if (!before) throw new ViewError({ message: "Can't open the start of " + node.type.name })
+      inner = before.append(inner)
+    } else {
+      inner = inner.append(fillToEnd(node))
+    }
   }
   return fragment.replaceChild(side < 0 ? 0 : fragment.childCount - 1, node.copy(inner))
 }

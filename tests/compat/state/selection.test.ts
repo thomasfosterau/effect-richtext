@@ -21,6 +21,7 @@ import {
   ul
 } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
+import { present } from "../../utils/present.ts"
 import { TestState } from "./state.ts"
 
 describe("Selection", () => {
@@ -88,13 +89,13 @@ describe("Selection", () => {
   it("preserves the marks of a deleted selection", () => {
     const state = new TestState({ doc: doc(p("foo", em("<a>bar<b>"), "baz")) })
     state.deleteSelection()
-    ist(state.state.storedMarks!.length, 1)
+    ist(present(state.state.storedMarks).length, 1)
   })
 
   it("doesn't preserve non-inclusive marks of a deleted selection", () => {
     const state = new TestState({ doc: doc(p("foo", a(em("<a>bar<b>")), "baz")) })
     state.deleteSelection()
-    ist(state.state.storedMarks!.length, 1)
+    ist(present(state.state.storedMarks).length, 1)
   })
 
   it("doesn't preserve marks when deleting a selection at the end of a block", () => {
@@ -106,13 +107,18 @@ describe("Selection", () => {
   it("drops non-inclusive marks at the end of a deleted span when appropriate", () => {
     const state = new TestState({ doc: doc(p("foo", a("ba", em("<a>r<b>")), "baz")) })
     state.deleteSelection()
-    ist(state.state.storedMarks!.map((x) => x.type.name).join(), "em")
+    ist(
+      present(state.state.storedMarks)
+        .map((x) => x.type.name)
+        .join(),
+      "em"
+    )
   })
 
   it("keeps non-inclusive marks when still inside them", () => {
     const state = new TestState({ doc: doc(p("foo", a("b", em("<a>a<b>"), "r"), "baz")) })
     state.deleteSelection()
-    ist(state.state.storedMarks!.length, 2)
+    ist(present(state.state.storedMarks).length, 2)
   })
 
   it("preserves marks when typing over marked text", () => {

@@ -20,6 +20,7 @@ import {
 import type { EditorView } from "@thomasfosterau/effect-richtext/View"
 import { Decoration, DecorationSet } from "@thomasfosterau/effect-richtext/View"
 import ist from "../utils/ist.ts"
+import { present } from "../utils/present.ts"
 import { getSome } from "../utils/option.ts"
 import { findTextNode, flush, tempEditor, workspace } from "./helpers.ts"
 
@@ -47,13 +48,13 @@ function setDOMSel(node: Node, offset: number) {
   const range = document.createRange()
   range.setEnd(node, offset)
   range.setStart(node, offset)
-  const sel = window.getSelection()!
+  const sel = present(window.getSelection())
   sel.removeAllRanges()
   sel.addRange(range)
 }
 
 function getSel() {
-  const sel = window.getSelection()!
+  const sel = present(window.getSelection())
   let node = sel.focusNode,
     offset = sel.focusOffset
   while (node && node.nodeType != 3) {
@@ -64,7 +65,7 @@ function getSel() {
       offset = 0
     } else if (before) {
       node = before
-      offset = node.nodeType == 3 ? node.nodeValue!.length : node.childNodes.length
+      offset = node.nodeType == 3 ? present(node.nodeValue).length : node.childNodes.length
     } else break
   }
   return { node: node, offset: offset }
@@ -104,16 +105,16 @@ describe("EditorView", () => {
       const sel = view.state.selection
       ist(sel.head == null ? sel.from : sel.head, expected)
     }
-    const one = findTextNode(view.dom, "one")!
-    const two = findTextNode(view.dom, "two")!
+    const one = present(findTextNode(view.dom, "one"))
+    const two = present(findTextNode(view.dom, "two"))
     test(one, 0, 1)
     test(one, 1, 2)
     test(one, 3, 4)
-    test(one.parentNode!, 0, 1)
-    test(one.parentNode!, 1, 4)
+    test(present(one.parentNode), 0, 1)
+    test(present(one.parentNode), 1, 4)
     test(two, 0, 8)
     test(two, 3, 11)
-    test(two.parentNode!, 1, 11)
+    test(present(two.parentNode), 1, 11)
     test(view.dom, 1, 4)
     test(view.dom, 2, 8)
     test(view.dom, 3, 11)
@@ -130,8 +131,8 @@ describe("EditorView", () => {
       ist(sel.node, node)
       ist(sel.offset, offset)
     }
-    const one = findTextNode(view.dom, "one")!
-    const two = findTextNode(view.dom, "two")!
+    const one = present(findTextNode(view.dom, "one"))
+    const two = present(findTextNode(view.dom, "two"))
     view.focus()
     test(1, one, 0)
     test(2, one, 1)
@@ -286,14 +287,14 @@ describe("EditorView", () => {
     const view = tempEditor({})
     const top = view.coordsAtPos(1)
     let pos = 1,
-      end: { left: number; top: number; right: number; bottom: number } | undefined
+      end = top
     for (let i = 0; i < 100; i++) {
       view.dispatchUnsafe(view.state.tr.insertTextUnsafe("a bc de fg h"))
       pos += 12
-      end = view.coordsAtPos(pos)!
+      end = view.coordsAtPos(pos)
       if (end.bottom > top.bottom + 4) break
     }
-    ist(getSome(view.posAtCoords({ left: end!.left + 50, top: end!.top + 5 })).pos, pos)
+    ist(getSome(view.posAtCoords({ left: end.left + 50, top: end.top + 5 })).pos, pos)
   })
 
   it("makes arrow motion go through selectable inline nodes", () => {
@@ -375,7 +376,7 @@ describe("EditorView", () => {
       }
     })
     const range = document.createRange()
-    range.setEnd(document.getSelection()!.anchorNode!, document.getSelection()!.anchorOffset)
+    range.setEnd(present(present(document.getSelection()).anchorNode), present(document.getSelection()).anchorOffset)
     range.setStart(view.dom, 0)
     ist(range.toString(), "foobar")
   })
@@ -399,6 +400,6 @@ describe("EditorView", () => {
     ist(document.hasFocus())
     const view = tempEditor({ doc: doc(p()) })
     view.focus()
-    ist(getSelection()!.focusOffset, 0)
+    ist(present(getSelection()).focusOffset, 0)
   })
 })

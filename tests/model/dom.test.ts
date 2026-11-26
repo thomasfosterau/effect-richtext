@@ -42,6 +42,7 @@ import {
 } from "@thomasfosterau/effect-richtext/TestBuilder"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
+import { present } from "../utils/present.ts"
 
 const xmlDocument = document.implementation.createDocument(null, "tag", null)
 
@@ -102,18 +103,19 @@ function find(html: string, doc: PMNode<any> & { readonly tag: { readonly [tag: 
   return () => {
     const dom = document.createElement("div")
     dom.innerHTML = html
-    const tag = dom.querySelector("var")!,
-      prev = tag.previousSibling!,
+    const tag = present(dom.querySelector("var")),
+      parent = present(tag.parentNode),
+      prev = tag.previousSibling,
       next = tag.nextSibling
     let pos: DOMPosition
     if (prev && next && prev.nodeType == 3 && next.nodeType == 3) {
-      pos = { node: prev, offset: prev.nodeValue!.length }
-      prev.nodeValue += next.nodeValue!
-      next.parentNode!.removeChild(next)
+      pos = { node: prev, offset: present(prev.nodeValue).length }
+      prev.nodeValue += present(next.nodeValue)
+      parent.removeChild(next)
     } else {
-      pos = { node: tag.parentNode!, offset: Array.prototype.indexOf.call(tag.parentNode!.childNodes, tag) }
+      pos = { node: parent, offset: Array.prototype.indexOf.call(parent.childNodes, tag) }
     }
-    tag.parentNode!.removeChild(tag)
+    parent.removeChild(tag)
     const result = parser.parseUnsafe(dom, {
       findPositions: [pos]
     })
@@ -262,7 +264,7 @@ describe("DOMParser", () => {
                 {
                   tag: "span.comment",
                   getAttrs(dom: HTMLElement) {
-                    return { id: parseInt(dom.getAttribute("data-id")!, 10) }
+                    return { id: parseInt(present(dom.getAttribute("data-id")), 10) }
                   }
                 }
               ],
@@ -340,9 +342,9 @@ describe("DOMParser", () => {
 
       const dom = xmlDocument.createElement("div")
       dom.appendChild(DOMSerializer.fromSchema(xmlnsSchema).serializeFragment(d.content, { document: xmlDocument }))
-      ist(dom.querySelector("svg")!.namespaceURI, "http://www.w3.org/2000/svg")
-      ist(dom.querySelector("use")!.namespaceURI, "http://www.w3.org/2000/svg")
-      ist(dom.querySelector("use")!.attributes[0].namespaceURI, "http://www.w3.org/1999/xlink")
+      ist(present(dom.querySelector("svg")).namespaceURI, "http://www.w3.org/2000/svg")
+      ist(present(dom.querySelector("use")).namespaceURI, "http://www.w3.org/2000/svg")
+      ist(present(dom.querySelector("use")).attributes[0].namespaceURI, "http://www.w3.org/1999/xlink")
     })
 
     it("can recover a list item", recover("<ol><p>Oh no</p></ol>", doc(ol(li(p("Oh no"))))))

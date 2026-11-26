@@ -83,9 +83,9 @@ const baseFields: ReadonlyArray<FieldDesc> = [
   {
     name: "doc",
     self: undefined,
-    init(config) {
+    init(config, instance) {
       if (config.doc) return config.doc
-      const node = config.schema!.topNodeType.createAndFillOrNull()
+      const node = instance.schema.topNodeType.createAndFillOrNull()
       if (!node) throw new StateError({ message: "Can't create a default document for the schema" })
       return node
     },

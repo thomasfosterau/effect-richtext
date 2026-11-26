@@ -40,6 +40,7 @@ import * as CoreModel from "@thomasfosterau/effect-richtext/Model"
 import * as CoreState from "@thomasfosterau/effect-richtext/State"
 import * as CoreTransform from "@thomasfosterau/effect-richtext/Transform"
 import ist from "../utils/ist.ts"
+import { present } from "../utils/present.ts"
 import { getSome } from "../utils/option.ts"
 
 // A custom step, written exactly as for ProseMirror: it sets (or
@@ -62,7 +63,7 @@ class CounterStep extends Step {
     return StepMap.empty
   }
   invert(doc: Node): Step {
-    return new CounterStep(this.pos, doc.nodeAt(this.pos)!.textContent)
+    return new CounterStep(this.pos, present(doc.nodeAt(this.pos)).textContent)
   }
   map(mapping: Mappable): Step | null {
     const result = mapping.mapResult(this.pos, 1)
@@ -126,7 +127,7 @@ describe("compat bridge", () => {
     const d = doc(p("foo"), p("bar"))
     ist(d.child(0), d.child(0))
     ist(d.content, d.content)
-    ist(d.firstChild!.marks, d.firstChild!.marks)
+    ist(present(d.firstChild).marks, present(d.firstChild).marks)
     ist(modelFromCore(modelToCore(d)), d)
     const core = modelToCore(d)
     ist(modelFromCore(core.childUnsafe(1)), d.child(1))

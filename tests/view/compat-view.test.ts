@@ -8,9 +8,10 @@ import { EditorState } from "@thomasfosterau/effect-richtext/compat/state"
 import { doc, em, hr, li, p, schema, strong, ul } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import { EditorView } from "@thomasfosterau/effect-richtext/compat/view"
 import ist from "../utils/ist.ts"
+import { present } from "../utils/present.ts"
 import { tempEditor } from "./compat-view.ts"
 
-const space = document.querySelector("#workspace")!
+const space = present(document.querySelector("#workspace"))
 
 describe("EditorView", () => {
   it("can mount an existing node", () => {
@@ -23,7 +24,7 @@ describe("EditorView", () => {
     )
     ist(view.dom, dom)
     ist(dom.contentEditable, "true")
-    ist(dom.firstChild!.nodeName, "P")
+    ist(present(dom.firstChild).nodeName, "P")
     view.destroy()
     ist(dom.contentEditable, "inherit")
     space.removeChild(dom)
@@ -104,18 +105,18 @@ describe("EditorView", () => {
 
   it("can be queried for a node's DOM representation", () => {
     const view = tempEditor({ doc: doc(p("foo"), hr()) })
-    ist(view.nodeDOM(0)!.nodeName, "P")
-    ist(view.nodeDOM(5)!.nodeName, "HR")
+    ist(present(view.nodeDOM(0)).nodeName, "P")
+    ist(present(view.nodeDOM(5)).nodeName, "HR")
     ist(view.nodeDOM(3), null)
   })
 
   it("can map DOM positions to doc positions", () => {
     const view = tempEditor({ doc: doc(p("foo"), hr()) })
-    ist(view.posAtDOM(view.dom.firstChild!.firstChild!, 2), 3)
+    ist(view.posAtDOM(present(present(view.dom.firstChild).firstChild), 2), 3)
     ist(view.posAtDOM(view.dom, 1), 5)
     ist(view.posAtDOM(view.dom, 2), 6)
-    ist(view.posAtDOM(view.dom.lastChild!, 0, -1), 5)
-    ist(view.posAtDOM(view.dom.lastChild!, 0, 1), 6)
+    ist(view.posAtDOM(present(view.dom.lastChild), 0, -1), 5)
+    ist(view.posAtDOM(present(view.dom.lastChild), 0, 1), 6)
   })
 
   it("binds this to itself in dispatchTransaction prop", () => {

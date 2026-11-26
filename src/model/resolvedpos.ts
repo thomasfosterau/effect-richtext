@@ -314,8 +314,10 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
       const rem = parentOffset - offset
       path.push(node, index, start + offset)
       if (!rem) break
-      node = node.content.content[index]!
-      if (node.isText) break
+      const child = node.content.content[index]
+      if (!child) throw new PositionError({ message: "Position " + pos + " out of range" })
+      node = child
+      if (child.isText) break
       parentOffset = rem - 1
       start += offset + 1
     }

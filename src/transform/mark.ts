@@ -5,6 +5,7 @@
  */
 import * as Option from "effect/Option"
 import { type ContentMatch, Fragment, type Mark, MarkType, type NodeType, Slice, type TextNode } from "../Model.ts"
+import { TransformError } from "./errors.ts"
 import { pushMarkStep } from "./mark_set_step.ts"
 import { AddMarkStep, RemoveMarkStep } from "./mark_step.ts"
 import { ReplaceStep } from "./replace_step.ts"
@@ -83,7 +84,8 @@ export function clearIncompatible(
   match: ContentMatch = parentType.contentMatch,
   clearNewlines = true
 ): void {
-  const node = tr.doc.nodeAtOrNull(pos)!
+  const node = tr.doc.nodeAtOrNull(pos)
+  if (!node) throw new TransformError({ message: "No node at position " + pos })
   const replSteps: Array<Step<any>> = []
   let cur = pos + 1
   for (let i = 0; i < node.childCount; i++) {
@@ -119,7 +121,8 @@ export function clearIncompatible(
   }
   if (!match.validEnd) {
     const fill = match.fillBeforeOrNull(Fragment.empty, true)
-    tr.replaceUnsafe(cur, cur, new Slice(fill!, 0, 0))
+    if (!fill) throw new TransformError({ message: "Can't complete the content of " + node.type.name })
+    tr.replaceUnsafe(cur, cur, new Slice(fill, 0, 0))
   }
   for (let i = replSteps.length - 1; i >= 0; i--) tr.stepUnsafe(replSteps[i])
 }

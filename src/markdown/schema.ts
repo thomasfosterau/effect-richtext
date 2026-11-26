@@ -93,7 +93,7 @@ export const nodes = {
         tag: "ol",
         getAttrs(dom: HTMLElement) {
           return {
-            order: dom.hasAttribute("start") ? +dom.getAttribute("start")! : 1,
+            order: Number(dom.getAttribute("start") ?? 1),
             tight: dom.hasAttribute("data-tight")
           }
         }

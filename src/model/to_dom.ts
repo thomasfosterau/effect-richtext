@@ -144,7 +144,10 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
           keep++
           rendered++
         }
-        while (keep < active.length) top = active.pop()![1]
+        if (keep < active.length) {
+          top = active[keep][1]
+          active.length = keep
+        }
         while (rendered < node.marks.length) {
           const add = node.marks[rendered++]
           const markDOM = this.serializeMarkOrNull(add, node.isInline, options)

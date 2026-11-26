@@ -95,6 +95,10 @@ const cursorOf = <Sc extends AnySchema>(state: EditorState<Sc, any, any>): Resol
   return sel instanceof TextSelection ? sel.$cursorOrNull : null
 }
 
+// The length of the whitespace that starts or ends a string, as `\s*` matches it.
+const leadingSpace = (text: string): number => text.length - text.trimStart().length
+const trailingSpace = (text: string): number => text.length - text.trimEnd().length
+
 const firstChildOf = (node: Node<any>): Node<any> | undefined => node.content.content[0]
 const lastChildOf = (node: Node<any>): Node<any> | undefined => node.content.content[node.childCount - 1]
 
@@ -158,7 +162,8 @@ function defaultBlockAt(match: ContentMatch): NodeType<any, any> | null {
 }
 
 function joinTextblocksAround(state: EditorState<any, any, any>, $cut: ResolvedPos<any>, dispatching: boolean) {
-  const before = $cut.nodeBeforeOrNull!
+  const before = $cut.nodeBeforeOrNull
+  if (!before) return false
   let beforeText = before,
     beforePos = $cut.pos - 1
   for (; !beforeText.isTextblock; beforePos--) {
@@ -167,7 +172,8 @@ function joinTextblocksAround(state: EditorState<any, any, any>, $cut: ResolvedP
     if (!child) return false
     beforeText = child
   }
-  const after = $cut.nodeAfterOrNull!
+  const after = $cut.nodeAfterOrNull
+  if (!after) return false
   let afterText = after,
     afterPos = $cut.pos + 1
   for (; !afterText.isTextblock; afterPos++) {
@@ -206,8 +212,9 @@ function deleteBarrier(
   dispatching: boolean,
   dir: number
 ): SyncResult {
-  const before = $cut.nodeBeforeOrNull!,
-    after = $cut.nodeAfterOrNull!
+  const before = $cut.nodeBeforeOrNull,
+    after = $cut.nodeAfterOrNull
+  if (!before || !after) return false
   let conn: ReadonlyArray<NodeType<any, any>> | null, match: ContentMatch
   const isolated = before.type.spec.isolating || after.type.spec.isolating
   if (!isolated) {
@@ -219,7 +226,7 @@ function deleteBarrier(
   if (
     canDelAfter &&
     (conn = (match = before.contentMatchAtUnsafe(before.childCount)).findWrappingOrNull(after.type)) &&
-    match.matchTypeOrNull(conn[0] || after.type)!.validEnd
+    match.matchTypeOrNull(conn[0] || after.type)?.validEnd
   ) {
     const wrappers = conn
     return done(dispatching, () => {
@@ -240,8 +247,8 @@ function deleteBarrier(
   const selAfter = after.type.spec.isolating || (dir > 0 && isolated) ? null : Selection.findFromOrNull($cut, 1)
   const range = selAfter && selAfter.$from.blockRangeOrNull(selAfter.$to)
   const target = range && liftTargetOrNull(range)
-  if (target != null && target >= $cut.depth) {
-    return done(dispatching, () => state.tr.liftUnsafe(range!, target).scrollIntoView())
+  if (range && target != null && target >= $cut.depth) {
+    return done(dispatching, () => state.tr.liftUnsafe(range, target).scrollIntoView())
   }
 
   if (canDelAfter && textblockAt(after, "start", true) && textblockAt(before, "end")) {
@@ -250,11 +257,17 @@ function deleteBarrier(
     for (;;) {
       wrap.push(at)
       if (at.isTextblock) break
-      at = lastChildOf(at)!
+      const child = lastChildOf(at)
+      if (!child) return false
+      at = child
     }
     let afterText = after,
       afterDepth = 1
-    for (; !afterText.isTextblock; afterText = firstChildOf(afterText)!) afterDepth++
+    for (; !afterText.isTextblock; afterDepth++) {
+      const child = firstChildOf(afterText)
+      if (!child) return false
+      afterText = child
+    }
     if (at.canReplace(at.childCount, at.childCount, afterText.content)) {
       return done(dispatching, () => {
         let end: Fragment<any> = Fragment.empty
@@ -316,11 +329,12 @@ export const joinBackward: Command = syncCommand((state, dispatching, view) => {
   if (!$cut) {
     const range = $cursor.blockRangeOrNull(),
       target = range && liftTargetOrNull(range)
-    if (target == null) return false
-    return done(dispatching, () => state.tr.liftUnsafe(range!, target).scrollIntoView())
+    if (!range || target == null) return false
+    return done(dispatching, () => state.tr.liftUnsafe(range, target).scrollIntoView())
   }
 
-  const before = $cut.nodeBeforeOrNull!
+  const before = $cut.nodeBeforeOrNull
+  if (!before) return false
   // Apply the joining algorithm
   const barrier = deleteBarrier(state, $cut, dispatching, -1)
   if (barrier !== false) return barrier
@@ -335,7 +349,8 @@ export const joinBackward: Command = syncCommand((state, dispatching, view) => {
           const tr = state.tr.stepUnsafe(delStep)
           tr.setSelectionUnsafe(
             textblockAt(before, "end")
-              ? Selection.findFromOrNull(tr.doc.resolveUnsafe(tr.mapping.map($cut.pos, -1)), -1)!
+              ? Selection.findFromOrNull(tr.doc.resolveUnsafe(tr.mapping.map($cut.pos, -1)), -1) ||
+                  Selection.near(tr.doc.resolveUnsafe(tr.mapping.map($cut.pos, -1)), -1)
               : NodeSelection.createUnsafe(tr.doc, $cut.pos - before.nodeSize)
           )
           return tr.scrollIntoView()
@@ -405,9 +420,10 @@ export const selectNodeBackward: Command = syncCommand((state, dispatching, view
     $cut = findCutBefore($head)
   }
   const node = $cut && $cut.nodeBeforeOrNull
-  if (!node || !NodeSelection.isSelectable(node)) return false
+  if (!$cut || !node || !NodeSelection.isSelectable(node)) return false
+  const cutPos = $cut.pos
   return done(dispatching, () =>
-    state.tr.setSelectionUnsafe(NodeSelection.createUnsafe(state.doc, $cut!.pos - node.nodeSize)).scrollIntoView()
+    state.tr.setSelectionUnsafe(NodeSelection.createUnsafe(state.doc, cutPos - node.nodeSize)).scrollIntoView()
   )
 })
 
@@ -429,7 +445,8 @@ export const joinForward: Command = syncCommand((state, dispatching, view) => {
   // If there is no node after this, there's nothing to do
   if (!$cut) return false
 
-  const after = $cut.nodeAfterOrNull!
+  const after = $cut.nodeAfterOrNull
+  if (!after) return false
   // Try the joining algorithm
   const barrier = deleteBarrier(state, $cut, dispatching, 1)
   if (barrier !== false) return barrier
@@ -443,7 +460,8 @@ export const joinForward: Command = syncCommand((state, dispatching, view) => {
         const tr = state.tr.stepUnsafe(delStep)
         tr.setSelectionUnsafe(
           textblockAt(after, "start")
-            ? Selection.findFromOrNull(tr.doc.resolveUnsafe(tr.mapping.map($cut.pos)), 1)!
+            ? Selection.findFromOrNull(tr.doc.resolveUnsafe(tr.mapping.map($cut.pos)), 1) ||
+                Selection.near(tr.doc.resolveUnsafe(tr.mapping.map($cut.pos)), 1)
             : NodeSelection.createUnsafe(tr.doc, tr.mapping.map($cut.pos))
         )
         return tr.scrollIntoView()
@@ -483,9 +501,10 @@ export const selectNodeForward: Command = syncCommand((state, dispatching, view)
     $cut = findCutAfter($head)
   }
   const node = $cut && $cut.nodeAfterOrNull
-  if (!node || !NodeSelection.isSelectable(node)) return false
+  if (!$cut || !node || !NodeSelection.isSelectable(node)) return false
+  const cutPos = $cut.pos
   return done(dispatching, () =>
-    state.tr.setSelectionUnsafe(NodeSelection.createUnsafe(state.doc, $cut!.pos)).scrollIntoView()
+    state.tr.setSelectionUnsafe(NodeSelection.createUnsafe(state.doc, cutPos)).scrollIntoView()
   )
 })
 
@@ -509,13 +528,10 @@ export const joinUp: Command = syncCommand((state, dispatching) => {
     if (found == null) return false
     point = found
   }
+  const joined = nodeSel ? state.doc.resolveUnsafe(point).nodeBeforeOrNull : null
   return done(dispatching, () => {
     const tr = state.tr.joinUnsafe(point)
-    if (nodeSel) {
-      tr.setSelectionUnsafe(
-        NodeSelection.createUnsafe(tr.doc, point - state.doc.resolveUnsafe(point).nodeBeforeOrNull!.nodeSize)
-      )
-    }
+    if (joined) tr.setSelectionUnsafe(NodeSelection.createUnsafe(tr.doc, point - joined.nodeSize))
     return tr.scrollIntoView()
   })
 })
@@ -552,8 +568,8 @@ export const lift: Command = syncCommand((state, dispatching) => {
   const { $from, $to } = state.selection
   const range = $from.blockRangeOrNull($to),
     target = range && liftTargetOrNull(range)
-  if (target == null) return false
-  return done(dispatching, () => state.tr.liftUnsafe(range!, target).scrollIntoView())
+  if (!range || target == null) return false
+  return done(dispatching, () => state.tr.liftUnsafe(range, target).scrollIntoView())
 })
 
 /**
@@ -584,9 +600,11 @@ export const exitCode: Command = syncCommand((state, dispatching) => {
     after = $head.indexAfter(-1)
   const type = defaultBlockAt(above.contentMatchAtUnsafe(after))
   if (!type || !above.canReplaceWith(after, after, type)) return false
+  const block = type.createAndFillOrNull()
+  if (!block) return false
   return done(dispatching, () => {
     const pos = $head.afterUnsafe(),
-      tr = state.tr.replaceWithUnsafe(pos, pos, type.createAndFillOrNull()!)
+      tr = state.tr.replaceWithUnsafe(pos, pos, block)
     tr.setSelectionUnsafe(Selection.near(tr.doc.resolveUnsafe(pos), 1))
     return tr.scrollIntoView()
   })
@@ -605,9 +623,11 @@ export const createParagraphNear: Command = syncCommand((state, dispatching) => 
   if (sel instanceof AllSelection || $from.parent.inlineContent || $to.parent.inlineContent) return false
   const type = defaultBlockAt($to.parent.contentMatchAtUnsafe($to.indexAfter()))
   if (!type || !type.isTextblock) return false
+  const block = type.createAndFillOrNull()
+  if (!block) return false
   return done(dispatching, () => {
     const side = (!$from.parentOffset && $to.index() < $to.parent.childCount ? $from : $to).pos
-    const tr = state.tr.insertUnsafe(side, type.createAndFillOrNull()!)
+    const tr = state.tr.insertUnsafe(side, block)
     tr.setSelectionUnsafe(TextSelection.createUnsafe(tr.doc, side + 1))
     return tr.scrollIntoView()
   })
@@ -631,8 +651,8 @@ export const liftEmptyBlock: Command = syncCommand((state, dispatching) => {
   }
   const range = $cursor.blockRangeOrNull(),
     target = range && liftTargetOrNull(range)
-  if (target == null) return false
-  return done(dispatching, () => state.tr.liftUnsafe(range!, target).scrollIntoView())
+  if (!range || target == null) return false
+  return done(dispatching, () => state.tr.liftUnsafe(range, target).scrollIntoView())
 })
 
 /**
@@ -1011,8 +1031,8 @@ export const toggleMark = <Sc extends AnySchema, M extends MarkNames<Sc>>(
           to = $to.pos
         const start = $from.nodeAfterOrNull,
           end = $to.nodeBeforeOrNull
-        const spaceStart = dropSpace && start && start.isText ? /^\s*/.exec((start as TextNode<Sc>).text)![0].length : 0
-        const spaceEnd = dropSpace && end && end.isText ? /\s*$/.exec((end as TextNode<Sc>).text)![0].length : 0
+        const spaceStart = dropSpace && start && start.isText ? leadingSpace((start as TextNode<Sc>).text) : 0
+        const spaceEnd = dropSpace && end && end.isText ? trailingSpace((end as TextNode<Sc>).text) : 0
         if (from + spaceStart < to) {
           from += spaceStart
           to -= spaceEnd

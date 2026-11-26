@@ -146,7 +146,7 @@ export class Transform<Sc extends AnySchema = AnySchema> {
    */
   maybeStep(step: Step<Sc>): StepResult<Sc> {
     const result = applyStep(step, this.currentDoc)
-    if (result.failedOrNull === null) this.addStep(step, result.docOrNull!)
+    if (result.docOrNull !== null) this.addStep(step, result.docOrNull)
     return result
   }
 

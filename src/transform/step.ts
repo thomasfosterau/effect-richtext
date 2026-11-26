@@ -172,15 +172,15 @@ export class StepResult<Sc extends AnySchema = AnySchema> {
 
   /** Convert the result to an Effect that fails with a `StepError` for failed results. */
   toEffect(): Effect.Effect<Node<Sc>, StepError> {
-    return this.failedOrNull !== null
-      ? Effect.fail(new StepError({ message: this.failedOrNull }))
-      : Effect.succeed(this.docOrNull!)
+    return this.docOrNull !== null
+      ? Effect.succeed(this.docOrNull)
+      : Effect.fail(new StepError({ message: this.failedOrNull ?? "Step failed" }))
   }
 
   /** Get the resulting document, throwing a `StepError` for failed results. */
   getUnsafe(): Node<Sc> {
-    if (this.failedOrNull !== null) throw new StepError({ message: this.failedOrNull })
-    return this.docOrNull!
+    if (this.docOrNull === null) throw new StepError({ message: this.failedOrNull ?? "Step failed" })
+    return this.docOrNull
   }
 
   /** Create a successful step result. */

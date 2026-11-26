@@ -389,9 +389,11 @@ function canAppendWithSubstitutedLinebreaks(a: Node<any>, b: Node<any>): boolean
   if (!b.content.size) a.type.compatibleContent(b.type)
   let match: ContentMatch | null = a.contentMatchAtUnsafe(a.childCount)
   const linebreakReplacement = Option.getOrNull(a.type.schema.linebreakReplacement)
+  const textType = a.type.schema.nodes.text
   for (let i = 0; i < b.childCount; i++) {
     const child = b.content.content[i]
-    const type = child.type === linebreakReplacement ? a.type.schema.nodes.text! : child.type
+    const type = child.type === linebreakReplacement ? textType : child.type
+    if (!type) return false
     match = match.matchTypeOrNull(type)
     if (!match) return false
     if (!a.type.allowsMarks(child.marks)) return false

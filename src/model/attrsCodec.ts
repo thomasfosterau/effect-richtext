@@ -59,6 +59,22 @@ export const encodeAttrs = (defs: { readonly [name: string]: AttrDef }, attrs: A
   mapAttrs(defs, attrs, false)
 
 /**
+ * Set `json.attrs` to the encoded attrs of a node or mark, when it has any.
+ *
+ * @internal
+ */
+export const writeAttrsJSON = (
+  json: { attrs?: { readonly [name: string]: unknown } },
+  type: { readonly identityAttrs: boolean; readonly attrs: { readonly [name: string]: AttrDef } },
+  attrs: Attrs
+): void => {
+  for (const _ in attrs) {
+    json.attrs = type.identityAttrs ? attrs : encodeAttrs(type.attrs, attrs)
+    return
+  }
+}
+
+/**
  * Decode attribute values from JSON with their schemas. Throws the
  * schema error on failure.
  *

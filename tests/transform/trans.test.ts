@@ -39,6 +39,7 @@ import { findWrapping, liftTarget, Transform } from "@thomasfosterau/effect-rich
 import ist from "../utils/ist.ts"
 import { testTransform } from "./trans.ts"
 import { getSome } from "../utils/option.ts"
+import { present } from "../utils/present.ts"
 
 type Node_ = Node<any>
 
@@ -92,7 +93,13 @@ function lift(doc: Node_, expect: Node_) {
 
 function wrap(doc: Node_, expect: Node, type: string, attrs?: Attrs) {
   const range = getSome(doc.resolveUnsafe(tag(doc, "a")).blockRange(doc.resolveUnsafe(tag$(doc, "b") || tag(doc, "a"))))
-  testTransform(new Transform(doc).wrapUnsafe(range, getSome(findWrapping(range, schema.nodes[type]!, attrs))), expect)
+  testTransform(
+    new Transform(doc).wrapUnsafe(
+      range,
+      getSome(findWrapping(range, present(schema.nodes[type], "no node type " + type), attrs))
+    ),
+    expect
+  )
 }
 
 function typeInSetBlockType(doc: Node_, expect: Node, nodeType: string, attrs?: Attrs | ((oldNode: Node_) => Attrs)) {
@@ -306,7 +313,11 @@ describe("Transform", () => {
       ))
 
     it("will wrap a node with the suitable parent", () =>
-      ins(doc(p("foo<a>bar")), schema.nodes.list_item.createAndFillOrNull()!, doc(p("foo"), ol(li(p())), p("bar"))))
+      ins(
+        doc(p("foo<a>bar")),
+        present(schema.nodes.list_item.createAndFillOrNull()),
+        doc(p("foo"), ol(li(p())), p("bar"))
+      ))
   })
 
   describe("delete", () => {

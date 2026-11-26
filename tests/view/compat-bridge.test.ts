@@ -7,6 +7,7 @@ import { doc, p, schema } from "@thomasfosterau/effect-richtext/compat/test-buil
 import { Decoration, DecorationSet, EditorView, fromCore, toCore } from "@thomasfosterau/effect-richtext/compat/view"
 import * as CoreView from "@thomasfosterau/effect-richtext/View"
 import ist from "../utils/ist.ts"
+import { present } from "../utils/present.ts"
 import { workspace } from "./helpers.ts"
 
 describe("compat view bridge", () => {
@@ -51,7 +52,7 @@ describe("compat view bridge", () => {
     try {
       ist(viewSeen, view)
       ist(fromCore(toCore(view)), view)
-      ist(view.dom.querySelector(".first")!.textContent, "f")
+      ist(present(view.dom.querySelector(".first")).textContent, "f")
       view.dispatchEvent(new KeyboardEvent("keydown", { key: "x", ctrlKey: true }))
       ist(view.state.doc.textContent, "Xfoo")
       ist(updates > 0)

@@ -1270,7 +1270,8 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
     const nodes: Record<string, NodeType<any, any>> = Object.create(null)
     for (const name in this.spec.nodes) nodes[name] = new NodeType<AnySchema, string>(name, this, this.spec.nodes[name])
     const topType = this.spec.topNode || "doc"
-    if (!nodes[topType]) {
+    const topNodeType = nodes[topType]
+    if (!topNodeType) {
       throw new SchemaDefinitionError({ message: "Schema is missing its top node type ('" + topType + "')" })
     }
     if (!nodes.text) throw new SchemaDefinitionError({ message: "Every schema needs a 'text' type" })
@@ -1315,7 +1316,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
       type.excluded = excl == null ? [type] : excl === "" ? [] : gatherMarks(this, excl.split(" "))
     }
     this.linebreakReplacement = linebreak
-    this.topNodeType = nodes[topType]!
+    this.topNodeType = topNodeType
   }
 
   /**
@@ -1412,7 +1413,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
   /** Like `text`, but throws a `ContentError` for empty strings. */
   textUnsafe(text: string, marks?: ReadonlyArray<Mark<DocSchema<N, M>>> | null): TextNode<this> {
     const type = this.nodes.text as NodeType<any, any>
-    return new TextNode(type, type.defaultAttrs!, text, Mark.setFrom(marks))
+    return new TextNode(type, type.computeAttrs(null), text, Mark.setFrom(marks))
   }
 
   /** Create a mark with the given type and attributes. */

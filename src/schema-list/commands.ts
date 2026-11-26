@@ -271,7 +271,7 @@ function liftToOuterList<Sc extends AnySchema>(state: EditorState<Sc, any, any>,
   if (target == null) return false
   tr.liftUnsafe(range, target)
   const $after = tr.doc.resolveUnsafe(tr.mapping.map(end, -1) - 1)
-  if (canJoin(tr.doc, $after.pos) && $after.nodeBeforeOrNull!.type === $after.nodeAfterOrNull!.type) {
+  if (canJoin(tr.doc, $after.pos) && $after.nodeBeforeOrNull?.type === $after.nodeAfterOrNull?.type) {
     tr.joinUnsafe($after.pos)
   }
   return tr.scrollIntoView()
@@ -285,8 +285,9 @@ function liftOutOfList<Sc extends AnySchema>(state: EditorState<Sc, any, any>, r
     pos -= list.childUnsafe(i).nodeSize
     tr.deleteUnsafe(pos - 1, pos + 1)
   }
-  const $start = tr.doc.resolveUnsafe(range.start),
-    item = $start.nodeAfterOrNull!
+  const $start = tr.doc.resolveUnsafe(range.start)
+  const item = $start.nodeAfterOrNull
+  if (!item) return false
   if (tr.mapping.map(range.end) !== range.start + item.nodeSize) return false
   const atStart = range.startIndex === 0,
     atEnd = range.endIndex === list.childCount

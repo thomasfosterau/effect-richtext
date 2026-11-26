@@ -40,8 +40,9 @@ function parseBetween(view: AnyView, from_: number, to_: number, addedNodes: Rea
   const anchor = domSel.anchorNode
   if (anchor && view.dom.contains(anchor.nodeType == 1 ? anchor : anchor.parentNode)) {
     find = [{ node: anchor, offset: domSel.anchorOffset }]
-    if (!selectionCollapsed(domSel)) {
-      find.push({ node: domSel.focusNode!, offset: domSel.focusOffset })
+    const focus = domSel.focusNode
+    if (!selectionCollapsed(domSel) && focus) {
+      find.push({ node: focus, offset: domSel.focusOffset })
     }
   }
   // Work around issue in Chrome where backspacing sometimes replaces
@@ -402,13 +403,15 @@ function isMarkChange(
   for (let i = 0; i < prevMarks.length; i++) added = prevMarks[i].removeFromSet(added)
   for (let i = 0; i < curMarks.length; i++) removed = curMarks[i].removeFromSet(removed)
   if (added.length == 1 && Arr.isReadonlyArrayEmpty(removed)) {
-    mark = added[0]!
+    const addedMark = added[0]
+    mark = addedMark
     type = "add"
-    update = (node: Node<any, any>) => node.mark(mark!.addToSet(node.marks))
+    update = (node: Node<any, any>) => node.mark(addedMark.addToSet(node.marks))
   } else if (Arr.isReadonlyArrayEmpty(added) && removed.length == 1) {
-    mark = removed[0]!
+    const removedMark = removed[0]
+    mark = removedMark
     type = "remove"
-    update = (node: Node<any, any>) => node.mark(mark!.removeFromSet(node.marks))
+    update = (node: Node<any, any>) => node.mark(removedMark.removeFromSet(node.marks))
   } else {
     return null
   }

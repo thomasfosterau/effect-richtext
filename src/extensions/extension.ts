@@ -565,7 +565,7 @@ export const flatten = (extension: AnyExtension): Flattened => {
     for (const name in spec.nodes) if (!(name in nodes)) nodes[name] = Option.none()
     for (const name in spec.marks) if (!(name in marks)) marks[name] = Option.none()
     if (spec.plugins) plugins.push(...spec.plugins)
-    for (const name in spec.commands) if (!(name in commands)) commands[name] = spec.commands[name]!
+    for (const [name, command] of Rec.toEntries(spec.commands ?? {})) if (!(name in commands)) commands[name] = command
   }
   for (let i = facets.length - 1; i >= 0; i--) {
     const spec = facets[i].spec

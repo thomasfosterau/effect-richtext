@@ -140,7 +140,8 @@ export class MarkdownParseState<Sc extends AnySchema = AnySchema> {
 
   /** Close and return the node that is currently on top of the stack. */
   closeNode(): Node<Sc, any> | null {
-    const info = this.stack.pop()!
+    const info = this.stack.pop()
+    if (!info) return null
     return this.addNode(info.type, info.attrs, info.content)
   }
 }
@@ -265,7 +266,7 @@ function makeTokenHandlers<Sc extends AnySchema>(
   }
 
   handlers.text = (state, tok) => state.addText(tok.content)
-  handlers.inline = (state, tok) => state.parseTokens(tok.children!)
+  handlers.inline = (state, tok) => state.parseTokens(tok.children ?? [])
   handlers.softbreak = handlers.softbreak || ((state) => state.addText(" "))
 
   return handlers
@@ -334,7 +335,9 @@ export class MarkdownParser<Sc extends AnySchema = AnySchema> {
     do {
       doc = state.closeNode()
     } while (state.stack.length)
-    return (doc || this.schema.topNodeType.createAndFillOrNull()!) as Node<Sc>
+    const result = doc || this.schema.topNodeType.createAndFillOrNull()
+    if (!result) throw new MarkdownError({ message: "Can't create an empty document for the schema" })
+    return result as Node<Sc>
   }
 }
 
@@ -375,7 +378,7 @@ export const defaultMarkdownParser: MarkdownParser<typeof markdownSchema> = new 
     ordered_list: {
       block: "ordered_list",
       getAttrs: (tok, tokens, i) => ({
-        order: +tok.attrGet("start")! || 1,
+        order: Number(tok.attrGet("start")) || 1,
         tight: listIsTight(tokens, i)
       })
     },
@@ -388,7 +391,7 @@ export const defaultMarkdownParser: MarkdownParser<typeof markdownSchema> = new 
       getAttrs: (tok) => ({
         src: attrString(tok.attrGet("src")),
         title: attrString(tok.attrGet("title")) || null,
-        alt: (tok.children![0] && tok.children![0].content) || null
+        alt: tok.children?.[0]?.content || null
       })
     },
     hardbreak: { node: "hard_break" },

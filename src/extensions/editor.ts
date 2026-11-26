@@ -557,8 +557,8 @@ export const createEditor = <T extends ExtensionTypes>(
       SchemaDefinitionError
     >
     const plugins: ReadonlyArray<AnyPlugin> = resolvePlugins(flat.plugins, schema)
-    const doc =
-      options.doc === undefined ? undefined : yield* attempt(() => parseContent(schema, options.doc!), isModelError)
+    const content = options.doc
+    const doc = content === undefined ? undefined : yield* attempt(() => parseContent(schema, content), isModelError)
     const config: EditorStateConfig<SchemaOf<T>> = {
       schema,
       doc,
