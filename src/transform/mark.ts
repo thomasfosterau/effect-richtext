@@ -57,10 +57,10 @@ export function removeMark(
     if (toRemove && toRemove.length) {
       const end = Math.min(pos + node.nodeSize, to)
       for (let i = 0; i < toRemove.length; i++) {
-        const style = toRemove[i]!
+        const style = toRemove[i]
         let found: (typeof matched)[number] | undefined
         for (let j = 0; j < matched.length; j++) {
-          const m = matched[j]!
+          const m = matched[j]
           if (m.step === step - 1 && style.eq(m.style)) found = m
         }
         if (found) {
@@ -87,7 +87,7 @@ export function clearIncompatible(
   const replSteps: Array<Step<any>> = []
   let cur = pos + 1
   for (let i = 0; i < node.childCount; i++) {
-    const child = node.content.content[i]!,
+    const child = node.content.content[i],
       end = cur + child.nodeSize
     const allowed = match.matchTypeOrNull(child.type)
     if (!allowed) {
@@ -95,8 +95,8 @@ export function clearIncompatible(
     } else {
       match = allowed
       for (let j = 0; j < child.marks.length; j++) {
-        if (!parentType.allowsMarkType(child.marks[j]!.type)) {
-          tr.stepUnsafe(new RemoveMarkStep(cur, end, child.marks[j]!))
+        if (!parentType.allowsMarkType(child.marks[j].type)) {
+          tr.stepUnsafe(new RemoveMarkStep(cur, end, child.marks[j]))
         }
       }
 
@@ -121,5 +121,5 @@ export function clearIncompatible(
     const fill = match.fillBeforeOrNull(Fragment.empty, true)
     tr.replaceUnsafe(cur, cur, new Slice(fill!, 0, 0))
   }
-  for (let i = replSteps.length - 1; i >= 0; i--) tr.stepUnsafe(replSteps[i]!)
+  for (let i = replSteps.length - 1; i >= 0; i--) tr.stepUnsafe(replSteps[i])
 }

@@ -71,7 +71,7 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   ) {
     this.size = size || 0
     if (size == null) {
-      for (let i = 0; i < content.length; i++) this.size += content[i]!.nodeSize
+      for (let i = 0; i < content.length; i++) this.size += content[i].nodeSize
     }
   }
 
@@ -87,7 +87,7 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   nodesBetween(from: number, to: number, f: NodeVisitor<Sc>, nodeStart = 0, parent?: Node<Sc>): void {
     const parentOption: Option.Option<Node<Sc>> = parent ? Option.some(parent) : Option.none()
     for (let i = 0, pos = 0; pos < to; i++) {
-      const child = this.content[i]!,
+      const child = this.content[i],
         end = pos + child.nodeSize
       if (end > from && f(child, nodeStart + pos, parentOption, i) !== false && child.content.size) {
         const start = pos + 1
@@ -145,8 +145,8 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   append<N2 extends NodeNames<Sc>>(other: Fragment<Sc, N2>): Fragment<Sc, N | N2> {
     if (!other.size) return this
     if (!this.size) return other
-    const last = this.content[this.content.length - 1]!,
-      first = other.content[0]!
+    const last = this.content[this.content.length - 1],
+      first = other.content[0]
     const content: Array<Node<Sc, N | N2>> = this.content.slice()
     let i = 0
     if (last.isText && last.sameMarkup(first)) {
@@ -156,7 +156,7 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
       content[content.length - 1] = joinedText as Node<Sc, N>
       i = 1
     }
-    for (; i < other.content.length; i++) content.push(other.content[i]!)
+    for (; i < other.content.length; i++) content.push(other.content[i])
     return new Fragment(content, this.size + other.size)
   }
 
@@ -167,7 +167,7 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     let size = 0
     if (to > from) {
       for (let i = 0, pos = 0; pos < to; i++) {
-        let child = this.content[i]!
+        let child = this.content[i]
         const end = pos + child.nodeSize
         if (end > from) {
           if (pos < from || end > to) {
@@ -195,7 +195,7 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
 
   /** Create a new fragment in which the node at the given index is replaced by the given node. */
   replaceChild<N2 extends NodeNames<Sc>>(index: number, node: Node<Sc, N2>): Fragment<Sc, N | N2> {
-    const current = this.content[index]!
+    const current = this.content[index]
     if ((current as Node<any, any>) === node) return this
     const copy: Array<Node<Sc, N | N2>> = this.content.slice()
     const size = this.size + node.nodeSize - current.nodeSize
@@ -219,7 +219,7 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   /** Compare this fragment to another one. */
   eq(other: Fragment<any, any>): boolean {
     if (this.content.length !== other.content.length) return false
-    for (let i = 0; i < this.content.length; i++) if (!this.content[i]!.eq(other.content[i]!)) return false
+    for (let i = 0; i < this.content.length; i++) if (!this.content[i].eq(other.content[i])) return false
     return true
   }
 
@@ -268,7 +268,7 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   /** Call `f` for every child node, passing the node, its offset into this parent node, and its index. */
   forEach(f: (node: Node<Sc, N>, offset: number, index: number) => void): void {
     for (let i = 0, p = 0; i < this.content.length; i++) {
-      const child = this.content[i]!
+      const child = this.content[i]
       f(child, p, i)
       p += child.nodeSize
     }
@@ -307,7 +307,7 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
       throw new PositionError({ message: `Position ${pos} outside of fragment (${this.toString()})` })
     }
     for (let i = 0, curPos = 0; ; i++) {
-      const cur = this.content[i]!,
+      const cur = this.content[i],
         end = curPos + cur.nodeSize
       if (end >= pos) {
         if (end === pos) return retIndex(i + 1, end)
@@ -341,9 +341,9 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     let joined: Array<Node<Sc, N>> | undefined
     let size = 0
     for (let i = 0; i < array.length; i++) {
-      const node = array[i]!
+      const node = array[i]
       size += node.nodeSize
-      if (i && node.isText && array[i - 1]!.sameMarkup(node)) {
+      if (i && node.isText && array[i - 1].sameMarkup(node)) {
         if (!joined) joined = array.slice(0, i)
         const text: Node<Sc> = node
         const joinedText: Node<Sc> = (text as TextNode<Sc>).withText(

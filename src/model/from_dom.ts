@@ -364,7 +364,7 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
   /** @internal */
   matchTagOrNull(dom: globalThis.Node, context: RuleContext, after?: TagParseRule): TagParseRule | null {
     for (let i = after ? this.tags.indexOf(originOf(after)) + 1 : 0; i < this.tags.length; i++) {
-      const rule = this.tags[i]!
+      const rule = this.tags[i]
       if (
         matches(dom, rule.tag) &&
         (rule.namespace === undefined || (dom as Element).namespaceURI == rule.namespace) &&
@@ -397,7 +397,7 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
   /** @internal */
   matchStyleOrNull(prop: string, value: string, context: RuleContext, after?: StyleParseRule): StyleParseRule | null {
     for (let i = after ? this.styles.indexOf(originOf(after)) + 1 : 0; i < this.styles.length; i++) {
-      const rule = this.styles[i]!,
+      const rule = this.styles[i],
         style = rule.style
       if (
         style.indexOf(prop) != 0 ||
@@ -431,7 +431,7 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
       const priority = rule.priority == null ? 50 : rule.priority
       let i = 0
       for (; i < result.length; i++) {
-        const next = result[i]!,
+        const next = result[i],
           nextPriority = next.priority == null ? 50 : next.priority
         if (nextPriority < priority) break
       }
@@ -439,17 +439,17 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
     }
 
     for (const name in schema.marks) {
-      const rules: ReadonlyArray<ParseRule> | undefined = schema.marks[name]!.spec.parseDOM
+      const rules: ReadonlyArray<ParseRule> | undefined = schema.marks[name].spec.parseDOM
       if (rules) {
         rules.forEach((r) => {
           const rule = { ...r } as Types.Mutable<ParseRule>
           if (!(rule.mark || rule.ignore || (rule as StyleParseRule).clearMark)) rule.mark = name
-          insert(rule as ParseRule)
+          insert(rule)
         })
       }
     }
     for (const name in schema.nodes) {
-      const rules: ReadonlyArray<TagParseRule> | undefined = schema.nodes[name]!.spec.parseDOM
+      const rules: ReadonlyArray<TagParseRule> | undefined = schema.nodes[name].spec.parseDOM
       if (rules) {
         rules.forEach((r) => {
           const rule = { ...r } as Types.Mutable<TagParseRule>
@@ -469,7 +469,7 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
   static fromSchema<Sc extends AnySchema>(schema: Sc): DOMParser<Sc> {
     return (
       (schema.cached.domParser as DOMParser<Sc> | undefined) ||
-      ((schema.cached.domParser = new DOMParser(schema, DOMParser.schemaRules(schema))) as DOMParser<Sc>)
+      (schema.cached.domParser = new DOMParser(schema, DOMParser.schemaRules(schema)))
     )
   }
 }
@@ -594,7 +594,7 @@ class NodeContext {
 
   inlineContext(node: globalThis.Node): boolean {
     if (this.type) return this.type.inlineContent
-    if (this.content.length) return this.content[0]!.isInline
+    if (this.content.length) return this.content[0].isInline
     return !!node.parentNode && !hasOwn(blockTags, node.parentNode.nodeName.toLowerCase())
   }
 }
@@ -637,7 +637,7 @@ class ParseContext implements RuleContext {
   }
 
   get top(): NodeContext {
-    return this.nodes[this.open]!
+    return this.nodes[this.open]
   }
 
   // Add a DOM node to the content. Text is inserted as text node,
@@ -678,7 +678,7 @@ class ParseContext implements RuleContext {
         const lines = value.split(/\r?\n|\r/)
         for (let i = 0; i < lines.length; i++) {
           if (i) this.insertNode(linebreak.createUnsafe(), marks, true)
-          if (lines[i]) this.insertNode(schema.textUnsafe(lines[i]!), marks, !/\S/.test(lines[i]!))
+          if (lines[i]) this.insertNode(schema.textUnsafe(lines[i]), marks, !/\S/.test(lines[i]))
         }
         value = ""
       } else {
@@ -712,7 +712,7 @@ class ParseContext implements RuleContext {
       let sync = false
       const oldNeedsBlock = this.needsBlock
       if (hasOwn(blockTags, name)) {
-        if (top.content.length && top.content[0]!.isInline && this.open) {
+        if (top.content.length && top.content[0].isInline && this.open) {
           this.open--
           top = this.top
         }
@@ -767,7 +767,7 @@ class ParseContext implements RuleContext {
     // over the items.
     if (styles && styles.length) {
       for (let i = 0; i < this.parser.matchedStyles.length; i++) {
-        const name = this.parser.matchedStyles[i]!,
+        const name = this.parser.matchedStyles[i],
           value = styles.getPropertyValue(name)
         if (value) {
           for (let after: StyleParseRule | undefined = undefined; ;) {
@@ -832,7 +832,7 @@ class ParseContext implements RuleContext {
   addAll(parent: globalThis.Node, marks: ReadonlyArray<Mark>, startIndex?: number, endIndex?: number) {
     let index = startIndex || 0
     for (
-      let dom: globalThis.Node | null = startIndex ? parent.childNodes[startIndex]! : parent.firstChild,
+      let dom: globalThis.Node | null = startIndex ? parent.childNodes[startIndex] : parent.firstChild,
         end = endIndex == null ? null : parent.childNodes[endIndex];
       dom != end;
       dom = dom!.nextSibling, ++index
@@ -849,7 +849,7 @@ class ParseContext implements RuleContext {
   findPlace(node: Node, marks: ReadonlyArray<Mark>, cautious: boolean): ReadonlyArray<Mark> | null {
     let route: ReadonlyArray<NodeType> | undefined, sync: NodeContext | undefined
     for (let depth = this.open, penalty = 0; depth >= 0; depth--) {
-      const cx = this.nodes[depth]!
+      const cx = this.nodes[depth]
       const found = cx.findWrapping(node)
       if (found && (!route || route.length > found.length + penalty)) {
         route = found
@@ -863,7 +863,7 @@ class ParseContext implements RuleContext {
     }
     if (!route) return null
     this.sync(sync!)
-    for (let i = 0; i < route.length; i++) marks = this.enterInner(route[i]!, null, marks, false)
+    for (let i = 0; i < route.length; i++) marks = this.enterInner(route[i], null, marks, false)
     return marks
   }
 
@@ -934,7 +934,7 @@ class ParseContext implements RuleContext {
   closeExtra(openEnd = false) {
     let i = this.nodes.length - 1
     if (i > this.open) {
-      for (; i > this.open; i--) this.nodes[i - 1]!.content.push(this.nodes[i]!.finish(openEnd) as Node)
+      for (; i > this.open; i--) this.nodes[i - 1].content.push(this.nodes[i].finish(openEnd) as Node)
       this.nodes.length = this.open + 1
     }
   }
@@ -942,7 +942,7 @@ class ParseContext implements RuleContext {
   finish(): Node | Fragment {
     this.open = 0
     this.closeExtra(this.isOpen)
-    return this.nodes[0]!.finish(!!(this.isOpen || this.options.topOpen))
+    return this.nodes[0].finish(!!(this.isOpen || this.options.topOpen))
   }
 
   sync(to: NodeContext): boolean {
@@ -951,7 +951,7 @@ class ParseContext implements RuleContext {
         this.open = i
         return true
       } else if (this.localPreserveWS) {
-        this.nodes[i]!.options |= OPT_PRESERVE_WS
+        this.nodes[i].options |= OPT_PRESERVE_WS
       }
     }
     return false
@@ -961,8 +961,8 @@ class ParseContext implements RuleContext {
     this.closeExtra()
     let pos = 0
     for (let i = this.open; i >= 0; i--) {
-      const content = this.nodes[i]!.content
-      for (let j = content.length - 1; j >= 0; j--) pos += content[j]!.nodeSize
+      const content = this.nodes[i].content
+      for (let j = content.length - 1; j >= 0; j--) pos += content[j].nodeSize
       if (i) pos++
     }
     return pos
@@ -971,7 +971,7 @@ class ParseContext implements RuleContext {
   findAtPoint(parent: globalThis.Node, offset: number) {
     if (this.find) {
       for (let i = 0; i < this.find.length; i++) {
-        if (this.find[i]!.node == parent && this.find[i]!.offset == offset) this.find[i]!.pos = this.currentPos
+        if (this.find[i].node == parent && this.find[i].offset == offset) this.find[i].pos = this.currentPos
       }
     }
   }
@@ -979,8 +979,8 @@ class ParseContext implements RuleContext {
   findInside(parent: globalThis.Node) {
     if (this.find) {
       for (let i = 0; i < this.find.length; i++) {
-        if (this.find[i]!.pos == null && parent.nodeType == 1 && parent.contains(this.find[i]!.node)) {
-          this.find[i]!.pos = this.currentPos
+        if (this.find[i].pos == null && parent.nodeType == 1 && parent.contains(this.find[i].node)) {
+          this.find[i].pos = this.currentPos
         }
       }
     }
@@ -989,9 +989,9 @@ class ParseContext implements RuleContext {
   findAround(parent: globalThis.Node, content: globalThis.Node, before: boolean) {
     if (parent != content && this.find) {
       for (let i = 0; i < this.find.length; i++) {
-        if (this.find[i]!.pos == null && parent.nodeType == 1 && parent.contains(this.find[i]!.node)) {
-          const pos = content.compareDocumentPosition(this.find[i]!.node)
-          if (pos & (before ? 2 : 4)) this.find[i]!.pos = this.currentPos
+        if (this.find[i].pos == null && parent.nodeType == 1 && parent.contains(this.find[i].node)) {
+          const pos = content.compareDocumentPosition(this.find[i].node)
+          if (pos & (before ? 2 : 4)) this.find[i].pos = this.currentPos
         }
       }
     }
@@ -1000,8 +1000,8 @@ class ParseContext implements RuleContext {
   findInText(textNode: Text) {
     if (this.find) {
       for (let i = 0; i < this.find.length; i++) {
-        if (this.find[i]!.node == textNode) {
-          this.find[i]!.pos = this.currentPos - (textNode.nodeValue!.length - this.find[i]!.offset)
+        if (this.find[i].node == textNode) {
+          this.find[i].pos = this.currentPos - (textNode.nodeValue!.length - this.find[i].offset)
         }
       }
     }
@@ -1013,11 +1013,11 @@ class ParseContext implements RuleContext {
 
     const parts = context.split("/")
     const option = this.options.context
-    const useRoot = !this.isOpen && (!option || option.parent.type == this.nodes[0]!.type)
+    const useRoot = !this.isOpen && (!option || option.parent.type == this.nodes[0].type)
     const minDepth = -(option ? option.depth + 1 : 0) + (useRoot ? 0 : 1)
     const match = (i: number, depth: number): boolean => {
       for (; i >= 0; i--) {
-        const part = parts[i]!
+        const part = parts[i]
         if (part == "") {
           if (i == parts.length - 1 || i == 0) continue
           for (; depth >= minDepth; depth--) if (match(i - 1, depth)) return true
@@ -1025,7 +1025,7 @@ class ParseContext implements RuleContext {
         } else {
           const next =
             depth > 0 || (depth == 0 && useRoot)
-              ? this.nodes[depth]!.type
+              ? this.nodes[depth].type
               : option && depth >= minDepth
                 ? option.node(depth - minDepth).type
                 : null
@@ -1048,7 +1048,7 @@ class ParseContext implements RuleContext {
     }
     const nodes = (this.parser.schema as AnySchema).nodes
     for (const name in nodes) {
-      const type = nodes[name]!
+      const type = nodes[name]
       if (type.isTextblock && type.defaultAttrs) return type
     }
     return undefined
@@ -1090,13 +1090,13 @@ function matches(dom: any, selector: string): boolean {
 function markMayApply(markType: MarkType, nodeType: NodeType): boolean {
   const nodes = nodeType.schema.nodes
   for (const name in nodes) {
-    const parent = nodes[name]!
+    const parent = nodes[name]
     if (!parent.allowsMarkType(markType)) continue
     const seen: Array<ContentMatch> = []
     const scan = (match: ContentMatch): boolean => {
       seen.push(match)
       for (let i = 0; i < match.next.length; i++) {
-        const { next, type } = match.next[i]!
+        const { next, type } = match.next[i]
         if (type == nodeType) return true
         if (seen.indexOf(next) < 0 && scan(next)) return true
       }

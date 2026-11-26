@@ -10,7 +10,7 @@ import {
   MarkdownSerializer,
   schema
 } from "@thomasfosterau/effect-richtext/Markdown"
-import { DocSchema } from "@thomasfosterau/effect-richtext/Model"
+import { type AnySchema, DocSchema } from "@thomasfosterau/effect-richtext/Model"
 import * as TB from "@thomasfosterau/effect-richtext/TestBuilder"
 import MarkdownIt from "markdown-it"
 import ist from "../utils/ist.ts"
@@ -60,7 +60,7 @@ describe("MarkdownParser (Effect API)", () => {
   })
 
   it("works with other schemas", () => {
-    const parser = new MarkdownParser(TB.schema, new MarkdownIt("commonmark"), defaultMarkdownParser.tokens as any)
+    const parser = new MarkdownParser<AnySchema>(TB.schema, new MarkdownIt("commonmark"), defaultMarkdownParser.tokens)
     // The test-builder schema's lists have no `tight` attribute, so it is dropped.
     ist(parser.parseUnsafe("* a\n* b"), TB.doc(TB.ul(TB.li(TB.p("a")), TB.li(TB.p("b")))), TB.eq)
   })

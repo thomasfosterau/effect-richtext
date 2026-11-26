@@ -140,7 +140,7 @@ class Fitter {
       openEnd = $to.depth
     while (openStart && openEnd && content.childCount === 1) {
       // Normalize by dropping open parent nodes
-      content = content.content[0]!.content
+      content = content.content[0].content
       openStart--
       openEnd--
     }
@@ -161,7 +161,7 @@ class Fitter {
   findFittable(): Fittable | undefined {
     let startDepth = this.unplaced.openStart
     for (let cur = this.unplaced.content, d = 0, openEnd = this.unplaced.openEnd; d < startDepth; d++) {
-      const node = cur.content[0]!
+      const node = cur.content[0]
       if (cur.childCount > 1) openEnd = 0
       if (node.type.spec.isolating && openEnd <= d) {
         startDepth = d
@@ -184,7 +184,7 @@ class Fitter {
         }
         const first = fragment.content[0]
         for (let frontierDepth = this.depth; frontierDepth >= 0; frontierDepth--) {
-          const { match, type } = this.frontier[frontierDepth]!
+          const { match, type } = this.frontier[frontierDepth]
           let wrap: ReadonlyArray<NodeType<any, any>> | null = null,
             inject: Fragment<any> | null = null
           // In pass 1, if the next node matches, or there is no next
@@ -241,7 +241,7 @@ class Fitter {
   placeNodes({ frontierDepth, inject, parent, sliceDepth, wrap }: Fittable): void {
     while (this.depth > frontierDepth) this.closeFrontierNode()
     if (wrap) {
-      for (let i = 0; i < wrap.length; i++) this.openFrontierNode(wrap[i]!)
+      for (let i = 0; i < wrap.length; i++) this.openFrontierNode(wrap[i])
     }
 
     const slice = this.unplaced,
@@ -249,10 +249,10 @@ class Fitter {
     const openStart = slice.openStart - sliceDepth
     let taken = 0
     const add: Array<Node<any>> = []
-    let { match } = this.frontier[frontierDepth]!
-    const { type } = this.frontier[frontierDepth]!
+    let { match } = this.frontier[frontierDepth]
+    const { type } = this.frontier[frontierDepth]
     if (inject) {
-      for (let i = 0; i < inject.childCount; i++) add.push(inject.content[i]!)
+      for (let i = 0; i < inject.childCount; i++) add.push(inject.content[i])
       match = match.matchFragmentOrNull(inject)!
     }
     // Computes the amount of (end) open nodes at the end of the
@@ -262,7 +262,7 @@ class Fitter {
     // Scan over the fragment, fitting as many child nodes as
     // possible.
     while (taken < fragment.childCount) {
-      const next = fragment.content[taken]!,
+      const next = fragment.content[taken],
         matches = match.matchTypeOrNull(next.type)
       if (!matches) break
       taken++
@@ -282,7 +282,7 @@ class Fitter {
     if (!toEnd) openEndCount = -1
 
     this.placed = addToFragment(this.placed, frontierDepth, Fragment.from(add))
-    this.frontier[frontierDepth]!.match = match
+    this.frontier[frontierDepth].match = match
 
     // If the parent types match, and the entire node was moved, and
     // it's not open, close this frontier node right away.
@@ -290,7 +290,7 @@ class Fitter {
       toEnd &&
       openEndCount < 0 &&
       parent &&
-      parent.type === this.frontier[this.depth]!.type &&
+      parent.type === this.frontier[this.depth].type &&
       this.frontier.length > 1
     )
       this.closeFrontierNode()
@@ -317,7 +317,7 @@ class Fitter {
 
   mustMoveInline(): number {
     if (!this.$to.parent.isTextblock) return -1
-    const top = this.frontier[this.depth]!
+    const top = this.frontier[this.depth]
     let level: ReturnType<Fitter["findCloseLevel"]>
     if (
       !top.type.isTextblock ||
@@ -334,12 +334,12 @@ class Fitter {
 
   findCloseLevel($to: ResolvedPos<any>): { depth: number; fit: Fragment<any>; move: ResolvedPos<any> } | undefined {
     scan: for (let i = Math.min(this.depth, $to.depth); i >= 0; i--) {
-      const { match, type } = this.frontier[i]!
+      const { match, type } = this.frontier[i]
       const dropInner = i < $to.depth && $to.end(i + 1) === $to.pos + ($to.depth - (i + 1))
       const fit = contentAfterFits($to, i, type, match, dropInner)
       if (!fit) continue
       for (let d = i - 1; d >= 0; d--) {
-        const { match: innerMatch, type: innerType } = this.frontier[d]!
+        const { match: innerMatch, type: innerType } = this.frontier[d]
         const matches = contentAfterFits($to, d, innerType, innerMatch, true)
         if (!matches || matches.childCount) continue scan
       }
@@ -364,7 +364,7 @@ class Fitter {
   }
 
   openFrontierNode(type: NodeType<any, any>, attrs: Attrs | null = null, content?: Fragment<any>): void {
-    const top = this.frontier[this.depth]!
+    const top = this.frontier[this.depth]
     top.match = top.match.matchTypeOrNull(type)!
     this.placed = addToFragment(this.placed, this.depth, Fragment.from(type.createUnsafe(attrs, content)))
     this.frontier.push({ type, match: type.contentMatch })
@@ -379,18 +379,18 @@ class Fitter {
 
 function dropFromFragment(fragment: Fragment<any>, depth: number, count: number): Fragment<any> {
   if (depth === 0) return fragment.cutByIndex(count, fragment.childCount)
-  const first = fragment.content[0]!
+  const first = fragment.content[0]
   return fragment.replaceChild(0, first.copy(dropFromFragment(first.content, depth - 1, count)))
 }
 
 function addToFragment(fragment: Fragment<any>, depth: number, content: Fragment<any>): Fragment<any> {
   if (depth === 0) return fragment.append(content)
-  const last = fragment.content[fragment.childCount - 1]!
+  const last = fragment.content[fragment.childCount - 1]
   return fragment.replaceChild(fragment.childCount - 1, last.copy(addToFragment(last.content, depth - 1, content)))
 }
 
 function contentAt(fragment: Fragment<any>, depth: number): Fragment<any> {
-  for (let i = 0; i < depth; i++) fragment = fragment.content[0]!.content
+  for (let i = 0; i < depth; i++) fragment = fragment.content[0].content
   return fragment
 }
 
@@ -398,10 +398,7 @@ function closeNodeStart(node: Node<any>, openStart: number, openEnd: number): No
   if (openStart <= 0) return node
   let frag = node.content
   if (openStart > 1) {
-    frag = frag.replaceChild(
-      0,
-      closeNodeStart(frag.content[0]!, openStart - 1, frag.childCount === 1 ? openEnd - 1 : 0)
-    )
+    frag = frag.replaceChild(0, closeNodeStart(frag.content[0], openStart - 1, frag.childCount === 1 ? openEnd - 1 : 0))
   }
   if (openStart > 0) {
     frag = node.type.contentMatch.fillBeforeOrNull(frag)!.append(frag)
@@ -428,7 +425,7 @@ function contentAfterFits(
 
 function invalidMarks(type: NodeType<any, any>, fragment: Fragment<any>, start: number): boolean {
   for (let i = start; i < fragment.childCount; i++) {
-    if (!type.allowsMarks(fragment.content[i]!.marks)) return true
+    if (!type.allowsMarks(fragment.content[i].marks)) return true
   }
   return false
 }
@@ -482,7 +479,7 @@ export function replaceRange(tr: Transform<any>, from: number, to: number, slice
   const leftNodes: Array<Node<any>> = []
   let preferredDepth = slice.openStart
   for (let content = slice.content, i = 0; ; i++) {
-    const node = content.content[0]!
+    const node = content.content[0]
     leftNodes.push(node)
     if (i === slice.openStart) break
     content = node.content
@@ -491,7 +488,7 @@ export function replaceRange(tr: Transform<any>, from: number, to: number, slice
   // Back up preferredDepth to cover defining textblocks directly
   // above it, possibly skipping a non-defining textblock.
   for (let d = preferredDepth - 1; d >= 0; d--) {
-    const leftNode = leftNodes[d]!,
+    const leftNode = leftNodes[d],
       def = definesContent(leftNode.type)
     if (def && !leftNode.sameMarkup($from.node(Math.abs(preferredTarget) - 1))) preferredDepth = d
     else if (def || !leftNode.type.isTextblock) break
@@ -504,7 +501,7 @@ export function replaceRange(tr: Transform<any>, from: number, to: number, slice
     for (let i = 0; i < targetDepths.length; i++) {
       // Loop over possible expansion levels, starting with the
       // preferred one
-      let targetDepth = targetDepths[(i + preferredTargetIndex) % targetDepths.length]!,
+      let targetDepth = targetDepths[(i + preferredTargetIndex) % targetDepths.length],
         expand = true
       if (targetDepth < 0) {
         expand = false
@@ -527,7 +524,7 @@ export function replaceRange(tr: Transform<any>, from: number, to: number, slice
   for (let i = targetDepths.length - 1; i >= 0; i--) {
     tr.replaceUnsafe(from, to, slice)
     if (tr.steps.length > startSteps) break
-    const depth = targetDepths[i]!
+    const depth = targetDepths[i]
     if (depth < 0) continue
     from = $from.beforeUnsafe(depth)
     to = $to.afterUnsafe(depth)
@@ -542,7 +539,7 @@ function closeFragment(
   parent?: Node<any>
 ): Fragment<any> {
   if (depth < oldOpen) {
-    const first = fragment.content[0]!
+    const first = fragment.content[0]
     fragment = fragment.replaceChild(0, first.copy(closeFragment(first.content, depth + 1, oldOpen, newOpen, first)))
   }
   if (depth > newOpen) {
@@ -590,7 +587,7 @@ export function deleteRange(tr: Transform<any>, from: number, to: number): void 
 
   const covered = coveredDepths($from, $to)
   for (let i = 0; i < covered.length; i++) {
-    const depth = covered[i]!,
+    const depth = covered[i],
       last = i === covered.length - 1
     if ((last && depth === 0) || $from.node(depth).type.contentMatch.validEnd) {
       tr.deleteUnsafe($from.start(depth), $to.end(depth))

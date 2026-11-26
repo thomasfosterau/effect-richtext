@@ -40,7 +40,7 @@ function compose(pm: EditorView, start: () => Text, update: ((node: Text) => voi
     if (options.cancel && i == update.length - 1) {
       ist(!hasCompositionNode(pm))
     } else {
-      ist(node!.parentNode! && pm.dom.contains(node!.parentNode!))
+      ist(node!.parentNode && pm.dom.contains(node!.parentNode))
       ist(sel.focusNode, focusNode)
       ist(sel.focusOffset, focusOffset)
       if (options.node) ist(hasCompositionNode(pm))

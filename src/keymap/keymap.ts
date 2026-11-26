@@ -89,14 +89,14 @@ export type KeydownHandler<E = never, R = never> = (
  */
 export function normalizeKeyName(name: string): string {
   const parts = name.split(/-(?!$)/)
-  let result = parts[parts.length - 1]!
+  let result = parts[parts.length - 1]
   if (result === "Space") result = " "
   let alt = false,
     ctrl = false,
     shift = false,
     meta = false
   for (let i = 0; i < parts.length - 1; i++) {
-    const mod = parts[i]!
+    const mod = parts[i]
     if (/^(cmd|meta|m)$/i.test(mod)) meta = true
     else if (/^a(lt)?$/i.test(mod)) alt = true
     else if (/^(c|ctrl|control)$/i.test(mod)) ctrl = true
@@ -259,7 +259,7 @@ export const keydownHandler = <const B extends Bindings>(
       i === candidates.length
         ? succeedFalse
         : Effect.flatMap(
-            Effect.suspend(() => candidates[i]!(view.state, view.dispatch, view)),
+            Effect.suspend(() => candidates[i](view.state, view.dispatch, view)),
             (handled) => (handled ? succeedTrue : loop(i + 1))
           )
     return loop(0)

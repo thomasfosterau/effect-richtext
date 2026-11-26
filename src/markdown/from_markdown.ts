@@ -74,7 +74,7 @@ export class MarkdownParseState<Sc extends AnySchema = AnySchema> {
 
   /** @internal */
   top(): StackEntry {
-    return this.stack[this.stack.length - 1]!
+    return this.stack[this.stack.length - 1]
   }
 
   /** @internal */
@@ -112,7 +112,7 @@ export class MarkdownParseState<Sc extends AnySchema = AnySchema> {
   /** Run the token handlers for the given tokens. Throws a `MarkdownError` for unsupported tokens. */
   parseTokens(toks: Array<Token>): void {
     for (let i = 0; i < toks.length; i++) {
-      const tok = toks[i]!
+      const tok = toks[i]
       const handler = this.tokenHandlers[tok.type]
       if (!handler) {
         throw new MarkdownError({ message: "Token type `" + tok.type + "` not supported by Markdown parser" })
@@ -222,7 +222,7 @@ function makeTokenHandlers<Sc extends AnySchema>(
 ): Record<string, TokenHandler<Sc>> {
   const handlers: Record<string, TokenHandler<Sc>> = Object.create(null)
   for (const type in tokens) {
-    const spec = tokens[type]!
+    const spec = tokens[type]
     if (spec.block) {
       const nodeType = schema.nodeType(spec.block) as NodeType<Sc, any>
       if (noCloseToken(spec, type)) {
@@ -340,7 +340,7 @@ export class MarkdownParser<Sc extends AnySchema = AnySchema> {
 
 function listIsTight(tokens: ReadonlyArray<Token>, i: number): boolean {
   while (++i < tokens.length) {
-    if (tokens[i]!.type != "list_item_open") return tokens[i]!.hidden
+    if (tokens[i].type != "list_item_open") return tokens[i].hidden
   }
   return false
 }

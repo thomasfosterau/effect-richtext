@@ -122,10 +122,10 @@ function flatten<Sc extends AnySchema>(
 ): Flattened<Sc> {
   const result: Array<Node<Sc>> = []
   let pos = 0
-  let tag: Record<string, number> = noTag as Record<string, number>
+  let tag: Record<string, number> = noTag
 
   for (let i = 0; i < children.length; i++) {
-    const child = children[i]!
+    const child = children[i]
     if (Predicate.isString(child)) {
       const re = /<(\w+)>/g
       let m: RegExpExecArray | null
@@ -136,7 +136,7 @@ function flatten<Sc extends AnySchema>(
         pos += m.index - at
         at = m.index + m[0].length
         if (tag === noTag) tag = Object.create(null)
-        tag[m[1]!] = pos
+        tag[m[1]] = pos
       }
       out += child.slice(at)
       pos += child.length - at
@@ -145,10 +145,10 @@ function flatten<Sc extends AnySchema>(
       const childTag = child.tag ?? noTag
       if (childTag !== noTag) {
         if (tag === noTag) tag = Object.create(null)
-        for (const id in childTag) tag[id] = childTag[id]! + pos
+        for (const id in childTag) tag[id] = childTag[id] + pos
       }
       for (let j = 0; j < child.flat.length; j++) {
-        const node = f(child.flat[j]!)
+        const node = f(child.flat[j])
         pos += node.nodeSize
         result.push(node)
       }
@@ -157,7 +157,7 @@ function flatten<Sc extends AnySchema>(
       const childTag = tagsOf(node0)
       if (childTag !== noTag) {
         if (tag === noTag) tag = Object.create(null)
-        for (const id in childTag) tag[id] = childTag[id]! + (node0.isText ? 0 : 1) + pos
+        for (const id in childTag) tag[id] = childTag[id] + (node0.isText ? 0 : 1) + pos
       }
       const node = f(node0)
       pos += node.nodeSize
@@ -247,8 +247,8 @@ export function builders<Sc extends AnySchema, const Extra extends Record<string
 ): Builders<Sc, Extra> {
   const result: Record<string, unknown> = {}
   result.schema = schema
-  for (const name in schema.nodes) result[name] = block(schema.nodes[name]!, {})
-  for (const name in schema.marks) result[name] = mark(schema.marks[name]!, {})
+  for (const name in schema.nodes) result[name] = block(schema.nodes[name], {})
+  for (const name in schema.marks) result[name] = mark(schema.marks[name], {})
   if (names) {
     for (const name in names) {
       const { nodeType: nodeTypeName, markType: markTypeName, ...value } = names[name]

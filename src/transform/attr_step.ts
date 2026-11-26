@@ -39,7 +39,7 @@ export class AttrStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
       doc,
       this.pos,
       this.pos + 1,
-      new Slice(Fragment.from(updated as Node<Sc>), 0, node.isLeaf ? 0 : 1)
+      new Slice(Fragment.from(updated), 0, node.isLeaf ? 0 : 1)
     )
   }
 
@@ -48,7 +48,8 @@ export class AttrStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
   }
 
   invert(doc: Node<Sc>): Step<Sc> {
-    return new AttrStep(this.pos, this.attr, (doc.nodeAtOrNull(this.pos)!.attrs as Attrs)[this.attr])
+    const attrs: Attrs = doc.nodeAtOrNull(this.pos)!.attrs
+    return new AttrStep(this.pos, this.attr, attrs[this.attr])
   }
 
   map(mapping: Mappable): Option.Option<Step<Sc>> {
@@ -93,7 +94,7 @@ export class DocAttrStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
     for (const name in doc.attrs) attrs[name] = doc.attrs[name]
     attrs[this.attr] = this.value
     const updated = doc.type.createUnsafe(attrs, doc.content, doc.marks)
-    return StepResult.ok(updated as Node<Sc>)
+    return StepResult.ok(updated)
   }
 
   override getMap(): StepMap {
@@ -101,7 +102,8 @@ export class DocAttrStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
   }
 
   invert(doc: Node<Sc>): Step<Sc> {
-    return new DocAttrStep(this.attr, (doc.attrs as Attrs)[this.attr])
+    const attrs: Attrs = doc.attrs
+    return new DocAttrStep(this.attr, attrs[this.attr])
   }
 
   map(_mapping: Mappable): Option.Option<Step<Sc>> {

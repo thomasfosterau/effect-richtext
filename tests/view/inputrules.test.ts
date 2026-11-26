@@ -61,11 +61,11 @@ const blockquoteRule = wrappingInputRule(/^\s*>\s$/, nodes.blockquote)
 const orderedListRule = wrappingInputRule(
   /^(\d+)\.\s$/,
   nodes.ordered_list,
-  (match) => ({ order: +match[1]! }),
-  (match, node) => node.childCount + (node.attrs as { order: number }).order === +match[1]!
+  (match) => ({ order: +match[1] }),
+  (match, node) => node.childCount + (node.attrs as { order: number }).order === +match[1]
 )
 const bulletListRule = wrappingInputRule(/^\s*([-+*])\s$/, nodes.bullet_list)
-const headingRule = textblockTypeInputRule(/^(#{1,6})\s$/, nodes.heading, (match) => ({ level: match[1]!.length }))
+const headingRule = textblockTypeInputRule(/^(#{1,6})\s$/, nodes.heading, (match) => ({ level: match[1].length }))
 const codeBlockRule = textblockTypeInputRule(/^```$/, nodes.code_block)
 
 const allRules = [

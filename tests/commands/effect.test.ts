@@ -195,9 +195,9 @@ describe("base keymaps", () => {
     ist(baseKeymap === pcBaseKeymap || baseKeymap === macBaseKeymap)
   })
 
-  it("Enter splits a block", () => apply(doc(p("foo<a>bar")), pcBaseKeymap["Enter"]!, doc(p("foo"), p("bar"))))
+  it("Enter splits a block", () => apply(doc(p("foo<a>bar")), pcBaseKeymap["Enter"], doc(p("foo"), p("bar"))))
 
-  it("Backspace joins blocks", () => apply(doc(p("foo"), p("<a>bar")), pcBaseKeymap["Backspace"]!, doc(p("foobar"))))
+  it("Backspace joins blocks", () => apply(doc(p("foo"), p("<a>bar")), pcBaseKeymap["Backspace"], doc(p("foobar"))))
 
-  it("Delete joins blocks", () => apply(doc(p("foo<a>"), p("bar")), pcBaseKeymap["Delete"]!, doc(p("foobar"))))
+  it("Delete joins blocks", () => apply(doc(p("foo<a>"), p("bar")), pcBaseKeymap["Delete"], doc(p("foobar"))))
 })

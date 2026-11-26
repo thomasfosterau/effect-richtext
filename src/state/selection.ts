@@ -108,19 +108,19 @@ export abstract class Selection<Sc extends AnySchema = AnySchema> {
 
   /** The resolved lower bound of the selection's main range. */
   get $from(): ResolvedPos<Sc> {
-    return this.ranges[0]!.$from
+    return this.ranges[0].$from
   }
 
   /** The resolved upper bound of the selection's main range. */
   get $to(): ResolvedPos<Sc> {
-    return this.ranges[0]!.$to
+    return this.ranges[0].$to
   }
 
   /** Indicates whether the selection contains any content. */
   get empty(): boolean {
     const ranges = this.ranges
     for (let i = 0; i < ranges.length; i++) {
-      if (ranges[i]!.$from.pos !== ranges[i]!.$to.pos) return false
+      if (ranges[i].$from.pos !== ranges[i].$to.pos) return false
     }
     return true
   }
@@ -160,13 +160,13 @@ export abstract class Selection<Sc extends AnySchema = AnySchema> {
     let lastParent: Node<Sc> | null = null
     for (let i = 0; i < content.openEnd; i++) {
       lastParent = lastNode!
-      lastNode = lastNode!.content.content[lastNode!.childCount - 1]
+      lastNode = lastNode.content.content[lastNode.childCount - 1]
     }
 
     const mapFrom = tr.steps.length,
       ranges = this.ranges
     for (let i = 0; i < ranges.length; i++) {
-      const { $from, $to } = ranges[i]!,
+      const { $from, $to } = ranges[i],
         mapping = tr.mapping.slice(mapFrom)
       tr.replaceRangeUnsafe(mapping.map($from.pos), mapping.map($to.pos), i ? Slice.empty : content)
       if (i === 0) {
@@ -184,7 +184,7 @@ export abstract class Selection<Sc extends AnySchema = AnySchema> {
     const mapFrom = tr.steps.length,
       ranges = this.ranges
     for (let i = 0; i < ranges.length; i++) {
-      const { $from, $to } = ranges[i]!,
+      const { $from, $to } = ranges[i],
         mapping = tr.mapping.slice(mapFrom)
       const from = mapping.map($from.pos),
         to = mapping.map($to.pos)
@@ -669,7 +669,7 @@ function findSelectionIn<Sc extends AnySchema>(
 ): Selection<Sc> | null {
   if (node.inlineContent) return TextSelection.createUnsafe(doc, pos)
   for (let i = index - (dir > 0 ? 0 : 1); dir > 0 ? i < node.childCount : i >= 0; i += dir) {
-    const child = node.content.content[i]!
+    const child = node.content.content[i]
     if (!child.isAtom) {
       const inner = findSelectionIn(doc, child, pos + dir, dir < 0 ? child.childCount : 0, dir, text)
       if (inner) return inner
@@ -686,7 +686,7 @@ function selectionToInsertionEnd(tr: Transaction<any>, startLen: number, bias: n
   if (last < startLen) return
   const step = tr.steps[last]
   if (!(step instanceof ReplaceStep || step instanceof ReplaceAroundStep)) return
-  const map = tr.mapping.maps[last]!
+  const map = tr.mapping.maps[last]
   let end: number | undefined
   map.forEach((_from, _to, _newFrom, newTo) => {
     if (end == null) end = newTo

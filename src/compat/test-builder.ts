@@ -34,7 +34,7 @@ function flatten(
     tag = noTag
 
   for (let i = 0; i < children.length; i++) {
-    const child = children[i]!
+    const child = children[i]
     if (Predicate.isString(child)) {
       const re = /<(\w+)>/g
       let m,
@@ -45,7 +45,7 @@ function flatten(
         pos += m.index - at
         at = m.index + m[0].length
         if (tag == noTag) tag = Object.create(null)
-        tag[m[1]!] = pos
+        tag[m[1]] = pos
       }
       out += child.slice(at)
       pos += child.length - at
@@ -163,7 +163,7 @@ export function builders<Nodes extends string = any, Marks extends string = any>
 
   if (names) {
     for (const name in names) {
-      const value = names[name]!,
+      const value = names[name],
         typeName = value.nodeType || value.markType || name
       let type
       if ((type = schema.nodes[typeName])) (result as any)[name] = block(type, value)

@@ -155,7 +155,7 @@ export const publishTransactions = <Sc extends AnySchema, R, E>(
   prevState: EditorState<Sc, R, E>
 ): void => {
   if (transactions.length) {
-    PubSub.publishUnsafe(source.pubsub, { tr: transactions[0]!, transactions, state, prevState })
+    PubSub.publishUnsafe(source.pubsub, { tr: transactions[0], transactions, state, prevState })
   }
 }
 

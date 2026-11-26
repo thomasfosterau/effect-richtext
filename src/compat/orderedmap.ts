@@ -137,7 +137,7 @@ export class OrderedMap<T = any> {
     if (map instanceof OrderedMap) return map
     const content: Array<string | T> = []
     if (map) {
-      for (const prop in map) content.push(prop, (map as Record<string, T>)[prop]!)
+      for (const prop in map) content.push(prop, (map as Record<string, T>)[prop])
     }
     return new OrderedMap(content)
   }

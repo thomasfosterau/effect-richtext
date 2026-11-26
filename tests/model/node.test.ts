@@ -65,7 +65,7 @@ function cut(doc: Node, cut: Node) {
 
 function between(doc: Node, ...nodes: Array<string>) {
   let i = 0
-  doc.nodesBetween(tagsOf(doc).a!, tagsOf(doc).b!, (node, pos) => {
+  doc.nodesBetween(tagsOf(doc).a, tagsOf(doc).b, (node, pos) => {
     if (i === nodes.length) {
       assert.fail("More nodes iterated than listed (" + node.type.name + ")")
     }

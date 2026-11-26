@@ -867,8 +867,8 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     }
 
     this.updatePluginViews(prev)
-    if ((this.dragging as Dragging | null)?.node && !prev.doc.eq(state.doc)) {
-      this.updateDraggedNode(this.dragging as Dragging, prev)
+    if (this.dragging instanceof Dragging && this.dragging.node && !prev.doc.eq(state.doc)) {
+      this.updateDraggedNode(this.dragging, prev)
     }
 
     if (scroll == "reset") {
@@ -886,7 +886,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     const listeners = this.listeners
     for (let i = 0; i < listeners.length; i++) {
       try {
-        listeners[i]!(update)
+        listeners[i](update)
       } catch (e) {
         this.reportError(Cause.die(e))
       }
@@ -942,16 +942,16 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
       this.prevDirectPlugins = this.directPlugins
       this.destroyPluginViews()
       for (let i = 0; i < this.directPlugins.length; i++) {
-        const plugin = this.directPlugins[i]!
+        const plugin = this.directPlugins[i]
         if (plugin.spec.view) this.pluginViews.push(plugin.spec.view(this))
       }
       for (let i = 0; i < this.state.plugins.length; i++) {
-        const plugin = this.state.plugins[i]!
+        const plugin = this.state.plugins[i]
         if (plugin.spec.view) this.pluginViews.push(plugin.spec.view(this))
       }
     } else {
       for (let i = 0; i < this.pluginViews.length; i++) {
-        const pluginView = this.pluginViews[i]!
+        const pluginView = this.pluginViews[i]
         if (pluginView.update) pluginView.update(this, prevState)
       }
     }
@@ -1004,12 +1004,12 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     let value = read(this._props)
     if (value) return value
     for (let i = 0; i < this.directPlugins.length; i++) {
-      if ((value = read(this.directPlugins[i]!.props))) return value
+      if ((value = read(this.directPlugins[i].props))) return value
     }
     const plugins = this.state.plugins
     if (plugins) {
       for (let i = 0; i < plugins.length; i++) {
-        if ((value = read(plugins[i]!.props))) return value
+        if ((value = read(plugins[i].props))) return value
       }
     }
     return undefined

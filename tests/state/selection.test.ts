@@ -194,7 +194,7 @@ describe("Selection", () => {
   it("puts the cursor after the inserted text when inserting a list item", () => {
     const state = new TestState({ doc: doc(p("<a>abc")) })
     const source = doc(ul(li(p("<a>def<b>"))))
-    state.apply(state.tr.replaceSelection(source.sliceUnsafe(source.tag.a!, source.tag.b!, true)))
+    state.apply(state.tr.replaceSelection(source.sliceUnsafe(source.tag.a, source.tag.b, true)))
     ist(state.selection.from, 6)
   })
 })
@@ -202,20 +202,20 @@ describe("Selection", () => {
 describe("TextSelection.between", () => {
   it("uses arguments when possible", () => {
     const d = doc(p("f<a>o<b>o"))
-    const s = TextSelection.between(d.resolveUnsafe(d.tag.b!), d.resolveUnsafe(d.tag.a!))
+    const s = TextSelection.between(d.resolveUnsafe(d.tag.b), d.resolveUnsafe(d.tag.a))
     ist(s.anchor, d.tag.b)
     ist(s.head, d.tag.a)
   })
 
   it("will adjust when necessary", () => {
     const d = doc("<a>", p("foo"))
-    const s = TextSelection.between(d.resolveUnsafe(d.tag.a!), d.resolveUnsafe(d.tag.a!))
+    const s = TextSelection.between(d.resolveUnsafe(d.tag.a), d.resolveUnsafe(d.tag.a))
     ist(s.anchor, 1)
   })
 
   it("uses bias when adjusting", () => {
     const d = doc(p("foo"), "<a>", p("bar")),
-      pos = d.resolveUnsafe(d.tag.a!)
+      pos = d.resolveUnsafe(d.tag.a)
     const sUp = TextSelection.between(pos, pos, -1)
     ist(sUp.anchor, 4)
     const sDown = TextSelection.between(pos, pos, 1)
@@ -224,16 +224,16 @@ describe("TextSelection.between", () => {
 
   it("will fall back to a node selection", () => {
     const d = doc(hr, "<a>")
-    const s = TextSelection.between(d.resolveUnsafe(d.tag.a!), d.resolveUnsafe(d.tag.a!))
+    const s = TextSelection.between(d.resolveUnsafe(d.tag.a), d.resolveUnsafe(d.tag.a))
     ist((s as NodeSelection).node, getSome(d.firstChild))
   })
 
   it("will collapse towards the other argument", () => {
     const d = doc("<a>", p("foo"), "<b>")
-    let s = TextSelection.between(d.resolveUnsafe(d.tag.a!), d.resolveUnsafe(d.tag.b!))
+    let s = TextSelection.between(d.resolveUnsafe(d.tag.a), d.resolveUnsafe(d.tag.b))
     ist(s.anchor, 1)
     ist(s.head, 4)
-    s = TextSelection.between(d.resolveUnsafe(d.tag.b!), d.resolveUnsafe(d.tag.a!))
+    s = TextSelection.between(d.resolveUnsafe(d.tag.b), d.resolveUnsafe(d.tag.a))
     ist(s.anchor, 4)
     ist(s.head, 1)
   })

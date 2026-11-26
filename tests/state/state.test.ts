@@ -157,7 +157,7 @@ describe("State", () => {
     })
     const { transactions } = state.applyTransactionUnsafe(state.tr.insertTextUnsafe("X"))
     ist(transactions.length, 2)
-    ist(getSome(transactions[1]!.getMeta("appendedTransaction")), transactions[0])
+    ist(getSome(transactions[1].getMeta("appendedTransaction")), transactions[0])
   })
 
   it("supports JSON.stringify toJSON arguments", () => {

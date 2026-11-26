@@ -6,19 +6,19 @@ import { blockquote, doc, eq, h1, hr, li, p, tagsOf, ul } from "@thomasfosterau/
 import ist from "../utils/ist.ts"
 
 const sliceOf = (insert: Node | null): Slice =>
-  insert ? insert.sliceUnsafe(tagsOf(insert).a!, tagsOf(insert).b) : Slice.empty
+  insert ? insert.sliceUnsafe(tagsOf(insert).a, tagsOf(insert).b) : Slice.empty
 
 function rpl(doc: Node, insert: Node | null, expected: Node) {
-  ist(doc.replaceUnsafe(tagsOf(doc).a!, tagsOf(doc).b!, sliceOf(insert)), expected, eq)
+  ist(doc.replaceUnsafe(tagsOf(doc).a, tagsOf(doc).b, sliceOf(insert)), expected, eq)
 }
 
 function bad(doc: Node, insert: Node | null, pattern: string) {
-  ist.throws(() => doc.replaceUnsafe(tagsOf(doc).a!, tagsOf(doc).b!, sliceOf(insert)), new RegExp(pattern, "i"))
+  ist.throws(() => doc.replaceUnsafe(tagsOf(doc).a, tagsOf(doc).b, sliceOf(insert)), new RegExp(pattern, "i"))
 }
 
 function badEffect(doc: Node, insert: Node | null, pattern: RegExp) {
   return Effect.gen(function* () {
-    const err = yield* Effect.flip(doc.replace(tagsOf(doc).a!, tagsOf(doc).b!, sliceOf(insert)))
+    const err = yield* Effect.flip(doc.replace(tagsOf(doc).a, tagsOf(doc).b, sliceOf(insert)))
     assert.strictEqual(err._tag, "ReplaceError")
     assert.match(err.message, pattern)
   })
@@ -120,7 +120,7 @@ describe("Node", () => {
     it.effect("succeeds for valid replacements", () =>
       Effect.gen(function* () {
         const d = doc(p("on<a>e"), p("t<b>wo"))
-        const result = yield* d.replace(tagsOf(d).a!, tagsOf(d).b!, Slice.empty)
+        const result = yield* d.replace(tagsOf(d).a, tagsOf(d).b, Slice.empty)
         ist(result, doc(p("onwo")), eq)
       })
     )

@@ -100,7 +100,7 @@ describe("splitListItemKeepMarks", () => {
     state = state.applyUnsafe(state.tr.addStoredMark(schema.markUnsafe("strong")))
     state = run(state, split)
     ist(getSome(state.storedMarks).length, 1)
-    ist(strong("x").flat[0]!.marks[0]!.eq(getSome(state.storedMarks)[0]!))
+    ist(strong("x").flat[0].marks[0].eq(getSome(state.storedMarks)[0]))
   })
 })
 

@@ -4,7 +4,6 @@
  * @since 0.1.0
  */
 import * as Cause from "effect/Cause"
-import type * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
 import type * as Scope from "effect/Scope"
@@ -99,10 +98,10 @@ export const make = Effect.fn("StateRef.make")(function* <Sc extends AnySchema, 
     })
 
   const dispatch = (tr: Transaction<Sc>): Effect.Effect<void, E | StateFailure> =>
-    Effect.provideContext(semaphore.withPermit(applyUnlocked(tr)), context as Context.Context<R>)
+    Effect.provideContext(semaphore.withPermit(applyUnlocked(tr)), context)
 
   const dispatchUnsafe = (tr: Transaction<Sc>): void =>
-    runSyncOrThrow(Effect.provideContext(applyUnlocked(tr), context as Context.Context<R>))
+    runSyncOrThrow(Effect.provideContext(applyUnlocked(tr), context))
 
   const set = (state: EditorState<Sc, R, E>): Effect.Effect<void> =>
     semaphore.withPermit(Effect.sync(() => setState(source, state)))

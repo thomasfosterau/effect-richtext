@@ -16,8 +16,8 @@ describe("placeholder", () => {
     const found = decorated(view)
     ist(found.length, 1)
     ist(found[0], view.dom.firstChild)
-    ist(found[0]!.getAttribute("data-placeholder"), "Write…")
-    ist(found[0]!.classList.contains("is-empty"))
+    ist(found[0].getAttribute("data-placeholder"), "Write…")
+    ist(found[0].classList.contains("is-empty"))
   })
 
   it("removes the decoration when content is added", () => {
@@ -64,7 +64,7 @@ describe("placeholder", () => {
     })
     const found = decorated(view)
     ist(found.length, 1)
-    ist(found[0]!.nodeName, "P")
+    ist(found[0].nodeName, "P")
   })
 
   it("computes the placeholder with a function and uses a custom class", () => {
@@ -80,9 +80,9 @@ describe("placeholder", () => {
     })
     const found = decorated(view)
     ist(found.length, 1)
-    ist(found[0]!.getAttribute("data-placeholder"), "Heading")
-    ist(found[0]!.classList.contains("empty-node"))
-    ist(!found[0]!.classList.contains("is-empty"))
+    ist(found[0].getAttribute("data-placeholder"), "Heading")
+    ist(found[0].classList.contains("empty-node"))
+    ist(!found[0].classList.contains("is-empty"))
   })
 
   it("shows the text with the default CSS", () => {

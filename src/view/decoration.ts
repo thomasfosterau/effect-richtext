@@ -452,7 +452,7 @@ export class DecorationSet implements DecorationSource {
     predicate?: (spec: any) => boolean
   ) {
     for (let i = 0; i < this.local.length; i++) {
-      const span = this.local[i]!
+      const span = this.local[i]
       if (span.from <= end && span.to >= start && (!predicate || predicate(span.spec))) {
         result.push(span.copy(span.from + offset, span.to + offset))
       }
@@ -489,9 +489,9 @@ export class DecorationSet implements DecorationSource {
     if (this.local.length) {
       const cur = new FragmentCursor(node.content)
       for (let i = 0; i < this.local.length; i++) {
-        const mapped = this.local[i]!.map(mapping, offset, oldOffset)
+        const mapped = this.local[i].map(mapping, offset, oldOffset)
         if (mapped && mapped.type.valid(node, mapped, cur)) (newLocal || (newLocal = [])).push(mapped)
-        else if (options.onRemove) options.onRemove(this.local[i]!.spec)
+        else if (options.onRemove) options.onRemove(this.local[i].spec)
       }
     }
 
@@ -544,7 +544,7 @@ export class DecorationSet implements DecorationSource {
     const local = moveSpans(childIndex ? withoutNulls(decorations) : (decorations as Array<Decoration>), -offset)
     if (local.length) {
       const cur = new FragmentCursor(doc.content)
-      for (let i = 0; i < local.length; i++) if (!local[i]!.type.valid(doc, local[i]!, cur)) local.splice(i--, 1)
+      for (let i = 0; i < local.length; i++) if (!local[i].type.valid(doc, local[i], cur)) local.splice(i--, 1)
     }
 
     return new DecorationSet(
@@ -591,7 +591,7 @@ export class DecorationSet implements DecorationSource {
       for (let i = 0, span; i < decorations.length; i++) {
         if ((span = decorations[i])) {
           for (let j = 0; j < local.length; j++) {
-            if (local[j]!.eq(span, offset)) {
+            if (local[j].eq(span, offset)) {
               if (local == this.local) local = this.local.slice()
               local.splice(j--, 1)
             }
@@ -617,7 +617,7 @@ export class DecorationSet implements DecorationSource {
     const start = offset + 1,
       end = start + node.content.size
     for (let i = 0; i < this.local.length; i++) {
-      const dec = this.local[i]!
+      const dec = this.local[i]
       if (dec.from < end && dec.to > start && dec.type instanceof InlineType) {
         const from = Math.max(start, dec.from) - start,
           to = Math.min(end, dec.to) - start
@@ -641,7 +641,7 @@ export class DecorationSet implements DecorationSource {
     )
       return false
     for (let i = 0; i < this.local.length; i++) {
-      if (!this.local[i]!.eq(other.local[i]!)) return false
+      if (!this.local[i].eq(other.local[i])) return false
     }
     for (let i = 0; i < this.children.length; i += 3) {
       if (
@@ -665,8 +665,8 @@ export class DecorationSet implements DecorationSource {
     if (node.inlineContent || !this.local.some(InlineType.is)) return this.local
     const result = []
     for (let i = 0; i < this.local.length; i++) {
-      if (!(this.local[i]!.type instanceof InlineType)) {
-        result.push(this.local[i]!)
+      if (!(this.local[i].type instanceof InlineType)) {
+        result.push(this.local[i])
       }
     }
     return result
@@ -701,7 +701,7 @@ export class DecorationGroup implements DecorationSource {
     if (child.isLeaf) return DecorationSet.empty
     let found: Array<DecorationSet> = []
     for (let i = 0; i < this.members.length; i++) {
-      const result = this.members[i]!.forChild(offset, child)
+      const result = this.members[i].forChild(offset, child)
       if (result == empty) continue
       if (result instanceof DecorationGroup) found = found.concat(result.members)
       else found.push(result as DecorationSet)
@@ -712,7 +712,7 @@ export class DecorationGroup implements DecorationSource {
   eq(other: DecorationSource): boolean {
     if (!(other instanceof DecorationGroup) || other.members.length != this.members.length) return false
     for (let i = 0; i < this.members.length; i++) {
-      if (!this.members[i]!.eq(other.members[i]!)) return false
+      if (!this.members[i].eq(other.members[i])) return false
     }
     return true
   }
@@ -721,7 +721,7 @@ export class DecorationGroup implements DecorationSource {
     let result: Array<Decoration> | undefined,
       sorted = true
     for (let i = 0; i < this.members.length; i++) {
-      const locals = this.members[i]!.localsInner(node)
+      const locals = this.members[i].localsInner(node)
       if (!locals.length) continue
       if (!result) {
         result = locals as Array<Decoration>
@@ -730,7 +730,7 @@ export class DecorationGroup implements DecorationSource {
           result = result.slice()
           sorted = false
         }
-        for (let j = 0; j < locals.length; j++) result.push(locals[j]!)
+        for (let j = 0; j < locals.length; j++) result.push(locals[j])
       }
     }
     return result ? removeOverlap(sorted ? result : Arr.sort(result, byPos)) : none
@@ -740,10 +740,10 @@ export class DecorationGroup implements DecorationSource {
   // a single set when possible.
   static from(members: ReadonlyArray<DecorationSource>): DecorationSource {
     if (Arr.isReadonlyArrayEmpty(members)) return empty
-    if (members.length == 1) return members[0]!
+    if (members.length == 1) return members[0]
     return new DecorationGroup(
       members.every((m) => m instanceof DecorationSet)
-        ? (members as ReadonlyArray<DecorationSet>)
+        ? members
         : members.reduce(
             (r, m) => r.concat(m instanceof DecorationSet ? m : (m as DecorationGroup).members),
             [] as Array<DecorationSet>
@@ -752,7 +752,7 @@ export class DecorationGroup implements DecorationSource {
   }
 
   forEachSet(f: (set: DecorationSet) => void): void {
-    for (let i = 0; i < this.members.length; i++) this.members[i]!.forEachSet(f)
+    for (let i = 0; i < this.members.length; i++) this.members[i].forEachSet(f)
   }
 }
 
@@ -765,13 +765,13 @@ function mapChildren(
   oldOffset: number,
   options: DecorationMapOptions
 ) {
-  const children = oldChildren.slice() as Array<number | DecorationSet>
+  const children = oldChildren.slice()
 
   // Mark the children that are directly touched by changes, and
   // move those that are after the changes.
   for (let i = 0, baseOffset = oldOffset; i < mapping.maps.length; i++) {
     let moved = 0
-    mapping.maps[i]!.forEach((oldStart: number, oldEnd: number, newStart: number, newEnd: number) => {
+    mapping.maps[i].forEach((oldStart: number, oldEnd: number, newStart: number, newEnd: number) => {
       const dSize = newEnd - newStart - (oldEnd - oldStart)
       for (let j = 0; j < children.length; j += 3) {
         const end = children[j + 1] as number
@@ -786,7 +786,7 @@ function mapChildren(
       }
       moved += dSize
     })
-    baseOffset = mapping.maps[i]!.map(baseOffset, -1)
+    baseOffset = mapping.maps[i].map(baseOffset, -1)
   }
 
   // Find the child nodes that still correspond to a single node,
@@ -855,7 +855,7 @@ function mapChildren(
     for (let i = 0, j = 0; i < built.children.length; i += 3) {
       const from = built.children[i] as number
       while (j < children.length && (children[j] as number) < from) j += 3
-      children.splice(j, 0, built.children[i]!, built.children[i + 1]!, built.children[i + 2]!)
+      children.splice(j, 0, built.children[i], built.children[i + 1], built.children[i + 2])
     }
   }
 
@@ -866,7 +866,7 @@ function moveSpans(spans: Array<Decoration>, offset: number) {
   if (!offset || !spans.length) return spans
   const result = []
   for (let i = 0; i < spans.length; i++) {
-    const span = spans[i]!
+    const span = spans[i]
     result.push(new Decoration(span.from + offset, span.to + offset, span.type))
   }
   return result
@@ -884,9 +884,9 @@ function mapAndGatherRemainingDecorations(
   // Gather all decorations from the remaining marked children
   function gather(set: DecorationSet, base: number) {
     for (let i = 0; i < set.local.length; i++) {
-      const mapped = set.local[i]!.map(mapping, offset, base)
+      const mapped = set.local[i].map(mapping, offset, base)
       if (mapped) decorations.push(mapped)
-      else if (options.onRemove) options.onRemove(set.local[i]!.spec)
+      else if (options.onRemove) options.onRemove(set.local[i].spec)
     }
     for (let i = 0; i < set.children.length; i += 3) {
       gather(set.children[i + 2] as DecorationSet, (set.children[i] as number) + base + 1)
@@ -952,8 +952,8 @@ function buildTree(
   if (locals.length) {
     const cur = new FragmentCursor(node.content)
     for (let i = 0; i < locals.length; i++) {
-      if (!locals[i]!.type.valid(node, locals[i]!, cur)) {
-        if (options.onRemove) options.onRemove(locals[i]!.spec)
+      if (!locals[i].type.valid(node, locals[i], cur)) {
+        if (options.onRemove) options.onRemove(locals[i].spec)
         locals.splice(i--, 1)
       }
     }
@@ -975,10 +975,10 @@ const byPos: Order.Order<Decoration> = (a, b) =>
 function removeOverlap(spans: ReadonlyArray<Decoration>): Array<Decoration> {
   let working: Array<Decoration> = spans as Array<Decoration>
   for (let i = 0; i < working.length - 1; i++) {
-    const span = working[i]!
+    const span = working[i]
     if (span.from != span.to) {
       for (let j = i + 1; j < working.length; j++) {
-        const next = working[j]!
+        const next = working[j]
         if (next.from == span.from) {
           if (next.to != span.to) {
             if (working == spans) working = spans.slice()
@@ -1005,7 +1005,7 @@ function removeOverlap(spans: ReadonlyArray<Decoration>): Array<Decoration> {
 }
 
 function insertAhead(array: Array<Decoration>, i: number, deco: Decoration) {
-  while (i < array.length && byPos(deco, array[i]!) > 0) i++
+  while (i < array.length && byPos(deco, array[i]) > 0) i++
   array.splice(i, 0, deco)
 }
 

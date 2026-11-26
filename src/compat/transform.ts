@@ -904,7 +904,7 @@ export class Transform {
 
   /** Return a single range, in post-transform document positions, that covers all content changed by this transform. */
   changedRange(): { from: number; to: number } | null {
-    return Option.getOrNull(this[CORE].changedRange()) as { from: number; to: number } | null
+    return Option.getOrNull(this[CORE].changedRange())
   }
 
   /** @internal */

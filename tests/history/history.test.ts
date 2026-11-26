@@ -63,7 +63,7 @@ function unsyncedComplex(state: State, doCompress: boolean) {
 const addPlugin = () =>
   new Plugin({
     appendTransaction: (trs, _old, state) => {
-      const add = Option.getOrUndefined(trs[0]!.getMeta<string>("add"))
+      const add = Option.getOrUndefined(trs[0].getMeta<string>("add"))
       if (add) return state.tr.insertUnsafe(1, schema.textUnsafe(add))
       return undefined
     }

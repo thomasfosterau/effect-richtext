@@ -20,7 +20,7 @@ import {
 } from "../Model.ts"
 import { TextSelection } from "../State.ts"
 import * as browser from "./browser.ts"
-import type { Decoration, DecorationSource, NodeType, WidgetConstructor, WidgetType } from "./decoration.ts"
+import type { Decoration, DecorationSource, NodeType, WidgetType } from "./decoration.ts"
 import { domIndex, type DOMNode, isElt, isEquivalentPosition } from "./dom.ts"
 import type { EditorView } from "./view.ts"
 
@@ -295,7 +295,7 @@ export class ViewDesc {
   // The size of the content represented by this desc.
   get size(): number {
     let size = 0
-    for (let i = 0; i < this.children.length; i++) size += this.children[i]!.size
+    for (let i = 0; i < this.children.length; i++) size += this.children[i].size
     return size
   }
 
@@ -309,13 +309,13 @@ export class ViewDesc {
     this.parent = undefined
     if (this.dom.pmViewDesc == this) this.dom.pmViewDesc = undefined
     for (let i = 0; i < this.children.length; i++) {
-      this.children[i]!.destroy()
+      this.children[i].destroy()
     }
   }
 
   posBeforeChild(child: ViewDesc): number {
     for (let i = 0, pos = this.posAtStart; ; i++) {
-      const cur = this.children[i]!
+      const cur = this.children[i]
       if (cur == child) return pos
       pos += cur.size
     }
@@ -445,12 +445,12 @@ export class ViewDesc {
   // parent node overrode rendering, there might not be one.)
   descAt(pos: number): ViewDesc | undefined {
     for (let i = 0, offset = 0; i < this.children.length; i++) {
-      let child = this.children[i]!
+      let child = this.children[i]
       const end = offset + child.size
       if (offset == pos && end != offset) {
         while (!child.border && child.children.length) {
           for (let j = 0; j < child.children.length; j++) {
-            const inner = child.children[j]!
+            const inner = child.children[j]
             if (inner.size) {
               child = inner
               break
@@ -471,7 +471,7 @@ export class ViewDesc {
     let i = 0,
       offset = 0
     for (let curPos = 0; i < this.children.length; i++) {
-      const child = this.children[i]!,
+      const child = this.children[i],
         end = curPos + child.size
       if (end > pos) {
         offset = pos - curPos
@@ -480,7 +480,7 @@ export class ViewDesc {
       curPos = end
     }
     // If this points into the middle of a child, call through
-    if (offset) return this.children[i]!.domFromPos(offset - this.children[i]!.border, side)
+    if (offset) return this.children[i].domFromPos(offset - this.children[i].border, side)
     // Go back if there were any zero-length widgets with side >= 0 before this point
     // (or buffer hack nodes)
     while (i > 0 && skippableBefore(this.children, i)) i--
@@ -489,7 +489,7 @@ export class ViewDesc {
       let prev,
         enter = true
       for (; ; i--, enter = false) {
-        prev = i ? this.children[i - 1]! : null
+        prev = i ? this.children[i - 1] : null
         if (!prev || prev.dom.parentNode == this.contentDOM) break
       }
       if (prev && side && enter && !prev.border && !prev.domAtom) return prev.domFromPos(prev.size, side)
@@ -498,7 +498,7 @@ export class ViewDesc {
       let next,
         enter = true
       for (; ; i++, enter = false) {
-        next = i < this.children.length ? this.children[i]! : null
+        next = i < this.children.length ? this.children[i] : null
         if (!next || next.dom.parentNode == this.contentDOM) break
       }
       if (next && enter && !next.border && !next.domAtom) return next.domFromPos(0, side)
@@ -516,7 +516,7 @@ export class ViewDesc {
     let fromOffset = -1,
       toOffset = -1
     for (let offset = base, i = 0; ; i++) {
-      const child = this.children[i]!,
+      const child = this.children[i],
         end = offset + child.size
       if (fromOffset == -1 && from <= end) {
         const childBase = offset + child.border
@@ -533,7 +533,7 @@ export class ViewDesc {
 
         from = offset
         for (let j = i; j > 0; j--) {
-          const prev = this.children[j - 1]!
+          const prev = this.children[j - 1]
           if (prev.size && prev.dom.parentNode == this.contentDOM && !prev.emptyChildAt(1)) {
             fromOffset = domIndex(prev.dom) + 1
             break
@@ -545,7 +545,7 @@ export class ViewDesc {
       if (fromOffset > -1 && (end > to || i == this.children.length - 1)) {
         to = end
         for (let j = i + 1; j < this.children.length; j++) {
-          const next = this.children[j]!
+          const next = this.children[j]
           if (next.size && next.dom.parentNode == this.contentDOM && !next.emptyChildAt(-1)) {
             toOffset = domIndex(next.dom)
             break
@@ -562,7 +562,7 @@ export class ViewDesc {
 
   emptyChildAt(side: number): boolean {
     if (this.border || !this.contentDOM || !this.children.length) return false
-    const child = this.children[side < 0 ? 0 : this.children.length - 1]!
+    const child = this.children[side < 0 ? 0 : this.children.length - 1]
     return child.size == 0 || child.emptyChildAt(side)
   }
 
@@ -571,7 +571,7 @@ export class ViewDesc {
     if (node.nodeType != 1 || offset == node.childNodes.length) {
       throw new RangeError("No node after pos " + pos)
     }
-    return node.childNodes[offset]!
+    return node.childNodes[offset]
   }
 
   // View descs are responsible for setting any selection that falls
@@ -584,7 +584,7 @@ export class ViewDesc {
     const from = Math.min(anchor, head),
       to = Math.max(anchor, head)
     for (let i = 0, offset = 0; i < this.children.length; i++) {
-      const child = this.children[i]!,
+      const child = this.children[i],
         end = offset + child.size
       if (from > offset && to < end) {
         return child.setSelection(anchor - offset - child.border, head - offset - child.border, view, force)
@@ -684,7 +684,7 @@ export class ViewDesc {
   // by a DOM change, so that the next update will redraw it.
   markDirty(from: number, to: number): void {
     for (let offset = 0, i = 0; i < this.children.length; i++) {
-      const child = this.children[i]!,
+      const child = this.children[i],
         end = offset + child.size
       if (offset == end ? from <= end && to >= offset : from < end && to > offset) {
         const startInside = offset + child.border,
@@ -749,7 +749,7 @@ class WidgetViewDesc extends ViewDesc {
     // The widget's `getPos` can be called before `super` returns, so it
     // reads the desc through a cell that is filled in once it exists.
     const cell: WidgetCell = { desc: undefined }
-    let dom = (widget.type as WidgetType).toDOM as WidgetConstructor
+    let dom = (widget.type as WidgetType).toDOM
     if (Predicate.isFunction(dom)) {
       dom = dom(view, () => {
         const desc = cell.desc
@@ -888,7 +888,7 @@ class MarkViewDesc extends ViewDesc {
     const size = this.size
     if (to < size) nodes = replaceNodes(nodes, to, size, view)
     if (from > 0) nodes = replaceNodes(nodes, 0, from, view)
-    for (let i = 0; i < nodes.length; i++) nodes[i]!.parent = copy
+    for (let i = 0; i < nodes.length; i++) nodes[i].parent = copy
     copy.children = nodes
     return copy
   }
@@ -966,14 +966,14 @@ export class NodeViewDesc extends ViewDesc {
       const rendered = DOMSerializer.renderSpecUnsafe(document, node.type.spec.toDOM!(node), null, node.attrs)
       ;({ dom, contentDOM } = rendered)
     }
-    if (!contentDOM && !node.isText && dom!.nodeName != "BR") {
+    if (!contentDOM && !node.isText && dom.nodeName != "BR") {
       // Chrome gets confused by <br contenteditable=false>
       if (!(dom as HTMLElement).hasAttribute("contenteditable")) (dom as HTMLElement).contentEditable = "false"
       if (node.type.spec.draggable) (dom as HTMLElement).draggable = true
     }
 
-    const nodeDOM = dom!
-    dom = applyOuterDeco(dom!, outerDeco, node)
+    const nodeDOM = dom
+    dom = applyOuterDeco(dom, outerDeco, node)
 
     if (spec) {
       return (descObj = new CustomNodeViewDesc(
@@ -1013,7 +1013,7 @@ export class NodeViewDesc extends ViewDesc {
       // backspacing things. When that happens, this tries to find the
       // new parent.
       for (let i = this.children.length - 1; i >= 0; i--) {
-        const child = this.children[i]!
+        const child = this.children[i]
         if (this.dom.contains(child.dom.parentNode)) {
           rule.contentElement = child.dom.parentNode as HTMLElement
           break
@@ -1074,7 +1074,7 @@ export class NodeViewDesc extends ViewDesc {
           updater.syncToMarks(widget.spec.marks, inline, view, i)
         } else if ((widget.type as WidgetType).side >= 0 && !insideNode) {
           updater.syncToMarks(
-            i == this.node.childCount ? Mark.none : this.node.content.content[i]!.marks,
+            i == this.node.childCount ? Mark.none : this.node.content.content[i].marks,
             inline,
             view,
             i
@@ -1096,7 +1096,7 @@ export class NodeViewDesc extends ViewDesc {
           compositionInChild &&
           view.state.selection.from > off &&
           view.state.selection.to < off + child.nodeSize &&
-          (compIndex = updater.findIndexWithChild(composition!.node)) > -1 &&
+          (compIndex = updater.findIndexWithChild(composition.node)) > -1 &&
           updater.updateNodeAt(child, outerDeco, innerDeco, compIndex, view)
         ) {
           // Updated the specific node that holds the composition
@@ -1424,7 +1424,7 @@ function renderDescs(parentDOM: HTMLElement, descs: ReadonlyArray<ViewDesc>, vie
   let dom = parentDOM.firstChild,
     written = false
   for (let i = 0; i < descs.length; i++) {
-    const desc = descs[i]!,
+    const desc = descs[i],
       childDOM = desc.dom
     if (childDOM.parentNode == parentDOM) {
       while (childDOM != dom) {
@@ -1474,11 +1474,11 @@ const noDeco = [outerDecoLevel()]
 function computeOuterDeco(outerDeco: ReadonlyArray<Decoration>, node: Node<any, any>, needsWrap: boolean) {
   if (Arr.isReadonlyArrayEmpty(outerDeco)) return noDeco
 
-  let top = needsWrap ? noDeco[0]! : outerDecoLevel()
+  let top = needsWrap ? noDeco[0] : outerDecoLevel()
   const result = [top]
 
   for (let i = 0; i < outerDeco.length; i++) {
-    const attrs = (outerDeco[i]!.type as NodeType).attrs
+    const attrs = (outerDeco[i].type as NodeType).attrs
     if (!attrs) continue
     if (attrs.nodeName) {
       result.push((top = outerDecoLevel(attrs.nodeName)))
@@ -1510,7 +1510,7 @@ function patchOuterDeco(
 
   let curDOM = nodeDOM
   for (let i = 0; i < curComputed.length; i++) {
-    const deco = curComputed[i]!
+    const deco = curComputed[i]
     let prev = prevComputed[i]
     if (i) {
       let parent: DOMNode | null
@@ -1519,11 +1519,11 @@ function patchOuterDeco(
         prev.nodeName == deco.nodeName &&
         curDOM != outerDOM &&
         (parent = curDOM.parentNode) &&
-        parent.nodeName!.toLowerCase() == deco.nodeName
+        parent.nodeName.toLowerCase() == deco.nodeName
       ) {
         curDOM = parent
       } else {
-        const wrapper: HTMLElement & DecoWrapper = document.createElement(deco.nodeName!)
+        const wrapper: HTMLElement & DecoWrapper = document.createElement(deco.nodeName)
         wrapper.pmIsDeco = true
         wrapper.appendChild(curDOM)
         parent = wrapper
@@ -1531,7 +1531,7 @@ function patchOuterDeco(
         curDOM = parent
       }
     }
-    patchAttributes(curDOM as HTMLElement, prev || noDeco[0]!, deco)
+    patchAttributes(curDOM as HTMLElement, prev || noDeco[0], deco)
   }
   return curDOM
 }
@@ -1544,20 +1544,20 @@ function patchAttributes(dom: HTMLElement, prev: { [name: string]: string }, cur
   }
   for (const name in cur) {
     if (name != "class" && name != "style" && name != "nodeName" && cur[name] != prev[name]) {
-      dom.setAttribute(name, cur[name]!)
+      dom.setAttribute(name, cur[name])
     }
   }
   if (prev.class != cur.class) {
     const prevList = prev.class ? prev.class.split(" ").filter(Boolean) : []
     const curList = cur.class ? cur.class.split(" ").filter(Boolean) : []
     for (let i = 0; i < prevList.length; i++) {
-      if (curList.indexOf(prevList[i]!) == -1) {
-        dom.classList.remove(prevList[i]!)
+      if (curList.indexOf(prevList[i]) == -1) {
+        dom.classList.remove(prevList[i])
       }
     }
     for (let i = 0; i < curList.length; i++) {
-      if (prevList.indexOf(curList[i]!) == -1) {
-        dom.classList.add(curList[i]!)
+      if (prevList.indexOf(curList[i]) == -1) {
+        dom.classList.add(curList[i])
       }
     }
     if (dom.classList.item(0) === null) {
@@ -1569,7 +1569,7 @@ function patchAttributes(dom: HTMLElement, prev: { [name: string]: string }, cur
       const prop = /\s*([\w\-\xa1-￿]+)\s*:(?:"(?:\\.|[^"])*"|'(?:\\.|[^'])*'|\(.*?\)|[^;])*/g
       let m
       while ((m = prop.exec(prev.style))) {
-        dom.style.removeProperty(m[1]!)
+        dom.style.removeProperty(m[1])
       }
     }
     if (cur.style) {
@@ -1584,7 +1584,7 @@ function applyOuterDeco(dom: DOMNode, deco: ReadonlyArray<Decoration>, node: Nod
 
 function sameOuterDeco(a: ReadonlyArray<Decoration>, b: ReadonlyArray<Decoration>) {
   if (a.length != b.length) return false
-  for (let i = 0; i < a.length; i++) if (!a[i]!.type.eq(b[i]!.type)) return false
+  for (let i = 0; i < a.length; i++) if (!a[i].type.eq(b[i].type)) return false
   return true
 }
 
@@ -1622,7 +1622,7 @@ class ViewTreeUpdater {
   // `this.top`.
   destroyBetween(start: number, end: number) {
     if (start == end) return
-    for (let i = start; i < end; i++) this.top.children[i]!.destroy()
+    for (let i = start; i < end; i++) this.top.children[i].destroy()
     this.top.children.splice(start, end - start)
     this.changed = true
   }
@@ -1640,8 +1640,8 @@ class ViewTreeUpdater {
     const maxKeep = Math.min(depth, marks.length)
     while (
       keep < maxKeep &&
-      (keep == depth - 1 ? this.top : (this.stack[(keep + 1) << 1] as ViewDesc)).matchesMark(marks[keep]!) &&
-      marks[keep]!.type.spec.spanning !== false
+      (keep == depth - 1 ? this.top : (this.stack[(keep + 1) << 1] as ViewDesc)).matchesMark(marks[keep]) &&
+      marks[keep].type.spec.spanning !== false
     ) {
       keep++
     }
@@ -1659,8 +1659,8 @@ class ViewTreeUpdater {
         scanTo = this.top.children.length
       if (parentIndex < this.preMatch.index) scanTo = Math.min(this.index + 3, scanTo)
       for (let i = this.index; i < scanTo; i++) {
-        const next = this.top.children[i]!
-        if (next.matchesMark(marks[depth]!) && !this.isLocked(next.dom)) {
+        const next = this.top.children[i]
+        if (next.matchesMark(marks[depth]) && !this.isLocked(next.dom)) {
           found = i
           break
         }
@@ -1691,7 +1691,7 @@ class ViewTreeUpdater {
         }
         this.top = this.top.children[this.index]!
       } else {
-        const markDesc = MarkViewDesc.create(this.top, marks[depth]!, inline, view)
+        const markDesc = MarkViewDesc.create(this.top, marks[depth], inline, view)
         this.top.children.splice(this.index, 0, markDesc)
         this.top = markDesc
         this.changed = true
@@ -1719,7 +1719,7 @@ class ViewTreeUpdater {
       found = this.top.children.indexOf(targetDesc, this.index)
     } else {
       for (let i = this.index, e = Math.min(this.top.children.length, i + 5); i < e; i++) {
-        const child = this.top.children[i]!
+        const child = this.top.children[i]
         if (child.matchesNode(node, outerDeco, innerDeco) && !this.preMatch.matched.has(child)) {
           found = i
           break
@@ -1775,7 +1775,7 @@ class ViewTreeUpdater {
     pos: number
   ): boolean {
     for (let i = this.index; i < this.top.children.length; i++) {
-      const next = this.top.children[i]!
+      const next = this.top.children[i]
       if (next instanceof NodeViewDesc) {
         const matchedIndex = this.preMatch.matched.get(next)
         if (matchedIndex != null && matchedIndex != index) return false
@@ -1862,7 +1862,7 @@ class ViewTreeUpdater {
   }
 
   placeWidget(widget: Decoration, view: AnyView, pos: number) {
-    const next = this.index < this.top.children.length ? this.top.children[this.index]! : null
+    const next = this.index < this.top.children.length ? this.top.children[this.index] : null
     if (
       next &&
       next.matchesWidget(widget) &&
@@ -1908,7 +1908,7 @@ class ViewTreeUpdater {
     if (
       parent == this.top &&
       this.index < parent.children.length &&
-      parent.children[this.index]!.matchesHack(nodeName)
+      parent.children[this.index].matchesHack(nodeName)
     ) {
       this.index++
     } else {
@@ -1953,7 +1953,7 @@ function preMatch(frag: Fragment<any, any>, parentDesc: ViewDesc): PreMatch {
     let desc: ViewDesc
     for (;;) {
       if (descI) {
-        const next = curDesc.children[descI - 1]!
+        const next = curDesc.children[descI - 1]
         if (next instanceof MarkViewDesc) {
           curDesc = next
           descI = next.children.length
@@ -2001,7 +2001,7 @@ function iterDeco(
   // Simple, cheap variant for when there are no local decorations
   if (Arr.isReadonlyArrayEmpty(locals)) {
     for (let i = 0; i < parent.childCount; i++) {
-      const child = parent.content.content[i]!
+      const child = parent.content.content[i]
       onNode(child, locals, deco.forChild(offset, child), i)
       offset += child.nodeSize
     }
@@ -2013,8 +2013,8 @@ function iterDeco(
   const active: Array<Decoration> = []
   for (let parentIndex = 0; ;) {
     let widget: Decoration | undefined, widgets: Array<Decoration> | undefined
-    while (decoIndex < locals.length && locals[decoIndex]!.to == offset) {
-      const next = locals[decoIndex++]!
+    while (decoIndex < locals.length && locals[decoIndex].to == offset) {
+      const next = locals[decoIndex++]
       if (next.widget) {
         if (!widget) widget = next
         else (widgets || (widgets = [widget])).push(next)
@@ -2023,7 +2023,7 @@ function iterDeco(
     if (widget) {
       if (widgets) {
         const sorted = Arr.sort(widgets, bySide)
-        for (let i = 0; i < sorted.length; i++) onWidget(sorted[i]!, parentIndex, !!restNode)
+        for (let i = 0; i < sorted.length; i++) onWidget(sorted[i], parentIndex, !!restNode)
       } else {
         onWidget(widget, parentIndex, !!restNode)
       }
@@ -2041,16 +2041,16 @@ function iterDeco(
       break
     }
 
-    for (let i = 0; i < active.length; i++) if (active[i]!.to <= offset) active.splice(i--, 1)
-    while (decoIndex < locals.length && locals[decoIndex]!.from <= offset && locals[decoIndex]!.to > offset) {
-      active.push(locals[decoIndex++]!)
+    for (let i = 0; i < active.length; i++) if (active[i].to <= offset) active.splice(i--, 1)
+    while (decoIndex < locals.length && locals[decoIndex].from <= offset && locals[decoIndex].to > offset) {
+      active.push(locals[decoIndex++])
     }
 
     let end = offset + child.nodeSize
     if (child.isText) {
       let cutAt = end
-      if (decoIndex < locals.length && locals[decoIndex]!.from < cutAt) cutAt = locals[decoIndex]!.from
-      for (let i = 0; i < active.length; i++) if (active[i]!.to < cutAt) cutAt = active[i]!.to
+      if (decoIndex < locals.length && locals[decoIndex].from < cutAt) cutAt = locals[decoIndex].from
+      for (let i = 0; i < active.length; i++) if (active[i].to < cutAt) cutAt = active[i].to
       if (cutAt < end) {
         restNode = child.cut(cutAt - offset)
         child = child.cut(0, cutAt - offset)
@@ -2058,7 +2058,7 @@ function iterDeco(
         index = -1
       }
     } else {
-      while (decoIndex < locals.length && locals[decoIndex]!.to < end) decoIndex++
+      while (decoIndex < locals.length && locals[decoIndex].to < end) decoIndex++
     }
 
     const outerDeco = child.isInline && !child.isLeaf ? active.filter((d) => !d.inline) : active.slice()
@@ -2081,13 +2081,13 @@ function iosHacks(dom: HTMLElement) {
 // Find a piece of text in an inline fragment, overlapping from-to
 function findTextInFragment(frag: Fragment<any, any>, text: string, from: number, to: number) {
   for (let i = 0, pos = 0; i < frag.childCount && pos <= to;) {
-    const child = frag.content[i++]!,
+    const child = frag.content[i++],
       childStart = pos
     pos += child.nodeSize
     if (!child.isText) continue
     let str = textOf(child)
     while (i < frag.childCount) {
-      const next = frag.content[i++]!
+      const next = frag.content[i++]
       pos += next.nodeSize
       if (!next.isText) break
       str += textOf(next)
@@ -2120,7 +2120,7 @@ function findTextInFragment(frag: Fragment<any, any>, text: string, from: number
 function replaceNodes(nodes: ReadonlyArray<ViewDesc>, from: number, to: number, view: AnyView, replacement?: ViewDesc) {
   const result = []
   for (let i = 0, off = 0; i < nodes.length; i++) {
-    const child = nodes[i]!,
+    const child = nodes[i],
       start = off,
       end = (off += child.size)
     if (start >= to || end <= from) {

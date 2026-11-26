@@ -73,7 +73,7 @@ describe("Node", () => {
 
     it("can include parents", () => {
       const d = doc(blockquote(p("fo<a>o"), p("bar<b>")))
-      const slice = d.sliceUnsafe(tagsOf(d).a!, tagsOf(d).b, true)
+      const slice = d.sliceUnsafe(tagsOf(d).a, tagsOf(d).b, true)
       ist(slice.toString(), '<blockquote(paragraph("o"), paragraph("bar"))>(2,2)')
     })
 
@@ -94,18 +94,18 @@ describe("Node", () => {
 
     it("implements Equal", () => {
       const d = doc(p("on<a>e"), p("t<b>wo"))
-      const s1 = d.sliceUnsafe(tagsOf(d).a!, tagsOf(d).b),
-        s2 = d.sliceUnsafe(tagsOf(d).a!, tagsOf(d).b)
+      const s1 = d.sliceUnsafe(tagsOf(d).a, tagsOf(d).b),
+        s2 = d.sliceUnsafe(tagsOf(d).a, tagsOf(d).b)
       assert.isTrue(Equal.equals(s1, s2))
       assert.strictEqual(Hash.hash(s1), Hash.hash(s2))
       assert.isFalse(Equal.equals(s1, new Slice(s1.content, 0, 1)))
-      assert.isFalse(Equal.equals(s1, d.sliceUnsafe(tagsOf(d).a!, tagsOf(d).b! - 1)))
+      assert.isFalse(Equal.equals(s1, d.sliceUnsafe(tagsOf(d).a, tagsOf(d).b - 1)))
       assert.isTrue(Equal.equals(Slice.empty, d.sliceUnsafe(2, 2)))
     })
 
     it("round-trips JSON", () => {
       const d = doc(blockquote(p("fo<a>o"), p("b", em("a"), "r<b>")))
-      const slice = d.sliceUnsafe(tagsOf(d).a!, tagsOf(d).b)
+      const slice = d.sliceUnsafe(tagsOf(d).a, tagsOf(d).b)
       const json = slice.toJSON()
       assert.deepStrictEqual(json && { openStart: json.openStart, openEnd: json.openEnd }, {
         openStart: 1,

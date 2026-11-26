@@ -177,7 +177,7 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
    * from.
    */
   nodesBetween(from: number, to: number, f: NodeVisitor<Sc>, startPos = 0): void {
-    this.content.nodesBetween(from, to, f, startPos, this as Node<Sc>)
+    this.content.nodesBetween(from, to, f, startPos, this)
   }
 
   /** Call the given callback for every descendant node. Doesn't descend into a node when the callback returns `false`. */
@@ -231,7 +231,7 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
   /** @internal */
   [Hash.symbol](): number {
     return Hash.combine(Hash.string(this.type.name))(
-      Hash.combine(Hash.structure(this.attrs as object))(Hash.combine(Hash.array(this.marks))(Hash.hash(this.content)))
+      Hash.combine(Hash.structure(this.attrs))(Hash.combine(Hash.array(this.marks))(Hash.hash(this.content)))
     )
   }
 
@@ -314,12 +314,13 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
   /** @internal */
   nodeAtOrNull(pos: number): Node<Sc> | null {
     if (pos < 0 || pos > this.content.size) return null
-    for (let node: Node<Sc> | undefined = this as Node<Sc>; ;) {
-      const { index, offset } = node.content.findIndex(pos)
-      node = node.content.content[index]
+    for (let content = this.content; ;) {
+      const { index, offset } = content.findIndex(pos)
+      const node: Node<Sc> | undefined = content.content[index]
       if (!node) return null
       if (offset === pos || node.isText) return node
       pos -= offset + 1
+      content = node.content
     }
   }
 
@@ -339,8 +340,8 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
   childBefore(pos: number): ChildInfo<Sc, ChildNames<Sc, N>> {
     if (pos === 0) return { node: Option.none(), index: 0, offset: 0 }
     const { index, offset } = this.content.findIndex(pos)
-    if (offset < pos) return { node: Option.some(this.content.content[index]!), index, offset }
-    const node = this.content.content[index - 1]!
+    if (offset < pos) return { node: Option.some(this.content.content[index]), index, offset }
+    const node = this.content.content[index - 1]
     return { node: Option.some(node), index: index - 1, offset: offset - node.nodeSize }
   }
 
@@ -354,12 +355,12 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
 
   /** Like `resolve`, but throws a `PositionError` for out-of-range positions. */
   resolveUnsafe(pos: number): ResolvedPos<Sc> {
-    return ResolvedPos.resolveCached(this as Node<Sc>, pos)
+    return ResolvedPos.resolveCached(this, pos)
   }
 
   /** @internal */
   resolveNoCache(pos: number): ResolvedPos<Sc> {
-    return ResolvedPos.resolve(this as Node<Sc>, pos)
+    return ResolvedPos.resolve(this, pos)
   }
 
   /** Test whether a given mark or mark type occurs in this document between the two given positions. */
@@ -453,7 +454,7 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
     const one = this.contentMatchAtUnsafe(from).matchFragmentOrNull(replacement, start, end)
     const two = one && one.matchFragmentOrNull(this.content, to)
     if (!two || !two.validEnd) return false
-    for (let i = start; i < end; i++) if (!this.type.allowsMarks(replacement.content[i]!.marks)) return false
+    for (let i = start; i < end; i++) if (!this.type.allowsMarks(replacement.content[i].marks)) return false
     return true
   }
 
@@ -494,7 +495,7 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
     this.type.checkAttrs(this.attrs)
     let copy: ReadonlyArray<Mark<Sc>> = Mark.none
     for (let i = 0; i < this.marks.length; i++) {
-      const mark = this.marks[i]!
+      const mark = this.marks[i]
       mark.type.checkAttrs(mark.attrs)
       copy = mark.addToSet(copy)
     }
@@ -510,7 +511,7 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
   toJSON(): NodeJSON {
     const obj: Types.Mutable<NodeJSON> = { type: this.type.name }
     for (const _ in this.attrs) {
-      obj.attrs = this.type.identityAttrs ? this.attrs : encodeAttrs(this.type.attrs, this.attrs as Attrs)
+      obj.attrs = this.type.identityAttrs ? this.attrs : encodeAttrs(this.type.attrs, this.attrs)
       break
     }
     if (this.content.size) obj.content = this.content.toJSON()!
@@ -583,6 +584,6 @@ export class TextNode<Sc extends AnySchema = AnySchema> extends Node<Sc, "text" 
 }
 
 function wrapMarks(marks: ReadonlyArray<Mark<any, any>>, str: string) {
-  for (let i = marks.length - 1; i >= 0; i--) str = marks[i]!.type.name + "(" + str + ")"
+  for (let i = marks.length - 1; i >= 0; i--) str = marks[i].type.name + "(" + str + ")"
   return str
 }

@@ -113,7 +113,7 @@ function find(html: string, doc: PMNode) {
 function contextParser(context: string) {
   return new DOMParser(
     schema,
-    [{ tag: "foo", node: "horizontal_rule", context } as ParseRule].concat(DOMParser.schemaRules(schema) as ParseRule[])
+    [{ tag: "foo", node: "horizontal_rule", context } as ParseRule].concat(DOMParser.schemaRules(schema))
   )
 }
 
@@ -260,7 +260,7 @@ describe("DOMParser", () => {
             b.schema.text("double comment", [
               b.schema.marks.comment.create({ id: 1 }),
               b.schema.marks.comment.create({ id: 2 })
-            ])!
+            ])
           ])!
         ])!,
         '<p><span class="comment" data-id="1"><span class="comment" data-id="2">double comment</span></span></p>'
@@ -453,7 +453,7 @@ describe("DOMParser", () => {
     const item = schema.nodes.list_item.createAndFill()!
     it(
       "accepts the topMatch option",
-      parse("<ul><li>x</li></ul>", { topNode: item, topMatch: item.contentMatchAt(1)! }, li(ul(li(p("x")))))
+      parse("<ul><li>x</li></ul>", { topNode: item, topMatch: item.contentMatchAt(1) }, li(ul(li(p("x")))))
     )
 
     it(

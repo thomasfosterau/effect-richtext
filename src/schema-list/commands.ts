@@ -8,7 +8,6 @@
 import { done, keepMarks, syncCommand, type SyncResult } from "../commands/internal.ts"
 import {
   type AnySchema,
-  type Attrs,
   Fragment,
   type Node,
   type NodeAttrsInput,
@@ -76,7 +75,7 @@ export function wrapRangeInList<Sc extends AnySchema, N extends NodeNames<Sc>>(
     }
     doJoin = true
   }
-  const wrap = findWrappingOrNull(outerRange, listType, attrs as Attrs | null, range)
+  const wrap = findWrappingOrNull(outerRange, listType, attrs, range)
   if (!wrap) return false
   if (tr) doWrapInList(tr, range, wrap, doJoin, listType)
   return true
@@ -91,7 +90,7 @@ function doWrapInList(
 ) {
   let content: Fragment<any> = Fragment.empty
   for (let i = wrappers.length - 1; i >= 0; i--) {
-    content = Fragment.from(wrappers[i]!.type.createUnsafe(wrappers[i]!.attrs, content))
+    content = Fragment.from(wrappers[i].type.createUnsafe(wrappers[i].attrs, content))
   }
 
   tr.stepUnsafe(
@@ -107,7 +106,7 @@ function doWrapInList(
   )
 
   let found = 0
-  for (let i = 0; i < wrappers.length; i++) if (wrappers[i]!.type === listType) found = i + 1
+  for (let i = 0; i < wrappers.length; i++) if (wrappers[i].type === listType) found = i + 1
   const splitDepth = wrappers.length - found
 
   let splitPos = range.start + wrappers.length - (joinBefore ? 2 : 0)
@@ -204,10 +203,7 @@ export const splitListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(
     const nextType = $to.pos === $from.end() ? grandParent.contentMatchAtUnsafe(0).defaultTypeOrNull : null
     const tr = state.tr.deleteUnsafe($from.pos, $to.pos)
     const types: Array<NodeTypeWithAttrs<any> | null> | undefined = nextType
-      ? [
-          itemAttrs ? ({ type: grandParent.type, attrs: itemAttrs } as NodeTypeWithAttrs<any>) : null,
-          { type: nextType }
-        ]
+      ? [itemAttrs ? { type: grandParent.type, attrs: itemAttrs } : null, { type: nextType }]
       : undefined
     if (!canSplit(tr.doc, $from.pos, 2, types)) return false
     return done(dispatching, () => tr.splitUnsafe($from.pos, 2, types).scrollIntoView())

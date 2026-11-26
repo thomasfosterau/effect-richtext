@@ -178,8 +178,8 @@ const brokenSelectBetweenUneditable = browser.safari || (browser.chrome && brows
 
 function temporarilyEditableNear(view: AnyView, pos: number) {
   const { node, offset } = view.docView.domFromPos(pos, 0)
-  const after = offset < node.childNodes.length ? node.childNodes[offset]! : null
-  const before = offset ? node.childNodes[offset - 1]! : null
+  const after = offset < node.childNodes.length ? node.childNodes[offset] : null
+  const before = offset ? node.childNodes[offset - 1] : null
   if (browser.safari && after && (after as HTMLElement).contentEditable == "false") {
     return setEditable(after as HTMLElement)
   }
@@ -240,7 +240,7 @@ function selectCursorWrapper(view: AnyView) {
   if (!domSel) return
   const node = view.cursorWrapper!.dom,
     img = node.nodeName == "IMG"
-  if (img) domSel.collapse(node.parentNode!, domIndex(node) + 1)
+  if (img) domSel.collapse(node.parentNode, domIndex(node) + 1)
   else domSel.collapse(node, 0)
   // Kludge to kill 'control selection' in IE11 when selecting an
   // invisible cursor wrapper, since that would result in those weird

@@ -16,7 +16,7 @@ function test(
     trB = new Transform(doc)
   change(trA)
   otherChange(trB)
-  const result = new Transform(trB.doc).stepUnsafe(getSome(trA.steps[0]!.map(trB.mapping))).doc
+  const result = new Transform(trB.doc).stepUnsafe(getSome(trA.steps[0].map(trB.mapping))).doc
   ist(result, expected, eq)
 }
 
