@@ -119,7 +119,6 @@ export default defineConfig({
       "effect/avoid-any": "warn", // 413
       "effect/no-runtime-typeof": "warn", // 27
       "effect/no-unsafe-dictionary-type": "warn", // 68
-      "effect/no-unknown-parameters": "warn", // 57
       // The ported suites shadow the test-builder's `doc` / `schema`.
       "eslint/no-shadow": "warn", // 312
       // ---- Type-aware allowances (same rules as above) ---------------------
@@ -291,6 +290,7 @@ export default defineConfig({
         files: ["src/compat/**"],
         rules: {
           "effect/no-known-value-widening": "off",
+          "effect/no-unknown-parameters": "off",
           "effect/no-unknown-returns": "off"
         }
       },
@@ -299,7 +299,31 @@ export default defineConfig({
       {
         files: ["src/model/attrsCodec.ts"],
         rules: {
+          "effect/no-unknown-parameters": "off",
           "effect/no-unknown-returns": "off"
+        }
+      },
+      // These are the decode boundaries: `fromJSON` and its helpers take raw
+      // JSON and check it, attribute and metadata values may be anything a
+      // schema or plugin allows (ProseMirror's `any`), and node builders
+      // check their arguments at runtime. `unknown` is the honest input type.
+      {
+        files: [
+          "src/model/json.ts",
+          "src/model/replace.ts",
+          "src/model/schema.ts",
+          "src/model/comparedeep.ts",
+          "src/transform/step.ts",
+          "src/transform/attr_step.ts",
+          "src/transform/transform.ts",
+          "src/state/plugin.ts",
+          "src/state/selection.ts",
+          "src/state/state.ts",
+          "src/state/transaction.ts",
+          "src/extensions/editor.ts"
+        ],
+        rules: {
+          "effect/no-unknown-parameters": "off"
         }
       },
       // These ported prosemirror-state suites assert that `JSON.stringify`
