@@ -668,10 +668,23 @@ export class Attribute {
   }
 }
 
+// The names `validate` strings use: `typeof`'s, plus "null".
+const typeNames: ReadonlyArray<readonly [string, Predicate.Predicate<unknown>]> = [
+  ["null", Predicate.isNull],
+  ["string", Predicate.isString],
+  ["number", Predicate.isNumber],
+  ["boolean", Predicate.isBoolean],
+  ["bigint", Predicate.isBigInt],
+  ["symbol", Predicate.isSymbol],
+  ["undefined", Predicate.isUndefined],
+  ["function", Predicate.isFunction],
+  ["object", Predicate.isObjectOrArray]
+]
+
 function validateType(typeName: string, attrName: string, type: string) {
   const types = type.split("|")
   return (value: unknown) => {
-    const name = value === null ? "null" : typeof value
+    const name = typeNames.find(([, is]) => is(value))?.[0] ?? "object"
     if (types.indexOf(name) < 0) {
       throw new AttributeError({
         message: `Expected value of type ${types.join(",")} for attribute ${attrName} on type ${typeName}, got ${name}`

@@ -8,6 +8,7 @@
 //   in a schema whose `alt` has no validator: since prosemirror-model
 //   1.25.12, creating the test schema's image with an array `alt` already
 //   throws (upstream's own copy of this test fails against 1.25.12 too).
+import * as Predicate from "effect/Predicate"
 import { describe, it } from "@effect/vitest"
 import type { Mark, Node as PMNode } from "@thomasfosterau/effect-richtext/compat/model"
 import {
@@ -57,7 +58,7 @@ function domFrom(html: string, document_ = document) {
 function recover(html: string | HTMLElement, doc: PMNode, options?: ParseOptions) {
   return () => {
     const dom = document.createElement("div")
-    if (typeof html == "string") dom.innerHTML = html
+    if (Predicate.isString(html)) dom.innerHTML = html
     else dom.appendChild(html)
     ist(parser.parse(dom, options), doc, eq)
   }
@@ -79,7 +80,7 @@ function open(html: string, nodes: (string | PMNode)[], openStart: number, openE
     const result = parser.parseSlice(dom, options)
     ist(
       result,
-      new Slice(Fragment.from(nodes.map((n) => (typeof n == "string" ? schema.text(n) : n))), openStart, openEnd),
+      new Slice(Fragment.from(nodes.map((n) => (Predicate.isString(n) ? schema.text(n) : n))), openStart, openEnd),
       eq
     )
   }

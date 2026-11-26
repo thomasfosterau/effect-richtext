@@ -3,6 +3,7 @@
 // ../utils/ist.ts, ./view.js -> ./compat-view.ts, mocha describe/it ->
 // @effect/vitest; type-only imports marked as such), dprint formatting, and
 // `vi.spyOn` in place of reassigning `Selection.prototype.extend`
+import * as Predicate from "effect/Predicate"
 import { describe, it, vi } from "@effect/vitest"
 import type { Node as PMNode } from "@thomasfosterau/effect-richtext/compat/model"
 import { NodeSelection, Selection } from "@thomasfosterau/effect-richtext/compat/state"
@@ -73,7 +74,7 @@ function getSel() {
 }
 
 function setSel(view: EditorView, sel: number | Selection) {
-  if (typeof sel == "number") sel = Selection.near(view.state.doc.resolve(sel))
+  if (Predicate.isNumber(sel)) sel = Selection.near(view.state.doc.resolve(sel))
   view.dispatch(view.state.tr.setSelection(sel))
 }
 

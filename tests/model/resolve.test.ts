@@ -1,4 +1,5 @@
 // Ported from prosemirror-model/test/test-resolve.ts (MIT, Marijn Haverbeke and others)
+import * as Predicate from "effect/Predicate"
 import { assert, describe, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
@@ -47,10 +48,10 @@ describe("Node", () => {
         ist($pos.parentOffset, exp[exp.length - 3])
         const before = Option.getOrNull($pos.nodeBefore),
           eBefore = exp[exp.length - 2]
-        ist(typeof eBefore == "string" ? before!.textContent : before, eBefore)
+        ist(Predicate.isString(eBefore) ? before!.textContent : before, eBefore)
         const after = Option.getOrNull($pos.nodeAfter),
           eAfter = exp[exp.length - 1]
-        ist(typeof eAfter == "string" ? after!.textContent : after, eAfter)
+        ist(Predicate.isString(eAfter) ? after!.textContent : after, eAfter)
       }
     })
 

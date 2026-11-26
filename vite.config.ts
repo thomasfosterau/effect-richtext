@@ -117,7 +117,6 @@ export default defineConfig({
       "effect/prefer-option-over-null": "warn", // 989
       "effect/imperative-loops": "warn", // 599
       "effect/avoid-any": "warn", // 409
-      "effect/no-runtime-typeof": "warn", // 27
       "effect/no-unsafe-dictionary-type": "warn", // 68
       "effect/no-unknown-parameters": "warn", // 59
       // The ported suites shadow the test-builder's `doc` / `schema`.

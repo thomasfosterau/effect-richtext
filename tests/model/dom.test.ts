@@ -1,5 +1,6 @@
 // Ported from prosemirror-model/test/test-dom.ts
 // (MIT licensed, copyright Marijn Haverbeke and others).
+import * as Predicate from "effect/Predicate"
 import { assert, describe, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
@@ -59,7 +60,7 @@ function domFrom(html: string, document_: Document = document) {
 function recover(html: string | HTMLElement, doc: PMNode<any>, options?: ParseOptions<any>) {
   return () => {
     const dom = document.createElement("div")
-    if (typeof html == "string") dom.innerHTML = html
+    if (Predicate.isString(html)) dom.innerHTML = html
     else dom.appendChild(html)
     ist(parser.parseUnsafe(dom, options), doc, eq)
   }
@@ -88,7 +89,7 @@ function open(
     ist(
       result,
       new Slice(
-        Fragment.from(nodes.map((n) => (typeof n == "string" ? (schema.textUnsafe(n) as PMNode<any>) : n))),
+        Fragment.from(nodes.map((n) => (Predicate.isString(n) ? (schema.textUnsafe(n) as PMNode<any>) : n))),
         openStart,
         openEnd
       ),

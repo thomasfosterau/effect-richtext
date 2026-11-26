@@ -1,4 +1,5 @@
 // Ported from prosemirror-view/test/webtest-selection.ts (MIT, Marijn Haverbeke and others)
+import * as Predicate from "effect/Predicate"
 import { describe, it, vi } from "@effect/vitest"
 import type { Node as PMNode } from "@thomasfosterau/effect-richtext/Model"
 import { NodeSelection, Selection } from "@thomasfosterau/effect-richtext/State"
@@ -70,7 +71,7 @@ function getSel() {
 }
 
 function setSel(view: EditorView, sel: number | Selection) {
-  if (typeof sel == "number") sel = Selection.near(view.state.doc.resolveUnsafe(sel))
+  if (Predicate.isNumber(sel)) sel = Selection.near(view.state.doc.resolveUnsafe(sel))
   view.dispatchUnsafe(view.state.tr.setSelectionUnsafe(sel))
 }
 
