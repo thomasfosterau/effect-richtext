@@ -296,14 +296,14 @@ export function autoJoin(
  */
 export function chainCommands(...commands: ReadonlyArray<Command>): Command {
   return function (state, dispatch, view) {
-    for (let i = 0; i < commands.length; i++) if (commands[i]!(state, dispatch, view)) return true
+    for (let i = 0; i < commands.length; i++) if (commands[i](state, dispatch, view)) return true
     return false
   }
 }
 
 const fromCoreKeymap = (map: { readonly [key: string]: S.Command }): { [key: string]: Command } => {
   const result: { [key: string]: Command } = {}
-  for (const key in map) result[key] = fromCoreCommand(map[key]!)
+  for (const key in map) result[key] = fromCoreCommand(map[key])
   return result
 }
 

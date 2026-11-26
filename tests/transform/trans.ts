@@ -9,7 +9,7 @@ import { jsonRoundTrip } from "../utils/json.ts"
 function invert(transform: Transform<any>): Transform<any> {
   const out = new Transform(transform.doc)
   for (let i = transform.steps.length - 1; i >= 0; i--) {
-    out.stepUnsafe(transform.steps[i]!.invert(transform.docs[i]!))
+    out.stepUnsafe(transform.steps[i].invert(transform.docs[i]))
   }
   return out
 }
@@ -20,7 +20,7 @@ function testMapping(mapping: Mapping, pos: number, newPos: number) {
 
   const remap = new Mapping(mapping.maps.map((m) => m.invert()))
   for (let i = mapping.maps.length - 1, mapFrom = mapping.maps.length; i >= 0; i--) {
-    remap.appendMap(mapping.maps[i]!, --mapFrom)
+    remap.appendMap(mapping.maps[i], --mapFrom)
   }
   ist(remap.map(pos, 1), pos)
 }

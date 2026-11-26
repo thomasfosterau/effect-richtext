@@ -122,7 +122,7 @@ export class Transform<Sc extends AnySchema = AnySchema> {
 
   /** The starting document. */
   get before(): Node<Sc> {
-    return this.docs.length ? this.docs[0]! : this.currentDoc
+    return this.docs.length ? this.docs[0] : this.currentDoc
   }
 
   /**
@@ -165,7 +165,7 @@ export class Transform<Sc extends AnySchema = AnySchema> {
     let from = 1e9,
       to = -1e9
     for (let i = 0; i < this.mapping.maps.length; i++) {
-      const map = this.mapping.maps[i]!
+      const map = this.mapping.maps[i]
       if (i) {
         from = map.map(from, 1)
         to = map.map(to, -1)
@@ -223,7 +223,7 @@ export class Transform<Sc extends AnySchema = AnySchema> {
 
   /** Like `replaceWith`, but throws on failure. */
   replaceWithUnsafe(from: number, to: number, content: ContentInput<Sc>): this {
-    return this.replaceUnsafe(from, to, new Slice(Fragment.from(content as Fragment<Sc>), 0, 0))
+    return this.replaceUnsafe(from, to, new Slice(Fragment.from(content), 0, 0))
   }
 
   /** Delete the content between the given positions. */
@@ -349,7 +349,7 @@ export class Transform<Sc extends AnySchema = AnySchema> {
 
   /** Like `wrap`, but throws on failure. */
   wrapUnsafe(range: NodeRange<Sc>, wrappers: ReadonlyArray<NodeTypeWithAttrs<Sc>>): this {
-    wrap(this, range, wrappers as ReadonlyArray<any>)
+    wrap(this, range, wrappers)
     return this
   }
 
@@ -398,7 +398,7 @@ export class Transform<Sc extends AnySchema = AnySchema> {
     attrs?: NodeAttrsInput<Sc, N> | null,
     marks?: ReadonlyArray<Mark<Sc>>
   ): this {
-    setNodeMarkup(this, pos, type, attrs as Attrs | null | undefined, marks)
+    setNodeMarkup(this, pos, type, attrs, marks)
     return this
   }
 
@@ -459,7 +459,7 @@ export class Transform<Sc extends AnySchema = AnySchema> {
         steps.push(new RemoveNodeMarkStep(pos, found))
         set = found.removeFromSet(set)
       }
-      for (let i = steps.length - 1; i >= 0; i--) this.stepUnsafe(steps[i]!)
+      for (let i = steps.length - 1; i >= 0; i--) this.stepUnsafe(steps[i])
     }
     return this
   }
@@ -481,7 +481,7 @@ export class Transform<Sc extends AnySchema = AnySchema> {
 
   /** Like `split`, but throws on failure. */
   splitUnsafe(pos: number, depth = 1, typesAfter?: ReadonlyArray<NodeTypeWithAttrs<Sc> | null | undefined>): this {
-    split(this, pos, depth, typesAfter as ReadonlyArray<any> | undefined)
+    split(this, pos, depth, typesAfter)
     return this
   }
 

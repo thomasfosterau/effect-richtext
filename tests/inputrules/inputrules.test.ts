@@ -37,7 +37,7 @@ function apply(rule: InputRule<any, any, any>, d: Node<any>, typed: string): Tra
 
 describe("wrappingInputRule", () => {
   const quote = wrappingInputRule(/^\s*>\s$/, nodes.blockquote)
-  const list = wrappingInputRule(/^(\d+)\.\s$/, nodes.ordered_list, (m) => ({ order: +m[1]! }))
+  const list = wrappingInputRule(/^(\d+)\.\s$/, nodes.ordered_list, (m) => ({ order: +m[1] }))
   const bullets = wrappingInputRule(/^\s*([-+*])\s$/, nodes.bullet_list)
 
   it("wraps the textblock", () => {
@@ -78,7 +78,7 @@ describe("wrappingInputRule", () => {
 })
 
 describe("textblockTypeInputRule", () => {
-  const heading = textblockTypeInputRule(/^(#{1,6})\s$/, nodes.heading, (m) => ({ level: m[1]!.length }))
+  const heading = textblockTypeInputRule(/^(#{1,6})\s$/, nodes.heading, (m) => ({ level: m[1].length }))
   const code = textblockTypeInputRule(/^```$/, nodes.code_block)
 
   it("changes the textblock's type", () => {

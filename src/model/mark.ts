@@ -55,7 +55,7 @@ export class Mark<Sc extends AnySchema = AnySchema, out M extends MarkNames<Sc> 
     let copy: Array<Mk | this> | undefined
     let placed = false
     for (let i = 0; i < set.length; i++) {
-      const other = set[i]!
+      const other = set[i]
       if (this.eq(other)) return set
       if (this.type.excludes(other.type)) {
         if (!copy) copy = set.slice(0, i)
@@ -81,14 +81,14 @@ export class Mark<Sc extends AnySchema = AnySchema, out M extends MarkNames<Sc> 
    */
   removeFromSet<Mk extends Mark<any, any>>(set: ReadonlyArray<Mk>): ReadonlyArray<Mk> {
     for (let i = 0; i < set.length; i++) {
-      if (this.eq(set[i]!)) return set.slice(0, i).concat(set.slice(i + 1))
+      if (this.eq(set[i])) return set.slice(0, i).concat(set.slice(i + 1))
     }
     return set
   }
 
   /** Test whether this mark is in the given set of marks. */
   isInSet(set: ReadonlyArray<Mark<any, any>>): boolean {
-    for (let i = 0; i < set.length; i++) if (this.eq(set[i]!)) return true
+    for (let i = 0; i < set.length; i++) if (this.eq(set[i])) return true
     return false
   }
 
@@ -104,7 +104,7 @@ export class Mark<Sc extends AnySchema = AnySchema, out M extends MarkNames<Sc> 
 
   /** @internal */
   [Hash.symbol](): number {
-    return Hash.combine(Hash.string(this.type.name))(Hash.structure(this.attrs as object))
+    return Hash.combine(Hash.string(this.type.name))(Hash.structure(this.attrs))
   }
 
   /** Convert this mark to a JSON-serializable representation. */
@@ -126,7 +126,7 @@ export class Mark<Sc extends AnySchema = AnySchema, out M extends MarkNames<Sc> 
   static sameSet(this: void, a: ReadonlyArray<Mark<any, any>>, b: ReadonlyArray<Mark<any, any>>): boolean {
     if (a === b) return true
     if (a.length !== b.length) return false
-    for (let i = 0; i < a.length; i++) if (!a[i]!.eq(b[i]!)) return false
+    for (let i = 0; i < a.length; i++) if (!a[i].eq(b[i])) return false
     return true
   }
 

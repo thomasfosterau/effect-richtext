@@ -568,9 +568,9 @@ export const flatten = (extension: AnyExtension): Flattened => {
     for (const name in spec.commands) if (!(name in commands)) commands[name] = spec.commands[name]!
   }
   for (let i = facets.length - 1; i >= 0; i--) {
-    const spec = facets[i]!.spec
-    for (const name in spec.nodes) mergeInto(nodes, name, spec.nodes[name]!)
-    for (const name in spec.marks) mergeInto(marks, name, spec.marks[name]!)
+    const spec = facets[i].spec
+    for (const name in spec.nodes) mergeInto(nodes, name, spec.nodes[name])
+    for (const name in spec.marks) mergeInto(marks, name, spec.marks[name])
   }
   return { nodes: Rec.getSomes(nodes), marks: Rec.getSomes(marks), plugins, commands }
 }

@@ -135,18 +135,18 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
         let keep = 0,
           rendered = 0
         while (keep < active.length && rendered < node.marks.length) {
-          const next = node.marks[rendered]!
+          const next = node.marks[rendered]
           if (!this.marks[next.type.name]) {
             rendered++
             continue
           }
-          if (!next.eq(active[keep]![0]) || next.type.spec.spanning === false) break
+          if (!next.eq(active[keep][0]) || next.type.spec.spanning === false) break
           keep++
           rendered++
         }
         while (keep < active.length) top = active.pop()![1]
         while (rendered < node.marks.length) {
-          const add = node.marks[rendered++]!
+          const add = node.marks[rendered++]
           const markDOM = this.serializeMarkOrNull(add, node.isInline, options)
           if (markDOM) {
             active.push([add, top])
@@ -186,7 +186,7 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
   serializeNode(node: Node<Sc, any>, options: SerializeOptions = {}): globalThis.Node {
     let dom = this.serializeNodeInner(node, options)
     for (let i = node.marks.length - 1; i >= 0; i--) {
-      const wrap = this.serializeMarkOrNull(node.marks[i]!, node.isInline, options)
+      const wrap = this.serializeMarkOrNull(node.marks[i], node.isInline, options)
       if (wrap) {
         ;(wrap.contentDOM || wrap.dom).appendChild(dom)
         dom = wrap.dom
@@ -246,10 +246,10 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
   static fromSchema<Sc extends AnySchema>(schema: Sc): DOMSerializer<Sc> {
     return (
       (schema.cached.domSerializer as DOMSerializer<Sc> | undefined) ||
-      ((schema.cached.domSerializer = new DOMSerializer<Sc>(
+      (schema.cached.domSerializer = new DOMSerializer<Sc>(
         DOMSerializer.nodesFromSchema(schema),
         DOMSerializer.marksFromSchema(schema)
-      )) as DOMSerializer<Sc>)
+      ))
     )
   }
 
@@ -265,7 +265,7 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
 
   /** Gather the serializers in a schema's mark specs into an object. */
   static marksFromSchema<Sc extends AnySchema>(schema: Sc): { [mark: string]: MarkSerializer<Sc> } {
-    return gatherToDOM(schema.marks) as { [mark: string]: MarkSerializer<Sc> }
+    return gatherToDOM(schema.marks)
   }
 }
 
@@ -274,7 +274,7 @@ const isDOMSpecError = (u: unknown): u is DOMSpecError => u instanceof DOMSpecEr
 function gatherToDOM(obj: { readonly [name: string]: NodeType<any, any> | MarkType<any, any> }) {
   const result: { [name: string]: (value: any, inline: boolean) => DOMOutputSpec } = {}
   for (const name in obj) {
-    const toDOM = obj[name]!.spec.toDOM as ((value: any, inline: boolean) => DOMOutputSpec) | undefined
+    const toDOM = obj[name].spec.toDOM as ((value: any, inline: boolean) => DOMOutputSpec) | undefined
     if (toDOM) result[name] = toDOM
   }
   return result
@@ -328,7 +328,7 @@ function renderSpecInner(
     Predicate.hasProperty(structure.dom, "nodeType") &&
     structure.dom.nodeType === 1
   )
-    return structure as RenderedSpec
+    return structure
   let tagName = (structure as ReadonlyArray<unknown>)[0],
     suspicious
   if (!Predicate.isString(tagName)) throw new DOMSpecError({ message: "Invalid array passed to renderSpec" })

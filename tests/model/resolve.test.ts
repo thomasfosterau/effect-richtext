@@ -34,7 +34,7 @@ describe("Node", () => {
 
       for (let pos = 0; pos <= testDoc.content.size; pos++) {
         const $pos = testDoc.resolveUnsafe(pos),
-          exp = expected[pos]!
+          exp = expected[pos]
         ist($pos.depth, exp.length - 4)
         for (let i = 0; i < exp.length - 3; i++) {
           ist($pos.node(i).eq(exp[i].node))

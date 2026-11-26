@@ -39,9 +39,9 @@ type DecoSpec =
 
 function make(d: DecoSpec) {
   if ((d as Decoration).type) return d as Decoration
-  if ((d as any).pos != null) return Decoration.widget((d as { pos: number }).pos, widget, d as any)
+  if ((d as any).pos != null) return Decoration.widget((d as { pos: number }).pos, widget, d)
   if ((d as any).node) return Decoration.node((d as any).from, (d as any).to, (d as any).attrs || {}, d)
-  return Decoration.inline((d as any).from, (d as any).to, (d as any).attrs || {}, d as any)
+  return Decoration.inline((d as any).from, (d as any).to, (d as any).attrs || {}, d)
 }
 
 function build(doc: Node, ...decorations: DecoSpec[]) {

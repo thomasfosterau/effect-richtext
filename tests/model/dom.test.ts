@@ -342,7 +342,7 @@ describe("DOMParser", () => {
       dom.appendChild(DOMSerializer.fromSchema(xmlnsSchema).serializeFragment(d.content, { document: xmlDocument }))
       ist(dom.querySelector("svg")!.namespaceURI, "http://www.w3.org/2000/svg")
       ist(dom.querySelector("use")!.namespaceURI, "http://www.w3.org/2000/svg")
-      ist(dom.querySelector("use")!.attributes[0]!.namespaceURI, "http://www.w3.org/1999/xlink")
+      ist(dom.querySelector("use")!.attributes[0].namespaceURI, "http://www.w3.org/1999/xlink")
     })
 
     it("can recover a list item", recover("<ol><p>Oh no</p></ol>", doc(ol(li(p("Oh no"))))))
@@ -737,7 +737,7 @@ describe("DOMParser", () => {
       ist(
         contextParser("doc//blockquote/").parseUnsafe(domFrom("<blockquote><foo></foo></blockquote>"), {
           topNode: blockquote(),
-          context: cxDoc.resolveUnsafe(cxDoc.tag.a!)
+          context: cxDoc.resolveUnsafe(cxDoc.tag.a)
         }),
         blockquote(blockquote(hr())),
         eq
@@ -748,7 +748,7 @@ describe("DOMParser", () => {
       const cxDoc = doc(blockquote("<a>", hr()))
       ist(
         contextParser("doc//blockquote/").parseSliceUnsafe(domFrom("<foo></foo>"), {
-          context: cxDoc.resolveUnsafe(cxDoc.tag.a!)
+          context: cxDoc.resolveUnsafe(cxDoc.tag.a)
         }),
         new Slice(blockquote(hr()).content, 0, 0),
         eq

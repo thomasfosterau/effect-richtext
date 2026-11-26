@@ -48,7 +48,7 @@ function parseBetween(view: AnyView, from_: number, to_: number, addedNodes: Rea
   // the deleted content with a random BR node
   if (browser.chrome && view.input.lastKeyCode === 8) {
     for (let off = toOffset; off > fromOffset; off--) {
-      const node = parent.childNodes[off - 1]!,
+      const node = parent.childNodes[off - 1],
         desc = node.pmViewDesc
       if (node.nodeName == "BR" && !desc) {
         toOffset = off
@@ -73,8 +73,8 @@ function parseBetween(view: AnyView, from_: number, to_: number, addedNodes: Rea
     ruleFromNode: ruleFromNode(addedNodes),
     context: $from
   })
-  if (find && find[0]!.pos != null) {
-    const anchorPos = find[0]!.pos
+  if (find && find[0].pos != null) {
+    const anchorPos = find[0].pos
     let head = find[1] && find[1].pos
     if (head == null) head = anchorPos
     sel = { anchor: anchorPos + from, head: head + from }
@@ -305,7 +305,7 @@ export function readDOMChange(
       view.state.tr.replaceUnsafe(
         chFrom,
         chTo,
-        parse.doc.sliceUnsafe(change!.start - parse.from, change!.endB - parse.from)
+        parse.doc.sliceUnsafe(change.start - parse.from, change.endB - parse.from)
       )
     if (parse.sel) {
       const resolved = resolveSelection(view, tr.doc, parse.sel)
@@ -320,7 +320,7 @@ export function readDOMChange(
           (browser.chrome &&
             view.composing &&
             resolved.empty &&
-            (change!.start != change!.endB || view.input.lastChromeDelete < now - 100) &&
+            (change.start != change.endB || view.input.lastChromeDelete < now - 100) &&
             (resolved.head == chFrom || resolved.head == tr.mapping.map(chTo) - 1)) ||
           (browser.ie && resolved.empty && resolved.head == chFrom)
         )
@@ -359,7 +359,7 @@ export function readDOMChange(
       else tr.removeMark(chFrom, chTo, markChange.mark)
       view.dispatchInternal(tr)
     } else if (
-      $from.parent.content.content[$from.index()]!.isText &&
+      $from.parent.content.content[$from.index()].isText &&
       $from.index() == $to.index() - ($to.textOffset ? 0 : 1)
     ) {
       // Both positions in the same text node -- simply insert text
@@ -392,15 +392,15 @@ function isMarkChange(
   cur: Fragment<any, any>,
   prev: Fragment<any, any>
 ): { mark: Mark<any, any>; type: string } | null | undefined {
-  const curMarks = cur.content[0]!.marks,
-    prevMarks = prev.content[0]!.marks
+  const curMarks = cur.content[0].marks,
+    prevMarks = prev.content[0].marks
   let added = curMarks,
     removed = prevMarks,
     type,
     mark: Mark<any, any> | undefined,
     update
-  for (let i = 0; i < prevMarks.length; i++) added = prevMarks[i]!.removeFromSet(added)
-  for (let i = 0; i < curMarks.length; i++) removed = curMarks[i]!.removeFromSet(removed)
+  for (let i = 0; i < prevMarks.length; i++) added = prevMarks[i].removeFromSet(added)
+  for (let i = 0; i < curMarks.length; i++) removed = curMarks[i].removeFromSet(removed)
   if (added.length == 1 && Arr.isReadonlyArrayEmpty(removed)) {
     mark = added[0]!
     type = "add"
@@ -413,7 +413,7 @@ function isMarkChange(
     return null
   }
   const updated = []
-  for (let i = 0; i < prev.childCount; i++) updated.push(update(prev.content[i]!))
+  for (let i = 0; i < prev.childCount; i++) updated.push(update(prev.content[i]))
   if (Fragment.from(updated).eq(cur)) return { mark, type }
   return undefined
 }

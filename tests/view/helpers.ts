@@ -14,7 +14,7 @@ import { injectViewCSSUnsafe } from "@thomasfosterau/effect-richtext/ViewCss"
 
 /** The `#workspace` element the ProseMirror test page provides. */
 export const workspace = (): HTMLElement => {
-  let space = document.querySelector("#workspace") as HTMLElement | null
+  let space = document.querySelector<HTMLElement>("#workspace")
   if (!space) {
     // The ProseMirror test pages load prosemirror-view/style/prosemirror.css.
     injectViewCSSUnsafe(document)

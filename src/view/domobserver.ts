@@ -75,7 +75,7 @@ export class DOMObserver {
     this.observer =
       window.MutationObserver &&
       new window.MutationObserver((mutations) => {
-        for (let i = 0; i < mutations.length; i++) this.queue.push(mutations[i]!)
+        for (let i = 0; i < mutations.length; i++) this.queue.push(mutations[i])
         if (
           browser.ie &&
           browser.ie_version <= 11 &&
@@ -149,7 +149,7 @@ export class DOMObserver {
     if (this.observer) {
       const take = this.observer.takeRecords()
       if (take.length) {
-        for (let i = 0; i < take.length; i++) this.queue.push(take[i]!)
+        for (let i = 0; i < take.length; i++) this.queue.push(take[i])
         window.setTimeout(() => this.flush(), 20)
       }
       this.observer.disconnect()
@@ -243,7 +243,7 @@ export class DOMObserver {
     const added: Array<DOMNode> = []
     if (view.editable) {
       for (let i = 0; i < mutations.length; i++) {
-        const result = this.registerMutation(mutations[i]!, added)
+        const result = this.registerMutation(mutations[i], added)
         if (result) {
           from = from < 0 ? result.from : Math.min(result.from, from)
           to = to < 0 ? result.to : Math.max(result.to, to)
@@ -300,13 +300,13 @@ export class DOMObserver {
       newSel &&
       view.input.lastFocus > now - 200 &&
       Math.max(view.input.lastTouch, view.input.lastClick.time) < now - 300 &&
-      selectionCollapsed(selRange!) &&
+      selectionCollapsed(selRange) &&
       (readSel = selectionFromDOM(view)) &&
       readSel.eq(Selection.near(view.state.doc.resolveUnsafe(0), 1))
     ) {
       view.input.lastFocus = 0
       selectionToDOM(view)
-      this.currentSelection.set(selRange!)
+      this.currentSelection.set(selRange)
       view.scrollToSelection()
     } else if (from > -1 || newSel) {
       if (from > -1) {
@@ -341,7 +341,7 @@ export class DOMObserver {
 
     if (mut.type == "childList") {
       for (let i = 0; i < mut.addedNodes.length; i++) {
-        const node = mut.addedNodes[i]!
+        const node = mut.addedNodes[i]
         added.push(node)
         if (node.nodeType == 3) this.lastChangedTextNode = node as Text
       }
@@ -354,7 +354,7 @@ export class DOMObserver {
         // IE11 gives us incorrect next/prev siblings for some
         // insertions, so if there are added nodes, recompute those
         for (let i = 0; i < mut.addedNodes.length; i++) {
-          const { nextSibling, previousSibling } = mut.addedNodes[i]!
+          const { nextSibling, previousSibling } = mut.addedNodes[i]
           if (!previousSibling || Array.prototype.indexOf.call(mut.addedNodes, previousSibling) < 0) {
             prev = previousSibling
           }

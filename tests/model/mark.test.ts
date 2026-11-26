@@ -37,7 +37,7 @@ const remark1 = custom.remark.createUnsafe({ id: 1 }),
   customStrong = custom.strong.createUnsafe()
 
 function isAt(doc: Node, mark: Mark, result: boolean) {
-  ist(mark.isInSet(doc.resolveUnsafe(tagsOf(doc).a!).marks()), result)
+  ist(mark.isInSet(doc.resolveUnsafe(tagsOf(doc).a).marks()), result)
 }
 
 describe("Mark", () => {
@@ -237,7 +237,7 @@ describe("Mark", () => {
       assert.deepStrictEqual(json, { type: "at", attrs: { when: 0 } })
       const back = s.markFromJSONUnsafe(json)
       assert.instanceOf(back.attrs.when, Date)
-      assert.strictEqual((back.attrs.when as Date).getTime(), 0)
+      assert.strictEqual(back.attrs.when.getTime(), 0)
     })
   })
 })

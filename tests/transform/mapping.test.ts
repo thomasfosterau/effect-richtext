@@ -8,7 +8,7 @@ import { getSome } from "../utils/option.ts"
 function testMapping(mapping: Mapping, ...cases: Array<[number, number, number?, boolean?]>) {
   const inverted = mapping.invert()
   for (let i = 0; i < cases.length; i++) {
-    const [from, to, bias = 1, lossy] = cases[i]!
+    const [from, to, bias = 1, lossy] = cases[i]
     ist(mapping.map(from, bias), to)
     if (!lossy) ist(inverted.map(to, bias), from)
   }
@@ -28,7 +28,7 @@ function mk(...args: Array<Array<number> | { [from: number]: number }>) {
   const mapping = new Mapping()
   args.forEach((arg) => {
     if (Array.isArray(arg)) mapping.appendMap(new StepMap(arg))
-    else for (const from in arg) mapping.setMirror(+from, arg[from]!)
+    else for (const from in arg) mapping.setMirror(+from, arg[from])
   })
   return mapping
 }

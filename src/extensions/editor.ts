@@ -340,8 +340,7 @@ export class Editor<T extends ExtensionTypes> {
     this.marks = marks as any
     const commands: Record<string, unknown> = {}
     for (const name in creators) {
-      commands[name] = (...args: Array<unknown>) =>
-        Effect.suspend(() => this.runCommand(creators[name]!(...args), true))
+      commands[name] = (...args: Array<unknown>) => Effect.suspend(() => this.runCommand(creators[name](...args), true))
     }
     this.commands = commands as any
   }
@@ -438,7 +437,7 @@ export class Editor<T extends ExtensionTypes> {
     const result: Record<string, unknown> = {}
     for (const name in this.creators) {
       result[name] = (...args: Array<unknown>) =>
-        Effect.suspend(() => this.runCommand(this.creators[name]!(...args), false))
+        Effect.suspend(() => this.runCommand(this.creators[name](...args), false))
     }
     return result as any
   }
@@ -457,7 +456,7 @@ export class Editor<T extends ExtensionTypes> {
     for (const name in this.creators) {
       if (name === "run") continue
       chain[name] = (...args: Array<unknown>) => {
-        queue.push(this.creators[name]!(...args))
+        queue.push(this.creators[name](...args))
         return chain
       }
     }
@@ -505,7 +504,7 @@ export class Editor<T extends ExtensionTypes> {
   }
 
   private nodeBuilder(name: string) {
-    const type = this.schema.nodes[name]!
+    const type = this.schema.nodes[name]
     return (...args: Array<unknown>) => {
       let attrs: Attrs | null = null
       if (args.length && (args[0] === null || isPlainObject(args[0]))) attrs = args.shift() as Attrs | null

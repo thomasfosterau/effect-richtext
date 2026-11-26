@@ -151,10 +151,7 @@ export function findWrappingOrNull<Sc extends AnySchema>(
   const around = findWrappingOutside(range, nodeType)
   const inner = around && findWrappingInside(innerRange, nodeType)
   if (!inner) return null
-  // SAFETY: each wrapper is a type of `Sc`; only `nodeType` gets attrs.
-  return (around!.map(withAttrs) as Array<AnyWrapper>)
-    .concat({ type: nodeType, attrs })
-    .concat(inner.map(withAttrs)) as ReadonlyArray<NodeTypeWithAttrs<Sc>>
+  return around.map(withAttrs).concat({ type: nodeType, attrs }).concat(inner.map(withAttrs))
 }
 
 const withAttrs = (type: NodeType<any, any>): AnyWrapper => ({ type, attrs: null })
@@ -163,19 +160,19 @@ function findWrappingOutside(range: NodeRange<any>, type: NodeType<any, any>) {
   const { parent, startIndex, endIndex } = range
   const around = parent.contentMatchAtUnsafe(startIndex).findWrappingOrNull(type)
   if (!around) return null
-  const outer = around.length ? around[0]! : type
+  const outer = around.length ? around[0] : type
   return parent.canReplaceWith(startIndex, endIndex, outer) ? around : null
 }
 
 function findWrappingInside(range: NodeRange<any>, type: NodeType<any, any>) {
   const { endIndex, parent, startIndex } = range
-  const inner = parent.content.content[startIndex]!
+  const inner = parent.content.content[startIndex]
   const inside = type.contentMatch.findWrappingOrNull(inner.type)
   if (!inside) return null
-  const lastType = inside.length ? inside[inside.length - 1]! : type
+  const lastType = inside.length ? inside[inside.length - 1] : type
   let innerMatch: ContentMatch | null = lastType.contentMatch
   for (let i = startIndex; innerMatch && i < endIndex; i++) {
-    innerMatch = innerMatch.matchTypeOrNull(parent.content.content[i]!.type)
+    innerMatch = innerMatch.matchTypeOrNull(parent.content.content[i].type)
   }
   if (!innerMatch || !innerMatch.validEnd) return null
   return inside
@@ -186,14 +183,14 @@ export function wrap(tr: Transform<any>, range: NodeRange<any>, wrappers: Readon
   let content: Fragment<any> = Fragment.empty
   for (let i = wrappers.length - 1; i >= 0; i--) {
     if (content.size) {
-      const match = wrappers[i]!.type.contentMatch.matchFragmentOrNull(content)
+      const match = wrappers[i].type.contentMatch.matchFragmentOrNull(content)
       if (!match || !match.validEnd) {
         throw new TransformError({
           message: "Wrapper type given to Transform.wrap does not form valid content of its parent wrapper"
         })
       }
     }
-    content = Fragment.from(wrappers[i]!.type.createUnsafe(wrappers[i]!.attrs, content))
+    content = Fragment.from(wrappers[i].type.createUnsafe(wrappers[i].attrs, content))
   }
 
   const start = range.start,
@@ -211,7 +208,7 @@ export function setBlockType(
 ): void {
   if (!type.isTextblock) throw new TransformError({ message: "Type given to setBlockType should be a textblock" })
   const mapFrom = tr.steps.length
-  const linebreak = Option.getOrNull(type.schema.linebreakReplacement) as NodeType<any, any> | null
+  const linebreak: NodeType<any, any> | null = Option.getOrNull(type.schema.linebreakReplacement)
   tr.doc.nodesBetween(from, to, (node, pos) => {
     const attrsHere = Predicate.isFunction(attrs) ? attrs(node) : attrs
     if (
@@ -330,7 +327,7 @@ export function canSplit<Sc extends AnySchema>(
   depth = 1,
   typesAfter?: ReadonlyArray<NodeTypeWithAttrs<Sc> | null | undefined>
 ): boolean {
-  const types = typesAfter as ReadonlyArray<AnyWrapper | null | undefined> | undefined
+  const types = typesAfter
   const $pos = doc.resolveUnsafe(pos),
     base = $pos.depth - depth
   const innerType = (types && types[types.length - 1]) || $pos.parent
@@ -393,7 +390,7 @@ function canAppendWithSubstitutedLinebreaks(a: Node<any>, b: Node<any>): boolean
   let match: ContentMatch | null = a.contentMatchAtUnsafe(a.childCount)
   const linebreakReplacement = Option.getOrNull(a.type.schema.linebreakReplacement)
   for (let i = 0; i < b.childCount; i++) {
-    const child = b.content.content[i]!
+    const child = b.content.content[i]
     const type = child.type === linebreakReplacement ? a.type.schema.nodes.text! : child.type
     match = match.matchTypeOrNull(type)
     if (!match) return false
@@ -441,7 +438,7 @@ export function joinPoint<Sc extends AnySchema>(doc: Node<Sc>, pos: number, dir 
 /** @internal */
 export function join(tr: Transform<any>, pos: number, depth: number): void {
   let convertNewlines: boolean | null = null
-  const linebreakReplacement = Option.getOrNull(tr.doc.type.schema.linebreakReplacement) as NodeType<any, any> | null
+  const linebreakReplacement: NodeType<any, any> | null = Option.getOrNull(tr.doc.type.schema.linebreakReplacement)
   const $before = tr.doc.resolveUnsafe(pos - depth),
     beforeType = $before.node().type
   if (linebreakReplacement && beforeType.inlineContent) {
@@ -523,7 +520,7 @@ export function dropPoint<Sc extends AnySchema>(doc: Node<Sc>, pos: number, slic
   const $pos = doc.resolveUnsafe(pos)
   if (!slice.content.size) return Option.some(pos)
   let content: Fragment<any> = slice.content
-  for (let i = 0; i < slice.openStart; i++) content = content.content[0]!.content
+  for (let i = 0; i < slice.openStart; i++) content = content.content[0].content
   for (let pass = 1; pass <= (slice.openStart === 0 && slice.size ? 2 : 1); pass++) {
     for (let d = $pos.depth; d >= 0; d--) {
       const bias = d === $pos.depth ? 0 : $pos.pos <= ($pos.start(d + 1) + $pos.end(d + 1)) / 2 ? -1 : 1
@@ -533,8 +530,8 @@ export function dropPoint<Sc extends AnySchema>(doc: Node<Sc>, pos: number, slic
       if (pass === 1) {
         fits = parent.canReplace(insertPos, insertPos, content)
       } else {
-        const wrapping = parent.contentMatchAtUnsafe(insertPos).findWrappingOrNull(content.content[0]!.type)
-        fits = wrapping && parent.canReplaceWith(insertPos, insertPos, wrapping[0]!)
+        const wrapping = parent.contentMatchAtUnsafe(insertPos).findWrappingOrNull(content.content[0].type)
+        fits = wrapping && parent.canReplaceWith(insertPos, insertPos, wrapping[0])
       }
       if (fits) {
         return Option.some(bias === 0 ? $pos.pos : bias < 0 ? $pos.beforeUnsafe(d + 1) : $pos.afterUnsafe(d + 1))

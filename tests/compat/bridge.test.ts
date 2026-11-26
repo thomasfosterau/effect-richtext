@@ -183,14 +183,14 @@ describe("compat bridge", () => {
     ist(tr.doc, doc(p("foo"), p("baz")), eq)
     ist(tr.steps[0] instanceof CounterStep)
     // The core sees a core step that delegates to the facade.
-    const coreStep = transformToCore(tr.steps[0]!)
+    const coreStep = transformToCore(tr.steps[0])
     ist(coreStep instanceof CoreTransform.Step)
     const coreTr = new CoreTransform.Transform(modelToCore(d)).stepUnsafe(coreStep)
     ist(modelFromCore(coreTr.doc), tr.doc, eq)
     // Inversion, mapping and JSON go through the subclass.
-    const inverted = tr.steps[0]!.invert(d)
+    const inverted = tr.steps[0].invert(d)
     ist(inverted.apply(tr.doc).doc, d, eq)
-    const json = tr.steps[0]!.toJSON()
+    const json = tr.steps[0].toJSON()
     const back = Step.fromJSON(schema, json)
     ist(back instanceof CounterStep)
     ist((back as CounterStep).text, "baz")
@@ -289,11 +289,11 @@ describe("compat bridge", () => {
     state = state.apply(state.tr.insertText("b").setMeta("block", true))
     ist(key.getState(state), 1)
     ist(plugin.getState(state), 1)
-    ist(seen[0]!.doc.textContent, "a")
+    ist(seen[0].doc.textContent, "a")
     // The core state sees the plugin's state.
     const core = stateToCore(state)
     ist(getSome(stateToCore(plugin).getState(core)), 1)
-    ist(stateFromCore(core.plugins[0]!), plugin)
+    ist(stateFromCore(core.plugins[0]), plugin)
     // A core plugin used from the compat API.
     const corePlugin = new CoreState.Plugin({ props: { editable: () => false } })
     const wrapped = stateFromCore(corePlugin)

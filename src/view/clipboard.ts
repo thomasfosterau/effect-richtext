@@ -16,15 +16,15 @@ type AnyView = EditorView<any, any, any>
 /** @internal */
 export function serializeForClipboard(view: AnyView, slice: Slice<any>): ClipboardSerialization<any> {
   view.someProp("transformCopied", (f) => {
-    slice = f(slice!, view)
+    slice = f(slice, view)
   })
 
   const context: Array<unknown> = []
   let { content, openEnd, openStart } = slice
-  while (openStart > 1 && openEnd > 1 && content.childCount == 1 && content.content[0]!.childCount == 1) {
+  while (openStart > 1 && openEnd > 1 && content.childCount == 1 && content.content[0].childCount == 1) {
     openStart--
     openEnd--
-    const node = content.content[0]!
+    const node = content.content[0]
     context.push(node.type.name, node.attrs != node.type.defaultAttrs ? node.attrs : null)
     content = node.content
   }
@@ -39,7 +39,7 @@ export function serializeForClipboard(view: AnyView, slice: Slice<any>): Clipboa
     wrappers = 0
   while (firstChild && firstChild.nodeType == 1 && (needsWrap = wrapFor(wrapMap, firstChild.nodeName.toLowerCase()))) {
     for (let i = needsWrap.length - 1; i >= 0; i--) {
-      const wrapper = doc.createElement(needsWrap[i]!)
+      const wrapper = doc.createElement(needsWrap[i])
       while (wrap.firstChild) wrapper.appendChild(wrap.firstChild)
       wrap.appendChild(wrapper)
       wrappers++
@@ -131,7 +131,7 @@ export function parseFromClipboard(
     })
   }
   if (sliceData) {
-    slice = addContext(closeSlice(slice, +sliceData[1]!, +sliceData[2]!), sliceData[4]!)
+    slice = addContext(closeSlice(slice, +sliceData[1], +sliceData[2]), sliceData[4])
   } else {
     // HTML wasn't created by ProseMirror. Make sure top-level siblings are coherent
     slice = Slice.maxOpen(normalizeSiblings(slice.content, $context), true)
@@ -140,15 +140,15 @@ export function parseFromClipboard(
         openEnd = 0
       for (
         let node = slice.content.content[0];
-        openStart < slice.openStart && !node!.type.spec.isolating;
-        openStart++, node = node!.content.content[0]
+        openStart < slice.openStart && !node.type.spec.isolating;
+        openStart++, node = node.content.content[0]
       ) {
         // empty
       }
       for (
         let node = slice.content.content[slice.content.childCount - 1];
-        openEnd < slice.openEnd && !node!.type.spec.isolating;
-        openEnd++, node = node!.content.content[node!.childCount - 1]
+        openEnd < slice.openEnd && !node.type.spec.isolating;
+        openEnd++, node = node.content.content[node.childCount - 1]
       ) {
         // empty
       }
@@ -190,25 +190,25 @@ function normalizeSiblings(fragment: Fragment<any, any>, $context: ResolvedPos<a
       }
       if (
         (inLast =
-          result.length && lastWrap!.length && addToSibling(wrap, lastWrap!, node, result[result.length - 1]!, 0))
+          result.length && lastWrap!.length && addToSibling(wrap, lastWrap!, node, result[result.length - 1], 0))
       ) {
         result[result.length - 1] = inLast
       } else {
-        if (result.length) result[result.length - 1] = closeRight(result[result.length - 1]!, lastWrap!.length)
+        if (result.length) result[result.length - 1] = closeRight(result[result.length - 1], lastWrap!.length)
         const wrapped = withWrappers(node, wrap)
         result.push(wrapped)
         match = match.matchTypeOrNull(wrapped.type)!
         lastWrap = wrap
       }
     })
-    if (result) return Fragment.from(result as Array<Node<any, any>>)
+    if (result) return Fragment.from(result)
   }
   return fragment
 }
 
 function withWrappers(node: Node<any, any>, wrap: ReadonlyArray<NodeType<any, any>>, from = 0) {
   for (let i = wrap.length - 1; i >= from; i--) {
-    node = wrap[i]!.createUnsafe(null, Fragment.from(node))
+    node = wrap[i].createUnsafe(null, Fragment.from(node))
   }
   return node
 }
@@ -223,10 +223,10 @@ function addToSibling(
   depth: number
 ): Node<any, any> | undefined {
   if (depth < wrap.length && depth < lastWrap.length && wrap[depth] == lastWrap[depth]) {
-    const inner = addToSibling(wrap, lastWrap, node, sibling.content.content[sibling.childCount - 1]!, depth + 1)
+    const inner = addToSibling(wrap, lastWrap, node, sibling.content.content[sibling.childCount - 1], depth + 1)
     if (inner) return sibling.copy(sibling.content.replaceChild(sibling.childCount - 1, inner))
     const match = sibling.contentMatchAtUnsafe(sibling.childCount)
-    if (match.matchTypeOrNull(depth == wrap.length - 1 ? node.type : wrap[depth + 1]!)) {
+    if (match.matchTypeOrNull(depth == wrap.length - 1 ? node.type : wrap[depth + 1])) {
       return sibling.copy(sibling.content.append(Fragment.from(withWrappers(node, wrap, depth + 1))))
     }
   }
@@ -237,7 +237,7 @@ function closeRight(node: Node<any, any>, depth: number): Node<any, any> {
   if (depth == 0) return node
   const fragment = node.content.replaceChild(
     node.childCount - 1,
-    closeRight(node.content.content[node.childCount - 1]!, depth - 1)
+    closeRight(node.content.content[node.childCount - 1], depth - 1)
   )
   const fill = node.contentMatchAtUnsafe(node.childCount).fillBeforeOrNull(Fragment.empty, true)!
   return node.copy(fragment.append(fill))
@@ -251,7 +251,7 @@ function closeRange(
   depth: number,
   openEnd: number
 ): Fragment<any, any> {
-  const node = side < 0 ? fragment.content[0]! : fragment.content[fragment.childCount - 1]!
+  const node = side < 0 ? fragment.content[0] : fragment.content[fragment.childCount - 1]
   let inner = node.content
   if (fragment.childCount > 1) openEnd = 0
   if (depth < to - 1) inner = closeRange(inner, side, from, to, depth + 1, openEnd)
@@ -334,7 +334,7 @@ function readHTML(html: string) {
   let elt: HTMLElement = doc.body
   const firstTag = /<([a-z][^>\s]+)/i.exec(html)
   let wrap
-  if ((wrap = firstTag && wrapFor(wrapMap, firstTag[1]!.toLowerCase()))) {
+  if ((wrap = firstTag && wrapFor(wrapMap, firstTag[1].toLowerCase()))) {
     html =
       wrap.map((n) => "<" + n + ">").join("") +
       html +
@@ -345,7 +345,7 @@ function readHTML(html: string) {
   }
   elt.innerHTML = maybeWrapTrusted(html)
   if (wrap) {
-    for (let i = 0; i < wrap.length; i++) elt = elt.querySelector<HTMLElement>(wrap[i]!) || elt
+    for (let i = 0; i < wrap.length; i++) elt = elt.querySelector<HTMLElement>(wrap[i]) || elt
   }
   // Inline styles defined in the pasted content, so that parse rules
   // pick them up (prosemirror-view 1.42.0).
@@ -370,7 +370,7 @@ function readHTML(html: string) {
 function restoreReplacedSpaces(dom: HTMLElement) {
   const nodes = dom.querySelectorAll(browser.chrome ? "span:not([class]):not([style])" : "span.Apple-converted-space")
   for (let i = 0; i < nodes.length; i++) {
-    const node = nodes[i]!
+    const node = nodes[i]
     if (node.childNodes.length == 1 && node.textContent == " " && node.parentNode) {
       node.parentNode.replaceChild(dom.ownerDocument.createTextNode(" "), node)
     }
@@ -379,7 +379,7 @@ function restoreReplacedSpaces(dom: HTMLElement) {
 
 function addContext(slice: Slice<any>, context: string) {
   if (!slice.size) return slice
-  const schema = slice.content.content[0]!.type.schema
+  const schema = slice.content.content[0].type.schema
   const array = Option.getOrUndefined(parseJson(context))
   if (!Array.isArray(array)) return slice
   let { content, openEnd, openStart } = slice

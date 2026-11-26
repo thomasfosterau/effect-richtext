@@ -6,8 +6,8 @@ export function findDiffStart(a: Fragment<any, any>, b: Fragment<any, any>, pos:
   for (let i = 0; ; i++) {
     if (i === a.childCount || i === b.childCount) return a.childCount === b.childCount ? null : pos
 
-    const childA = a.content[i]!,
-      childB = b.content[i]!
+    const childA = a.content[i],
+      childB = b.content[i]
     if (childA === childB) {
       pos += childA.nodeSize
       continue
@@ -36,8 +36,8 @@ export function findDiffEnd(
   for (let iA = a.childCount, iB = b.childCount; ;) {
     if (iA === 0 || iB === 0) return iA === iB ? null : { a: posA, b: posB }
 
-    const childA = a.content[--iA]!,
-      childB = b.content[--iB]!,
+    const childA = a.content[--iA],
+      childB = b.content[--iB],
       size = childA.nodeSize
     if (childA === childB) {
       posA -= size

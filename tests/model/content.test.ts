@@ -26,7 +26,7 @@ function get(expr: string): ContentMatch {
 
 function matchTypes(m: ContentMatch | null, types: string): ContentMatch | null {
   const ts = types ? types.split(" ").map((t) => schema.nodes[t]!) : []
-  for (let i = 0; m && i < ts.length; i++) m = Option.getOrNull(m.matchType(ts[i]!))
+  for (let i = 0; m && i < ts.length; i++) m = Option.getOrNull(m.matchType(ts[i]))
   return m
 }
 

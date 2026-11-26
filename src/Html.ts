@@ -134,11 +134,11 @@ export const toHTML = <Sc extends AnySchema>(
   if (content instanceof Fragment) {
     const first = content.firstChild
     if (Option.isNone(first)) return ""
-    const schema = first.value.type.schema as Sc
+    const schema = first.value.type.schema
     const serializer = options.serializer ?? DOMSerializer.fromSchema(schema)
     serializer.serializeFragment(content, { document }, container)
   } else {
-    const schema = content.type.schema as Sc
+    const schema = content.type.schema
     const serializer = options.serializer ?? DOMSerializer.fromSchema(schema)
     if (content.type === schema.topNodeType) serializer.serializeFragment(content.content, { document }, container)
     else container.appendChild(serializer.serializeNode(content, { document }))

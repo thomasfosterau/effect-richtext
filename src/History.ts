@@ -98,7 +98,7 @@ export class Branch {
 
           if (step && transform.maybeStep(step).docOrNull) {
             map = transform.mapping.maps[transform.mapping.maps.length - 1]
-            addAfter.push(new Item(map!, undefined, undefined, addAfter.length + addBefore.length))
+            addAfter.push(new Item(map, undefined, undefined, addAfter.length + addBefore.length))
           }
           mapFrom!--
           if (map) remap.appendMap(map, mapFrom)
@@ -136,8 +136,8 @@ export class Branch {
       lastItem = !preserveItems && oldItems.length ? oldItems.get(oldItems.length - 1) : null
 
     for (let i = 0; i < transform.steps.length; i++) {
-      const step = transform.steps[i]!.invert(transform.docs[i]!)
-      let item = new Item(transform.mapping.maps[i]!, step, selection)
+      const step = transform.steps[i].invert(transform.docs[i])
+      let item = new Item(transform.mapping.maps[i], step, selection)
       const merged = lastItem && lastItem.merge(item)
       if (merged) {
         item = merged
@@ -203,9 +203,9 @@ export class Branch {
       const pos = mapping.getMirrorOrUndefined(--iRebased)
       if (pos == null) return
       newUntil = Math.min(newUntil, pos)
-      const map = mapping.maps[pos]!
+      const map = mapping.maps[pos]
       if (item.step) {
-        const step = rebasedTransform.steps[pos]!.invert(rebasedTransform.docs[pos]!)
+        const step = rebasedTransform.steps[pos].invert(rebasedTransform.docs[pos])
         const selection = item.selection && item.selection.map(mapping.slice(iRebased + 1, pos))
         if (selection) eventCount++
         rebasedItems.push(new Item(map, step, selection))
@@ -215,7 +215,7 @@ export class Branch {
     }, start)
 
     const newMaps: Array<Item> = []
-    for (let i = count; i < newUntil; i++) newMaps.push(new Item(mapping.maps[i]!))
+    for (let i = count; i < newUntil; i++) newMaps.push(new Item(mapping.maps[i]))
     const items = this.items.slice(0, start).append(newMaps).append(rebasedItems)
     let branch = new Branch(items, eventCount)
 
@@ -259,7 +259,7 @@ export class Branch {
             if (selection) events++
             const newItem = new Item(map!.invert(), step, selection),
               last = items.length - 1
-            const merged = items.length ? items[last]!.merge(newItem) : undefined
+            const merged = items.length ? items[last].merge(newItem) : undefined
             if (merged) items[last] = merged
             else items.push(newItem)
           }
@@ -431,9 +431,9 @@ function isAdjacentTo(transform: Transform<any>, prevRanges: ReadonlyArray<numbe
   if (!prevRanges) return false
   if (!transform.docChanged) return true
   let adjacent = false
-  transform.mapping.maps[0]!.forEach((start, end) => {
+  transform.mapping.maps[0].forEach((start, end) => {
     for (let i = 0; i < prevRanges.length; i += 2) {
-      if (start <= prevRanges[i + 1]! && end >= prevRanges[i]!) adjacent = true
+      if (start <= prevRanges[i + 1] && end >= prevRanges[i]) adjacent = true
     }
   })
   return adjacent
@@ -442,7 +442,7 @@ function isAdjacentTo(transform: Transform<any>, prevRanges: ReadonlyArray<numbe
 function rangesFor(maps: ReadonlyArray<StepMap>): Array<number> {
   const result: Array<number> = []
   for (let i = maps.length - 1; i >= 0; i--) {
-    maps[i]!.forEach((_from, _to, from, to) => result.push(from, to))
+    maps[i].forEach((_from, _to, from, to) => result.push(from, to))
     if (Arr.isArrayNonEmpty(result)) break
   }
   return result
@@ -452,8 +452,8 @@ function mapRanges(ranges: ReadonlyArray<number> | null, mapping: Mapping): Arra
   if (!ranges) return null
   const result: Array<number> = []
   for (let i = 0; i < ranges.length; i += 2) {
-    const from = mapping.map(ranges[i]!, 1),
-      to = mapping.map(ranges[i + 1]!, -1)
+    const from = mapping.map(ranges[i], 1),
+      to = mapping.map(ranges[i + 1], -1)
     if (from <= to) result.push(from, to)
   }
   return result
@@ -498,7 +498,7 @@ function mustPreserveItems(state: EditorState<any, any, any>): boolean {
     cachedPreserveItems = false
     cachedPreserveItemsPlugins = plugins
     for (let i = 0; i < plugins.length; i++) {
-      if (plugins[i]!.spec.historyPreserveItems) {
+      if (plugins[i].spec.historyPreserveItems) {
         cachedPreserveItems = true
         break
       }
@@ -618,7 +618,7 @@ export const history = (config: HistoryOptions = {}): Plugin<HistoryState> => {
     props: {
       handleDOMEvents: {
         beforeinput(view, e) {
-          const inputType = (e as InputEvent).inputType
+          const inputType = e.inputType
           const command = inputType === "historyUndo" ? undo : inputType === "historyRedo" ? redo : null
           if (!command || !view.editable) return false
           e.preventDefault()

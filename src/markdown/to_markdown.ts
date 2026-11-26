@@ -431,10 +431,10 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
     for (let i = 0; i < lines.length; i++) {
       this.write()
       // Escape exclamation marks in front of links
-      if (!escape && lines[i]![0] == "[" && /(^|[^\\])!$/.test(this.out.slice(-2))) {
+      if (!escape && lines[i][0] == "[" && /(^|[^\\])!$/.test(this.out.slice(-2))) {
         this.out = this.out.slice(0, this.out.length - 1) + "\\!"
       }
-      this.out += escape ? this.esc(lines[i]!, this.atBlockStart) : lines[i]
+      this.out += escape ? this.esc(lines[i], this.atBlockStart) : lines[i]
       if (i != lines.length - 1) this.out += "\n"
     }
   }
@@ -482,7 +482,7 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
         })
       }
 
-      const inner = marks.length ? marks[marks.length - 1]! : null
+      const inner = marks.length ? marks[marks.length - 1] : null
       const noEsc = inner && this.getMark(inner.type.name).escape === false
       const len = marks.length - (noEsc ? 1 : 0)
 
@@ -491,10 +491,10 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
       // that order of the marks for the token matches the order in
       // active.
       outer: for (let i = 0; i < len; i++) {
-        const mark = marks[i]!
+        const mark = marks[i]
         if (!this.getMark(mark.type.name).mixable) break
         for (let j = 0; j < active.length; j++) {
-          const other = active[j]!
+          const other = active[j]
           if (!this.getMark(other.type.name).mixable) break
           if (mark.eq(other)) {
             if (i > j) {
@@ -517,7 +517,7 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
 
       // Find the prefix of the mark set that didn't change
       let keep = 0
-      while (keep < Math.min(active.length, len) && marks[keep]!.eq(active[keep]!)) ++keep
+      while (keep < Math.min(active.length, len) && marks[keep].eq(active[keep])) ++keep
 
       let leading = trailing
       trailing = ""
@@ -568,7 +568,7 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
       // Open the marks that need to be opened
       if (node) {
         while (active.length < len) {
-          const add = marks[active.length]!
+          const add = marks[active.length]
           active.push(add)
           this.text(this.markString(add, true, parent, index), false)
           this.atBlockStart = false
@@ -578,9 +578,9 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
         // may not be escaped.
         if (noEsc && node.isText) {
           this.text(
-            this.markString(inner!, true, parent, index) +
+            this.markString(inner, true, parent, index) +
               (node as TextNode<Sc>).text +
-              this.markString(inner!, false, parent, index + 1),
+              this.markString(inner, false, parent, index + 1),
             false
           )
         } else {
@@ -630,7 +630,7 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
    */
   esc(str: string, startOfLine = false): string {
     str = str.replace(/[`*\\~[\]_]/g, (m, i) =>
-      m == "_" && i > 0 && i + 1 < str.length && str[i - 1]!.match(/\w/) && str[i + 1]!.match(/\w/) ? m : "\\" + m
+      m == "_" && i > 0 && i + 1 < str.length && str[i - 1].match(/\w/) && str[i + 1].match(/\w/) ? m : "\\" + m
     )
     if (startOfLine) {
       str = str

@@ -456,7 +456,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
         if (prop === "doc" || prop === "selection") {
           throw new StateError({ message: "The JSON fields `doc` and `selection` are reserved" })
         }
-        const plugin = pluginFields[prop]!,
+        const plugin = pluginFields[prop],
           state = plugin.spec.state
         if (state && state.toJSON) result[prop] = state.toJSON.call(plugin, this.slots[plugin.key])
       }
@@ -527,7 +527,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
           let done = false
           if (pluginFields) {
             for (const prop in pluginFields) {
-              const plugin = pluginFields[prop]!,
+              const plugin = pluginFields[prop],
                 state = plugin.spec.state
               if (
                 plugin.key === field.name &&
@@ -570,7 +570,7 @@ function* filterSteps<Sc extends AnySchema>(
   const plugins = state.config.plugins
   for (let i = 0; i < plugins.length; i++) {
     if (i === ignore) continue
-    const plugin = plugins[i]!,
+    const plugin = plugins[i],
       filter = plugin.spec.filterTransaction
     if (filter) {
       const ok = filter.call(plugin, tr, state)
@@ -598,11 +598,11 @@ function* applySteps<Sc extends AnySchema, R, E>(
   for (;;) {
     let haveNew = false
     for (let i = 0; i < plugins.length; i++) {
-      const plugin = plugins[i]!,
+      const plugin = plugins[i],
         append = plugin.spec.appendTransaction
       if (append) {
-        const n = seen ? seen[i]!.n : 0,
-          oldState = seen ? seen[i]!.state : state
+        const n = seen ? seen[i].n : 0,
+          oldState = seen ? seen[i].state : state
         const appended = n < trs.length ? append.call(plugin, n ? trs.slice(n) : trs, oldState, newState) : undefined
         const tr: Transaction<Sc> | null | undefined = isHookEffect(appended) ? yield appended : appended
         if (tr && (yield new Call(filterSteps(newState, tr, i)))) {
@@ -633,7 +633,7 @@ function* applyInnerSteps<Sc extends AnySchema, R, E>(
   const newInstance = new EditorState<Sc, R, E>(state.config),
     fields = state.config.fields
   for (let i = 0; i < fields.length; i++) {
-    const field = fields[i]!
+    const field = fields[i]
     const value = field.apply.call(field.self, tr, state.slots[field.name], state, newInstance)
     newInstance.slots[field.name] = isHookEffect(value) ? yield value : value
   }

@@ -28,7 +28,7 @@ import {
 import type { Mappable } from "./Transform.ts"
 import { Decoration, DecorationSet, type EditorView } from "./View.ts"
 
-const child = (node: Node<any>, index: number): Node<any> => node.content.content[index]!
+const child = (node: Node<any>, index: number): Node<any> => node.content.content[index]
 
 /**
  * Gap cursor selections are represented using this class. Its `$anchor`
@@ -282,7 +282,7 @@ function beforeinput(view: EditorView<any, any, any>, event: InputEvent): boolea
   if (!insert) return false
 
   let frag: Fragment<any> = Fragment.empty
-  for (let i = insert.length - 1; i >= 0; i--) frag = Fragment.from(insert[i]!.createAndFillOrNull(null, frag))
+  for (let i = insert.length - 1; i >= 0; i--) frag = Fragment.from(insert[i].createAndFillOrNull(null, frag))
   const tr = view.state.tr.replaceUnsafe($from.pos, $from.pos, new Slice(frag, 0, 0))
   tr.setSelectionUnsafe(TextSelection.near(tr.doc.resolveUnsafe($from.pos + 1)))
   // Dispatch (synchronously, when possible), but let the event through.

@@ -155,7 +155,7 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
       index = this.index(this.depth)
     if (index === parent.childCount) return null
     const dOff = this.pos - this.path[this.path.length - 1],
-      child = parent.content.content[index]!
+      child = parent.content.content[index]
     return dOff ? child.cut(dOff) : child
   }
 
@@ -172,8 +172,8 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
   get nodeBeforeOrNull(): Node<Sc> | null {
     const index = this.index(this.depth)
     const dOff = this.pos - this.path[this.path.length - 1]
-    if (dOff) return this.parent.content.content[index]!.cut(0, dOff)
-    return index === 0 ? null : this.parent.content.content[index - 1]!
+    if (dOff) return this.parent.content.content[index].cut(0, dOff)
+    return index === 0 ? null : this.parent.content.content[index - 1]
   }
 
   /** Get the position at the given index in the parent node at the given depth (which defaults to `this.depth`). */
@@ -181,7 +181,7 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
     depth = this.resolveDepth(depth)
     const node: Node<Sc> = this.path[depth * 3]
     let pos = depth === 0 ? 0 : this.path[depth * 3 - 1] + 1
-    for (let i = 0; i < index; i++) pos += node.content.content[i]!.nodeSize
+    for (let i = 0; i < index; i++) pos += node.content.content[i].nodeSize
     return pos
   }
 
@@ -199,7 +199,7 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
     if (parent.content.size === 0) return Mark.none
 
     // When inside a text node, just return the text node's marks
-    if (this.textOffset) return parent.content.content[index]!.marks
+    if (this.textOffset) return parent.content.content[index].marks
 
     let main = parent.content.content[index - 1],
       other = parent.content.content[index]
@@ -213,10 +213,10 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
 
     // Use all marks in the main node, except those that have
     // `inclusive` set to false and are not present in the other node.
-    let marks = main!.marks
+    let marks = main.marks
     for (let i = 0; i < marks.length; i++) {
-      if (marks[i]!.type.spec.inclusive === false && (!other || !marks[i]!.isInSet(other.marks))) {
-        marks = marks[i--]!.removeFromSet(marks)
+      if (marks[i].type.spec.inclusive === false && (!other || !marks[i].isInSet(other.marks))) {
+        marks = marks[i--].removeFromSet(marks)
       }
     }
     return marks
@@ -242,8 +242,8 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
     let marks = after.marks
     const next = $end.parent.content.content[$end.index()]
     for (let i = 0; i < marks.length; i++) {
-      if (marks[i]!.type.spec.inclusive === false && (!next || !marks[i]!.isInSet(next.marks))) {
-        marks = marks[i--]!.removeFromSet(marks)
+      if (marks[i].type.spec.inclusive === false && (!next || !marks[i].isInSet(next.marks))) {
+        marks = marks[i--].removeFromSet(marks)
       }
     }
     return marks
@@ -327,7 +327,7 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
     let cache = resolveCache.get(doc)
     if (cache) {
       for (let i = 0; i < cache.elts.length; i++) {
-        const elt = cache.elts[i]!
+        const elt = cache.elts[i]
         if (elt.pos === pos) return elt
       }
     } else {

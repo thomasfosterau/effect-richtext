@@ -89,7 +89,7 @@ function scanFor(node: DOMNode, off: number, targetNode: DOMNode, targetOff: num
       off = domIndex(node) + (dir < 0 ? 0 : 1)
       node = parent
     } else if (node.nodeType == 1) {
-      const child = node.childNodes[off + (dir < 0 ? -1 : 0)]!
+      const child = node.childNodes[off + (dir < 0 ? -1 : 0)]
       if (child.nodeType == 1 && (child as HTMLElement).contentEditable == "false") {
         if (child.pmViewDesc?.ignoreForSelection) off += dir
         else return false

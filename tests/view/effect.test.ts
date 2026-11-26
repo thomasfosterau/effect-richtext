@@ -36,7 +36,7 @@ const stepCountPlugin = new Plugin({
 const count = (state: EditorState<any, any, any>) => getSome(stepCountPlugin.getState(state))
 
 const keyDown = (view: EditorView<any, any, any>, key: string, keyCode: number) => {
-  const event = new KeyboardEvent("keydown", { key, keyCode, bubbles: true, cancelable: true } as KeyboardEventInit)
+  const event = new KeyboardEvent("keydown", { key, keyCode, bubbles: true, cancelable: true })
   view.dom.dispatchEvent(event)
   return event
 }

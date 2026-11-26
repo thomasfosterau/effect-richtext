@@ -73,7 +73,7 @@ export function scrollRectIntoView(view: AnyView, rect: Rect, startDOM: DOMNode)
     }
     const elt = parent as HTMLElement
     const atTop = elt == doc.body
-    const bounding = atTop ? windowRect(doc) : clientRect(elt as HTMLElement)
+    const bounding = atTop ? windowRect(doc) : clientRect(elt)
     let moveX = 0,
       moveY = 0
     if (rect.top < bounding.top + getSide(scrollThreshold, "top")) {
@@ -157,7 +157,7 @@ export function resetScrollPos({ refDOM, refTop, stack }: ScrollPos): void {
 
 function restoreScrollStack(stack: Array<{ dom: HTMLElement; top: number; left: number }>, dTop: number) {
   for (let i = 0; i < stack.length; i++) {
-    const { dom, left, top } = stack[i]!
+    const { dom, left, top } = stack[i]
     if (dom.scrollTop != top + dTop) dom.scrollTop = top + dTop
     if (dom.scrollLeft != left) dom.scrollLeft = left
   }
@@ -210,7 +210,7 @@ function findOffsetInNode(node: HTMLElement, coords: { top: number; left: number
     else continue
 
     for (let i = 0; i < rects.length; i++) {
-      const rect = rects[i]!
+      const rect = rects[i]
       if (rect.top <= rowBot && rect.bottom >= rowTop) {
         rowBot = Math.max(rect.bottom, rowBot)
         rowTop = Math.min(rect.top, rowTop)
@@ -318,7 +318,7 @@ function posFromCaret(view: AnyView, node: DOMNode, offset: number, coords: { to
       // Ignore elements with zero-size bounding rectangles
       ((rect = (desc.dom as HTMLElement).getBoundingClientRect()).width || rect.height)
     ) {
-      if (desc.node.isBlock && desc.parent && !/^T(R|BODY|HEAD|FOOT)$/.test(desc.dom!.nodeName)) {
+      if (desc.node.isBlock && desc.parent && !/^T(R|BODY|HEAD|FOOT)$/.test(desc.dom.nodeName)) {
         // Only apply the horizontal test to the innermost block. Vertical for any parent.
         if ((!sawBlock && rect.left > coords.left) || rect.top > coords.top) outsideBlock = desc.posBefore
         else if ((!sawBlock && rect.right < coords.left) || rect.bottom < coords.top) outsideBlock = desc.posAfter
@@ -348,11 +348,11 @@ function elementFromPoint(element: HTMLElement, coords: { top: number; left: num
         i = startI;
       ;
     ) {
-      const child = element.childNodes[i]!
+      const child = element.childNodes[i]
       if (child.nodeType == 1) {
         const rects = (child as HTMLElement).getClientRects()
         for (let j = 0; j < rects.length; j++) {
-          const rect = rects[j]!
+          const rect = rects[j]
           if (inRect(coords, rect)) return elementFromPoint(child as HTMLElement, coords, rect)
         }
       }
@@ -397,7 +397,7 @@ export function posAtCoords(
       // It'll also move the returned position before image nodes,
       // even if those are behind it.
       if (offset < node.childNodes.length) {
-        const next = node.childNodes[offset]!
+        const next = node.childNodes[offset]
         let box
         if (
           next.nodeName == "IMG" &&
@@ -432,7 +432,7 @@ export function posAtCoords(
     } // Ignore positions directly after a BR, since caret*FromPoint
     // 'round up' positions that would be more accurately placed
     // before the BR node.
-    else if (offset == 0 || node.nodeType != 1 || node.childNodes[offset - 1]!.nodeName != "BR") {
+    else if (offset == 0 || node.nodeType != 1 || node.childNodes[offset - 1].nodeName != "BR") {
       pos = posFromCaret(view, node, offset, coords)
     }
   }
@@ -449,7 +449,7 @@ function nonZero(rect: Rect) {
 function singleRect(target: HTMLElement | Range, bias: number): DOMRect {
   const rects = target.getClientRects()
   if (rects.length) {
-    const first = rects[bias < 0 ? 0 : rects.length - 1]!
+    const first = rects[bias < 0 ? 0 : rects.length - 1]
     if (nonZero(first)) return first
   }
   return Array.prototype.find.call(rects, nonZero) || target.getBoundingClientRect()
@@ -472,7 +472,7 @@ export function coordsAtPos(view: AnyView, pos: number, side: number): Rect {
       // Firefox returns bad results (the position before the space)
       // when querying a position directly after line-broken
       // whitespace. Detect this situation and and kludge around it
-      if (browser.gecko && offset && /\s/.test(node.nodeValue![offset - 1]!) && offset < node.nodeValue!.length) {
+      if (browser.gecko && offset && /\s/.test(node.nodeValue![offset - 1]) && offset < node.nodeValue!.length) {
         const rectBefore = singleRect(textRange(node as Text, offset - 1, offset - 1), -1)
         if (rectBefore.top == rect.top) {
           const rectAfter = singleRect(textRange(node as Text, offset, offset + 1), -1)
@@ -505,11 +505,11 @@ export function coordsAtPos(view: AnyView, pos: number, side: number): Rect {
   // Return a horizontal line in block context
   if (!$dom.parent.inlineContent) {
     if (atom == null && offset && (side < 0 || offset == nodeSize(node))) {
-      const before = node.childNodes[offset - 1]!
+      const before = node.childNodes[offset - 1]
       if (before.nodeType == 1) return flattenH((before as HTMLElement).getBoundingClientRect(), false)
     }
     if (atom == null && offset < nodeSize(node)) {
-      const after = node.childNodes[offset]!
+      const after = node.childNodes[offset]
       if (after.nodeType == 1) return flattenH((after as HTMLElement).getBoundingClientRect(), true)
     }
     return flattenH((node as HTMLElement).getBoundingClientRect(), side >= 0)
@@ -517,7 +517,7 @@ export function coordsAtPos(view: AnyView, pos: number, side: number): Rect {
 
   // Inline, not in text node (this is not Bidi-safe)
   if (atom == null && offset && (side < 0 || offset == nodeSize(node))) {
-    const before = node.childNodes[offset - 1]!
+    const before = node.childNodes[offset - 1]
     const target =
       before.nodeType == 3
         ? textRange(before as Text, nodeSize(before) - (supportEmptyRange ? 0 : 1))
@@ -529,7 +529,7 @@ export function coordsAtPos(view: AnyView, pos: number, side: number): Rect {
     if (target) return flattenV(singleRect(target as Range | HTMLElement, 1), false)
   }
   if (atom == null && offset < nodeSize(node)) {
-    let after = node.childNodes[offset]!
+    let after = node.childNodes[offset]
     while (after.pmViewDesc && after.pmViewDesc.ignoreForCoords) after = after.nextSibling!
     const target = !after
       ? null
@@ -592,7 +592,7 @@ function endOfTextblockVertical(view: AnyView, state: EditorState<any, any, any>
       else if (child.nodeType == 3) boxes = textRange(child as Text, 0, child.nodeValue!.length).getClientRects()
       else continue
       for (let i = 0; i < boxes.length; i++) {
-        const box = boxes[i]!
+        const box = boxes[i]
         if (
           box.bottom > box.top + 1 &&
           (dir == "up"

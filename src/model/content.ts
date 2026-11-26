@@ -131,7 +131,7 @@ export const ref = <const Name extends string>(name: Name): ContentExpr<Name> =>
 export const seq = <const Items extends ReadonlyArray<ContentInput>>(
   ...items: Items
 ): ContentExpr<Refs<Items[number]>> =>
-  items.length === 1 ? make(toAST(items[0]!)) : make({ _tag: "Seq", exprs: items.map(toAST) })
+  items.length === 1 ? make(toAST(items[0])) : make({ _tag: "Seq", exprs: items.map(toAST) })
 
 /**
  * Any one of the given expressions.
@@ -142,7 +142,7 @@ export const seq = <const Items extends ReadonlyArray<ContentInput>>(
 export const choice = <const Items extends ReadonlyArray<ContentInput>>(
   ...items: Items
 ): ContentExpr<Refs<Items[number]>> =>
-  items.length === 1 ? make(toAST(items[0]!)) : make({ _tag: "Choice", exprs: items.map(toAST) })
+  items.length === 1 ? make(toAST(items[0])) : make({ _tag: "Choice", exprs: items.map(toAST) })
 
 /**
  * Zero or more repetitions (`expr*`).
@@ -258,14 +258,14 @@ function parseExpr(stream: TokenStream): ExprAST {
   const exprs: Array<ExprAST> = []
   do exprs.push(parseExprSeq(stream))
   while (stream.eat("|"))
-  return exprs.length === 1 ? exprs[0]! : { _tag: "Choice", exprs }
+  return exprs.length === 1 ? exprs[0] : { _tag: "Choice", exprs }
 }
 
 function parseExprSeq(stream: TokenStream): ExprAST {
   const exprs: Array<ExprAST> = []
   do exprs.push(parseExprSubscript(stream))
   while (stream.next !== undefined && stream.next !== ")" && stream.next !== "|")
-  return exprs.length === 1 ? exprs[0]! : { _tag: "Seq", exprs }
+  return exprs.length === 1 ? exprs[0] : { _tag: "Seq", exprs }
 }
 
 function parseExprSubscript(stream: TokenStream): ExprAST {
@@ -387,7 +387,7 @@ export class ContentMatch {
   /** @internal */
   matchTypeOrNull(type: NodeType): ContentMatch | null {
     for (let i = 0; i < this.next.length; i++) {
-      if (this.next[i]!.type === type) return this.next[i]!.next
+      if (this.next[i].type === type) return this.next[i].next
     }
     return null
   }
@@ -400,8 +400,8 @@ export class ContentMatch {
   /** @internal */
   matchFragmentOrNull(frag: Fragment, start = 0, end = frag.childCount): ContentMatch | null {
     if (start >= end) return this
-    let cur = this.matchTypeOrNull(frag.content[start]!.type)
-    for (let i = start + 1; cur && i < end; i++) cur = cur.matchTypeOrNull(frag.content[i]!.type)
+    let cur = this.matchTypeOrNull(frag.content[start].type)
+    for (let i = start + 1; cur && i < end; i++) cur = cur.matchTypeOrNull(frag.content[i].type)
     return cur
   }
 
@@ -418,7 +418,7 @@ export class ContentMatch {
   /** @internal */
   get defaultTypeOrNull(): NodeType | null {
     for (let i = 0; i < this.next.length; i++) {
-      const { type } = this.next[i]!
+      const { type } = this.next[i]
       if (!(type.isText || type.hasRequiredAttrs())) return type
     }
     return null
@@ -428,7 +428,7 @@ export class ContentMatch {
   compatible(other: ContentMatch): boolean {
     for (let i = 0; i < this.next.length; i++) {
       for (let j = 0; j < other.next.length; j++) {
-        if (this.next[i]!.type === other.next[j]!.type) return true
+        if (this.next[i].type === other.next[j].type) return true
       }
     }
     return false
@@ -455,7 +455,7 @@ export class ContentMatch {
         return Fragment.fromArray(types.map((tp) => tp.createAndFillOrNull()!))
       }
       for (let i = 0; i < match.next.length; i++) {
-        const { next, type } = match.next[i]!
+        const { next, type } = match.next[i]
         if (!(type.isText || type.hasRequiredAttrs()) && seen.indexOf(next) === -1) {
           seen.push(next)
           const found = search(next, types.concat(type))
@@ -501,7 +501,7 @@ export class ContentMatch {
         return result.reverse()
       }
       for (let i = 0; i < match.next.length; i++) {
-        const { next, type } = match.next[i]!
+        const { next, type } = match.next[i]
         if (!type.isLeaf && !type.hasRequiredAttrs() && !(type.name in seen) && (!current.type || next.validEnd)) {
           active.push({ match: type.contentMatch, type, via: current })
           seen[type.name] = true
@@ -527,7 +527,7 @@ export class ContentMatch {
     function scan(m: ContentMatch) {
       seen.push(m)
       for (let i = 0; i < m.next.length; i++) {
-        if (seen.indexOf(m.next[i]!.next) === -1) scan(m.next[i]!.next)
+        if (seen.indexOf(m.next[i].next) === -1) scan(m.next[i].next)
       }
     }
     scan(this)
@@ -535,7 +535,7 @@ export class ContentMatch {
       .map((m, i) => {
         let out = i + (m.validEnd ? "*" : " ") + " "
         for (let j = 0; j < m.next.length; j++) {
-          out += (j ? ", " : "") + m.next[j]!.type.name + "->" + seen.indexOf(m.next[j]!.next)
+          out += (j ? ", " : "") + m.next[j].type.name + "->" + seen.indexOf(m.next[j].next)
         }
         return out
       })
@@ -580,7 +580,7 @@ function resolve(ast: ExprAST, ctx: ResolveContext): Expr {
         else if (ctx.inline !== type.isInline) fail(ctx, "Mixing inline and block content")
         return { type: "name", value: type }
       })
-      return exprs.length === 1 ? exprs[0]! : { type: "choice", exprs }
+      return exprs.length === 1 ? exprs[0] : { type: "choice", exprs }
     },
     Choice: (a): Expr => ({ type: "choice", exprs: a.exprs.map((e) => resolve(e, ctx)) }),
     Seq: (a): Expr => ({ type: "seq", exprs: a.exprs.map((e) => resolve(e, ctx)) }),
@@ -619,7 +619,7 @@ function nfa(root: Expr): Array<Array<Edge>> {
   }
   function edge(from: number, to?: number, term?: NodeType) {
     const e = { term, to }
-    graph[from]!.push(e)
+    graph[from].push(e)
     return e
   }
   function connect(edges: Array<Edge>, to: number) {
@@ -634,7 +634,7 @@ function nfa(root: Expr): Array<Array<Edge>> {
           if (Arr.isReadonlyArrayEmpty(x.exprs)) return [edge(from)]
           let cur = from
           for (let i = 0; ; i++) {
-            const next = compile(x.exprs[i]!, cur)
+            const next = compile(x.exprs[i], cur)
             if (i === x.exprs.length - 1) return next
             connect(next, (cur = node()))
           }
@@ -688,11 +688,11 @@ function nullFrom(graph: Array<Array<Edge>>, node: number): ReadonlyArray<number
   return Arr.sort(result, descending)
 
   function scan(n: number): void {
-    const edges = graph[n]!
-    if (edges.length === 1 && !edges[0]!.term) return scan(edges[0]!.to!)
+    const edges = graph[n]
+    if (edges.length === 1 && !edges[0].term) return scan(edges[0].to!)
     result.push(n)
     for (let i = 0; i < edges.length; i++) {
-      const { term, to } = edges[i]!
+      const { term, to } = edges[i]
       if (!term && result.indexOf(to!) === -1) scan(to!)
     }
   }
@@ -708,10 +708,10 @@ function dfa(graph: Array<Array<Edge>>): ContentMatch {
   function explore(states: ReadonlyArray<number>): ContentMatch {
     const out: Array<[NodeType, Array<number>]> = []
     states.forEach((node) => {
-      graph[node]!.forEach(({ term, to }) => {
+      graph[node].forEach(({ term, to }) => {
         if (!term) return
         let set: Array<number> | undefined
-        for (let i = 0; i < out.length; i++) if (out[i]![0] === term) set = out[i]![1]
+        for (let i = 0; i < out.length; i++) if (out[i][0] === term) set = out[i][1]
         nullFrom(graph, to!).forEach((n) => {
           if (!set) out.push([term, (set = [])])
           if (set.indexOf(n) === -1) set.push(n)
@@ -720,8 +720,8 @@ function dfa(graph: Array<Array<Edge>>): ContentMatch {
     })
     const state = (labeled[states.join(",")] = new ContentMatch(states.indexOf(graph.length - 1) > -1))
     for (let i = 0; i < out.length; i++) {
-      const targets = Arr.sort(out[i]![1], descending)
-      state.next.push({ type: out[i]![0], next: labeled[targets.join(",")] || explore(targets) })
+      const targets = Arr.sort(out[i][1], descending)
+      state.next.push({ type: out[i][0], next: labeled[targets.join(",")] || explore(targets) })
     }
     return state
   }
@@ -729,11 +729,11 @@ function dfa(graph: Array<Array<Edge>>): ContentMatch {
 
 function checkForDeadEnds(match: ContentMatch, source: string) {
   for (let i = 0, work = [match]; i < work.length; i++) {
-    const state = work[i]!
+    const state = work[i]
     let dead = !state.validEnd
     const nodes: Array<string> = []
     for (let j = 0; j < state.next.length; j++) {
-      const { next, type } = state.next[j]!
+      const { next, type } = state.next[j]
       nodes.push(type.name)
       if (dead && !(type.isText || type.hasRequiredAttrs())) dead = false
       if (work.indexOf(next) === -1) work.push(next)

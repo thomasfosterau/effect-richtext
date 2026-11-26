@@ -574,13 +574,13 @@ export class EditorView {
     if (prop != null && (value = f ? f(prop as any) : prop)) return value as any
     const direct = this._props.plugins || []
     for (let i = 0; i < direct.length; i++) {
-      const pluginProp = direct[i]!.props[propName]
+      const pluginProp = direct[i].props[propName]
       if (pluginProp != null && (value = f ? f(pluginProp as any) : pluginProp)) return value as any
     }
     const plugins = this.state.plugins
     if (plugins) {
       for (let i = 0; i < plugins.length; i++) {
-        const pluginProp = plugins[i]!.props[propName]
+        const pluginProp = plugins[i].props[propName]
         if (pluginProp != null && (value = f ? f(pluginProp as any) : pluginProp)) return value as any
       }
     }
@@ -609,7 +609,7 @@ export class EditorView {
 
   /** Given a pair of viewport coordinates, return the document position that corresponds to them. */
   posAtCoords(coords: { left: number; top: number }): { pos: number; inside: number } | null {
-    return Option.getOrNull(this[CORE].posAtCoords(coords)) as { pos: number; inside: number } | null
+    return Option.getOrNull(this[CORE].posAtCoords(coords))
   }
 
   /** Returns the viewport rectangle at a given document position. */
@@ -680,7 +680,7 @@ export class EditorView {
 
   /** @internal */
   domSelection(): globalThis.Selection | null {
-    return this[CORE].domSelection() as globalThis.Selection | null
+    return this[CORE].domSelection()
   }
 
   /** @internal */

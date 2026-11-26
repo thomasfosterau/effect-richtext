@@ -63,7 +63,7 @@ const findEmptyBlock = (
   const doc = state.doc
   if (strategy === "doc") {
     if (doc.childCount !== 1) return null
-    const first = doc.content.content[0]!
+    const first = doc.content.content[0]
     return isEmptyTextblock(first) ? { node: first, pos: 0 } : null
   }
   const { $from, empty } = state.selection

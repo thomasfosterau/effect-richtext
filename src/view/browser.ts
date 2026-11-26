@@ -18,23 +18,17 @@ const ie_11up = /Trident\/(?:[7-9]|\d{2,})\..*rv:(\d+)/.exec(agent)
 /** @internal */
 export const ie = !!(ie_upto10 || ie_11up || ie_edge)
 /** @internal */
-export const ie_version: number = ie_upto10
-  ? documentMode(document)
-  : ie_11up
-    ? +ie_11up[1]!
-    : ie_edge
-      ? +ie_edge[1]!
-      : 0
+export const ie_version: number = ie_upto10 ? documentMode(document) : ie_11up ? +ie_11up[1] : ie_edge ? +ie_edge[1] : 0
 /** @internal */
 export const gecko = !ie && /gecko\/(\d+)/i.test(agent)
 /** @internal */
-export const gecko_version = gecko && +(/Firefox\/(\d+)/.exec(agent) || [0, 0])[1]!
+export const gecko_version = gecko && +(/Firefox\/(\d+)/.exec(agent) || [0, 0])[1]
 
 const _chrome = !ie && /Chrome\/(\d+)/.exec(agent)
 /** @internal */
 export const chrome = !!_chrome
 /** @internal */
-export const chrome_version = _chrome ? +_chrome[1]! : 0
+export const chrome_version = _chrome ? +_chrome[1] : 0
 /** @internal */
 export const safari = !ie && !!nav && /Apple Computer/.test(nav.vendor)
 // Is true for both iOS and iPadOS for convenience
@@ -49,4 +43,4 @@ export const android = /Android \d/.test(agent)
 /** @internal */
 export const webkit = !!doc && "webkitFontSmoothing" in doc.documentElement.style
 /** @internal */
-export const webkit_version = webkit ? +(/\bAppleWebKit\/(\d+)/.exec(navigator.userAgent) || [0, 0])[1]! : 0
+export const webkit_version = webkit ? +(/\bAppleWebKit\/(\d+)/.exec(navigator.userAgent) || [0, 0])[1] : 0

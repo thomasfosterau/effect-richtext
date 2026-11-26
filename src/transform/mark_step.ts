@@ -17,7 +17,7 @@ function mapFragment<Sc extends AnySchema>(
 ): Fragment<Sc> {
   const mapped: Array<Node<Sc>> = []
   for (let i = 0; i < fragment.childCount; i++) {
-    let child = fragment.content[i]!
+    let child = fragment.content[i]
     if (child.content.size) child = child.copy(mapFragment(child.content, f, child))
     if (child.isInline) child = f(child, parent, i)
     mapped.push(child)
@@ -211,7 +211,7 @@ export class AddNodeMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> 
       doc,
       this.pos,
       this.pos + 1,
-      new Slice(Fragment.from(updated as Node<Sc>), 0, node.isLeaf ? 0 : 1)
+      new Slice(Fragment.from(updated), 0, node.isLeaf ? 0 : 1)
     )
   }
 
@@ -221,7 +221,7 @@ export class AddNodeMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> 
       const newSet = this.mark.addToSet(node.marks)
       if (newSet.length === node.marks.length) {
         for (let i = 0; i < node.marks.length; i++) {
-          if (!node.marks[i]!.isInSet(newSet)) return new AddNodeMarkStep(this.pos, node.marks[i]!)
+          if (!node.marks[i].isInSet(newSet)) return new AddNodeMarkStep(this.pos, node.marks[i])
         }
         return new AddNodeMarkStep(this.pos, this.mark)
       }
@@ -272,7 +272,7 @@ export class RemoveNodeMarkStep<Sc extends AnySchema = AnySchema> extends Step<S
       doc,
       this.pos,
       this.pos + 1,
-      new Slice(Fragment.from(updated as Node<Sc>), 0, node.isLeaf ? 0 : 1)
+      new Slice(Fragment.from(updated), 0, node.isLeaf ? 0 : 1)
     )
   }
 

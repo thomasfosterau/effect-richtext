@@ -106,7 +106,7 @@ function skipIgnoredNodesBefore(view: AnyView) {
   // Gecko will do odd things when the selection is directly in front
   // of a non-editable node, so in that case, move it into the next
   // node if possible.
-  if (browser.gecko && node.nodeType == 1 && offset < nodeLen(node) && isIgnorable(node.childNodes[offset]!, -1)) {
+  if (browser.gecko && node.nodeType == 1 && offset < nodeLen(node) && isIgnorable(node.childNodes[offset], -1)) {
     force = true
   }
   for (;;) {
@@ -114,7 +114,7 @@ function skipIgnoredNodesBefore(view: AnyView) {
       if (node.nodeType != 1) {
         break
       } else {
-        const before = node.childNodes[offset - 1]!
+        const before = node.childNodes[offset - 1]
         if (isIgnorable(before, -1)) {
           moveNode = node
           moveOffset = --offset
@@ -158,7 +158,7 @@ function skipIgnoredNodesAfter(view: AnyView) {
   for (;;) {
     if (offset < len) {
       if (node.nodeType != 1) break
-      const after = node.childNodes[offset]!
+      const after = node.childNodes[offset]
       if (isIgnorable(after, 1)) {
         moveNode = node
         moveOffset = ++offset
@@ -197,7 +197,7 @@ function textNodeAfter(node: DOMNode | null, offset: number): Text | undefined {
     node = node.parentNode
   }
   while (node && offset < node.childNodes.length) {
-    const next = node.childNodes[offset]!
+    const next = node.childNodes[offset]
     if (next.nodeType == 3) return next as Text
     if (next.nodeType == 1 && (next as HTMLElement).contentEditable == "false") break
     node = next
@@ -212,7 +212,7 @@ function textNodeBefore(node: DOMNode | null, offset: number): Text | undefined 
     node = node.parentNode
   }
   while (node && offset) {
-    const next = node.childNodes[offset - 1]!
+    const next = node.childNodes[offset - 1]
     if (next.nodeType == 3) return next as Text
     if (next.nodeType == 1 && (next as HTMLElement).contentEditable == "false") break
     node = next

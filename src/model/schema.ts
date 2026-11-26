@@ -699,7 +699,7 @@ const identityAttrs = (attrs: Record<string, Attribute>): boolean =>
 function initAttrs(typeName: string, attrs?: AttributeDefinitions) {
   const result: Record<string, Attribute> = Object.create(null)
   if (attrs) {
-    for (const name in attrs) result[name] = new Attribute(typeName, name, attrs[name]!)
+    for (const name in attrs) result[name] = new Attribute(typeName, name, attrs[name])
   }
   return result
 }
@@ -711,7 +711,7 @@ function initAttrs(typeName: string, attrs?: AttributeDefinitions) {
 function defaultAttrs(attrs: Record<string, Attribute>): Option.Option<Attrs> {
   const defaults = Object.create(null)
   for (const attrName in attrs) {
-    const attr = attrs[attrName]!
+    const attr = attrs[attrName]
     if (!attr.hasDefault) return Option.none()
     defaults[attrName] = attr.default
   }
@@ -730,7 +730,7 @@ export function computeAttrs(
 ): Attrs {
   const built = Object.create(null)
   for (const name in attrs) {
-    const attr = attrs[name]!
+    const attr = attrs[name]
     let given = value && value[name]
     if (given === undefined) {
       if (attr.hasDefault) given = attr.default
@@ -759,7 +759,7 @@ export function checkAttrs(attrs: Record<string, Attribute>, values: Attrs, type
     }
   }
   for (const name in attrs) {
-    const attr = attrs[name]!
+    const attr = attrs[name]
     if (attr.validate) attr.validate(values[name])
     if (attr.is && !attr.is(values[name])) {
       throw new AttributeError({
@@ -850,7 +850,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
 
   /** Tells you whether this node type has any required attributes. */
   hasRequiredAttrs(): boolean {
-    for (const n in this.attrs) if (this.attrs[n]!.isRequired) return true
+    for (const n in this.attrs) if (this.attrs[n].isRequired) return true
     return false
   }
 
@@ -912,9 +912,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   }
 
   private build(attrs: Attrs, content: Fragment<Sc>, marks: ReadonlyArray<Mark<Sc>>): Node<Sc, N> {
-    // SAFETY: callers pass attrs computed for this type, and content
-    // they checked or filled for it.
-    return new Node(this, attrs as NodeAttrs<Sc, N>, content as Fragment<Sc, ChildNames<Sc, N>>, marks)
+    return new Node(this, attrs, content, marks)
   }
 
   /**
@@ -1035,7 +1033,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     const result = this.contentMatch.matchFragmentOrNull(content)
     if (!result || !result.validEnd) return false
     for (let i = 0; i < content.childCount; i++) {
-      if (!this.allowsMarks(content.content[i]!.marks)) return false
+      if (!this.allowsMarks(content.content[i].marks)) return false
     }
     return true
   }
@@ -1062,7 +1060,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   /** Test whether the given set of marks are allowed in this node. */
   allowsMarks(marks: ReadonlyArray<Mark<any>>): boolean {
     if (this.markSet === null) return true
-    for (let i = 0; i < marks.length; i++) if (!this.allowsMarkType(marks[i]!.type)) return false
+    for (let i = 0; i < marks.length; i++) if (!this.allowsMarkType(marks[i].type)) return false
     return true
   }
 
@@ -1141,8 +1139,7 @@ export class MarkType<Sc extends AnySchema = AnySchema, out M extends MarkNames<
   }
 
   private build(attrs: Attrs): Mark<Sc, M> {
-    // SAFETY: callers pass attrs computed for this type.
-    return new Mark(this, attrs as MarkAttrs<Sc, M>)
+    return new Mark(this, attrs)
   }
 
   /**
@@ -1162,7 +1159,7 @@ export class MarkType<Sc extends AnySchema = AnySchema, out M extends MarkNames<
    */
   removeFromSet<Mk extends Mark<any>>(set: ReadonlyArray<Mk>): ReadonlyArray<Mk> {
     for (let i = 0; i < set.length; i++) {
-      if (set[i]!.type === this) {
+      if (set[i].type === this) {
         set = set.slice(0, i).concat(set.slice(i + 1))
         i--
       }
@@ -1177,7 +1174,7 @@ export class MarkType<Sc extends AnySchema = AnySchema, out M extends MarkNames<
 
   /** @internal */
   findInSet(set: ReadonlyArray<Mark<any>>): Mark<Sc, M> | undefined {
-    for (let i = 0; i < set.length; i++) if (set[i]!.type === this) return set[i] as Mark<Sc, M>
+    for (let i = 0; i < set.length; i++) if (set[i].type === this) return set[i] as Mark<Sc, M>
     return undefined
   }
 
@@ -1292,7 +1289,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
     let linebreak = Option.none<NodeType<any, any>>()
     for (const prop in nodes) {
       if (prop in marks) throw new SchemaDefinitionError({ message: prop + " can not be both a node and a mark" })
-      const type = nodes[prop]!
+      const type = nodes[prop]
       const markExpr = type.spec.marks
       type.contentMatch = ContentMatch.compile(type.spec.content, nodes, prop)
       type.inlineContent = type.contentMatch.inlineContent
@@ -1313,7 +1310,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
               : null
     }
     for (const prop in marks) {
-      const type = marks[prop]!
+      const type = marks[prop]
       const excl = type.spec.excludes
       type.excluded = excl == null ? [type] : excl === "" ? [] : gatherMarks(this, excl.split(" "))
     }
@@ -1484,14 +1481,14 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
 function gatherMarks(schema: DocSchema<any, any>, marks: ReadonlyArray<string>) {
   const found: Array<MarkType<any, any>> = []
   for (let i = 0; i < marks.length; i++) {
-    const name = marks[i]!
+    const name = marks[i]
     const mark = schema.marks[name]
     let ok = mark
     if (mark) {
       found.push(mark)
     } else {
       for (const prop in schema.marks) {
-        const candidate = schema.marks[prop]!
+        const candidate = schema.marks[prop]
         if (name === "_" || (candidate.spec.group && candidate.spec.group.split(" ").indexOf(name) > -1)) {
           found.push((ok = candidate))
         }
