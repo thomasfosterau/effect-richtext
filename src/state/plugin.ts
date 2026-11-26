@@ -180,7 +180,7 @@ export interface PluginSpec<PState = any, Sc extends AnySchema = AnySchema, E = 
 
 function bindProps(
   obj: { readonly [prop: string]: unknown },
-  self: unknown,
+  self: AnyPlugin,
   target: Record<string, unknown>
 ): Record<string, unknown> {
   for (const prop in obj) {

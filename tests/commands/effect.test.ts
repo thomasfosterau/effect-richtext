@@ -45,7 +45,7 @@ const other: Command<AnySchema, Other> = () => Effect.fail(new Other())
 const runWith = <E, R>(
   state: EditorState<any>,
   command: Command<any, E, R>,
-  view?: unknown
+  view?: TextblockBoundaryView
 ): Effect.Effect<{ readonly handled: boolean; readonly state: EditorState<any> }, E, R> =>
   Effect.gen(function* () {
     let current = state
