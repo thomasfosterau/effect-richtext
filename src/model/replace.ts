@@ -9,7 +9,7 @@ import * as Predicate from "effect/Predicate"
 import type * as Types from "effect/Types"
 import { JSONError, PositionError, ReplaceError } from "./errors.ts"
 import { Fragment } from "./fragment.ts"
-import type { Node, NodeJSON, TextNode } from "./node.ts"
+import type { Node, NodeJSON } from "./node.ts"
 import type { ResolvedPos } from "./resolvedpos.ts"
 import type { AnySchema } from "./schema.ts"
 
@@ -240,8 +240,9 @@ function joinable<Sc extends AnySchema>($before: ResolvedPos<Sc>, $after: Resolv
 
 function addNode<Sc extends AnySchema>(child: Node<Sc>, target: Array<Node<Sc>>) {
   const last = target.length - 1
-  if (last >= 0 && child.isText && child.sameMarkup(target[last])) {
-    target[last] = (child as TextNode<Sc>).withText((target[last] as TextNode<Sc>).text + (child as TextNode<Sc>).text)
+  const prev = target[last]
+  if (last >= 0 && child.isTextNode() && prev.isTextNode() && child.sameMarkup(prev)) {
+    target[last] = child.withText(prev.text + child.text)
   } else {
     target.push(child)
   }

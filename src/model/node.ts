@@ -117,7 +117,8 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
 
   /** Narrow this node to the given node type(s). */
   is<K extends NodeNames<Sc>>(...names: ReadonlyArray<K>): this is Node<Sc, K> {
-    return (names as ReadonlyArray<string>).indexOf(this.type.name) > -1
+    const all: ReadonlyArray<string> = names
+    return all.indexOf(this.type.name) > -1
   }
 
   /** Narrow this node to a text node. */
@@ -303,6 +304,7 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
 
   /** Like `replace`, but throws on failure. */
   replaceUnsafe(from: number, to: number, slice: Slice<Sc>): Node<Sc, N> {
+    // SAFETY: replacing inside a node keeps its type.
     return replace(this.resolveUnsafe(from), this.resolveUnsafe(to), slice) as Node<Sc, N>
   }
 

@@ -263,6 +263,7 @@ const insertNode =
  * @category commands
  */
 export const defineBaseCommands = (): CommandsExtension<BaseCommands> =>
+  // SAFETY: each creator looks its type up by name, so it serves the typed argument lists of `BaseCommands`.
   defineCommands({
     toggleMark:
       (name: string, attrs?: any, options?: ToggleMarkOptions): Command<any> =>

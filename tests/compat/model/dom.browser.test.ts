@@ -16,7 +16,6 @@ import {
   DOMSerializer,
   Fragment,
   type ParseOptions,
-  type ParseRule,
   Schema,
   Slice
 } from "@thomasfosterau/effect-richtext/compat/model"
@@ -42,7 +41,8 @@ import {
   ul
 } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
-import { present } from "../../utils/present.ts"
+import { instanceOf, present } from "../../utils/present.ts"
+import { tagsOf } from "../../utils/tags.ts"
 
 const document: any = globalThis.document
 const xmlDocument: any = new window.DOMParser().parseFromString("<tag/>", "application/xml")
@@ -107,15 +107,13 @@ function find(html: string, doc: PMNode) {
       findPositions: [pos]
     })
     ist(result, doc, eq)
-    ist((pos as any).pos, (doc as any).tag.a)
+    // SAFETY: `parse` writes the found position to `pos.pos`.
+    ist((pos as any).pos, tagsOf(doc).a)
   }
 }
 
 function contextParser(context: string) {
-  return new DOMParser(
-    schema,
-    [{ tag: "foo", node: "horizontal_rule", context } as ParseRule].concat(DOMParser.schemaRules(schema))
-  )
+  return new DOMParser(schema, [{ tag: "foo", node: "horizontal_rule", context }, ...DOMParser.schemaRules(schema)])
 }
 
 function nsParse(doc: Node, namespace?: string) {
@@ -228,6 +226,7 @@ describe("DOMParser", () => {
           }
         })
       })
+      // SAFETY: the tests call each builder as the node or mark builder it is.
       const b = builders(commentSchema) as any
       test(
         b.doc(b.paragraph("one"), b.comment(b.paragraph("two"), b.paragraph(b.strong("three"))), b.paragraph("four")),
@@ -283,6 +282,7 @@ describe("DOMParser", () => {
           spanning: false
         })
       })
+      // SAFETY: the tests call each builder as the node or mark builder it is.
       const b = builders(markSchema) as any
       test(
         b.doc(b.paragraph(b.test("a", b.image({ src: "x" }), "b"))),
@@ -305,6 +305,7 @@ describe("DOMParser", () => {
         }
       })
 
+      // SAFETY: the tests call each builder as the node or mark builder it is.
       const b = builders(xmlnsSchema) as any
       const d = b.doc(b.svg())
       test(
@@ -702,7 +703,7 @@ describe("DOMParser", () => {
       ist(
         contextParser("doc//blockquote/").parse(domFrom("<blockquote><foo></foo></blockquote>"), {
           topNode: blockquote(),
-          context: cxDoc.resolve((cxDoc as any).tag.a)
+          context: cxDoc.resolve(tagsOf(cxDoc).a)
         }),
         blockquote(blockquote(hr())),
         eq
@@ -713,7 +714,7 @@ describe("DOMParser", () => {
       const cxDoc = doc(blockquote("<a>", hr()))
       ist(
         contextParser("doc//blockquote/").parseSlice(domFrom("<foo></foo>"), {
-          context: cxDoc.resolve((cxDoc as any).tag.a)
+          context: cxDoc.resolve(tagsOf(cxDoc).a)
         }),
         new Slice(blockquote(hr()).content, 0, 0),
         eq
@@ -721,26 +722,23 @@ describe("DOMParser", () => {
     })
 
     it("can close parent nodes from a rule", () => {
-      const closeParser = new DOMParser(
-        schema,
-        [{ tag: "br", closeParent: true } as ParseRule].concat(DOMParser.schemaRules(schema))
-      )
+      const closeParser = new DOMParser(schema, [{ tag: "br", closeParent: true }, ...DOMParser.schemaRules(schema)])
       ist(closeParser.parse(domFrom("<p>one<br>two</p>")), doc(p("one"), p("two")), eq)
     })
 
     it("supports non-consuming node rules", () => {
-      const parser = new DOMParser(
-        schema,
-        [{ tag: "ol", consuming: false, node: "blockquote" } as ParseRule].concat(DOMParser.schemaRules(schema))
-      )
+      const parser = new DOMParser(schema, [
+        { tag: "ol", consuming: false, node: "blockquote" },
+        ...DOMParser.schemaRules(schema)
+      ])
       ist(parser.parse(domFrom("<ol><p>one</p></ol>")), doc(blockquote(ol(li(p("one"))))), eq)
     })
 
     it("supports non-consuming style rules", () => {
-      const parser = new DOMParser(
-        schema,
-        [{ style: "font-weight", consuming: false, mark: "em" } as ParseRule].concat(DOMParser.schemaRules(schema))
-      )
+      const parser = new DOMParser(schema, [
+        { style: "font-weight", consuming: false, mark: "em" },
+        ...DOMParser.schemaRules(schema)
+      ])
       ist(parser.parse(domFrom("<p><span style='font-weight: 800'>one</span></p>")), doc(p(em(strong("one")))), eq)
     })
 
@@ -755,7 +753,8 @@ describe("DOMParser", () => {
       ist(
         parser.parse(dom, {
           ruleFromNode: (node) => {
-            return node.nodeType == 1 && (node as HTMLElement).tagName == "SPAN" ? { skip: node as any } : null
+            // SAFETY: ProseMirror types `skip` as a boolean, but it also takes the node to parse instead.
+            return node instanceof HTMLElement && node.tagName == "SPAN" ? { skip: node as any } : null
           }
         }),
         doc(p("abc def")),
@@ -815,7 +814,7 @@ describe("DOMParser", () => {
       })
       ist(
         DOMParser.schemaRules(schema)
-          .map((r) => (r as any).tag)
+          .map((r) => ("tag" in r ? r.tag : undefined))
           .join(" "),
         "i em foo bar"
       )
@@ -840,7 +839,7 @@ describe("DOMParser", () => {
       })
       ist(
         DOMParser.schemaRules(schema)
-          .map((r) => (r as any).tag)
+          .map((r) => ("tag" in r ? r.tag : undefined))
           .join(" "),
         "em bar foo i"
       )
@@ -897,14 +896,14 @@ describe("DOMSerializer", () => {
 
   it("can omit a mark", () => {
     ist(
-      (noEm.serializeNode(p("foo", em("bar"), strong("baz")), { document }) as HTMLElement).innerHTML,
+      instanceOf(HTMLElement, noEm.serializeNode(p("foo", em("bar"), strong("baz")), { document })).innerHTML,
       "foobar<strong>baz</strong>"
     )
   })
 
   it("doesn't split other marks for omitted marks", () => {
     ist(
-      (noEm.serializeNode(p("foo", code("bar"), em(code("baz"), "quux"), "xyz"), { document }) as HTMLElement)
+      instanceOf(HTMLElement, noEm.serializeNode(p("foo", code("bar"), em(code("baz"), "quux"), "xyz"), { document }))
         .innerHTML,
       "foo<code>barbaz</code>quuxxyz"
     )
@@ -921,7 +920,7 @@ describe("DOMSerializer", () => {
     )
     const node = deepEm.serializeNode(p(strong("foo", code("bar"), em(code("baz"))), em("quux"), "xyz"), { document })
     ist(
-      (node as HTMLElement).innerHTML,
+      instanceOf(HTMLElement, node).innerHTML,
       '<strong>foo<code>bar</code></strong><em><i data-emphasis="true"><strong><code>baz</code></strong>quux</i></em>xyz'
     )
   })

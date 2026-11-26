@@ -7,6 +7,9 @@
  * @since 0.1.0
  */
 
+// SAFETY: `content` alternates keys and values, so even indices hold keys.
+const keyAt = (content: ReadonlyArray<unknown>, i: number): string => content[i] as string
+
 /**
  * A persistent, ordered map from string keys to values.
  *
@@ -23,10 +26,15 @@ export class OrderedMap<T = any> {
     return -1
   }
 
+  private valueAt(i: number): T {
+    // SAFETY: `content` alternates keys and values, so odd indices hold values.
+    return this.content[i] as T
+  }
+
   /** Retrieve the value stored under `key`, or `undefined`. */
   get(key: string): T | undefined {
     const found = this.find(key)
-    return found === -1 ? undefined : (this.content[found + 1] as T)
+    return found === -1 ? undefined : this.valueAt(found + 1)
   }
 
   /**
@@ -58,7 +66,8 @@ export class OrderedMap<T = any> {
 
   /** Add a new key to the start of the map. */
   addToStart(key: string, value: T): OrderedMap<T> {
-    return new OrderedMap([key, value as string | T].concat(this.remove(key).content))
+    const entry: Array<string | T> = [key, value]
+    return new OrderedMap(entry.concat(this.remove(key).content))
   }
 
   /** Add a new key to the end of the map. */
@@ -82,7 +91,7 @@ export class OrderedMap<T = any> {
 
   /** Call the given function for each key/value pair in the map, in order. */
   forEach(f: (key: string, value: T) => void): void {
-    for (let i = 0; i < this.content.length; i += 2) f(this.content[i] as string, this.content[i + 1] as T)
+    for (let i = 0; i < this.content.length; i += 2) f(keyAt(this.content, i), this.valueAt(i + 1))
   }
 
   /**
@@ -108,8 +117,9 @@ export class OrderedMap<T = any> {
   /** Create a map containing all the keys in this map that don't appear in `map`. */
   subtract(map: MapLike<T>): OrderedMap<T> {
     // `content` alternates keys and values; remove each key.
-    return OrderedMap.from(map).content.reduce<OrderedMap<T>>(
-      (result, key, i) => (i % 2 === 0 ? result.remove(key as string) : result),
+    const other = OrderedMap.from(map)
+    return other.content.reduce<OrderedMap<T>>(
+      (result, _, i) => (i % 2 === 0 ? result.remove(keyAt(other.content, i)) : result),
       this
     )
   }
@@ -137,7 +147,7 @@ export class OrderedMap<T = any> {
     if (map instanceof OrderedMap) return map
     const content: Array<string | T> = []
     if (map) {
-      for (const prop in map) content.push(prop, (map as Record<string, T>)[prop])
+      for (const prop in map) content.push(prop, map[prop])
     }
     return new OrderedMap(content)
   }

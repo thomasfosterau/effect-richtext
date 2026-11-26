@@ -253,9 +253,12 @@ export abstract class Step {
         fromJSONUnsafe: (schema, json) => stepClass.fromJSON(wrap(schema), json)[CORE]
       })
     } catch (e) {
+      // SAFETY: the core throws its `Error`s.
       throw new RangeError((e as Error).message)
     }
-    ;(stepClass as any).prototype.jsonID = id
+    // SAFETY: step classes are constructors, and ProseMirror sets `jsonID` on their prototype.
+    const cls = stepClass as typeof stepClass & { readonly prototype: { jsonID?: string } }
+    cls.prototype.jsonID = id
     return stepClass
   }
 }
@@ -980,6 +983,7 @@ export class Transform {
     attrs: Attrs | null | ((oldNode: Node) => Attrs) = null
   ): this {
     const coreAttrs = Predicate.isFunction(attrs) ? (node: M.Node) => attrs(wrap(node)) : attrs
+    // SAFETY: a facade transform's core is untyped, so any attributes fit.
     guard(() => this[CORE].setBlockTypeUnsafe(from, to, type[CORE], coreAttrs as any))
     return this
   }

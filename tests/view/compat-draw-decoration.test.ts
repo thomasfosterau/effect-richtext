@@ -23,7 +23,7 @@ import {
 import type { EditorView } from "@thomasfosterau/effect-richtext/compat/view"
 import { Decoration, DecorationSet, type DecorationSource } from "@thomasfosterau/effect-richtext/compat/view"
 import ist from "../utils/ist.ts"
-import { present } from "../utils/present.ts"
+import { instanceOf, present } from "../utils/present.ts"
 import { tempEditor } from "./compat-view.ts"
 
 function make(str: string | Decoration): Decoration {
@@ -187,7 +187,7 @@ describe("Decoration drawing", () => {
           Decoration.widget(2, document.createElement("BUTTON"), {
             destroy: (node) => {
               destroyed = true
-              ist((node as HTMLElement).tagName, "BUTTON")
+              ist(instanceOf(HTMLElement, node).tagName, "BUTTON")
             }
           })
         ])
@@ -284,7 +284,7 @@ describe("Decoration drawing", () => {
     ist(view.dom.querySelector(".foo"))
     updateDeco(view, null, [dec])
     ist(view.dom.querySelector(".foo"), null)
-    ist((view.dom.firstChild as HTMLElement).innerHTML, "abcd")
+    ist(instanceOf(HTMLElement, view.dom.firstChild).innerHTML, "abcd")
   })
 
   it("can remove the class for part of a text node", () => {
@@ -299,20 +299,20 @@ describe("Decoration drawing", () => {
   it("draws a widget added in the middle of a text node", () => {
     const view = tempEditor({ doc: doc(p("foo")), plugins: [decoPlugin([])] })
     updateDeco(view, [make("3-widget")])
-    ist((view.dom.firstChild as HTMLElement).textContent, "foωo")
+    ist(instanceOf(HTMLElement, view.dom.firstChild).textContent, "foωo")
   })
 
   it("can update a text node around a widget", () => {
     const view = tempEditor({ doc: doc(p("bar")), plugins: [decoPlugin(["3-widget"])] })
     view.dispatch(view.state.tr.delete(1, 2))
     ist(view.dom.querySelectorAll("button").length, 1)
-    ist((view.dom.firstChild as HTMLElement).textContent, "aωr")
+    ist(instanceOf(HTMLElement, view.dom.firstChild).textContent, "aωr")
   })
 
   it("can update a text node with an inline decoration", () => {
     const view = tempEditor({ doc: doc(p("bar")), plugins: [decoPlugin(["1-3-foo"])] })
     view.dispatch(view.state.tr.delete(1, 2))
-    const foo = view.dom.querySelector(".foo") as HTMLElement
+    const foo = instanceOf(HTMLElement, view.dom.querySelector(".foo"))
     ist(foo)
     ist(foo.textContent, "a")
     ist(present(foo.nextSibling).textContent, "r")
@@ -343,7 +343,7 @@ describe("Decoration drawing", () => {
   it("can update a node's attributes without replacing the node", () => {
     const deco = Decoration.node(0, 5, { title: "title", class: "foo" })
     const view = tempEditor({ doc: doc(p("foo")), plugins: [decoPlugin([deco])] })
-    const para = view.dom.querySelector("p") as HTMLElement
+    const para = instanceOf(HTMLElement, view.dom.querySelector("p"))
     updateDeco(view, [Decoration.node(0, 5, { class: "foo bar" })], [deco])
     ist(view.dom.querySelector("p"), para)
     ist(para.className, "foo bar")
@@ -379,7 +379,10 @@ describe("Decoration drawing", () => {
     const deco = Decoration.inline(1, 6, { style: "color: rgba(0,10,200,.4); text-decoration: underline" })
     const view = tempEditor({ doc: doc(p("al", img(), "lo")), plugins: [decoPlugin([deco])] })
     ist(/rgba/.test(present(view.dom.querySelector("img")).style.color))
-    ist((present(view.dom.querySelector("img")).previousSibling as HTMLElement).style.textDecoration, "underline")
+    ist(
+      instanceOf(HTMLElement, present(view.dom.querySelector("img")).previousSibling).style.textDecoration,
+      "underline"
+    )
     updateDeco(view, null, [deco])
     ist(present(view.dom.querySelector("img")).style.color, "")
     ist(present(view.dom.querySelector("img")).style.textDecoration, "")
@@ -546,7 +549,7 @@ describe("Decoration drawing", () => {
       plugins: [decoPlugin([Decoration.inline(2, 13, { class: "foo" }), Decoration.inline(5, 8, { nodeName: "em" })])]
     })
     ist(
-      (view.dom.firstChild as HTMLElement).innerHTML,
+      instanceOf(HTMLElement, view.dom.firstChild).innerHTML,
       'o<span class="foo">ne </span><em class="foo">two</em><span class="foo"> thre</span>e'
     )
   })

@@ -269,6 +269,7 @@ const foldInto = (target: Transaction<any>, tr: Transaction<any>): void => {
   }
   if (tr.storedMarksSet) target.setStoredMarks(tr.storedMarksOrNull)
   if (tr.scrolledIntoView) target.scrollIntoView()
+  // SAFETY: `meta` is the transaction's private record of metadata.
   const meta = (tr as any).meta as Record<string, unknown>
   for (const key in meta) target.setMeta(key, meta[key])
 }
@@ -281,6 +282,7 @@ const isPlainObject = (u: unknown): u is Attrs => {
 }
 
 const dieOnStateFailure = <A, E, R>(effect: Effect.Effect<A, E, R>): Effect.Effect<A, Exclude<E, StateFailure>, R> =>
+  // SAFETY: dying on every `StateFailure` removes them from the error channel.
   Effect.catchIf(effect, isStateFailure as any, (e) => Effect.die(e)) as any
 
 // -----------------------------------------------------------------------------
@@ -291,6 +293,7 @@ const dieOnStateFailure = <A, E, R>(effect: Effect.Effect<A, E, R>): Effect.Effe
  * @since 0.1.0
  * @category symbols
  */
+// SAFETY: `Symbol.for` is typed `symbol`; its registered key makes this one unique.
 export const EditorTypeId: unique symbol = Symbol.for("effect-richtext/extensions/Editor") as never
 
 /**
@@ -332,16 +335,20 @@ export class Editor<T extends ExtensionTypes> {
     this.creators = creators
     const nodes: Record<string, unknown> = {}
     for (const name in schema.nodes) nodes[name] = this.nodeBuilder(name)
+    // SAFETY: a builder for each of the schema's node types.
     this.nodes = nodes as any
     const marks: Record<string, unknown> = {}
     for (const name in schema.marks) {
+      // SAFETY: `name` is one of the schema's mark types; `markUnsafe` checks the attributes.
       marks[name] = (attrs?: Attrs | null) => schema.markUnsafe(name as any, attrs as any)
     }
+    // SAFETY: a constructor for each of the schema's mark types.
     this.marks = marks as any
     const commands: Record<string, unknown> = {}
     for (const name in creators) {
       commands[name] = (...args: Array<unknown>) => Effect.suspend(() => this.runCommand(creators[name](...args), true))
     }
+    // SAFETY: a runner for each of the extension's command creators.
     this.commands = commands as any
   }
 
@@ -401,6 +408,7 @@ export class Editor<T extends ExtensionTypes> {
    * editor's state. Fails with the plugins' errors.
    */
   dispatch(tr: Transaction<SchemaOf<T>>): Effect.Effect<void, T["E"], T["R"]> {
+    // SAFETY: the state's plugins are the extension's, with its errors and requirements.
     return Effect.suspend(() => {
       const view = this._view
       if (view) return dieOnStateFailure(view.tryDispatch(tr))
@@ -439,6 +447,7 @@ export class Editor<T extends ExtensionTypes> {
       result[name] = (...args: Array<unknown>) =>
         Effect.suspend(() => this.runCommand(this.creators[name](...args), false))
     }
+    // SAFETY: a checker for each of the extension's command creators.
     return result as any
   }
 
@@ -474,6 +483,7 @@ export class Editor<T extends ExtensionTypes> {
       }
       return results.every(Boolean)
     })
+    // SAFETY: the chain queues each of the extension's commands.
     return chain as any
   }
 
@@ -507,7 +517,11 @@ export class Editor<T extends ExtensionTypes> {
     const type = this.schema.nodes[name]
     return (...args: Array<unknown>) => {
       let attrs: Attrs | null = null
-      if (args.length && (args[0] === null || isPlainObject(args[0]))) attrs = args.shift() as Attrs | null
+      const first = args[0]
+      if (args.length && (first === null || isPlainObject(first))) {
+        args.shift()
+        attrs = first
+      }
       const children: Array<Node<any, any>> = []
       const add = (child: unknown) => {
         if (Predicate.isString(child)) {
@@ -518,6 +532,7 @@ export class Editor<T extends ExtensionTypes> {
         else throw new TypeError("Invalid child passed to a node builder: " + String(child))
       }
       args.forEach(add)
+      // SAFETY: `createCheckedUnsafe` checks the attributes and content at runtime.
       return type.createCheckedUnsafe(attrs as any, children as any)
     }
   }
@@ -527,9 +542,11 @@ const parseContent = <Sc extends DocSchema<any, any>>(schema: Sc, content: Edito
   if (content instanceof Node) {
     // Nodes from another schema (say, another editor's) are converted
     // through their JSON representation.
+    // SAFETY: a node decoded by `schema` belongs to it.
     return content.type.schema === schema ? content : (schema.nodeFromJSONUnsafe(content.toJSON()) as Node<Sc>)
   }
   if (Predicate.isString(content)) return fromHTMLUnsafe(schema, content)
+  // SAFETY: a node decoded by `schema` belongs to it.
   return schema.nodeFromJSONUnsafe(content) as Node<Sc>
 }
 
@@ -550,8 +567,10 @@ export const createEditor = <T extends ExtensionTypes>(
   extension: Extension<T>,
   options: EditorOptions<SchemaOf<T>> = {}
 ): Effect.Effect<Editor<T>, CreateEditorError | T["E"], T["R"]> =>
+  // SAFETY: the plugins are the extension's, with its errors and requirements.
   Effect.gen(function* () {
     const flat = flatten(extension)
+    // SAFETY: built from the extension's node and mark specs.
     const schema = yield* DocSchema.make({ nodes: flat.nodes, marks: flat.marks }) as Effect.Effect<
       SchemaOf<T>,
       SchemaDefinitionError
@@ -566,6 +585,7 @@ export const createEditor = <T extends ExtensionTypes>(
       plugins
     }
     const state = yield* EditorState.create(config)
+    // SAFETY: created with the extension's plugins.
     return new Editor<T>(schema, state as any, flat.commands)
   }) as any
 
@@ -579,4 +599,6 @@ export const createEditor = <T extends ExtensionTypes>(
 export const createEditorUnsafe = <T extends ExtensionTypes & { readonly R: never }>(
   extension: Extension<T>,
   options: EditorOptions<SchemaOf<T>> = {}
-): Editor<T> => runSyncUnsafe(createEditor(extension, options) as Effect.Effect<Editor<T>, unknown>)
+): Editor<T> =>
+  // SAFETY: `T["R"]` is `never`.
+  runSyncUnsafe(createEditor(extension, options) as Effect.Effect<Editor<T>, unknown>)

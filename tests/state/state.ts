@@ -10,9 +10,10 @@ import {
   TextSelection,
   type Transaction
 } from "@thomasfosterau/effect-richtext/State"
+import { tagsOf } from "../utils/tags.ts"
 
 export function selFor(doc: Node<any>): Selection<any> {
-  const tag = (doc as any).tag
+  const tag = tagsOf(doc)
   const a = tag.a
   if (a != null) {
     const $a = doc.resolveUnsafe(a)

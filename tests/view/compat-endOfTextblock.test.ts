@@ -7,6 +7,7 @@ import { TextSelection } from "@thomasfosterau/effect-richtext/compat/state"
 import { a, doc, p, schema } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import { Decoration, DecorationSet } from "@thomasfosterau/effect-richtext/compat/view"
 import ist from "../utils/ist.ts"
+import { tagsOf } from "../utils/tags.ts"
 import { tempEditor } from "./compat-view.ts"
 
 describe("EditorView.endOfTextblock", () => {
@@ -74,15 +75,16 @@ describe("EditorView.endOfTextblock", () => {
     })
     ist(view.endOfTextblock("up"))
     ist(!view.endOfTextblock("down"))
-    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, (view.state.doc as any).tag.b)))
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, tagsOf(view.state.doc).b)))
     ist(!view.endOfTextblock("up"))
     ist(!view.endOfTextblock("down"))
-    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, (view.state.doc as any).tag.c)))
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, tagsOf(view.state.doc).c)))
     ist(!view.endOfTextblock("up"))
     ist(view.endOfTextblock("down"))
   })
 
   // Bidi functionality only works when the browser has Selection.modify
+  // SAFETY: `modify` is missing from some browsers' selections, though the DOM types declare it.
   if (!(getSelection() as any).modify) return
 
   it("works at the start of an RTL block", () => {

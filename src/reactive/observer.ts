@@ -19,10 +19,13 @@ import {
   setState
 } from "./streams.ts"
 
+const isDOMNode = (target: EventTarget): target is globalThis.Node => "nodeType" in target
+
 /**
  * @since 0.1.0
  * @category symbols
  */
+// SAFETY: `Symbol.for` is typed `symbol`; its registered key makes this one unique.
 export const EditorObserverTypeId: unique symbol = Symbol.for("effect-richtext/reactive/EditorObserver") as never
 
 /**
@@ -89,7 +92,7 @@ export const make = Effect.fn("EditorObserver.make")(function* <Sc extends AnySc
   const setFocus = (value: boolean) => setRefUnsafe(focused, value)
   const onFocusIn = () => setFocus(true)
   const onFocusOut = (event: FocusEvent) =>
-    setFocus(!!event.relatedTarget && view.dom.contains(event.relatedTarget as globalThis.Node))
+    setFocus(!!event.relatedTarget && isDOMNode(event.relatedTarget) && view.dom.contains(event.relatedTarget))
   yield* Effect.acquireRelease(
     Effect.sync(() => {
       view.dom.addEventListener("focusin", onFocusIn)

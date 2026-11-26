@@ -32,6 +32,7 @@ const keyDown = (view: EditorView<any, any, any>, key: string, keyCode: number) 
   return event
 }
 
+// SAFETY: `listeners` is the view's private list of update listeners.
 const listenerCount = (view: EditorView<any, any, any>): number => (view as any).listeners.length
 
 describe("EditorView.subscribe", () => {

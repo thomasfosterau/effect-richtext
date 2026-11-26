@@ -7,6 +7,7 @@ import type { Node } from "@thomasfosterau/effect-richtext/compat/model"
 import { Mark, Schema } from "@thomasfosterau/effect-richtext/compat/model"
 import { a, doc, em, p, schema } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
+import { tagsOf } from "../../utils/tags.ts"
 
 const em_ = schema.mark("em")
 const strong = schema.mark("strong")
@@ -31,7 +32,7 @@ const remark1 = custom.remark.create({ id: 1 }),
   customStrong = custom.strong.create()
 
 function isAt(doc: Node, mark: Mark, result: boolean) {
-  ist(mark.isInSet(doc.resolve((doc as any).tag.a).marks()), result)
+  ist(mark.isInSet(doc.resolve(tagsOf(doc).a).marks()), result)
 }
 
 describe("Mark", () => {

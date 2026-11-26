@@ -2,7 +2,7 @@
 import { describe, it } from "@effect/vitest"
 import { Content, DocSchema, Fragment, Slice } from "@thomasfosterau/effect-richtext/Model"
 import { NodeSelection, TextSelection } from "@thomasfosterau/effect-richtext/State"
-import { blockquote, br, doc, eq, hr, li, ol, p, strong, ul } from "@thomasfosterau/effect-richtext/TestBuilder"
+import { blockquote, br, doc, eq, hr, li, ol, p, strong, tagsOf, ul } from "@thomasfosterau/effect-richtext/TestBuilder"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 import { present } from "../utils/present.ts"
@@ -31,11 +31,11 @@ describe("Clipboard interface", () => {
   it("copies only the node for a node selection", () => {
     const d = doc(blockquote(p("a"), "<a>", hr()), p("b"))
     const view = tempEditor({ doc: d })
-    const { dom } = view.serializeForClipboard(NodeSelection.createUnsafe(d, (d as any).tag.a).content())
+    const { dom } = view.serializeForClipboard(NodeSelection.createUnsafe(d, tagsOf(d).a).content())
     ist(dom.innerHTML, '<hr data-pm-slice="0 0 []">')
     ist(
       parseFromClipboard(view, "", dom.innerHTML, false, d.resolveUnsafe(1)),
-      d.sliceUnsafe((d as any).tag.a, (d as any).tag.a + 1),
+      d.sliceUnsafe(tagsOf(d).a, tagsOf(d).a + 1),
       eq
     )
   })
@@ -43,7 +43,7 @@ describe("Clipboard interface", () => {
   it("includes context for text selections", () => {
     const d = doc(blockquote(ul(li(p("fo<a>o"), p("b<b>ar")))))
     const view = tempEditor({ doc: d })
-    const slice = TextSelection.createUnsafe(d, (d as any).tag.a, (d as any).tag.b).content()
+    const slice = TextSelection.createUnsafe(d, tagsOf(d).a, tagsOf(d).b).content()
     const { dom, text } = view.serializeForClipboard(slice)
     ist(
       dom.innerHTML,
@@ -51,7 +51,7 @@ describe("Clipboard interface", () => {
     )
     ist(
       parseFromClipboard(view, text, dom.innerHTML, false, d.resolveUnsafe(1)),
-      d.sliceUnsafe((d as any).tag.a, (d as any).tag.b, true),
+      d.sliceUnsafe(tagsOf(d).a, tagsOf(d).b, true),
       eq
     )
     ist(
@@ -163,12 +163,10 @@ describe("Clipboard interface", () => {
   it("preserves attributes", () => {
     const d = doc(ol({ order: 3 }, li(p("f<a>o<b>o"))))
     const view = tempEditor({ doc: d })
-    const { dom, text } = view.serializeForClipboard(
-      TextSelection.createUnsafe(d, (d as any).tag.a, (d as any).tag.b).content()
-    )
+    const { dom, text } = view.serializeForClipboard(TextSelection.createUnsafe(d, tagsOf(d).a, tagsOf(d).b).content())
     ist(
       parseFromClipboard(view, text, dom.innerHTML, false, d.resolveUnsafe(1)),
-      d.sliceUnsafe((d as any).tag.a, (d as any).tag.b, true),
+      d.sliceUnsafe(tagsOf(d).a, tagsOf(d).b, true),
       eq
     )
   })

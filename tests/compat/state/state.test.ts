@@ -27,6 +27,7 @@ const messageCountPlugin = new Plugin({
       return count
     }
   },
+  // SAFETY: `testProp` is not a real editor prop, hence the cast
   props: {
     testProp() {
       return this
@@ -153,6 +154,7 @@ describe("State", () => {
 
 describe("Plugin", () => {
   it("calls prop functions bound to the plugin", () => {
+    // SAFETY: `testProp` isn't a real editor prop, so the props' type doesn't declare it.
     ist((messageCountPlugin.props as any).testProp(), messageCountPlugin)
   })
 

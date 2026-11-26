@@ -9,6 +9,7 @@ import * as Predicate from "effect/Predicate"
 import { DOMParser, DOMSerializer, Fragment, type Node, type NodeType, type ResolvedPos, Slice } from "../Model.ts"
 import { parseJson, stringifyJson } from "../internal/json.ts"
 import * as browser from "./browser.ts"
+import { isElt } from "./dom.ts"
 import { ViewError } from "./errors.ts"
 import type { ClipboardSerialization, EditorView } from "./view.ts"
 
@@ -48,8 +49,8 @@ export function serializeForClipboard(view: AnyView, slice: Slice<any>): Clipboa
     firstChild = wrap.firstChild
   }
 
-  if (firstChild && firstChild.nodeType == 1) {
-    ;(firstChild as HTMLElement).setAttribute(
+  if (firstChild && isElt(firstChild)) {
+    firstChild.setAttribute(
       "data-pm-slice",
       `${openStart} ${openEnd}${wrappers ? ` -${wrappers}` : ""} ${Option.getOrElse(stringifyJson(context), () => "[]")}`
     )
@@ -117,10 +118,8 @@ export function parseFromClipboard(
   const sliceData = contextNode && /^(\d+) (\d+)(?: -(\d+))? (.*)/.exec(contextNode.getAttribute("data-pm-slice") || "")
   if (dom && sliceData && sliceData[3]) {
     for (let i = +sliceData[3]; i > 0; i--) {
-      let child = dom.firstChild
-      while (child && child.nodeType != 1) child = child.nextSibling
-      if (!child) break
-      dom = child as HTMLElement
+      if (!dom.firstElementChild || !isElt(dom.firstElementChild)) break
+      dom = dom.firstElementChild
     }
   }
 

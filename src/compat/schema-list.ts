@@ -24,7 +24,7 @@ const olDOM: DOMOutputSpec = ["ol", 0],
  * @since 0.1.0
  * @category specs
  */
-export const orderedList = {
+export const orderedList: NodeSpec = {
   attrs: { order: { default: 1, validate: "number" } },
   parseDOM: [
     {
@@ -37,7 +37,7 @@ export const orderedList = {
   toDOM(node) {
     return node.attrs.order == 1 ? olDOM : ["ol", { start: node.attrs.order }, 0]
   }
-} as NodeSpec
+}
 
 /**
  * A bullet list node spec.
@@ -117,6 +117,7 @@ export function wrapRangeInList(
   listType: NodeType,
   attrs: Attrs | null = null
 ): boolean {
+  // SAFETY: a facade transaction's core is untyped, so it fits any list type.
   return SL.wrapRangeInList(tr ? (tr[CORE] as any) : null, range[CORE], listType[CORE], attrs)
 }
 

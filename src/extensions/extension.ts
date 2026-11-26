@@ -219,6 +219,7 @@ export interface ExtensionSpec {
  * @since 0.1.0
  * @category symbols
  */
+// SAFETY: `Symbol.for` is typed `symbol`; its registered key makes this one unique.
 export const ExtensionTypeId: unique symbol = Symbol.for("effect-richtext/extensions/Extension") as never
 
 /**
@@ -583,8 +584,7 @@ export const flatten = (extension: AnyExtension): Flattened => {
 export const resolvePlugins = (inputs: ReadonlyArray<PluginInput>, schema: AnySchema): Array<AnyPlugin> => {
   const result: Array<AnyPlugin> = []
   const add = (input: AnyPlugin | ReadonlyArray<AnyPlugin>) => {
-    if (Array.isArray(input)) result.push(...input)
-    else result.push(input as AnyPlugin)
+    result.push(...Arr.ensure(input))
   }
   for (const input of inputs) add(Predicate.isFunction(input) ? input(schema) : input)
   return result

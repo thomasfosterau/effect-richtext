@@ -52,6 +52,7 @@ const runWith = <E, R>(
 ): Effect.Effect<{ readonly handled: boolean; readonly state: EditorState<any> }, E, R> =>
   Effect.gen(function* () {
     let current = state
+    // SAFETY: the commands under test read only what the fake view provides.
     const handled = yield* command(
       current,
       (tr: Transaction<any>) =>
@@ -180,6 +181,7 @@ describe("commands with a view", () => {
   it("fall back to offsets for views without endOfTextblock", () =>
     apply(
       doc(p("hi"), p("<a>there")),
+      // SAFETY: deliberately a view without `endOfTextblock`, to check the fallback.
       (state, dispatch) => joinBackward(state, dispatch, {} as any),
       doc(p("hithere"))
     ))

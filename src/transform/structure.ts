@@ -17,8 +17,7 @@ import {
   type NodeNames,
   type NodeRange,
   type NodeType,
-  Slice,
-  type TextNode
+  Slice
 } from "../Model.ts"
 import { TransformError } from "./errors.ts"
 import { clearIncompatible } from "./mark.ts"
@@ -251,12 +250,12 @@ function replaceNewlines(tr: Transform<any>, node: Node<any>, pos: number, mapFr
   // Only called when the schema has a linebreak replacement (`convertNewlines === true`).
   const replacement = node.type.schema.linebreakReplacement
   if (Option.isNone(replacement)) return
-  const linebreak = replacement.value as NodeType<any, any>
+  const linebreak: NodeType<any, any> = replacement.value
   node.forEach((child, offset) => {
-    if (child.isText) {
+    if (child.isTextNode()) {
       let m: RegExpExecArray | null
       const newline = /\r?\n|\r/g
-      while ((m = newline.exec((child as TextNode<any>).text))) {
+      while ((m = newline.exec(child.text))) {
         const start = tr.mapping.slice(mapFrom).map(pos + 1 + offset + m.index)
         tr.replaceWithUnsafe(start, start + 1, linebreak.createUnsafe())
       }

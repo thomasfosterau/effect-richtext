@@ -39,6 +39,7 @@ function ist(value: unknown, ...rest: Array<unknown>): void {
     assert.ok(value, `Expected ${show(value)} to be truthy`)
     return
   }
+  // SAFETY: the overloads pass the expected value, then an optional comparison.
   const [expected, cmp] = rest as [unknown, Cmp<unknown, unknown> | undefined]
   if (cmp === undefined) {
     assert.ok(

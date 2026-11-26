@@ -7,15 +7,16 @@ import type { Node } from "@thomasfosterau/effect-richtext/compat/model"
 import { Slice } from "@thomasfosterau/effect-richtext/compat/model"
 import { blockquote, doc, eq, h1, li, p, ul } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
+import { tagsOf } from "../../utils/tags.ts"
 
 function rpl(doc: Node, insert: Node | null, expected: Node) {
-  const slice = insert ? insert.slice((insert as any).tag.a, (insert as any).tag.b) : Slice.empty
-  ist(doc.replace((doc as any).tag.a, (doc as any).tag.b, slice), expected, eq)
+  const slice = insert ? insert.slice(tagsOf(insert).a, tagsOf(insert).b) : Slice.empty
+  ist(doc.replace(tagsOf(doc).a, tagsOf(doc).b, slice), expected, eq)
 }
 
 function bad(doc: Node, insert: Node | null, pattern: string) {
-  const slice = insert ? insert.slice((insert as any).tag.a, (insert as any).tag.b) : Slice.empty
-  ist.throws(() => doc.replace((doc as any).tag.a, (doc as any).tag.b, slice), new RegExp(pattern, "i"))
+  const slice = insert ? insert.slice(tagsOf(insert).a, tagsOf(insert).b) : Slice.empty
+  ist.throws(() => doc.replace(tagsOf(doc).a, tagsOf(doc).b, slice), new RegExp(pattern, "i"))
 }
 
 describe("Node", () => {

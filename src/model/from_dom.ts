@@ -13,7 +13,7 @@ import type { ContentMatch } from "./content.ts"
 import { isModelError, type ModelError, SchemaDefinitionError } from "./errors.ts"
 import { Fragment } from "./fragment.ts"
 import { Mark } from "./mark.ts"
-import type { Node, TextNode } from "./node.ts"
+import type { Node } from "./node.ts"
 import { Slice } from "./replace.ts"
 import type { ResolvedPos } from "./resolvedpos.ts"
 import type { AnySchema, Attrs, MarkType, NodeType } from "./schema.ts"
@@ -21,6 +21,8 @@ import type { AnySchema, Attrs, MarkType, NodeType } from "./schema.ts"
 // `skip` may also hold an element to parse in place of the matched one
 // (undocumented ProseMirror behaviour).
 const isDOMElement = (value: unknown): value is HTMLElement => Predicate.hasProperty(value, "nodeType")
+const isElementNode = (node: globalThis.Node): node is HTMLElement => node.nodeType == 1
+const isTextDOMNode = (node: globalThis.Node): node is Text => node.nodeType == 3
 
 /**
  * A DOM position whose document position should be recorded while
@@ -250,19 +252,21 @@ export interface RuleContext {
 type AnyRule = Omit<TagParseRule, "tag"> & { readonly tag?: string | undefined }
 
 function isTagRule(rule: ParseRule): rule is TagParseRule {
-  return (rule as TagParseRule).tag != null
+  return "tag" in rule && rule.tag != null
 }
 function isStyleRule(rule: ParseRule): rule is StyleParseRule {
-  return (rule as StyleParseRule).style != null
+  return "style" in rule && rule.style != null
 }
 
 // When a rule with `getAttrs` matches, a copy of the rule holding the
 // computed attributes is returned (ProseMirror mutates the rule
 // instead). This maps such copies back to the original rules.
 const ruleOrigin = new WeakMap<ParseRule, ParseRule>()
+// SAFETY: `withAttrs` maps each copy to an original of the same kind.
 const originOf = <R extends ParseRule>(rule: R): R => (ruleOrigin.get(rule) as R | undefined) ?? rule
 
 function withAttrs<R extends ParseRule>(rule: R, attrs: Attrs | false | null | undefined): R {
+  // SAFETY: a copy of `rule` that differs only in `attrs`.
   const result = { ...rule, attrs: attrs || undefined } as R
   ruleOrigin.set(result, originOf(rule))
   return result
@@ -315,6 +319,7 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
     // Only normalize list elements when lists in the schema can't directly contain themselves
     this.normalizeLists = !tags.some((r) => {
       if (!/^(ul|ol)\b/.test(r.tag) || !r.node) return false
+      // SAFETY: a rule may name a node type the schema doesn't have.
       const node = schema.nodes[r.node] as NodeType | undefined
       return !!node && !!node.contentMatch.matchTypeOrNull(node)
     })
@@ -329,6 +334,7 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
   parseUnsafe(dom: globalThis.Node, options: ParseOptions<Sc> = {}): Node<Sc> {
     const context = new ParseContext(this, options, false)
     context.addAll(dom, Mark.none, options.from, options.to)
+    // SAFETY: a context that isn't open finishes its top node, built from this schema.
     return context.finish() as Node<Sc>
   }
 
@@ -348,6 +354,7 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
   parseSliceUnsafe(dom: globalThis.Node, options: ParseOptions<Sc> = {}): Slice<Sc> {
     const context = new ParseContext(this, options, true)
     context.addAll(dom, Mark.none, options.from, options.to)
+    // SAFETY: an open context finishes to its top node's content, built from this schema.
     return Slice.maxOpen(context.finish() as Fragment<Sc>)
   }
 
@@ -367,11 +374,11 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
       const rule = this.tags[i]
       if (
         matches(dom, rule.tag) &&
-        (rule.namespace === undefined || (dom as Element).namespaceURI == rule.namespace) &&
+        (rule.namespace === undefined || dom.namespaceURI == rule.namespace) &&
         (!rule.context || context.matchesContext(rule.context))
       ) {
         if (rule.getAttrs) {
-          const result = rule.getAttrs(dom as HTMLElement)
+          const result = rule.getAttrs(dom)
           if (result === false) continue
           return withAttrs(rule, result)
         }
@@ -442,8 +449,8 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
       const rules: ReadonlyArray<ParseRule> | undefined = schema.marks[name].spec.parseDOM
       if (rules) {
         rules.forEach((r) => {
-          const rule = { ...r } as Types.Mutable<ParseRule>
-          if (!(rule.mark || rule.ignore || (rule as StyleParseRule).clearMark)) rule.mark = name
+          const rule: Types.Mutable<ParseRule> = { ...r }
+          if (!(rule.mark || rule.ignore || ("clearMark" in rule && rule.clearMark))) rule.mark = name
           insert(rule)
         })
       }
@@ -452,7 +459,7 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
       const rules: ReadonlyArray<TagParseRule> | undefined = schema.nodes[name].spec.parseDOM
       if (rules) {
         rules.forEach((r) => {
-          const rule = { ...r } as Types.Mutable<TagParseRule>
+          const rule: Types.Mutable<TagParseRule> = { ...r }
           if (!(rule.node || rule.ignore || rule.mark)) rule.node = name
           insert(rule)
         })
@@ -468,6 +475,7 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
    */
   static fromSchema<Sc extends AnySchema>(schema: Sc): DOMParser<Sc> {
     return (
+      // SAFETY: only this method writes `domParser`, with a parser for this schema.
       (schema.cached.domParser as DOMParser<Sc> | undefined) ||
       (schema.cached.domParser = new DOMParser(schema, DOMParser.schemaRules(schema)))
     )
@@ -582,8 +590,8 @@ class NodeContext {
       // Strip trailing whitespace
       const last = this.content[this.content.length - 1]
       let m: RegExpExecArray | null
-      if (last && last.isText && (m = /[ \t\r\n\f]+$/.exec((last as TextNode).text))) {
-        const text = last as TextNode
+      if (last && last.isTextNode() && (m = /[ \t\r\n\f]+$/.exec(last.text))) {
+        const text = last
         if (text.text.length == m[0].length) this.content.pop()
         else this.content[this.content.length - 1] = text.withText(text.text.slice(0, text.text.length - m[0].length))
       }
@@ -611,7 +619,7 @@ class ParseContext implements RuleContext {
 
   constructor(
     // The parser we are using.
-    readonly parser: DOMParser<any>,
+    readonly parser: DOMParser,
     // The options passed to this parse.
     readonly options: ParseOptions<any>,
     readonly isOpen: boolean
@@ -646,8 +654,8 @@ class ParseContext implements RuleContext {
   // otherwise, the node is passed to `addElement` or, if it has a
   // `style` attribute, `addElementWithStyles`.
   addDOM(dom: globalThis.Node, marks: ReadonlyArray<Mark>) {
-    if (dom.nodeType == 3) this.addTextNode(dom as Text, marks)
-    else if (dom.nodeType == 1) this.addElement(dom as HTMLElement, marks)
+    if (isTextDOMNode(dom)) this.addTextNode(dom, marks)
+    else if (isElementNode(dom)) this.addElement(dom, marks)
   }
 
   addTextNode(dom: Text, marks: ReadonlyArray<Mark>) {
@@ -655,7 +663,7 @@ class ParseContext implements RuleContext {
     const top = this.top
     const preserveWS =
       top.options & OPT_PRESERVE_WS_FULL ? "full" : this.localPreserveWS || (top.options & OPT_PRESERVE_WS) > 0
-    const schema = this.parser.schema as AnySchema
+    const schema = this.parser.schema
     const linebreak = Option.getOrNull(schema.linebreakReplacement)
     if (preserveWS === "full" || top.inlineContext(dom) || /[^ \t\r\n\f]/.test(value)) {
       if (!preserveWS) {
@@ -669,7 +677,7 @@ class ParseContext implements RuleContext {
           if (
             !nodeBefore ||
             (domNodeBefore && domNodeBefore.nodeName == "BR") ||
-            (nodeBefore.isText && /[ \t\r\n\f]$/.test((nodeBefore as TextNode).text))
+            (nodeBefore.isTextNode() && /[ \t\r\n\f]$/.test(nodeBefore.text))
           ) {
             value = value.slice(1)
           }
@@ -731,12 +739,7 @@ class ParseContext implements RuleContext {
     } else {
       const innerMarks = this.readStyles(dom, marks)
       if (innerMarks) {
-        this.addElementByRule(
-          dom,
-          rule as TagParseRule,
-          innerMarks,
-          rule.consuming === false ? (ruleID ?? undefined) : undefined
-        )
+        this.addElementByRule(dom, rule, innerMarks, rule.consuming === false ? (ruleID ?? undefined) : undefined)
       }
     }
     this.localPreserveWS = outerWS
@@ -754,7 +757,7 @@ class ParseContext implements RuleContext {
   ignoreFallback(dom: globalThis.Node, marks: ReadonlyArray<Mark>) {
     // Ignored BR nodes should at least create an inline context
     if (dom.nodeName == "BR" && (!this.top.type || !this.top.type.inlineContent)) {
-      this.findPlace((this.parser.schema as AnySchema).textUnsafe("-"), marks, true)
+      this.findPlace(this.parser.schema.textUnsafe("-"), marks, true)
     }
   }
 
@@ -792,11 +795,11 @@ class ParseContext implements RuleContext {
   // Look up a handler for the given node. If none are found, return
   // false. Otherwise, apply it, use its return value to drive the way
   // the node's content is wrapped, and return true.
-  addElementByRule(dom: HTMLElement, rule: TagParseRule, marks: ReadonlyArray<Mark>, continueAfter?: TagParseRule) {
+  addElementByRule(dom: HTMLElement, rule: AnyRule, marks: ReadonlyArray<Mark>, continueAfter?: TagParseRule) {
     let sync = false,
       nodeType: NodeType | undefined
     if (rule.node) {
-      nodeType = (this.parser.schema as AnySchema).nodeType(rule.node)
+      nodeType = this.parser.schema.nodeType(rule.node)
       if (!nodeType.isLeaf) {
         const inner = this.enter(nodeType, rule.attrs || null, marks, rule.preserveWhitespace)
         if (inner) {
@@ -936,7 +939,10 @@ class ParseContext implements RuleContext {
   closeExtra(openEnd = false) {
     let i = this.nodes.length - 1
     if (i > this.open) {
-      for (; i > this.open; i--) this.nodes[i - 1].content.push(this.nodes[i].finish(openEnd) as Node)
+      for (; i > this.open; i--) {
+        // SAFETY: every context above the top one has a node type, so it finishes to a node.
+        this.nodes[i - 1].content.push(this.nodes[i].finish(openEnd) as Node)
+      }
       this.nodes.length = this.open + 1
     }
   }
@@ -1048,7 +1054,7 @@ class ParseContext implements RuleContext {
         if (deflt && deflt.isTextblock && deflt.defaultAttrs) return deflt
       }
     }
-    const nodes = (this.parser.schema as AnySchema).nodes
+    const nodes = this.parser.schema.nodes
     for (const name in nodes) {
       const type = nodes[name]
       if (type.isTextblock && type.defaultAttrs) return type
@@ -1081,9 +1087,8 @@ function normalizeList(dom: globalThis.Node) {
 }
 
 // Apply a CSS selector.
-function matches(dom: any, selector: string): boolean {
-  const f = dom.matches || dom.msMatchesSelector || dom.webkitMatchesSelector || dom.mozMatchesSelector
-  return !!f && f.call(dom, selector)
+function matches(dom: globalThis.Node, selector: string): dom is HTMLElement {
+  return isElementNode(dom) && dom.matches(selector)
 }
 
 // Used when finding a mark at the top level of a fragment parse.

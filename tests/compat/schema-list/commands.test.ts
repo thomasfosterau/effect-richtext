@@ -19,10 +19,11 @@ import {
 } from "@thomasfosterau/effect-richtext/compat/state"
 import { blockquote, doc, eq, li, ol, p, schema, ul } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
+import { tagsOf } from "../../utils/tags.ts"
 
 function selFor(doc: Node) {
-  const a = (doc as any).tag.a,
-    b = (doc as any).tag.b
+  const a = tagsOf(doc).a,
+    b = tagsOf(doc).b
   if (a != null) {
     const $a = doc.resolve(a)
     if ($a.parent.inlineContent) return new TextSelection($a, b != null ? doc.resolve(b) : undefined)
@@ -35,7 +36,7 @@ function apply(doc: Node, command: Command, result: Node | null) {
   let state = EditorState.create({ doc, selection: selFor(doc) })
   command(state, (tr) => (state = state.apply(tr)))
   ist(state.doc, result || doc, eq)
-  if (result && (result as any).tag.a != null) ist(state.selection, selFor(result), eq)
+  if (result && tagsOf(result).a != null) ist(state.selection, selFor(result), eq)
 }
 
 describe("wrapInList", () => {

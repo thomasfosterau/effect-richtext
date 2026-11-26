@@ -19,6 +19,7 @@ import { doc, eq, p, schema } from "@thomasfosterau/effect-richtext/TestBuilder"
 import { EditorView } from "@thomasfosterau/effect-richtext/View"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
+import { instanceOf } from "../utils/present.ts"
 import { selFor, workspace } from "./helpers.ts"
 
 class Counter extends Context.Service<Counter, { readonly step: number }>()("test/Counter") {}
@@ -174,11 +175,11 @@ describe("EditorView (Effect API)", () => {
       const event = keyDown(view, "q", 81)
       ist(!event.defaultPrevented)
       ist(errors.length, 1)
-      ist((errors[0] as Boom).reason, "handler")
+      ist(instanceOf(Boom, errors[0]).reason, "handler")
       // `dispatch` reports plugin failures instead of failing.
       yield* view.dispatch(view.state.tr.insertTextUnsafe("x").setMeta("boom", true))
       ist(errors.length, 2)
-      ist((errors[1] as Boom).reason, "filter")
+      ist(instanceOf(Boom, errors[1]).reason, "filter")
       ist(view.state.doc, doc(p("foo")), eq)
       // `tryDispatch` fails with the typed error.
       const exit = yield* Effect.exit(view.tryDispatch(view.state.tr.setMeta("boom", true)))
@@ -186,7 +187,7 @@ describe("EditorView (Effect API)", () => {
       ist(errors.length, 2)
       // `dispatchUnsafe` throws it.
       const thrown = thrownBy(() => view.dispatchUnsafe(view.state.tr.setMeta("boom", true)))
-      ist((Option.getOrUndefined(thrown) as Boom).reason, "filter")
+      ist(instanceOf(Boom, Option.getOrUndefined(thrown)).reason, "filter")
     }).pipe(Effect.scoped)
   )
 

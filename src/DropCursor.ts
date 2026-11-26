@@ -66,6 +66,9 @@ export const dropCursor = (options: DropCursorOptions = {}): Plugin<undefined> =
 
 const events = ["dragover", "dragend", "drop", "dragleave"] as const
 
+const isDOMNode = (target: EventTarget): target is globalThis.Node => "nodeType" in target
+const isElement = (node: globalThis.Node): node is Element => node.nodeType == 1
+
 class DropCursorView implements PluginView {
   readonly width: number
   readonly color: string | undefined
@@ -85,6 +88,7 @@ class DropCursorView implements PluginView {
 
     this.handlers = events.map((name) => {
       const handler = (e: Event) => {
+        // SAFETY: each of `events` dispatches a `DragEvent`.
         this[name](e as DragEvent)
       }
       editorView.dom.addEventListener(name, handler)
@@ -133,12 +137,12 @@ class DropCursorView implements PluginView {
         after = $pos.nodeAfterOrNull
       if (before || after) {
         const node = Option.getOrNull(view.nodeDOM(cursorPos - (before ? before.nodeSize : 0)))
-        if (node) {
-          const nodeRect = (node as HTMLElement).getBoundingClientRect()
+        if (node && isElement(node)) {
+          const nodeRect = node.getBoundingClientRect()
           let top = before ? nodeRect.bottom : nodeRect.top
           if (before && after) {
-            const afterDOM = Option.getOrNull(view.nodeDOM(cursorPos)) as HTMLElement | null
-            if (afterDOM) top = (top + afterDOM.getBoundingClientRect().top) / 2
+            const afterDOM = Option.getOrNull(view.nodeDOM(cursorPos))
+            if (afterDOM && isElement(afterDOM)) top = (top + afterDOM.getBoundingClientRect().top) / 2
           }
           const halfWidth = (this.width / 2) * scaleY
           rect = { left: nodeRect.left, right: nodeRect.right, top: top - halfWidth, bottom: top + halfWidth }
@@ -152,6 +156,7 @@ class DropCursorView implements PluginView {
     }
 
     const doc = editorDOM.ownerDocument
+    // SAFETY: the offset parent of an HTML element is an HTML element.
     const parent = editorDOM.offsetParent as HTMLElement | null
     if (!this.element) {
       this.element = (parent ?? doc.body).appendChild(doc.createElement("div"))
@@ -190,6 +195,7 @@ class DropCursorView implements PluginView {
     const pos = Option.getOrNull(view.posAtCoords({ left: event.clientX, top: event.clientY }))
 
     const node = pos && pos.inside >= 0 ? view.state.doc.nodeAtOrNull(pos.inside) : null
+    // SAFETY: node specs declare `disableDropCursor` as a `DisableDropCursor`.
     const disableDropCursor = node ? (node.type.spec.disableDropCursor as DisableDropCursor | undefined) : undefined
     const disabled =
       pos && Predicate.isFunction(disableDropCursor) ? disableDropCursor(view, pos, event) : disableDropCursor
@@ -214,6 +220,7 @@ class DropCursorView implements PluginView {
   }
 
   dragleave(event: DragEvent) {
-    if (!this.editorView.dom.contains(event.relatedTarget as globalThis.Node | null)) this.setCursor(null)
+    const target = event.relatedTarget
+    if (!(target && isDOMNode(target) && this.editorView.dom.contains(target))) this.setCursor(null)
   }
 }

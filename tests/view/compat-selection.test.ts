@@ -24,7 +24,7 @@ import {
 import type { EditorView } from "@thomasfosterau/effect-richtext/compat/view"
 import { Decoration, DecorationSet } from "@thomasfosterau/effect-richtext/compat/view"
 import ist from "../utils/ist.ts"
-import { present } from "../utils/present.ts"
+import { instanceOf, present } from "../utils/present.ts"
 import { findTextNode, flush, tempEditor } from "./compat-view.ts"
 
 const img = img_({
@@ -82,8 +82,7 @@ function setSel(view: EditorView, sel: number | Selection) {
 function event(code: number) {
   const event = document.createEvent("Event")
   event.initEvent("keydown", true, true)
-  ;(event as any).keyCode = code
-  return event
+  return Object.assign(event, { keyCode: code })
 }
 const LEFT = 37,
   RIGHT = 39,
@@ -206,7 +205,7 @@ describe("EditorView", () => {
     const view = tempEditor({ doc: doc(p("ha"), hr(), blockquote(p("ba"))) })
     const a = view.coordsAtPos(0)
     ist(a.top, a.bottom)
-    ist(a.top, (view.dom.firstChild as HTMLElement).getBoundingClientRect().top)
+    ist(a.top, instanceOf(HTMLElement, view.dom.firstChild).getBoundingClientRect().top)
     ist(a.left, a.right, "<")
     const b = view.coordsAtPos(4)
     ist(b.top, b.bottom)

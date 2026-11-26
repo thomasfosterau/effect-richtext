@@ -19,15 +19,14 @@ import {
   type ModelError,
   type Node,
   type NodeNames,
-  type NodeType,
-  type TextNode
+  type NodeType
 } from "../Model.ts"
 import { isMarkdownError, MarkdownError } from "./errors.ts"
 import { schema as markdownSchema } from "./schema.ts"
 
 function maybeMerge(a: Node<any, any>, b: Node<any, any>): Node<any, any> | undefined {
-  if (a.isText && b.isText && Mark.sameSet(a.marks, b.marks)) {
-    return (a as TextNode<any>).withText((a as TextNode<any>).text + (b as TextNode<any>).text)
+  if (a.isTextNode() && b.isTextNode() && Mark.sameSet(a.marks, b.marks)) {
+    return a.withText(a.text + b.text)
   }
   return undefined
 }
@@ -225,6 +224,7 @@ function makeTokenHandlers<Sc extends AnySchema>(
   for (const type in tokens) {
     const spec = tokens[type]
     if (spec.block) {
+      // SAFETY: a node type of `schema`, which is `Sc`.
       const nodeType = schema.nodeType(spec.block) as NodeType<Sc, any>
       if (noCloseToken(spec, type)) {
         handlers[type] = (state, tok, toks, i) => {
@@ -237,9 +237,11 @@ function makeTokenHandlers<Sc extends AnySchema>(
         handlers[type + "_close"] = (state) => state.closeNode()
       }
     } else if (spec.node) {
+      // SAFETY: a node type of `schema`, which is `Sc`.
       const nodeType = schema.nodeType(spec.node) as NodeType<Sc, any>
       handlers[type] = (state, tok, toks, i) => state.addNode(nodeType, tokenAttrs(spec, tok, toks, i))
     } else if (spec.mark) {
+      // SAFETY: the schema may not have a mark type of this name.
       const markType = schema.marks[spec.mark] as MarkType<Sc, any> | undefined
       if (!markType) throw new MarkdownError({ message: "Unknown mark type: " + spec.mark })
       if (noCloseToken(spec, type)) {
@@ -337,6 +339,7 @@ export class MarkdownParser<Sc extends AnySchema = AnySchema> {
     } while (state.stack.length)
     const result = doc || this.schema.topNodeType.createAndFillOrNull()
     if (!result) throw new MarkdownError({ message: "Can't create an empty document for the schema" })
+    // SAFETY: built from this parser's schema, `Sc`.
     return result as Node<Sc>
   }
 }

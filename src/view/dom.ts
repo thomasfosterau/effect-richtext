@@ -34,7 +34,9 @@ export const domIndex = function (node: DOMNode): number {
 
 /** @internal */
 export const parentNode = function (node: DOMNode): DOMNode | null {
+  // SAFETY: only slottable nodes define `assignedSlot`; on other nodes it reads `undefined`.
   const parent = (node as HTMLSlotElement).assignedSlot || node.parentNode
+  // SAFETY: a fragment holding the editor's DOM is its shadow root.
   return parent && parent.nodeType == 11 ? (parent as ShadowRoot).host : parent
 }
 
@@ -81,7 +83,7 @@ function scanFor(node: DOMNode, off: number, targetNode: DOMNode, targetOff: num
         parent.nodeType != 1 ||
         hasBlockDesc(node) ||
         atomElements.test(node.nodeName) ||
-        (node as HTMLElement).contentEditable == "false"
+        (isElt(node) && node.contentEditable == "false")
       ) {
         return false
       }
@@ -89,7 +91,7 @@ function scanFor(node: DOMNode, off: number, targetNode: DOMNode, targetOff: num
       node = parent
     } else if (node.nodeType == 1) {
       const child = node.childNodes[off + (dir < 0 ? -1 : 0)]
-      if (child.nodeType == 1 && (child as HTMLElement).contentEditable == "false") {
+      if (isElt(child) && child.contentEditable == "false") {
         if (child.pmViewDesc?.ignoreForSelection) off += dir
         else return false
       } else {
@@ -113,11 +115,21 @@ export function isElt(node: DOMNode): node is HTMLElement {
 }
 
 /** @internal */
+export function isDOMNode(target: EventTarget): target is DOMNode {
+  return "nodeType" in target
+}
+
+/** @internal */
+export function isText(node: DOMNode): node is Text {
+  return node.nodeType == 3
+}
+
+/** @internal */
 export function textNodeBefore(node: DOMNode, offset: number): Text | null {
   for (;;) {
-    if (node.nodeType == 3 && offset) return node as Text
-    if (node.nodeType == 1 && offset > 0) {
-      if ((node as HTMLElement).contentEditable == "false") return null
+    if (isText(node) && offset) return node
+    if (isElt(node) && offset > 0) {
+      if (node.contentEditable == "false") return null
       node = node.childNodes[offset - 1]
       offset = nodeSize(node)
     } else if (node.parentNode && !hasBlockDesc(node)) {
@@ -132,9 +144,9 @@ export function textNodeBefore(node: DOMNode, offset: number): Text | null {
 /** @internal */
 export function textNodeAfter(node: DOMNode, offset: number): Text | null {
   for (;;) {
-    if (node.nodeType == 3 && offset < (node.nodeValue ?? "").length) return node as Text
-    if (node.nodeType == 1 && offset < node.childNodes.length) {
-      if ((node as HTMLElement).contentEditable == "false") return null
+    if (isText(node) && offset < node.data.length) return node
+    if (isElt(node) && offset < node.childNodes.length) {
+      if (node.contentEditable == "false") return null
       node = node.childNodes[offset]
       offset = 0
     } else if (node.parentNode && !hasBlockDesc(node)) {
@@ -185,6 +197,7 @@ export function keyEvent(keyCode: number, key: string): KeyboardEvent {
   event.initEvent("keydown", true, true)
   event.keyCode = keyCode
   event.key = event.code = key
+  // SAFETY: key handlers read only `keyCode`, `key` and `code`, which are set above.
   return event as KeyboardEvent
 }
 

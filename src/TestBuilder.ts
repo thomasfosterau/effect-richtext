@@ -96,6 +96,7 @@ export const tagsOf = (node: Node<any, any>): Tags => tags.get(node) ?? noTag
 
 const withTag = <A extends Node<any, any>>(node: A, tag: Tags): A & { readonly tag: Tags } => {
   if (tag !== noTag) tags.set(node, tag)
+  // SAFETY: every node reads `tag` through the getter defined on `Node.prototype` below.
   return node as A & { readonly tag: Tags }
 }
 
@@ -153,6 +154,7 @@ function flatten<Sc extends AnySchema>(
         result.push(node)
       }
     } else {
+      // SAFETY: the builders that can be passed uncalled are leaf builders, which `isFlat` caught.
       const node0 = child as Node<Sc>
       const childTag = tagsOf(node0)
       if (childTag !== noTag) {
@@ -171,9 +173,11 @@ function takeAttrs(attrs: Attrs | null, args: Array<unknown>): Attrs | null {
   const a0 = args[0]
   if (!args.length || (a0 && (Predicate.isString(a0) || a0 instanceof Node || isFlat(a0)))) return attrs
   args.shift()
-  if (!attrs) return a0 as Attrs
-  if (!a0) return attrs
-  return { ...attrs, ...(a0 as Attrs) }
+  // SAFETY: a first argument that isn't a child holds the attributes.
+  const given = a0 as Attrs
+  if (!attrs) return given
+  if (!given) return attrs
+  return { ...attrs, ...given }
 }
 
 function block<Sc extends AnySchema, N extends NodeNames<Sc>>(
@@ -182,6 +186,7 @@ function block<Sc extends AnySchema, N extends NodeNames<Sc>>(
 ): NodeBuilder<Sc, N> {
   const result = function (...args: Array<any>) {
     const myAttrs = takeAttrs(attrs, args)
+    // SAFETY: `takeAttrs` removed the attributes, leaving the children.
     const { nodes, tag } = flatten(type.schema, args as Array<ChildSpec<Sc>>, (n) => n)
     return withTag(type.createUnsafe(myAttrs, nodes), tag)
   }
@@ -190,12 +195,14 @@ function block<Sc extends AnySchema, N extends NodeNames<Sc>>(
     const leaf = Result.try(() => type.createUnsafe(attrs))
     if (Result.isSuccess(leaf)) Object.assign(result, { flat: [leaf.success] })
   }
+  // SAFETY: `flat` is set above where the type has a default instance.
   return result as NodeBuilder<Sc, N>
 }
 
 function mark<Sc extends AnySchema>(type: MarkType<Sc>, attrs: Attrs | null): MarkBuilder<Sc> {
   return function (...args: Array<any>) {
     const m = type.createUnsafe(takeAttrs(attrs, args) ?? undefined)
+    // SAFETY: `takeAttrs` removed the attributes, leaving the children.
     const { nodes, tag } = flatten(type.schema, args as Array<ChildSpec<Sc>>, (n) => {
       const newMarks = m.addToSet(n.marks)
       return newMarks.length > n.marks.length ? n.mark(newMarks) : n
@@ -264,6 +271,7 @@ export function builders<Sc extends AnySchema, const Extra extends Record<string
       else if (markType) result[name] = mark(markType, value)
     }
   }
+  // SAFETY: holds `schema`, a builder for each node and mark type, and one for each of `names`.
   return result as Builders<Sc, Extra>
 }
 

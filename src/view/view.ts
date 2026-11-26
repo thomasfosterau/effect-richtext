@@ -38,7 +38,14 @@ import {
 import * as browser from "./browser.ts"
 import { parseFromClipboard, serializeForClipboard } from "./clipboard.ts"
 import { Decoration, type DecorationSource, viewDecorations } from "./decoration.ts"
-import { clearReusedRange, deepActiveElement, type DOMNode, type DOMSelection, type DOMSelectionRange } from "./dom.ts"
+import {
+  clearReusedRange,
+  deepActiveElement,
+  type DOMNode,
+  type DOMSelection,
+  type DOMSelectionRange,
+  isElt
+} from "./dom.ts"
 import { readDOMChange } from "./domchange.ts"
 import {
   coordsAtPos,
@@ -70,7 +77,7 @@ import {
   docViewDesc,
   type MarkViewConstructor,
   type NodeViewConstructor,
-  type NodeViewDesc,
+  NodeViewDesc,
   type ViewDesc
 } from "./viewdesc.ts"
 
@@ -558,6 +565,7 @@ export interface ClipboardSerialization<Sc extends AnySchema = AnySchema> {
  * @since 0.1.0
  * @category symbols
  */
+// SAFETY: `Symbol.for` is typed `symbol`; its registered key makes this one unique.
 export const EditorViewTypeId: unique symbol = Symbol.for("effect-richtext/view/EditorView") as never
 
 /**
@@ -648,11 +656,12 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     this.directPlugins = props.plugins || []
     this.directPlugins.forEach(checkStateComponent)
 
-    this.dom = (place && (place as { mount: HTMLElement }).mount) || document.createElement("div")
+    const mount = place && !Predicate.isFunction(place) && "mount" in place ? place.mount : null
+    this.dom = mount || document.createElement("div")
     if (place) {
-      if ((place as DOMNode).appendChild) (place as DOMNode).appendChild(this.dom)
-      else if (Predicate.isFunction(place)) place(this.dom)
-      else if ((place as { mount: HTMLElement }).mount) this.mounted = true
+      if (Predicate.isFunction(place)) place(this.dom)
+      else if (mount) this.mounted = true
+      else if (!("mount" in place)) place.appendChild(this.dom)
     }
 
     this.editable = getEditable(this)
@@ -715,6 +724,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     props: any,
     context?: Context.Context<any>
   ): EditorView<any, any, any> {
+    // SAFETY: without a context the props' handlers require nothing, which the overloads ensure.
     return new EditorView<any, any, any>(place, props, context ?? (Context.empty() as Context.Context<any>))
   }
 
@@ -926,7 +936,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
       // Handled
     } else if (this.state.selection instanceof NodeSelection) {
       const target = this.docView.domAfterPos(this.state.selection.from)
-      if (target.nodeType == 1) scrollRectIntoView(this, (target as HTMLElement).getBoundingClientRect(), startDOM)
+      if (isElt(target)) scrollRectIntoView(this, target.getBoundingClientRect(), startDOM)
     } else {
       scrollRectIntoView(this, this.coordsAtPos(this.state.selection.head, 1), startDOM)
     }
@@ -1044,6 +1054,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
       this.reportError(result.cause)
       return false
     }
+    // SAFETY: a view runs only handlers from its own props and plugins, which require at most `R`.
     const exit = this.runEffect(result as Effect.Effect<boolean, unknown, R>)
     if (exit === undefined) return true
     return Exit.isSuccess(exit) ? exit.value : false
@@ -1096,7 +1107,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
       if (node == this.dom) return true
       if (!node || !this.dom.contains(node)) return false
       while (node && this.dom != node && this.dom.contains(node)) {
-        if ((node as HTMLElement).contentEditable == "false") return false
+        if (isElt(node) && node.contentEditable == "false") return false
         node = node.parentElement
       }
       return true
@@ -1126,6 +1137,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
             const doc = search.ownerDocument
             Object.getPrototypeOf(search).getSelection = () => (doc ? doc.getSelection() : null)
           }
+          // SAFETY: node type 9 is a document, and a fragment with a `host` is a shadow root.
           return (this._root = search as Document | ShadowRoot)
         }
       }
@@ -1188,7 +1200,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
    */
   nodeDOM(pos: number): Option.Option<DOMNode> {
     const desc = this.docView.descAt(pos)
-    return Option.fromNullishOr(desc ? (desc as NodeViewDesc).nodeDOM : null)
+    return Option.fromNullishOr(desc instanceof NodeViewDesc ? desc.nodeDOM : null)
   }
 
   /**
@@ -1379,6 +1391,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
 
   /** @internal */
   domSelection(): DOMSelection | null {
+    // SAFETY: `root` gives a shadow root `getSelection` when it lacks one.
     return (this.root as Document).getSelection()
   }
 }
@@ -1389,6 +1402,7 @@ function computeDocDeco(view: EditorView<any, any, any>) {
   attrs.contenteditable = String(view.editable)
 
   view.someProp("attributes", (prop) => {
+    // SAFETY: attribute props only read the state, so its requirement and error types don't matter.
     const value: { readonly [name: string]: string } | null | undefined = Predicate.isFunction(prop)
       ? prop(view.state as EditorState<any>)
       : prop
@@ -1425,6 +1439,7 @@ function updateCursorWrapper(view: EditorView<any, any, any>) {
 }
 
 function getEditable(view: EditorView<any, any, any>) {
+  // SAFETY: `editable` props only read the state, so its requirement and error types don't matter.
   return !view.someProp("editable", (value) => !value(view.state as EditorState<any>))
 }
 

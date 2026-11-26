@@ -58,6 +58,7 @@ export type Attrs = { readonly [attr: string]: any }
  */
 export type DOMOutputSpec = M.DOMOutputSpec
 
+// SAFETY: `Symbol.for` is typed `symbol`; its registered key makes this one unique.
 const ORIGINAL: unique symbol = Symbol.for("effect-richtext/compat/original") as never
 
 // -----------------------------------------------------------------------------
@@ -617,7 +618,7 @@ export class Mark {
 
   /** Create a properly sorted mark set from null, a single mark, or an unsorted array of marks. */
   static setFrom(marks?: Mark | ReadonlyArray<Mark> | null): ReadonlyArray<Mark> {
-    return wrapArray(M.Mark.setFrom(marks instanceof Mark ? marks[CORE] : marksInput(marks as any)))
+    return wrapArray(M.Mark.setFrom(marks instanceof Mark ? marks[CORE] : marksInput(marks)))
   }
 
   /** The empty set of marks. */
@@ -1029,7 +1030,10 @@ export class ContentMatch {
   static empty: ContentMatch
 }
 
-const wrapEdge = (edge: M.MatchEdge) => ({ type: wrap(edge.type) as NodeType, next: wrap(edge.next) as ContentMatch })
+const wrapEdge = (edge: M.MatchEdge): { type: NodeType; next: ContentMatch } => ({
+  type: wrap(edge.type),
+  next: wrap(edge.next)
+})
 
 registerWrapper(M.ContentMatch, (core) => adopt(ContentMatch.prototype, core))
 ContentMatch.empty = wrap(M.ContentMatch.empty)
@@ -1493,7 +1497,10 @@ export class Schema<Nodes extends string = any, Marks extends string = any> {
   /** Construct a schema from a schema specification. */
   constructor(spec: SchemaSpec<Nodes, Marks>) {
     const instanceSpec: any = {}
-    for (const prop in spec) instanceSpec[prop] = (spec as any)[prop]
+    for (const prop in spec) {
+      // SAFETY: `prop` is one of `spec`'s own or inherited keys; ProseMirror copies them all.
+      instanceSpec[prop] = (spec as any)[prop]
+    }
     instanceSpec.nodes = OrderedMap.from(spec.nodes)
     instanceSpec.marks = OrderedMap.from(spec.marks || {})
     const nodes: Record<string, M.NodeSpec> = {},
@@ -1519,6 +1526,7 @@ export class Schema<Nodes extends string = any, Marks extends string = any> {
     return wrap(
       guard(() =>
         this[CORE].nodeUnsafe(
+          // SAFETY: a facade schema's core is untyped, so any of its node types fits.
           Predicate.isString(type) ? type : (type[CORE] as any),
           attrs,
           fragmentInput(content),
@@ -1536,7 +1544,10 @@ export class Schema<Nodes extends string = any, Marks extends string = any> {
   /** Create a mark with the given type and attributes. */
   mark(type: string | MarkType, attrs?: Attrs | null): Mark {
     return wrap(
-      guard(() => this[CORE].markUnsafe(Predicate.isString(type) ? type : (type[CORE] as any), attrs ?? undefined))
+      guard(() =>
+        // SAFETY: a facade schema's core is untyped, so any of its mark types fits.
+        this[CORE].markUnsafe(Predicate.isString(type) ? type : (type[CORE] as any), attrs ?? undefined)
+      )
     )
   }
 
@@ -1678,11 +1689,13 @@ export class DOMParser {
 
   /** @internal */
   matchTag(dom: globalThis.Node, context?: any, after?: TagParseRule): TagParseRule | null {
+    // SAFETY: the facade passes parse rules through to the core unchanged.
     return Option.getOrNull(this[CORE].matchTag(dom, context, after as any)) as any
   }
 
   /** @internal */
   matchStyle(prop: string, value: string, context?: any, after?: StyleParseRule): StyleParseRule | null {
+    // SAFETY: the facade passes parse rules through to the core unchanged.
     return Option.getOrNull(this[CORE].matchStyle(prop, value, context, after as any)) as any
   }
 
@@ -1732,8 +1745,9 @@ export class DOMSerializer {
     nodes: { readonly [node: string]: (node: Node) => DOMOutputSpec },
     marks: { readonly [mark: string]: ((mark: Mark, inline: boolean) => DOMOutputSpec) | null | undefined }
   ) {
-    ;(this as any).nodes = nodes
-    ;(this as any).marks = marks
+    this.nodes = nodes
+    // SAFETY: as in ProseMirror, missing mark serializers are skipped where `marks` is read.
+    this.marks = marks as DOMSerializer["marks"]
     const coreNodes: Record<string, M.NodeSerializer> = {}
     for (const name in nodes) {
       const f = nodes[name]
@@ -1767,6 +1781,7 @@ export class DOMSerializer {
     inline: boolean,
     options: { document?: Document } = {}
   ): { dom: globalThis.Node; contentDOM?: HTMLElement } | null {
+    // SAFETY: the core's rendered spec, whose `contentDOM` may be explicitly `undefined`.
     return guard(() => this[CORE].serializeMarkOrNull(mark[CORE], inline, options)) as any
   }
 
@@ -1777,12 +1792,14 @@ export class DOMSerializer {
     xmlNS: string | null = null,
     blockArraysIn?: { [name: string]: any }
   ): { dom: globalThis.Node; contentDOM?: HTMLElement } {
+    // SAFETY: the core's rendered spec, whose `contentDOM` may be explicitly `undefined`.
     return guard(() => M.DOMSerializer.renderSpecUnsafe(doc, structure, xmlNS, blockArraysIn)) as any
   }
 
   /** Build a serializer using the `toDOM` properties in a schema's node and mark specs. */
   static fromSchema(schema: Schema): DOMSerializer {
     return (
+      // SAFETY: only this method writes `domSerializer`, with a facade serializer.
       (schema.cached.domSerializer as DOMSerializer) ||
       (schema.cached.domSerializer = new DOMSerializer(this.nodesFromSchema(schema), this.marksFromSchema(schema)))
     )
@@ -1819,9 +1836,7 @@ registerWrapper(M.DOMSerializer, (core: M.DOMSerializer) => {
     const f = core.marks[name]
     if (f) marks[name] = (mark, inline) => f(mark[CORE], inline)
   }
-  ;(serializer as any).nodes = nodes
-  ;(serializer as any).marks = marks
-  return serializer
+  return Object.assign(serializer, { nodes, marks })
 })
 
 // -----------------------------------------------------------------------------

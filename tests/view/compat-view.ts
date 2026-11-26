@@ -9,12 +9,14 @@ import type { Plugin } from "@thomasfosterau/effect-richtext/compat/state"
 import { EditorState, NodeSelection, Selection, TextSelection } from "@thomasfosterau/effect-richtext/compat/state"
 import { schema } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import { type DirectEditorProps, EditorView } from "@thomasfosterau/effect-richtext/compat/view"
+import { instanceOf } from "../utils/present.ts"
+import { tagsOf } from "../utils/tags.ts"
 import { workspace } from "./helpers.ts"
 
 workspace()
 
 function selFor(doc: PMNode) {
-  const { tag } = doc as any,
+  const tag = tagsOf(doc),
     a = tag.a
   if (a != null) {
     const $a = doc.resolve(a)
@@ -33,20 +35,22 @@ export function tempEditor(inProps: Partial<DirectEditorProps> & { plugins?: rea
     tempView = null
   }
 
-  const props: DirectEditorProps = {} as any
-  for (const n in inProps) if (n != "plugins") (props as any)[n] = (inProps as any)[n]
-  props.state = EditorState.create({
-    doc: inProps.doc,
-    schema,
-    selection: inProps.doc && selFor(inProps.doc),
-    plugins: inProps && inProps.plugins
-  })
+  const { plugins, ...rest } = inProps
+  const props: DirectEditorProps = {
+    ...rest,
+    state: EditorState.create({
+      doc: inProps.doc,
+      schema,
+      selection: inProps.doc && selFor(inProps.doc),
+      plugins
+    })
+  }
   return (tempView = new EditorView(space, props))
 }
 
 export function findTextNode(node: Node, text: string): Text | undefined {
   if (node.nodeType == 3) {
-    if (node.nodeValue == text) return node as Text
+    if (node.nodeValue == text) return instanceOf(Text, node)
   } else if (node.nodeType == 1) {
     for (let ch = node.firstChild; ch; ch = ch.nextSibling) {
       const found = findTextNode(ch, text)
@@ -66,5 +70,5 @@ export function requireFocus(pm: EditorView) {
 
 export function flush(view: EditorView) {
   // `domObserver` is an internal API the facade's public type does not declare.
-  ;(view as EditorView & { readonly domObserver: { flush(): void } }).domObserver.flush()
+  view.domObserver.flush()
 }

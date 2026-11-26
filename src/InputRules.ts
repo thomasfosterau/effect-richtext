@@ -101,6 +101,7 @@ export interface InputRuleOptions {
  * @since 0.1.0
  * @category symbols
  */
+// SAFETY: `Symbol.for` is typed `symbol`; its registered key makes this one unique.
 export const InputRuleTypeId: unique symbol = Symbol.for("effect-richtext/inputrules/InputRule") as never
 
 /**
@@ -437,6 +438,7 @@ export const undoInputRule: InputRuleCommand = (state, dispatch) =>
     for (let i = 0; i < plugins.length; i++) {
       const plugin = plugins[i]
       if (!plugin.spec.isInputRules) continue
+      // SAFETY: an input-rules plugin's state is its undoable rule, if any.
       const undoable = Option.getOrNull(Option.flatten(plugin.getState(state) as Option.Option<InputRulesState>))
       if (!undoable) continue
       if (!dispatch) return Effect.succeed(true)

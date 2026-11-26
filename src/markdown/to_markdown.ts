@@ -177,8 +177,8 @@ function backticksFor(node: Node<any, any>, side: number): string {
   const ticks = /`+/g
   let m: RegExpExecArray | null,
     len = 0
-  if (node.isText) {
-    while ((m = ticks.exec((node as TextNode<any>).text))) len = Math.max(len, m[0].length)
+  if (node.isTextNode()) {
+    while ((m = ticks.exec(node.text))) len = Math.max(len, m[0].length)
   }
   let result = len > 0 && side > 0 ? " `" : "`"
   for (let i = 0; i < len; i++) result += "`"
@@ -189,11 +189,7 @@ function backticksFor(node: Node<any, any>, side: number): string {
 function isPlainURL(link: Mark<any, any>, parent: Node<any, any>, index: number): boolean {
   if (link.attrs.title || !/^\w+:/.test(link.attrs.href)) return false
   const content = parent.childUnsafe(index)
-  if (
-    !content.isText ||
-    (content as TextNode<any>).text != link.attrs.href ||
-    content.marks[content.marks.length - 1] != link
-  )
+  if (!content.isTextNode() || content.text != link.attrs.href || content.marks[content.marks.length - 1] != link)
     return false
   return index == parent.childCount - 1 || !link.isInSet(parent.childUnsafe(index + 1).marks)
 }
@@ -283,6 +279,7 @@ export const defaultMarkdownSerializer: MarkdownSerializer = new MarkdownSeriali
       }
     },
     text(state, node) {
+      // SAFETY: the `text` serializer is only called for text nodes.
       state.text((node as TextNode<any>).text, !state.inAutolink)
     }
   },
@@ -478,7 +475,7 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
         marks = marks.filter((m) => {
           if (index + 1 == parent.childCount) return false
           const next = parent.childUnsafe(index + 1)
-          return m.isInSet(next.marks) && (!next.isText || /\S/.test((next as TextNode<Sc>).text))
+          return m.isInSet(next.marks) && (!next.isTextNode() || /\S/.test(next.text))
         })
       }
 
@@ -528,31 +525,31 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
       // 1.13.6 / 1.13.7).
       if (
         node &&
-        node.isText &&
+        node.isTextNode() &&
         marks.some((mark) => {
           const info = this.getMark(mark.type.name)
           return info && info.expelEnclosingWhitespace && !active.some((m, i) => i < keep && m.eq(mark))
         })
       ) {
-        const [_, lead, rest] = /^(\s*)(.*)$/m.exec((node as TextNode<Sc>).text) ?? []
+        const [_, lead, rest] = /^(\s*)(.*)$/m.exec(node.text) ?? []
         if (lead) {
           leading += lead
-          node = rest ? (node as TextNode<Sc>).withText(rest) : null
+          node = rest ? node.withText(rest) : null
           if (!node) marks = active
         }
       }
       if (
         node &&
-        node.isText &&
+        node.isTextNode() &&
         marks.some((mark, i) => {
           const info = this.getMark(mark.type.name)
           return info && info.expelEnclosingWhitespace && !this.isMarkAhead(parent, index + 1, marks.slice(0, i + 1))
         })
       ) {
-        const [_, rest, trail] = /^(.*?)(\s*)$/m.exec((node as TextNode<Sc>).text) ?? []
+        const [_, rest, trail] = /^(.*?)(\s*)$/m.exec(node.text) ?? []
         if (trail) {
           trailing = trail
-          node = rest ? (node as TextNode<Sc>).withText(rest) : null
+          node = rest ? node.withText(rest) : null
           if (!node) marks = active
         }
       }
@@ -576,11 +573,9 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
 
         // Render the node. Special case code marks, since their content
         // may not be escaped.
-        if (noEsc && node.isText) {
+        if (noEsc && node.isTextNode()) {
           this.text(
-            this.markString(inner, true, parent, index) +
-              (node as TextNode<Sc>).text +
-              this.markString(inner, false, parent, index + 1),
+            this.markString(inner, true, parent, index) + node.text + this.markString(inner, false, parent, index + 1),
             false
           )
         } else {

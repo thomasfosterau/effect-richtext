@@ -121,6 +121,7 @@ export class AddMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
     if (!Predicate.isNumber(json.from) || !Predicate.isNumber(json.to)) {
       throw new JSONError({ message: "Invalid input for AddMarkStep.fromJSON" })
     }
+    // SAFETY: a mark decoded by `schema` belongs to it.
     return new AddMarkStep(json.from, json.to, schema.markFromJSONUnsafe(json.mark) as Mark<Sc>)
   }
 }
@@ -180,6 +181,7 @@ export class RemoveMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
     if (!Predicate.isNumber(json.from) || !Predicate.isNumber(json.to)) {
       throw new JSONError({ message: "Invalid input for RemoveMarkStep.fromJSON" })
     }
+    // SAFETY: a mark decoded by `schema` belongs to it.
     return new RemoveMarkStep(json.from, json.to, schema.markFromJSONUnsafe(json.mark) as Mark<Sc>)
   }
 }
@@ -241,6 +243,7 @@ export class AddNodeMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> 
   /** @internal */
   static override fromJSONUnsafe<Sc extends AnySchema>(schema: Sc, json: any): AddNodeMarkStep<Sc> {
     if (!Predicate.isNumber(json.pos)) throw new JSONError({ message: "Invalid input for AddNodeMarkStep.fromJSON" })
+    // SAFETY: a mark decoded by `schema` belongs to it.
     return new AddNodeMarkStep(json.pos, schema.markFromJSONUnsafe(json.mark) as Mark<Sc>)
   }
 }
@@ -296,6 +299,7 @@ export class RemoveNodeMarkStep<Sc extends AnySchema = AnySchema> extends Step<S
     if (!Predicate.isNumber(json.pos)) {
       throw new JSONError({ message: "Invalid input for RemoveNodeMarkStep.fromJSON" })
     }
+    // SAFETY: a mark decoded by `schema` belongs to it.
     return new RemoveNodeMarkStep(json.pos, schema.markFromJSONUnsafe(json.mark) as Mark<Sc>)
   }
 }

@@ -11,14 +11,27 @@ import {
 } from "@thomasfosterau/effect-richtext/InputRules"
 import type { Node } from "@thomasfosterau/effect-richtext/Model"
 import { EditorState, TextSelection, type Transaction } from "@thomasfosterau/effect-richtext/State"
-import { blockquote, doc, eq, h1, h3, li, ol, p, pre, schema, ul } from "@thomasfosterau/effect-richtext/TestBuilder"
+import {
+  blockquote,
+  doc,
+  eq,
+  h1,
+  h3,
+  li,
+  ol,
+  p,
+  pre,
+  schema,
+  tagsOf,
+  ul
+} from "@thomasfosterau/effect-richtext/TestBuilder"
 import ist from "../utils/ist.ts"
 import { present } from "../utils/present.ts"
 
 const nodes = schema.nodes
 
 const stateFor = (d: Node<any>) => {
-  const a = (d as any).tag.a as number
+  const a = tagsOf(d).a
   return EditorState.createUnsafe({ doc: d, selection: TextSelection.createUnsafe(d, a) })
 }
 
@@ -32,7 +45,10 @@ function apply(rule: InputRule<any, any, any>, d: Node<any>, typed: string): Tra
   const match = rule.match.exec(textBefore)
   if (!match) return null
   const result = rule.handler(state, match, from - (match[0].length - typed.length), to)
-  if (Effect.isEffect(result)) return Option.getOrNull(Effect.runSync(result as Effect.Effect<any>))
+  if (Effect.isEffect(result)) {
+    // SAFETY: the rules under test need no services and don't fail.
+    return Option.getOrNull(Effect.runSync(result as Effect.Effect<any>))
+  }
   return Option.isOption(result) ? Option.getOrNull(result) : (result ?? null)
 }
 

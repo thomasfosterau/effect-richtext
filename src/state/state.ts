@@ -14,7 +14,7 @@ import type * as Types from "effect/Types"
 import type { AnySchema, Mark, MarkJSON, ModelError, Node, NodeJSON } from "../Model.ts"
 import { type SelectionError, StateError } from "./errors.ts"
 import type { AnyPlugin, Plugin, PluginErrors, PluginRequirements, StateField } from "./plugin.ts"
-import { Selection, type SelectionJSON, type TextSelection } from "./selection.ts"
+import { Selection, type SelectionJSON, TextSelection } from "./selection.ts"
 import { Transaction } from "./transaction.ts"
 
 /**
@@ -110,7 +110,7 @@ const baseFields: ReadonlyArray<FieldDesc> = [
       return config.storedMarks || null
     },
     apply(tr, _marks, _old, state) {
-      return (state.selection as TextSelection<any>).$cursorOrNull ? tr.storedMarksOrNull : null
+      return state.selection instanceof TextSelection && state.selection.$cursorOrNull ? tr.storedMarksOrNull : null
     }
   },
   {
@@ -282,6 +282,7 @@ export const runSyncUnsafe = <A, E>(effect: Effect.Effect<A, E>): A => {
  * @since 0.1.0
  * @category symbols
  */
+// SAFETY: `Symbol.for` is typed `symbol`; its registered key makes this one unique.
 export const EditorStateTypeId: unique symbol = Symbol.for("effect-richtext/state/EditorState") as never
 
 /**
@@ -505,8 +506,9 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
   > {
     // The JSON decoders are Effects, yielded like the hooks.
     return runSteps(function* () {
-      const data = json as Record<string, any> | null | undefined
-      if (!Predicate.isObject(data)) throw new StateError({ message: "Invalid input for EditorState.fromJSON" })
+      if (!Predicate.isObject(json)) throw new StateError({ message: "Invalid input for EditorState.fromJSON" })
+      // SAFETY: an object; each field is decoded below.
+      const data = json as Record<string, any>
       if (!config.schema) throw new StateError({ message: "Required config field 'schema' missing" })
       const $config = new Configuration(config.schema, config.plugins, config.clock)
       const instance = new EditorState<Sc, PluginRequirements<P>, PluginErrors<P>>($config)
@@ -518,7 +520,8 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
         } else if (field.name === "storedMarks") {
           if (data.storedMarks) {
             const marks: Array<Mark<Sc>> = []
-            for (const m of data.storedMarks as Array<unknown>) marks.push(yield config.schema.markFromJSON(m))
+            const stored: Array<unknown> = data.storedMarks
+            for (const m of stored) marks.push(yield config.schema.markFromJSON(m))
             instance.slots.storedMarks = marks
           } else {
             instance.slots.storedMarks = null

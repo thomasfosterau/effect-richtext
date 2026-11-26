@@ -30,10 +30,11 @@ import {
 import { findWrapping, liftTarget, Transform } from "@thomasfosterau/effect-richtext/compat/transform"
 import ist from "../../utils/ist.ts"
 import { present } from "../../utils/present.ts"
+import { tagsOf } from "../../utils/tags.ts"
 import { testTransform } from "./trans.ts"
 
 function tag$(node: Node, tag: string): number | null {
-  return (node as any).tag[tag]
+  return tagsOf(node)[tag]
 }
 
 function tag(node: Node, tag: string): number {
@@ -777,6 +778,7 @@ describe("Transform", () => {
         body: { content: "block+" }
       })
     })
+    // SAFETY: the tests call each builder as the node or mark builder it is.
     const hb = builders(hbSchema, {
       p: { nodeType: "paragraph" },
       b: { nodeType: "body" },

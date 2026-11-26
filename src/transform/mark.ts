@@ -4,7 +4,7 @@
  * @internal
  */
 import * as Option from "effect/Option"
-import { type ContentMatch, Fragment, type Mark, MarkType, type NodeType, Slice, type TextNode } from "../Model.ts"
+import { type ContentMatch, Fragment, type Mark, MarkType, type NodeType, Slice } from "../Model.ts"
 import { TransformError } from "./errors.ts"
 import { pushMarkStep } from "./mark_set_step.ts"
 import { AddMarkStep, RemoveMarkStep } from "./mark_step.ts"
@@ -102,10 +102,10 @@ export function clearIncompatible(
         }
       }
 
-      if (clearNewlines && child.isText && parentType.whitespace !== "pre") {
+      if (clearNewlines && child.isTextNode() && parentType.whitespace !== "pre") {
         let m: RegExpExecArray | null, slice: Slice<any> | undefined
         const newline = /\r?\n|\r/g
-        while ((m = newline.exec((child as TextNode<any>).text))) {
+        while ((m = newline.exec(child.text))) {
           if (!slice) {
             slice = new Slice(
               Fragment.from(parentType.schema.textUnsafe(" ", parentType.allowedMarks(child.marks))),

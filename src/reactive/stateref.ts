@@ -16,6 +16,7 @@ import { type EditorStreams, acquireSource, streamsOf, publishTransactions, setS
  * @since 0.1.0
  * @category symbols
  */
+// SAFETY: `Symbol.for` is typed `symbol`; its registered key makes this one unique.
 export const StateRefTypeId: unique symbol = Symbol.for("effect-richtext/reactive/StateRef") as never
 
 /**

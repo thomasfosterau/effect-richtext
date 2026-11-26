@@ -41,6 +41,7 @@ import { Slice } from "./model.ts"
 import { type Mappable, Transform } from "./transform.ts"
 import type { EditorProps, EditorView } from "./view.ts"
 
+// SAFETY: `Symbol` is typed `symbol`; each call returns a unique one.
 const INTERNAL: unique symbol = Symbol("effect-richtext/compat/internal") as never
 
 // The arguments the built-in subclasses pass to `Selection`'s constructor.
@@ -107,24 +108,33 @@ const bookmarkCores = new WeakMap<object, S.SelectionBookmark>()
 const bookmarkFromCore = (core: S.SelectionBookmark): SelectionBookmark => {
   let found = bookmarkFacades.get(core)
   if (!found) {
-    if ((core as any)[ADAPTED_BOOKMARK]) return (core as any)[ADAPTED_BOOKMARK]
+    if (isAdaptedBookmark(core)) return core[ADAPTED_BOOKMARK]
     found = link(new BookmarkFacade(), core)
     bookmarkFacades.set(core, found)
   }
   return found
 }
 
+// SAFETY: `Symbol` is typed `symbol`; each call returns a unique one.
 const ADAPTED_BOOKMARK: unique symbol = Symbol("effect-richtext/compat/bookmark") as never
 
+// A core bookmark that delegates to a user's bookmark.
+interface AdaptedBookmark extends S.SelectionBookmark {
+  readonly [ADAPTED_BOOKMARK]: SelectionBookmark
+}
+
+const isAdaptedBookmark = (core: S.SelectionBookmark): core is AdaptedBookmark => ADAPTED_BOOKMARK in core
+
 const bookmarkToCore = (bookmark: SelectionBookmark): S.SelectionBookmark => {
-  if (isFacade(bookmark)) return (bookmark as any)[CORE]
+  if (bookmark instanceof BookmarkFacade) return bookmark[CORE]
   let found = bookmarkCores.get(bookmark)
   if (!found) {
-    found = {
+    const adapted: AdaptedBookmark = {
       [ADAPTED_BOOKMARK]: bookmark,
       map: (mapping: Mappable) => bookmarkToCore(bookmark.map(wrap(mapping))),
       resolve: (doc: M.Node) => bookmark.resolve(wrap(doc))[CORE]
-    } as S.SelectionBookmark
+    }
+    found = adapted
     bookmarkCores.set(bookmark, found)
   }
   return found
@@ -151,6 +161,7 @@ export abstract class Selection {
       )
     } else {
       const args = [$anchor[CORE], $head[CORE], ranges && unwrapArray(ranges)]
+      // SAFETY: `coreSelection` subclasses the abstract class for the facade's own subclass.
       link(this, coreSelection(this, new.target, S.Selection as any, args))
     }
   }
@@ -272,9 +283,12 @@ export abstract class Selection {
         fromJSONUnsafe: (doc, json) => selectionClass.fromJSON(wrap(doc), json)[CORE]
       })
     } catch (e) {
+      // SAFETY: the core throws its `Error`s.
       throw new RangeError((e as Error).message)
     }
-    ;(selectionClass as any).prototype.jsonID = id
+    // SAFETY: selection classes are constructors, and ProseMirror sets `jsonID` on their prototype.
+    const cls = selectionClass as typeof selectionClass & { readonly prototype: { jsonID?: string } }
+    cls.prototype.jsonID = id
     return selectionClass
   }
 
@@ -385,6 +399,7 @@ export class TextSelection extends Selection {
 
   /** Construct a text selection between the given points. */
   constructor($anchor: ResolvedPos, $head: ResolvedPos = $anchor) {
+    // SAFETY: `INTERNAL` with constructor arguments selects the built-in path of `Selection`'s constructor.
     super(INTERNAL as any, [S.TextSelection, [$anchor[CORE], $head[CORE]]] as any)
   }
 
@@ -433,6 +448,7 @@ export class NodeSelection extends Selection {
 
   /** Create a node selection. Does not verify the validity of its argument. */
   constructor($pos: ResolvedPos) {
+    // SAFETY: `INTERNAL` with constructor arguments selects the built-in path of `Selection`'s constructor.
     super(INTERNAL as any, [S.NodeSelection, [$pos[CORE]]] as any)
   }
 
@@ -481,6 +497,7 @@ export class AllSelection extends Selection {
 
   /** Create an all-selection over the given document. */
   constructor(doc: Node) {
+    // SAFETY: `INTERNAL` with constructor arguments selects the built-in path of `Selection`'s constructor.
     super(INTERNAL as any, [S.AllSelection, [doc[CORE]]] as any)
   }
 
@@ -717,6 +734,7 @@ const configs = new WeakMap<object, EditorStateConfig>()
 const facadeConfig = (config: any): any => configs.get(config) ?? config
 
 const pluginViewToCore = (pluginView: PluginView): S.PluginView<any> =>
+  // SAFETY: the getters return the optional hooks, or `undefined` where the view has none.
   ({
     get update() {
       return pluginView.update && ((view: any, prevState: any) => pluginView.update?.(wrap(view), wrap(prevState)))
@@ -752,6 +770,7 @@ const pluginSpecToCore = (spec: PluginSpec<any>, self: Plugin): S.PluginSpec => 
   const view = spec.view
   if (view) result.view = (v: any) => pluginViewToCore(view.call(self, wrap(v)))
   result.props = spec.props ? propsToCore(spec.props, self) : undefined
+  // SAFETY: built from `spec`, with each hook adapted to the core's signature.
   return result as S.PluginSpec
 }
 
@@ -773,8 +792,8 @@ export class Plugin<PluginState = any> {
 
   /** Create a plugin. */
   constructor(spec: PluginSpec<PluginState>) {
-    ;(this as any).spec = spec
-    ;(this as any).props = {}
+    this.spec = spec
+    this.props = {}
     if (spec.props) bindProps(spec.props, this, this.props)
     link(
       this,
@@ -795,8 +814,9 @@ export class Plugin<PluginState = any> {
 
 registerWrapper(S.Plugin, (core: S.Plugin<any, any, any, any>) => {
   const plugin = adopt(Plugin.prototype, core)
-  ;(plugin as any).spec = core.spec
-  ;(plugin as any).props = propsFromCore(core.props as any, core)
+  // SAFETY: a core plugin's props are the editor props it was created with.
+  const props = propsFromCore(core.props as any, core)
+  Object.assign(plugin, { spec: core.spec, props })
   return plugin
 })
 
@@ -914,11 +934,13 @@ export class EditorState {
 
   /** @internal */
   filterTransaction(tr: Transaction, ignore = -1): boolean {
+    // SAFETY: a facade state's plugins come from facades, whose hooks need no services.
     return runSync(this[CORE].filterTransaction(tr[CORE], ignore) as Effect.Effect<boolean, unknown>)
   }
 
   /** Verbose variant of `apply` that returns the precise transactions that were applied and the new state. */
   applyTransaction(rootTr: Transaction): { state: EditorState; transactions: ReadonlyArray<Transaction> } {
+    // SAFETY: a facade state's plugins come from facades, whose hooks need no services.
     const result = runSync(this[CORE].applyTransaction(rootTr[CORE]) as Effect.Effect<S.ApplyResult<any, any, any>>)
     return { state: wrap(result.state), transactions: result.transactions.map(wrap) }
   }
@@ -982,6 +1004,7 @@ export const fromCoreCommand = (command: S.Command<any, any>): Command => {
   let found = pmCommands.get(command)
   if (!found) {
     found = (state, dispatch, view) =>
+      // SAFETY: commands given to the facade need no services.
       runSync(
         command(
           commandState(state),
@@ -1027,6 +1050,7 @@ export const toCoreCommand = (command: Command): S.Command<any> => {
     coreCommands.set(command, found)
     pmCommands.set(found, command)
   }
+  // SAFETY: the adapted command needs no services and fails with no error.
   return found as S.Command<any>
 }
 
@@ -1053,8 +1077,15 @@ export function toCore(key: PluginKey): S.PluginKey
 export function toCore(bookmark: SelectionBookmark): S.SelectionBookmark
 export function toCore(command: Command): S.Command<any>
 export function toCore(value: unknown): unknown {
-  if (Predicate.isFunction(value)) return toCoreCommand(value as Command)
-  if (value instanceof BookmarkFacade || (value && !isFacade(value) && Predicate.isFunction((value as any).resolve))) {
+  if (Predicate.isFunction(value)) {
+    // SAFETY: the only function the overloads accept is a command.
+    return toCoreCommand(value as Command)
+  }
+  if (
+    value instanceof BookmarkFacade ||
+    (Predicate.hasProperty(value, "resolve") && !isFacade(value) && Predicate.isFunction(value.resolve))
+  ) {
+    // SAFETY: of the overloads' types, only a bookmark has a `resolve` method and no core.
     return bookmarkToCore(value as SelectionBookmark)
   }
   return unwrap(value)
@@ -1077,6 +1108,9 @@ export function fromCore(plugin: S.Plugin<any, any, any, any>): Plugin
 export function fromCore(key: S.PluginKey): PluginKey
 export function fromCore(command: S.Command<any, any>): Command
 export function fromCore(value: unknown): unknown {
-  if (Predicate.isFunction(value)) return fromCoreCommand(value as S.Command<any, any>)
+  if (Predicate.isFunction(value)) {
+    // SAFETY: the only function the overloads accept is a command.
+    return fromCoreCommand(value as S.Command<any, any>)
+  }
   return wrap(value)
 }

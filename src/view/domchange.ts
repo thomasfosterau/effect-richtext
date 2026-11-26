@@ -17,7 +17,7 @@ import {
 } from "../Model.ts"
 import { type Selection, TextSelection, type Transaction } from "../State.ts"
 import * as browser from "./browser.ts"
-import { type DOMNode, selectionCollapsed } from "./dom.ts"
+import { type DOMNode, isElt, selectionCollapsed } from "./dom.ts"
 import { dispatchKey } from "./input.ts"
 import { selectionBetween, selectionFromDOM, selectionToDOM } from "./selection.ts"
 import type { EditorView } from "./view.ts"
@@ -102,7 +102,7 @@ const ruleFromNode =
       } else if (dom.parentNode.lastChild == dom || (browser.safari && /^(tr|table)$/i.test(dom.parentNode.nodeName))) {
         return { ignore: true }
       }
-    } else if (dom.nodeName == "IMG" && (dom as HTMLElement).getAttribute("mark-placeholder")) {
+    } else if (dom.nodeName == "IMG" && isElt(dom) && dom.getAttribute("mark-placeholder")) {
       return { ignore: true }
     }
     return null

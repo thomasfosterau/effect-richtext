@@ -3,7 +3,7 @@ import { describe, it } from "@effect/vitest"
 import { a, doc, p, strong } from "@thomasfosterau/effect-richtext/TestBuilder"
 import type { ViewMutationRecord } from "@thomasfosterau/effect-richtext/View"
 import ist from "../utils/ist.ts"
-import { present } from "../utils/present.ts"
+import { instanceOf, present } from "../utils/present.ts"
 import { flush, tempEditor } from "./helpers.ts"
 
 describe("markViews prop", () => {
@@ -57,7 +57,7 @@ describe("markViews prop", () => {
     present(view.dom.querySelector("var")).classList.add("foo")
     flush(view)
     ist(mutation)
-    ist((present(mutation).target as HTMLElement).tagName, "VAR")
+    ist(instanceOf(HTMLElement, present(mutation).target).tagName, "VAR")
   })
 
   it("has its destroy method called", () => {

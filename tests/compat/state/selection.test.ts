@@ -3,7 +3,7 @@
 // ../../utils/ist.ts, mocha describe/it -> @effect/vitest; type-only imports
 // marked as such) and dprint formatting.
 import { describe, it } from "@effect/vitest"
-import { TextSelection } from "@thomasfosterau/effect-richtext/compat/state"
+import { NodeSelection, TextSelection } from "@thomasfosterau/effect-richtext/compat/state"
 
 import {
   a,
@@ -21,7 +21,8 @@ import {
   ul
 } from "@thomasfosterau/effect-richtext/compat/test-builder"
 import ist from "../../utils/ist.ts"
-import { present } from "../../utils/present.ts"
+import { instanceOf, present } from "../../utils/present.ts"
+import { tagsOf } from "../../utils/tags.ts"
 import { TestState } from "./state.ts"
 
 describe("Selection", () => {
@@ -188,7 +189,7 @@ describe("Selection", () => {
   it("puts the cursor after the inserted text when inserting a list item", () => {
     const state = new TestState({ doc: doc(p("<a>abc")) })
     const source = doc(ul(li(p("<a>def<b>"))))
-    state.apply(state.tr.replaceSelection(source.slice((source as any).tag.a, (source as any).tag.b, true)))
+    state.apply(state.tr.replaceSelection(source.slice(tagsOf(source).a, tagsOf(source).b, true)))
     ist(state.selection.from, 6)
   })
 })
@@ -196,20 +197,20 @@ describe("Selection", () => {
 describe("TextSelection.between", () => {
   it("uses arguments when possible", () => {
     const d = doc(p("f<a>o<b>o"))
-    const s = TextSelection.between(d.resolve((d as any).tag.b), d.resolve((d as any).tag.a))
-    ist(s.anchor, (d as any).tag.b)
-    ist(s.head, (d as any).tag.a)
+    const s = TextSelection.between(d.resolve(tagsOf(d).b), d.resolve(tagsOf(d).a))
+    ist(s.anchor, tagsOf(d).b)
+    ist(s.head, tagsOf(d).a)
   })
 
   it("will adjust when necessary", () => {
     const d = doc("<a>", p("foo"))
-    const s = TextSelection.between(d.resolve((d as any).tag.a), d.resolve((d as any).tag.a))
+    const s = TextSelection.between(d.resolve(tagsOf(d).a), d.resolve(tagsOf(d).a))
     ist(s.anchor, 1)
   })
 
   it("uses bias when adjusting", () => {
     const d = doc(p("foo"), "<a>", p("bar")),
-      pos = d.resolve((d as any).tag.a)
+      pos = d.resolve(tagsOf(d).a)
     const sUp = TextSelection.between(pos, pos, -1)
     ist(sUp.anchor, 4)
     const sDown = TextSelection.between(pos, pos, 1)
@@ -218,16 +219,16 @@ describe("TextSelection.between", () => {
 
   it("will fall back to a node selection", () => {
     const d = doc(hr, "<a>")
-    const s = TextSelection.between(d.resolve((d as any).tag.a), d.resolve((d as any).tag.a))
-    ist((s as any).node, d.firstChild)
+    const s = TextSelection.between(d.resolve(tagsOf(d).a), d.resolve(tagsOf(d).a))
+    ist(instanceOf(NodeSelection, s).node, d.firstChild)
   })
 
   it("will collapse towards the other argument", () => {
     const d = doc("<a>", p("foo"), "<b>")
-    let s = TextSelection.between(d.resolve((d as any).tag.a), d.resolve((d as any).tag.b))
+    let s = TextSelection.between(d.resolve(tagsOf(d).a), d.resolve(tagsOf(d).b))
     ist(s.anchor, 1)
     ist(s.head, 4)
-    s = TextSelection.between(d.resolve((d as any).tag.b), d.resolve((d as any).tag.a))
+    s = TextSelection.between(d.resolve(tagsOf(d).b), d.resolve(tagsOf(d).a))
     ist(s.anchor, 4)
     ist(s.head, 1)
   })

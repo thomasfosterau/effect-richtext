@@ -4,6 +4,7 @@ import type { Node } from "@thomasfosterau/effect-richtext/Model"
 import { eq } from "@thomasfosterau/effect-richtext/TestBuilder"
 import { Mapping, Step, StepFromJSON, Transform } from "@thomasfosterau/effect-richtext/Transform"
 import ist from "../utils/ist.ts"
+import { tagsOf } from "../utils/tags.ts"
 import { jsonRoundTrip } from "../utils/json.ts"
 
 function invert(transform: Transform<any>): Transform<any> {
@@ -47,7 +48,7 @@ export function testTransform(tr: Transform<any>, expect: Node<any>) {
 
   testStepJSON(tr)
 
-  const expectTags = (expect as any).tag,
-    beforeTags = (tr.before as any).tag
+  const expectTags = tagsOf(expect),
+    beforeTags = tagsOf(tr.before)
   for (const tag in expectTags) testMapping(tr.mapping, beforeTags[tag], expectTags[tag])
 }

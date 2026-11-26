@@ -1,5 +1,4 @@
 import type { Fragment } from "./fragment.ts"
-import type { TextNode } from "./node.ts"
 
 /** @internal */
 export function findDiffStart(a: Fragment<any, any>, b: Fragment<any, any>, pos: number): number | null {
@@ -15,8 +14,8 @@ export function findDiffStart(a: Fragment<any, any>, b: Fragment<any, any>, pos:
 
     if (!childA.sameMarkup(childB)) return pos
 
-    if (childA.isText && (childA as TextNode).text !== (childB as TextNode).text) {
-      return pos + sameTextStart((childA as TextNode).text, (childB as TextNode).text)
+    if (childA.isTextNode() && childB.isTextNode() && childA.text !== childB.text) {
+      return pos + sameTextStart(childA.text, childB.text)
     }
     if (childA.content.size || childB.content.size) {
       const inner = findDiffStart(childA.content, childB.content, pos + 1)
@@ -47,8 +46,8 @@ export function findDiffEnd(
 
     if (!childA.sameMarkup(childB)) return { a: posA, b: posB }
 
-    if (childA.isText && (childA as TextNode).text !== (childB as TextNode).text) {
-      const same = sameTextEnd((childA as TextNode).text, (childB as TextNode).text)
+    if (childA.isTextNode() && childB.isTextNode() && childA.text !== childB.text) {
+      const same = sameTextEnd(childA.text, childB.text)
       return { a: posA - same, b: posB - same }
     }
     if (childA.content.size || childB.content.size) {

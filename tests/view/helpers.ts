@@ -8,9 +8,10 @@ import {
   Selection,
   TextSelection
 } from "@thomasfosterau/effect-richtext/State"
-import { schema } from "@thomasfosterau/effect-richtext/TestBuilder"
+import { schema, tagsOf } from "@thomasfosterau/effect-richtext/TestBuilder"
 import { type DirectEditorProps, EditorView } from "@thomasfosterau/effect-richtext/View"
 import { injectViewCSSUnsafe } from "@thomasfosterau/effect-richtext/ViewCss"
+import { instanceOf } from "../utils/present.ts"
 
 /** The `#workspace` element the ProseMirror test page provides. */
 export const workspace = (): HTMLElement => {
@@ -28,7 +29,7 @@ export const workspace = (): HTMLElement => {
 }
 
 export function selFor(doc: PMNode<any>): Selection<any> {
-  const tag = (doc as any).tag,
+  const tag = tagsOf(doc),
     a = tag.a
   if (a != null) {
     const $a = doc.resolveUnsafe(a)
@@ -59,15 +60,15 @@ export function tempEditor(inProps: TempEditorProps = {}): EditorView<any> {
     selection: inProps.doc && selFor(inProps.doc),
     plugins
   })
-  // The fixtures' plugins declare no failures the view could surface, so the
-  // state's error channel is narrowed to the view's default (`never`).
+  // SAFETY: the fixtures' plugins declare no failures the view could surface, so
+  // the state's error channel is narrowed to the view's default (`never`).
   const props: DirectEditorProps<any> = { ...rest, state: state as EditorState<any> }
   return (tempView = EditorView.makeUnsafe(space, props))
 }
 
 export function findTextNode(node: Node, text: string): Text | undefined {
   if (node.nodeType == 3) {
-    if (node.nodeValue == text) return node as Text
+    if (node.nodeValue == text) return instanceOf(Text, node)
   } else if (node.nodeType == 1) {
     for (let ch = node.firstChild; ch; ch = ch.nextSibling) {
       const found = findTextNode(ch, text)
@@ -88,5 +89,5 @@ export function requireFocus<V extends EditorView<any, any, any>>(pm: V): V {
 }
 
 export function flush(view: EditorView<any, any, any>): void {
-  ;(view as any).domObserver.flush()
+  view.domObserver.flush()
 }

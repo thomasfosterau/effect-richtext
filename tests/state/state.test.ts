@@ -3,6 +3,7 @@ import { assert, describe, it } from "@effect/vitest"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
+import * as Predicate from "effect/Predicate"
 import * as Schema from "effect/Schema"
 import * as Str from "effect/String"
 import type { AnySchema } from "@thomasfosterau/effect-richtext/Model"
@@ -35,10 +36,11 @@ const messageCountPlugin = new Plugin({
       return count
     },
     fromJSON(_, count) {
+      // SAFETY: the field's JSON is the count `toJSON` wrote.
       return count as number
     }
   },
-  // `testProp` is not a real editor prop, hence the cast
+  // SAFETY: `testProp` is not a real editor prop, hence the cast
   props: {
     testProp() {
       return this
@@ -105,7 +107,7 @@ describe("State", () => {
 
     const limitedJSON = state.toJSON()
     ist(limitedJSON.doc)
-    ist((limitedJSON as any)["messageCount$"], undefined)
+    ist(Predicate.hasProperty(limitedJSON, "messageCount$"), false)
     const deserialized = EditorState.fromJSONUnsafe({ plugins: [messageCountPlugin], schema }, limitedJSON)
     ist(count(messageCountPlugin, deserialized), 0)
   })
@@ -168,6 +170,7 @@ describe("State", () => {
 
 describe("Plugin", () => {
   it("calls prop functions bound to the plugin", () => {
+    // SAFETY: `testProp` isn't a real editor prop, so the props' type doesn't declare it.
     ist((messageCountPlugin.props as any).testProp(), messageCountPlugin)
   })
 

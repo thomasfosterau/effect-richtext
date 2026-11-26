@@ -16,7 +16,6 @@ import {
   type Mark,
   type Node as PMNode,
   type ParseOptions,
-  type ParseRule,
   Slice
 } from "@thomasfosterau/effect-richtext/Model"
 import {
@@ -42,7 +41,7 @@ import {
 } from "@thomasfosterau/effect-richtext/TestBuilder"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
-import { present } from "../utils/present.ts"
+import { instanceOf, present } from "../utils/present.ts"
 
 const xmlDocument = document.implementation.createDocument(null, "tag", null)
 
@@ -90,7 +89,7 @@ function open(
     ist(
       result,
       new Slice(
-        Fragment.from(nodes.map((n) => (Predicate.isString(n) ? (schema.textUnsafe(n) as PMNode<any>) : n))),
+        Fragment.from(nodes.map((n) => (Predicate.isString(n) ? schema.textUnsafe(n) : n))),
         openStart,
         openEnd
       ),
@@ -119,16 +118,13 @@ function find(html: string, doc: PMNode<any> & { readonly tag: { readonly [tag: 
     const result = parser.parseUnsafe(dom, {
       findPositions: [pos]
     })
-    ist(result, doc as PMNode<any>, eq)
+    ist(result, doc, eq)
     ist(pos.pos, doc.tag.a)
   }
 }
 
 function contextParser(context: string) {
-  return new DOMParser(
-    schema,
-    [{ tag: "foo", node: "horizontal_rule", context } as ParseRule].concat(DOMParser.schemaRules(schema))
-  )
+  return new DOMParser(schema, [{ tag: "foo", node: "horizontal_rule", context }, ...DOMParser.schemaRules(schema)])
 }
 
 function nsParse(doc: Node, namespace?: string | null) {
@@ -245,6 +241,7 @@ describe("DOMParser", () => {
           }
         }
       })
+      // SAFETY: the tests call each builder as the node or mark builder it is.
       const b = builders(commentSchema) as any
       test(
         b.doc(b.paragraph("one"), b.comment(b.paragraph("two"), b.paragraph(b.strong("three"))), b.paragraph("four")),
@@ -303,6 +300,7 @@ describe("DOMParser", () => {
           }
         }
       })
+      // SAFETY: the tests call each builder as the node or mark builder it is.
       const b = builders(markSchema) as any
       test(
         b.doc(b.paragraph(b.test("a", b.image({ src: "x" }), "b"))),
@@ -325,6 +323,7 @@ describe("DOMParser", () => {
         }
       })
 
+      // SAFETY: the tests call each builder as the node or mark builder it is.
       const b = builders(xmlnsSchema) as any
       const d = b.doc(b.svg())
       // The original compares against the `innerHTML` of
@@ -758,26 +757,23 @@ describe("DOMParser", () => {
     })
 
     it("can close parent nodes from a rule", () => {
-      const closeParser = new DOMParser(
-        schema,
-        [{ tag: "br", closeParent: true } as ParseRule].concat(DOMParser.schemaRules(schema))
-      )
+      const closeParser = new DOMParser(schema, [{ tag: "br", closeParent: true }, ...DOMParser.schemaRules(schema)])
       ist(closeParser.parseUnsafe(domFrom("<p>one<br>two</p>")), doc(p("one"), p("two")), eq)
     })
 
     it("supports non-consuming node rules", () => {
-      const parser = new DOMParser(
-        schema,
-        [{ tag: "ol", consuming: false, node: "blockquote" } as ParseRule].concat(DOMParser.schemaRules(schema))
-      )
+      const parser = new DOMParser(schema, [
+        { tag: "ol", consuming: false, node: "blockquote" },
+        ...DOMParser.schemaRules(schema)
+      ])
       ist(parser.parseUnsafe(domFrom("<ol><p>one</p></ol>")), doc(blockquote(ol(li(p("one"))))), eq)
     })
 
     it("supports non-consuming style rules", () => {
-      const parser = new DOMParser(
-        schema,
-        [{ style: "font-weight", consuming: false, mark: "em" } as ParseRule].concat(DOMParser.schemaRules(schema))
-      )
+      const parser = new DOMParser(schema, [
+        { style: "font-weight", consuming: false, mark: "em" },
+        ...DOMParser.schemaRules(schema)
+      ])
       ist(
         parser.parseUnsafe(domFrom("<p><span style='font-weight: 800'>one</span></p>")),
         doc(p(em(strong("one")))),
@@ -796,7 +792,7 @@ describe("DOMParser", () => {
       ist(
         parser.parseUnsafe(dom, {
           ruleFromNode: (node) => {
-            return node.nodeType == 1 && (node as HTMLElement).tagName == "SPAN" ? { skip: node as any } : null
+            return node instanceof HTMLElement && node.tagName == "SPAN" ? { skip: node } : null
           }
         }),
         doc(p("abc def")),
@@ -994,14 +990,14 @@ describe("DOMSerializer", () => {
 
   it("can omit a mark", () => {
     ist(
-      (noEm.serializeNode(p("foo", em("bar"), strong("baz")), { document }) as HTMLElement).innerHTML,
+      instanceOf(HTMLElement, noEm.serializeNode(p("foo", em("bar"), strong("baz")), { document })).innerHTML,
       "foobar<strong>baz</strong>"
     )
   })
 
   it("doesn't split other marks for omitted marks", () => {
     ist(
-      (noEm.serializeNode(p("foo", code("bar"), em(code("baz"), "quux"), "xyz"), { document }) as HTMLElement)
+      instanceOf(HTMLElement, noEm.serializeNode(p("foo", code("bar"), em(code("baz"), "quux"), "xyz"), { document }))
         .innerHTML,
       "foo<code>barbaz</code>quuxxyz"
     )
@@ -1018,7 +1014,7 @@ describe("DOMSerializer", () => {
     )
     const node = deepEm.serializeNode(p(strong("foo", code("bar"), em(code("baz"))), em("quux"), "xyz"), { document })
     ist(
-      (node as HTMLElement).innerHTML,
+      instanceOf(HTMLElement, node).innerHTML,
       '<strong>foo<code>bar</code></strong><em><i data-emphasis="true"><strong><code>baz</code></strong>quux</i></em>xyz'
     )
   })
@@ -1052,7 +1048,7 @@ describe("DOMSerializer", () => {
     it.effect("renderSpec renders specs with holes", () =>
       Effect.gen(function* () {
         const { contentDOM, dom } = yield* DOMSerializer.renderSpec(document, ["div", { class: "x" }, ["p", 0]])
-        assert.strictEqual((dom as HTMLElement).outerHTML, '<div class="x"><p></p></div>')
+        assert.strictEqual(instanceOf(HTMLElement, dom).outerHTML, '<div class="x"><p></p></div>')
         assert.strictEqual(contentDOM?.nodeName, "P")
       })
     )
@@ -1068,6 +1064,7 @@ describe("DOMSerializer", () => {
     )
 
     it("renderSpecUnsafe throws for invalid arrays", () => {
+      // SAFETY: deliberately ill-typed, to check the runtime error.
       ist.throws(() => DOMSerializer.renderSpecUnsafe(document, [1] as any), /Invalid array/)
     })
 

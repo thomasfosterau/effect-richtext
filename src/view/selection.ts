@@ -8,7 +8,15 @@ import * as Option from "effect/Option"
 import type { ResolvedPos } from "../Model.ts"
 import { NodeSelection, Selection, TextSelection } from "../State.ts"
 import * as browser from "./browser.ts"
-import { domIndex, type DOMSelectionRange, isElt, isEquivalentPosition, isOnEdge, selectionCollapsed } from "./dom.ts"
+import {
+  domIndex,
+  type DOMNode,
+  type DOMSelectionRange,
+  isElt,
+  isEquivalentPosition,
+  isOnEdge,
+  selectionCollapsed
+} from "./dom.ts"
 import type { EditorView } from "./view.ts"
 import type { NodeViewDesc, ViewDesc } from "./viewdesc.ts"
 
@@ -70,7 +78,7 @@ export function selectionFromDOM(view: AnyView, origin: string | null = null): S
   if (selectionCollapsed(domSel)) {
     anchor = head
     while (nearestDesc && !nearestDesc.node) nearestDesc = nearestDesc.parent
-    const nearestDescNode = (nearestDesc as NodeViewDesc | undefined)?.node
+    const nearestDescNode = nearestDesc?.node
     if (
       nearestDesc &&
       nearestDescNode &&
@@ -180,19 +188,17 @@ export function selectionToDOM(view: AnyView, force = false): void {
 
 const brokenSelectBetweenUneditable = browser.safari || (browser.chrome && browser.chrome_version < 63)
 
+const uneditable = (node: DOMNode | null): node is HTMLElement =>
+  !!node && isElt(node) && node.contentEditable == "false"
+
 function temporarilyEditableNear(view: AnyView, pos: number) {
   const { node, offset } = view.docView.domFromPos(pos, 0)
   const after = offset < node.childNodes.length ? node.childNodes[offset] : null
   const before = offset ? node.childNodes[offset - 1] : null
-  if (browser.safari && after && (after as HTMLElement).contentEditable == "false") {
-    return setEditable(after as HTMLElement)
-  }
-  if (
-    (!after || (after as HTMLElement).contentEditable == "false") &&
-    (!before || (before as HTMLElement).contentEditable == "false")
-  ) {
-    if (after) return setEditable(after as HTMLElement)
-    else if (before) return setEditable(before as HTMLElement)
+  if (browser.safari && uneditable(after)) return setEditable(after)
+  if ((!after || uneditable(after)) && (!before || uneditable(before))) {
+    if (uneditable(after)) return setEditable(after)
+    else if (uneditable(before)) return setEditable(before)
   }
   return undefined
 }
@@ -265,7 +271,11 @@ export function syncNodeSelection(view: AnyView, sel: Selection<any>): void {
     const desc = view.docView.descAt(sel.from)
     if (desc != view.lastSelectedViewDesc) {
       clearNodeSelection(view)
-      if (desc) (desc as NodeViewDesc).selectNode()
+      if (desc) {
+        // SAFETY: the desc at a node selection's start is the selected node's desc.
+        const selected = desc as NodeViewDesc
+        selected.selectNode()
+      }
       view.lastSelectedViewDesc = desc
     }
   } else {
@@ -277,7 +287,9 @@ export function syncNodeSelection(view: AnyView, sel: Selection<any>): void {
 function clearNodeSelection(view: AnyView) {
   if (view.lastSelectedViewDesc) {
     if (view.lastSelectedViewDesc.parent) {
-      ;(view.lastSelectedViewDesc as NodeViewDesc).deselectNode()
+      // SAFETY: `lastSelectedViewDesc` is only set by `syncNodeSelection`, to a node desc.
+      const selected = view.lastSelectedViewDesc as NodeViewDesc
+      selected.deselectNode()
     }
     view.lastSelectedViewDesc = undefined
   }

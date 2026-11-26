@@ -1,5 +1,5 @@
 // Ported from prosemirror-view/test/webtest-decoration.ts (MIT, Marijn Haverbeke and others)
-import { describe, it } from "@effect/vitest"
+import { assert, describe, it } from "@effect/vitest"
 import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
 import * as Order from "effect/Order"
@@ -16,7 +16,7 @@ import {
 } from "@thomasfosterau/effect-richtext/Transform"
 import { Decoration, DecorationSet } from "@thomasfosterau/effect-richtext/View"
 import ist from "../utils/ist.ts"
-import { present } from "../utils/present.ts"
+import { instanceOf, present } from "../utils/present.ts"
 import { getSome } from "../utils/option.ts"
 
 const widget = document.createElement("button")
@@ -37,11 +37,14 @@ type DecoSpec =
     }
 
 function make(d: DecoSpec) {
-  if ((d as Decoration).type) return d as Decoration
-  if ((d as any).pos != null) return Decoration.widget((d as { pos: number }).pos, widget, d)
-  if ((d as any).node) return Decoration.node((d as any).from, (d as any).to, (d as any).attrs || {}, d)
-  return Decoration.inline((d as any).from, (d as any).to, (d as any).attrs || {}, d)
+  if (d instanceof Decoration) return d
+  if ("pos" in d) return Decoration.widget(d.pos, widget, d)
+  if (d.node) return Decoration.node(d.from, d.to, d.attrs || {}, d)
+  return Decoration.inline(d.from, d.to, d.attrs || {}, d)
 }
+
+const isNotTransform = (d: DecoSpec | ((tr: Transform) => Transform)): d is DecoSpec => !Predicate.isFunction(d)
+const isSpec = (d: DecoSpec | DecoSpec[]): d is DecoSpec => !Array.isArray(d)
 
 function build(doc: Node, ...decorations: DecoSpec[]) {
   return DecorationSet.create(doc, decorations.map(make))
@@ -56,7 +59,7 @@ function str(set: DecorationSet) {
       (s.length > 1 ? ", " : "") +
       (Predicate.isNumber(start) ? start : "?") +
       ": " +
-      str(set.children[i + 2] as DecorationSet)
+      str(instanceOf(DecorationSet, set.children[i + 2]))
   }
   return s + "]"
 }
@@ -78,20 +81,21 @@ function arrayStr(arr: readonly any[]) {
 }
 
 function buildMap(doc: Node, ...decorations: (DecoSpec | ((tr: Transform) => Transform))[]) {
-  const f = present(decorations.pop())
-  const oldSet = build(doc, ...(decorations as DecoSpec[]))
-  const tr = (f as any)(new Transform(doc))
+  const f = decorations.pop()
+  if (!Predicate.isFunction(f)) return assert.fail("expected a transform function last")
+  const oldSet = build(doc, ...decorations.filter(isNotTransform))
+  const tr = f(new Transform(doc))
   return { set: oldSet.map(tr.mapping, tr.doc), oldSet }
 }
 
 function buildAdd(doc: Node, ...decorations: (DecoSpec | DecoSpec[])[]) {
   const toAdd = present(decorations.pop())
-  return build(doc, ...(decorations as DecoSpec[])).add(doc, Array.isArray(toAdd) ? toAdd.map(make) : [make(toAdd)])
+  return build(doc, ...decorations.filter(isSpec)).add(doc, Array.isArray(toAdd) ? toAdd.map(make) : [make(toAdd)])
 }
 
 function buildRem(doc: Node, ...decorations: (DecoSpec | DecoSpec[])[]) {
   const toAdd = present(decorations.pop())
-  return build(doc, ...(decorations as DecoSpec[])).remove(Array.isArray(toAdd) ? toAdd.map(make) : [make(toAdd)])
+  return build(doc, ...decorations.filter(isSpec)).remove(Array.isArray(toAdd) ? toAdd.map(make) : [make(toAdd)])
 }
 
 function setStr(doc: Node, set: DecorationSet) {
@@ -99,7 +103,7 @@ function setStr(doc: Node, set: DecorationSet) {
     .find()
     .map(({ from }) => {
       const node = doc.nodeAtOrNull(from)
-      return !node ? "X" : (node as any).text || ""
+      return !node ? "X" : (node.isTextNode() && node.text) || ""
     })
     .filter((x) => x)
     .join("-")
@@ -244,7 +248,10 @@ describe("DecorationSet", () => {
       )
       ist(str(set), "[0: [1-2], 5: [4: [1-2]]]")
       ist(set.children[2], oldSet.children[2]) // FIXME sane accessors?
-      ist((set as any).children[5].children[2], (oldSet as any).children[5].children[5])
+      ist(
+        instanceOf(DecorationSet, set.children[5]).children[2],
+        instanceOf(DecorationSet, oldSet.children[5]).children[5]
+      )
     })
 
     it("rebuilds when a node is joined", () => {

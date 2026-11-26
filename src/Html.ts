@@ -87,7 +87,7 @@ export interface FromHTMLOptions<Sc extends AnySchema = AnySchema> extends Parse
 }
 
 const resolveDocument = (document: Document | undefined): Document => {
-  const result = document ?? (globalThis as { document?: Document }).document
+  const result = document ?? ("document" in globalThis ? globalThis.document : undefined)
   if (!result) {
     throw new MissingDocumentError({
       message: "No DOM document available: pass a `document` option or provide an HtmlEnvironment"
