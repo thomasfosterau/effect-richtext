@@ -24,7 +24,7 @@ export const _check: Command<AnySchema, Denied | Other, Log> = chained
 // codes, which `@ts-expect-error` does not cover.
 // @effect-diagnostics missingEffectContext:off missingEffectError:off
 // @ts-expect-error -- the chain requires `Log`
-export const _noLog: Command<AnySchema, Denied | Other, never> = chained
+export const _noLog: Command<AnySchema, Denied | Other> = chained
 // @ts-expect-error -- the chain may fail with `Other`
 export const _noOther: Command<AnySchema, Denied, Log> = chained
 // @effect-diagnostics missingEffectContext:error missingEffectError:error

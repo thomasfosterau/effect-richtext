@@ -24,10 +24,8 @@ import ist from "../utils/ist.ts"
 import { collect } from "./helpers.ts"
 import { getSome } from "../utils/option.ts"
 
-const stateFor = <const P extends ReadonlyArray<Plugin<any, any, any, never>> = readonly []>(
-  d: Node<any>,
-  plugins?: P
-) => EditorState.createUnsafe({ doc: d, selection: selFor(d), plugins })
+const stateFor = <const P extends ReadonlyArray<Plugin<any, any, any>> = readonly []>(d: Node<any>, plugins?: P) =>
+  EditorState.createUnsafe({ doc: d, selection: selFor(d), plugins })
 
 class Step extends Context.Service<Step, { readonly step: number }>()("test/Step") {}
 class Boom extends Schema.TaggedError<Boom>()("Boom", {}) {}
@@ -35,7 +33,7 @@ class Boom extends Schema.TaggedError<Boom>()("Boom", {}) {}
 const countPlugin = new Plugin({
   state: {
     init: () => 0,
-    apply: (_tr: Transaction<AnySchema>, n: number) => Effect.map(Effect.service(Step), (s) => n + s.step)
+    apply: (_tr: Transaction, n: number) => Effect.map(Effect.service(Step), (s) => n + s.step)
   }
 })
 
@@ -63,11 +61,8 @@ describe("StateRef", () => {
   it.effect("publishes transactions (hot), including appended ones", () =>
     Effect.gen(function* () {
       const appender = new Plugin({
-        appendTransaction: (
-          trs: ReadonlyArray<Transaction<AnySchema>>,
-          _old,
-          state: EditorState<AnySchema, any, any>
-        ) => (trs.some((tr) => Option.isSome(tr.getMeta("append"))) ? state.tr.insertTextUnsafe("+") : null)
+        appendTransaction: (trs: ReadonlyArray<Transaction>, _old, state: EditorState<AnySchema, any, any>) =>
+          trs.some((tr) => Option.isSome(tr.getMeta("append"))) ? state.tr.insertTextUnsafe("+") : null
       })
       const ref = yield* StateRef.make(stateFor(doc(p("a<a>")), [appender]))
       // Not seen by the subscriber, which subscribes afterwards.
@@ -180,9 +175,7 @@ describe("StateRef", () => {
       const state = yield* EditorState.create({ doc: d, selection: selFor(d), plugins: [countPlugin] })
       const ref = yield* StateRef.make(state)
       // `dispatch` requires nothing: the context was captured by `make`.
-      const dispatch: Effect.Effect<void, StateFailure, never> = ref.dispatch(
-        ref.state.getUnsafe().tr.insertTextUnsafe("b")
-      )
+      const dispatch: Effect.Effect<void, StateFailure> = ref.dispatch(ref.state.getUnsafe().tr.insertTextUnsafe("b"))
       yield* dispatch
       ref.dispatchUnsafe(ref.state.getUnsafe().tr.insertTextUnsafe("c"))
       ist(getSome(countPlugin.getState(ref.state.getUnsafe())), 6)
@@ -192,8 +185,7 @@ describe("StateRef", () => {
   it.effect("fails with plugin errors and mismatched transactions", () =>
     Effect.gen(function* () {
       const failing = new Plugin({
-        filterTransaction: (tr: Transaction<AnySchema>) =>
-          Option.isSome(tr.getMeta("boom")) ? Effect.fail(new Boom()) : true
+        filterTransaction: (tr: Transaction) => (Option.isSome(tr.getMeta("boom")) ? Effect.fail(new Boom()) : true)
       })
       const ref = yield* StateRef.make(stateFor(doc(p("a<a>")), [failing]))
       const stale = ref.state.getUnsafe().tr.insertTextUnsafe("x")

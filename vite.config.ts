@@ -127,7 +127,6 @@ export default defineConfig({
       // so remove those sites by hand, against `vp run check`, never by autofix.
       "typescript/no-unsafe-type-assertion": "warn", // 850
       "typescript/no-unnecessary-type-assertion": "warn", // 670
-      "typescript/no-unnecessary-type-arguments": "warn", // 54
       "effecttsgo/any-unknown-in-error-context": "warn", // 22
       "typescript/unbound-method": "warn", // 43
       // `@effect/tsgo`'s preset warns on these; they have no sites left.

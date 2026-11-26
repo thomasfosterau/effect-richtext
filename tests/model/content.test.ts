@@ -16,7 +16,7 @@ import { br, doc, eq, h1, hr, img, p, pre, schema } from "@thomasfosterau/effect
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
 
-function compile(expr: ContentExpr<string>): ContentMatch {
+function compile(expr: ContentExpr): ContentMatch {
   return ContentMatch.compile(expr, schema.nodes, "test")
 }
 
@@ -217,7 +217,7 @@ const samples = [
   "image image"
 ]
 
-const equivalences: ReadonlyArray<readonly [string, ContentExpr<string>]> = [
+const equivalences: ReadonlyArray<readonly [string, ContentExpr]> = [
   ["image*", Content.zeroOrMore("image")],
   ["inline*", Content.zeroOrMore("inline")],
   ["(paragraph | heading)", Content.choice("paragraph", "heading")],

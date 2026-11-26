@@ -67,7 +67,7 @@ describe("chainCommands", () => {
     void _check
     // The negative assertions are in effect.types.ts.
     const plain = chainCommands(deleteSelection, joinBackward)
-    const _plain: Command<AnySchema, never, never> = plain
+    const _plain: Command = plain
     void _plain
     assert.isFunction(chained)
     assert.isFunction(plain)

@@ -79,7 +79,7 @@ const allRules = [
   codeBlockRule
 ]
 
-const editor = (d: ReturnType<typeof doc>, rules: ReadonlyArray<InputRule<any, any, never>> = allRules) =>
+const editor = (d: ReturnType<typeof doc>, rules: ReadonlyArray<InputRule<any, any>> = allRules) =>
   tempEditor({ doc: d, plugins: [inputRules({ rules })] })
 
 const undo = (view: EditorView<any, any, any>) => Effect.runSync(undoInputRule(view.state, view.dispatch))

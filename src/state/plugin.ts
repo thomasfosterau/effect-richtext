@@ -42,12 +42,7 @@ export type EditorViewLike = EditorView<any, any, any> | undefined
  * @since 0.1.0
  * @category models
  */
-export type PluginProps<Sc extends AnySchema = AnySchema, E = never, R = never> = EditorProps<
-  Sc,
-  R,
-  E,
-  Plugin<any, Sc, never, never>
->
+export type PluginProps<Sc extends AnySchema = AnySchema, E = never, R = never> = EditorProps<Sc, R, E, Plugin<any, Sc>>
 
 /**
  * A stateful object that can be installed in an editor by a plugin's

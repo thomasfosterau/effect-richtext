@@ -13,9 +13,9 @@ const fakeViewProps: Partial<KeymapView> = { dispatch: () => Effect.void }
 const fakeView = fakeViewProps as KeymapView
 
 // The maps `dispatch` drives bind commands that never fail.
-type Handler = (view: KeymapView, event: KeyboardEvent) => Effect.Effect<boolean, never, never>
+type Handler = (view: KeymapView, event: KeyboardEvent) => Effect.Effect<boolean>
 
-function dispatch(map: Plugin<any, any, any, never>, key: string, props?: { [name: string]: any }): boolean {
+function dispatch(map: Plugin<any, any, any>, key: string, props?: { [name: string]: any }): boolean {
   const event: any = {}
   if (props) {
     for (const prop in props) event[prop] = props[prop]

@@ -324,7 +324,7 @@ abstract class CoreStep extends Step {
   }
 }
 
-const adaptedClasses = new WeakMap<object, any>()
+const adaptedClasses = new WeakMap()
 
 /**
  * The core class used for instances of a subclass of a built-in step

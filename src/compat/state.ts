@@ -286,7 +286,7 @@ const getterOf = (proto: object | null, prop: string) => {
   return undefined
 }
 
-const adaptedSelectionClasses = new WeakMap<object, any>()
+const adaptedSelectionClasses = new WeakMap()
 
 /**
  * The core class used for instances of user subclasses of a facade
@@ -711,7 +711,7 @@ const pluginViewToCore = (pluginView: PluginView): S.PluginView<any> =>
     }
   }) as S.PluginView<any>
 
-const pluginSpecToCore = (spec: PluginSpec<any>, self: Plugin): S.PluginSpec<any> => {
+const pluginSpecToCore = (spec: PluginSpec<any>, self: Plugin): S.PluginSpec => {
   const result: Record<string, any> = { ...spec }
   result.key = spec.key && spec.key[CORE]
   const state = spec.state
@@ -737,7 +737,7 @@ const pluginSpecToCore = (spec: PluginSpec<any>, self: Plugin): S.PluginSpec<any
   const view = spec.view
   if (view) result.view = (v: any) => pluginViewToCore(view.call(self, wrap(v)))
   result.props = spec.props ? propsToCore(spec.props, self) : undefined
-  return result as S.PluginSpec<any>
+  return result as S.PluginSpec
 }
 
 /**
@@ -963,7 +963,7 @@ const coreCommands = new WeakMap<object, S.Command<any, any, any>>()
  * @since 0.1.0
  * @category conversions
  */
-export const fromCoreCommand = (command: S.Command<any, any, never>): Command => {
+export const fromCoreCommand = (command: S.Command<any, any>): Command => {
   let found = pmCommands.get(command)
   if (!found) {
     found = (state, dispatch, view) =>
@@ -1015,7 +1015,7 @@ export function toCore(selection: NodeSelection): S.NodeSelection
 export function toCore(selection: AllSelection): S.AllSelection
 export function toCore(selection: Selection): S.Selection
 export function toCore(range: SelectionRange): S.SelectionRange
-export function toCore(plugin: Plugin): S.Plugin<any, any, never, never>
+export function toCore(plugin: Plugin): S.Plugin<any, any>
 export function toCore(key: PluginKey): S.PluginKey
 export function toCore(bookmark: SelectionBookmark): S.SelectionBookmark
 export function toCore(command: Command): S.Command<any>
@@ -1041,9 +1041,9 @@ export function fromCore(selection: S.AllSelection<any>): AllSelection
 export function fromCore(selection: S.Selection<any>): Selection
 export function fromCore(range: S.SelectionRange<any>): SelectionRange
 export function fromCore(plugin: S.Plugin<any, any, any, any>): Plugin
-export function fromCore(key: S.PluginKey<any>): PluginKey
-export function fromCore(command: S.Command<any, any, never>): Command
+export function fromCore(key: S.PluginKey): PluginKey
+export function fromCore(command: S.Command<any, any>): Command
 export function fromCore(value: unknown): unknown {
-  if (Predicate.isFunction(value)) return fromCoreCommand(value as S.Command<any, any, never>)
+  if (Predicate.isFunction(value)) return fromCoreCommand(value as S.Command<any, any>)
   return wrap(value)
 }

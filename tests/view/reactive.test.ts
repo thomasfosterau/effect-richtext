@@ -23,7 +23,7 @@ import { collect, settle } from "../reactive/helpers.ts"
 import ist from "../utils/ist.ts"
 import { selFor, workspace } from "./helpers.ts"
 
-const stateFor = (d: ReturnType<typeof doc>, plugins?: ReadonlyArray<Plugin<any, any, any, never>>) =>
+const stateFor = (d: ReturnType<typeof doc>, plugins?: ReadonlyArray<Plugin<any, any, any>>) =>
   EditorState.createUnsafe({ doc: d, selection: selFor(d), plugins })
 
 const keyDown = (view: EditorView<any, any, any>, key: string, keyCode: number) => {
@@ -38,11 +38,8 @@ describe("EditorView.subscribe", () => {
   it.effect("notifies listeners of state updates with their transactions", () =>
     Effect.gen(function* () {
       const appender = new Plugin({
-        appendTransaction: (
-          trs: ReadonlyArray<Transaction<AnySchema>>,
-          _old,
-          state: EditorState<AnySchema, any, any>
-        ) => (trs.some((tr) => Option.isSome(tr.getMeta("append"))) ? state.tr.insertTextUnsafe("+") : null)
+        appendTransaction: (trs: ReadonlyArray<Transaction>, _old, state: EditorState<AnySchema, any, any>) =>
+          trs.some((tr) => Option.isSome(tr.getMeta("append"))) ? state.tr.insertTextUnsafe("+") : null
       })
       const view = yield* EditorView.make(workspace(), { state: stateFor(doc(p("a<a>")), [appender]) })
       const updates: Array<ViewUpdate<any, any, any>> = []

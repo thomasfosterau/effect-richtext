@@ -433,7 +433,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
   }
 
   /** Like `reconfigure`, but runs synchronously (see `applyUnsafe`). */
-  reconfigureUnsafe<const P extends ReadonlyArray<Plugin<any, any, any, never>> = readonly []>(config: {
+  reconfigureUnsafe<const P extends ReadonlyArray<Plugin<any, any, any>> = readonly []>(config: {
     readonly plugins?: P | undefined
     readonly clock?: (() => number) | undefined
   }): EditorState<Sc, never, PluginErrors<P>> {
@@ -479,7 +479,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
    * Like `create`, but runs synchronously. Only available when the
    * plugins require no services; throws on failure.
    */
-  static createUnsafe<Sc extends AnySchema, const P extends ReadonlyArray<Plugin<any, any, any, never>> = readonly []>(
+  static createUnsafe<Sc extends AnySchema, const P extends ReadonlyArray<Plugin<any, any, any>> = readonly []>(
     config: EditorStateConfig<Sc, P>
   ): EditorState<Sc, never, PluginErrors<P>> {
     // Synchronous unless a plugin's init hook returns an Effect.
@@ -550,10 +550,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
   }
 
   /** Like `fromJSON`, but runs synchronously (see `createUnsafe`). */
-  static fromJSONUnsafe<
-    Sc extends AnySchema,
-    const P extends ReadonlyArray<Plugin<any, any, any, never>> = readonly []
-  >(
+  static fromJSONUnsafe<Sc extends AnySchema, const P extends ReadonlyArray<Plugin<any, any, any>> = readonly []>(
     config: { readonly schema: Sc; readonly plugins?: P | undefined; readonly clock?: (() => number) | undefined },
     json: unknown,
     pluginFields?: Record<string, AnyPlugin>

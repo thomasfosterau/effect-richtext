@@ -98,7 +98,7 @@ export interface NodeSpec {
    * read as ProseMirror content syntax (`"paragraph block*"`), and is
    * only precisely typed when it is a single bare name.
    */
-  readonly content?: ContentInput<string> | undefined
+  readonly content?: ContentInput | undefined
   /**
    * The marks that are allowed inside of this node. May be a
    * space-separated string referring to mark names or groups, `"_"` to
