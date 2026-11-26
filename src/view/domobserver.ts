@@ -226,7 +226,7 @@ export class DOMObserver {
   flush() {
     const { view } = this
     if (!view.docView || this.flushingSoon > -1) return
-    const now = Date.now()
+    const now = view.state.config.clock()
     const mutations = this.pendingRecords()
     if (mutations.length) this.queue = []
 

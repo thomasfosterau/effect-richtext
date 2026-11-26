@@ -121,7 +121,6 @@ export default defineConfig({
       "effect/no-unsafe-dictionary-type": "warn", // 68
       "effect/no-unknown-parameters": "warn", // 59
       "effect/avoid-object-type": "warn", // 33
-      "effect/use-clock-service": "warn", // 20
       "effect/no-unknown-returns": "warn", // 22
       // The ported suites shadow the test-builder's `doc` / `schema`.
       "eslint/no-shadow": "warn", // 312

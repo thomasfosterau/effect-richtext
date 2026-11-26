@@ -383,7 +383,7 @@ describe("DOM change", () => {
     })
 
     view.input.lastKeyCode = 8
-    view.input.lastKeyCodeTime = Date.now()
+    view.input.lastKeyCodeTime = view.state.config.clock()
     findTextNode(view.dom, "aa")!.nodeValue = "a"
     flush(view)
 
@@ -403,7 +403,7 @@ describe("DOM change", () => {
     })
 
     view.input.lastKeyCode = 8
-    view.input.lastKeyCodeTime = Date.now()
+    view.input.lastKeyCodeTime = view.state.config.clock()
     findTextNode(view.dom, "foofoo")!.nodeValue = "foo"
     flush(view)
 
@@ -459,7 +459,7 @@ describe("DOM change", () => {
     })
 
     view.input.lastKeyCode = 8
-    view.input.lastKeyCodeTime = Date.now()
+    view.input.lastKeyCodeTime = view.state.config.clock()
     findTextNode(view.dom, "lalala")!.nodeValue = "lala"
     flush(view)
 
