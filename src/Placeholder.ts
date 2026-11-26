@@ -12,6 +12,7 @@
  *
  * @since 0.1.0
  */
+import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import type { AnySchema, Node } from "./Model.ts"
 import { type EditorState, Plugin } from "./State.ts"
@@ -59,17 +60,17 @@ const isEmptyTextblock = (node: Node<any>): boolean => node.isTextblock && node.
 const findEmptyBlock = (
   state: EditorState<any, any, any>,
   strategy: PlaceholderStrategy
-): { readonly node: Node<any>; readonly pos: number } | null => {
+): Option.Option<{ readonly node: Node<any>; readonly pos: number }> => {
   const doc = state.doc
   if (strategy === "doc") {
-    if (doc.childCount !== 1) return null
+    if (doc.childCount !== 1) return Option.none()
     const first = doc.content.content[0]
-    return isEmptyTextblock(first) ? { node: first, pos: 0 } : null
+    return isEmptyTextblock(first) ? Option.some({ node: first, pos: 0 }) : Option.none()
   }
   const { $from, empty } = state.selection
-  if (!empty || $from.depth === 0) return null
+  if (!empty || $from.depth === 0) return Option.none()
   const parent = $from.parent
-  return isEmptyTextblock(parent) ? { node: parent, pos: $from.beforeUnsafe() } : null
+  return isEmptyTextblock(parent) ? Option.some({ node: parent, pos: $from.beforeUnsafe() }) : Option.none()
 }
 
 /**
@@ -89,8 +90,9 @@ export const placeholder = <Sc extends AnySchema = AnySchema>(
   return new Plugin<undefined, Sc>({
     props: {
       decorations(state) {
-        const found = findEmptyBlock(state, strategy)
-        if (!found) return null
+        const block = findEmptyBlock(state, strategy)
+        if (Option.isNone(block)) return null
+        const found = block.value
         const text = Predicate.isFunction(options.placeholder)
           ? options.placeholder(state, found.node, found.pos)
           : options.placeholder

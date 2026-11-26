@@ -6,6 +6,7 @@
  * @since 0.1.0
  */
 // Ported from prosemirror-dropcursor (MIT, Marijn Haverbeke and others)
+import * as Equal from "effect/Equal"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import { type EditorState, Plugin, type PluginView } from "./State.ts"
@@ -68,14 +69,32 @@ const events = ["dragover", "dragend", "drop", "dragleave"] as const
 
 const isDOMNode = (target: EventTarget): target is globalThis.Node => "nodeType" in target
 const isElement = (node: globalThis.Node): node is Element => node.nodeType == 1
+const isHTMLElement = (element: Element): element is HTMLElement => "offsetWidth" in element
+
+interface Rect {
+  readonly left: number
+  readonly right: number
+  readonly top: number
+  readonly bottom: number
+}
+
+// Whether the node at the drop position opts out of the cursor through its
+// spec's `disableDropCursor`.
+const isDisabledAt = (view: EditorView<any, any, any>, pos: PosAtCoords, event: DragEvent): boolean => {
+  const node = pos.inside >= 0 ? view.state.doc.nodeAtOrNull(pos.inside) : null
+  const disable = node?.type.spec.disableDropCursor
+  if (!Predicate.isFunction(disable)) return Boolean(disable)
+  // SAFETY: node specs declare `disableDropCursor` as a `DisableDropCursor`.
+  return (disable as Extract<DisableDropCursor, Function>)(view, pos, event)
+}
 
 class DropCursorView implements PluginView {
   readonly width: number
-  readonly color: string | undefined
-  readonly class: string | undefined
-  cursorPos: number | null = null
-  element: HTMLElement | null = null
-  timeout: ReturnType<typeof setTimeout> | undefined = undefined
+  readonly color: Option.Option<string>
+  readonly class: Option.Option<string>
+  cursorPos: Option.Option<number> = Option.none()
+  element: Option.Option<HTMLElement> = Option.none()
+  timeout: Option.Option<ReturnType<typeof setTimeout>> = Option.none()
   readonly handlers: ReadonlyArray<{ readonly name: string; readonly handler: (event: Event) => void }>
 
   constructor(
@@ -83,8 +102,8 @@ class DropCursorView implements PluginView {
     options: DropCursorOptions
   ) {
     this.width = options.width ?? 1
-    this.color = options.color === false ? undefined : options.color || "black"
-    this.class = options.class
+    this.color = options.color === false ? Option.none() : Option.some(options.color || "black")
+    this.class = Option.fromNullishOr(options.class)
 
     this.handlers = events.map((name) => {
       const handler = (e: Event) => {
@@ -98,74 +117,76 @@ class DropCursorView implements PluginView {
 
   destroy() {
     this.handlers.forEach(({ handler, name }) => this.editorView.dom.removeEventListener(name, handler))
-    clearTimeout(this.timeout)
-    if (this.element) {
-      this.element.remove()
-      this.element = null
-    }
+    Option.map(this.timeout, clearTimeout)
+    Option.map(this.element, (element) => element.remove())
+    this.element = Option.none()
   }
 
   update(editorView: EditorView<any, any, any>, prevState: EditorState<any, any, any>) {
-    if (this.cursorPos != null && prevState.doc !== editorView.state.doc) {
-      if (this.cursorPos > editorView.state.doc.content.size) this.setCursor(null)
-      else this.updateOverlay(this.cursorPos)
+    if (Option.isSome(this.cursorPos) && prevState.doc !== editorView.state.doc) {
+      if (this.cursorPos.value > editorView.state.doc.content.size) this.setCursor(Option.none())
+      else this.updateOverlay(this.cursorPos.value)
     }
   }
 
-  setCursor(pos: number | null) {
-    if (pos === this.cursorPos) return
+  setCursor(pos: Option.Option<number>) {
+    if (Equal.equals(pos, this.cursorPos)) return
     this.cursorPos = pos
-    if (pos == null) {
-      this.element?.remove()
-      this.element = null
+    if (Option.isNone(pos)) {
+      Option.map(this.element, (element) => element.remove())
+      this.element = Option.none()
     } else {
-      this.updateOverlay(pos)
+      this.updateOverlay(pos.value)
     }
+  }
+
+  // The cursor's rectangle between two blocks, centred on the gap.
+  blockRect(cursorPos: number, scaleY: number): Option.Option<Rect> {
+    const view = this.editorView
+    const $pos = view.state.doc.resolveUnsafe(cursorPos)
+    const before = $pos.nodeBeforeOrNull,
+      after = $pos.nodeAfterOrNull
+    if (!before && !after) return Option.none()
+    const node = Option.getOrNull(view.nodeDOM(cursorPos - (before ? before.nodeSize : 0)))
+    if (!node || !isElement(node)) return Option.none()
+    const nodeRect = node.getBoundingClientRect()
+    let top = before ? nodeRect.bottom : nodeRect.top
+    if (before && after) {
+      const afterDOM = Option.getOrNull(view.nodeDOM(cursorPos))
+      if (afterDOM && isElement(afterDOM)) top = (top + afterDOM.getBoundingClientRect().top) / 2
+    }
+    const halfWidth = (this.width / 2) * scaleY
+    return Option.some({ left: nodeRect.left, right: nodeRect.right, top: top - halfWidth, bottom: top + halfWidth })
   }
 
   updateOverlay(cursorPos: number) {
     const view = this.editorView
     const $pos = view.state.doc.resolveUnsafe(cursorPos)
     const isBlock = !$pos.parent.inlineContent
-    let rect: { left: number; right: number; top: number; bottom: number } | undefined
     const editorDOM = view.dom,
       editorRect = editorDOM.getBoundingClientRect()
     const scaleX = editorRect.width / editorDOM.offsetWidth,
       scaleY = editorRect.height / editorDOM.offsetHeight
-    if (isBlock) {
-      const before = $pos.nodeBeforeOrNull,
-        after = $pos.nodeAfterOrNull
-      if (before || after) {
-        const node = Option.getOrNull(view.nodeDOM(cursorPos - (before ? before.nodeSize : 0)))
-        if (node && isElement(node)) {
-          const nodeRect = node.getBoundingClientRect()
-          let top = before ? nodeRect.bottom : nodeRect.top
-          if (before && after) {
-            const afterDOM = Option.getOrNull(view.nodeDOM(cursorPos))
-            if (afterDOM && isElement(afterDOM)) top = (top + afterDOM.getBoundingClientRect().top) / 2
-          }
-          const halfWidth = (this.width / 2) * scaleY
-          rect = { left: nodeRect.left, right: nodeRect.right, top: top - halfWidth, bottom: top + halfWidth }
-        }
-      }
-    }
-    if (!rect) {
-      const coords = view.coordsAtPos(cursorPos)
-      const halfWidth = (this.width / 2) * scaleX
-      rect = { left: coords.left - halfWidth, right: coords.left + halfWidth, top: coords.top, bottom: coords.bottom }
-    }
+    const rect = (isBlock ? this.blockRect(cursorPos, scaleY) : Option.none<Rect>()).pipe(
+      Option.getOrElse((): Rect => {
+        const coords = view.coordsAtPos(cursorPos)
+        const halfWidth = (this.width / 2) * scaleX
+        return { left: coords.left - halfWidth, right: coords.left + halfWidth, top: coords.top, bottom: coords.bottom }
+      })
+    )
 
     const doc = editorDOM.ownerDocument
-    // SAFETY: the offset parent of an HTML element is an HTML element.
-    const parent = editorDOM.offsetParent as HTMLElement | null
-    if (!this.element) {
-      this.element = (parent ?? doc.body).appendChild(doc.createElement("div"))
-      if (this.class) this.element.className = this.class
-      this.element.style.cssText = "position: absolute; z-index: 50; pointer-events: none;"
-      if (this.color) this.element.style.backgroundColor = this.color
-    }
-    this.element.classList.toggle("prosemirror-dropcursor-block", isBlock)
-    this.element.classList.toggle("prosemirror-dropcursor-inline", !isBlock)
+    const parent = Option.getOrNull(Option.filter(Option.fromNullishOr(editorDOM.offsetParent), isHTMLElement))
+    const element = Option.getOrElse(this.element, () => {
+      const created = (parent ?? doc.body).appendChild(doc.createElement("div"))
+      Option.map(this.class, (name) => (created.className = name))
+      created.style.cssText = "position: absolute; z-index: 50; pointer-events: none;"
+      Option.map(this.color, (color) => (created.style.backgroundColor = color))
+      return created
+    })
+    this.element = Option.some(element)
+    element.classList.toggle("prosemirror-dropcursor-block", isBlock)
+    element.classList.toggle("prosemirror-dropcursor-inline", !isBlock)
     let parentLeft: number, parentTop: number
     const win = doc.defaultView ?? window
     if (!parent || (parent === doc.body && win.getComputedStyle(parent).position === "static")) {
@@ -178,37 +199,26 @@ class DropCursorView implements PluginView {
       parentLeft = parentRect.left - parent.scrollLeft * parentScaleX
       parentTop = parentRect.top - parent.scrollTop * parentScaleY
     }
-    this.element.style.left = (rect.left - parentLeft) / scaleX + "px"
-    this.element.style.top = (rect.top - parentTop) / scaleY + "px"
-    this.element.style.width = (rect.right - rect.left) / scaleX + "px"
-    this.element.style.height = (rect.bottom - rect.top) / scaleY + "px"
+    element.style.left = (rect.left - parentLeft) / scaleX + "px"
+    element.style.top = (rect.top - parentTop) / scaleY + "px"
+    element.style.width = (rect.right - rect.left) / scaleX + "px"
+    element.style.height = (rect.bottom - rect.top) / scaleY + "px"
   }
 
   scheduleRemoval(timeout: number) {
-    clearTimeout(this.timeout)
-    this.timeout = setTimeout(() => this.setCursor(null), timeout)
+    Option.map(this.timeout, clearTimeout)
+    this.timeout = Option.some(setTimeout(() => this.setCursor(Option.none()), timeout))
   }
 
   dragover(event: DragEvent) {
     const view = this.editorView
     if (!view.editable) return
     const pos = Option.getOrNull(view.posAtCoords({ left: event.clientX, top: event.clientY }))
-
-    const node = pos && pos.inside >= 0 ? view.state.doc.nodeAtOrNull(pos.inside) : null
-    // SAFETY: node specs declare `disableDropCursor` as a `DisableDropCursor`.
-    const disableDropCursor = node ? (node.type.spec.disableDropCursor as DisableDropCursor | undefined) : undefined
-    const disabled =
-      pos && Predicate.isFunction(disableDropCursor) ? disableDropCursor(view, pos, event) : disableDropCursor
-
-    if (pos && !disabled) {
-      let target = pos.pos
-      if (view.dragging && view.dragging.slice) {
-        const point = Option.getOrNull(dropPoint(view.state.doc, target, view.dragging.slice))
-        if (point != null) target = point
-      }
-      this.setCursor(target)
-      this.scheduleRemoval(5000)
-    }
+    if (!pos || isDisabledAt(view, pos, event)) return
+    const slice = view.dragging?.slice
+    const target = slice ? Option.getOrElse(dropPoint(view.state.doc, pos.pos, slice), () => pos.pos) : pos.pos
+    this.setCursor(Option.some(target))
+    this.scheduleRemoval(5000)
   }
 
   dragend() {
@@ -221,6 +231,6 @@ class DropCursorView implements PluginView {
 
   dragleave(event: DragEvent) {
     const target = event.relatedTarget
-    if (!(target && isDOMNode(target) && this.editorView.dom.contains(target))) this.setCursor(null)
+    if (!(target && isDOMNode(target) && this.editorView.dom.contains(target))) this.setCursor(Option.none())
   }
 }
