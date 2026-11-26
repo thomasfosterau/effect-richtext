@@ -14,7 +14,7 @@ import * as browser from "./browser.ts"
 import { captureKeyDown } from "./capturekeys.ts"
 import { ViewError } from "./errors.ts"
 import { parseFromClipboard, serializeForClipboard } from "./clipboard.ts"
-import { type DOMNode, keyEvent, textNodeAfter, textNodeBefore } from "./dom.ts"
+import { type DOMNode, isDOMNode, isElt, keyEvent, textNodeAfter, textNodeBefore } from "./dom.ts"
 import { selectionBetween, selectionFromDOM, selectionToDOM } from "./selection.ts"
 import type { EditorView, HandlerResult } from "./view.ts"
 import type { ViewDesc } from "./viewdesc.ts"
@@ -23,8 +23,14 @@ type AnyView = EditorView<any, any, any>
 
 // A collection of DOM events that occur within the editor, and callback functions
 // to invoke when the event fires.
-const handlers: { [event: string]: (view: AnyView, event: Event) => void } = {}
-const editHandlers: { [event: string]: (view: AnyView, event: Event) => void } = {}
+type Handlers = { [K in keyof HTMLElementEventMap]?: (view: AnyView, event: HTMLElementEventMap[K]) => void }
+const handlers: Handlers = {}
+const editHandlers: Handlers = {}
+
+// The handler for events of type `type`.
+const handlerFor = (map: Handlers, type: string) =>
+  // SAFETY: each handler is stored under its event's type, so it receives that type's events.
+  (map as Partial<Readonly<Record<string, (view: AnyView, event: Event) => void>>>)[type]
 const isPassiveEvent = (event: string): boolean => event === "touchstart" || event === "touchmove"
 
 /** @internal */
@@ -59,7 +65,8 @@ export class InputState {
 /** @internal */
 export function initInput(view: AnyView): void {
   for (const eventType in handlers) {
-    const handler = handlers[eventType]
+    const handler = handlerFor(handlers, eventType)
+    if (!handler) continue
     view.dom.addEventListener(
       eventType,
       (view.input.eventHandlers[eventType] = (event: Event) => {
@@ -122,7 +129,8 @@ function runCustomHandler(view: AnyView, event: Event) {
 function eventBelongsToView(view: AnyView, event: Event) {
   if (!event.bubbles) return true
   if (event.defaultPrevented) return false
-  for (let node = event.target as DOMNode; node != view.dom;) {
+  if (!event.target || !isDOMNode(event.target)) return false
+  for (let node: DOMNode = event.target; node != view.dom;) {
     if (node.nodeType == 11 || (node.pmViewDesc && node.pmViewDesc.stopEvent(event))) return false
     const up = node.parentNode
     if (!up) return false
@@ -133,8 +141,9 @@ function eventBelongsToView(view: AnyView, event: Event) {
 
 /** @internal */
 export function dispatchEvent(view: AnyView, event: Event): void {
-  if (!runCustomHandler(view, event) && handlers[event.type] && (view.editable || !(event.type in editHandlers))) {
-    handlers[event.type](view, event)
+  const handler = handlerFor(handlers, event.type)
+  if (!runCustomHandler(view, event) && handler && (view.editable || !(event.type in editHandlers))) {
+    handler(view, event)
   }
 }
 
@@ -152,8 +161,7 @@ export function dispatchKey(view: AnyView, event: KeyboardEvent | "Backspace" | 
   return view.someHandler("handleKeyDown", (f) => f(view, key))
 }
 
-editHandlers.keydown = (view: AnyView, _event: Event) => {
-  const event = _event as KeyboardEvent
+editHandlers.keydown = (view, event) => {
   view.input.shiftKey = event.keyCode == 16 || event.shiftKey
   if (inOrNearComposition(view, event)) return
   view.input.lastKeyCode = event.keyCode
@@ -186,11 +194,10 @@ editHandlers.keydown = (view: AnyView, _event: Event) => {
 }
 
 editHandlers.keyup = (view, event) => {
-  if ((event as KeyboardEvent).keyCode == 16) view.input.shiftKey = false
+  if (event.keyCode == 16) view.input.shiftKey = false
 }
 
-editHandlers.keypress = (view, _event) => {
-  const event = _event as KeyboardEvent
+editHandlers.keypress = (view, event) => {
   if (
     inOrNearComposition(view, event) ||
     !event.charCode ||
@@ -369,8 +376,7 @@ function forceDOMFlush(view: AnyView) {
 
 const selectNodeModifier: "metaKey" | "ctrlKey" = browser.mac ? "metaKey" : "ctrlKey"
 
-handlers.mousedown = (view, _event) => {
-  const event = _event as MouseEvent
+handlers.mousedown = (view, event) => {
   view.input.shiftKey = event.shiftKey
   const flushed = forceDOMFlush(view)
   const now = view.state.config.clock()
@@ -464,9 +470,9 @@ class LeftMouseDown extends MouseDown {
       targetPos = $pos.depth ? $pos.beforeUnsafe() : 0
     }
 
-    const target = flushed ? null : (event.target as HTMLElement)
+    const target = flushed || !event.target || !isDOMNode(event.target) ? null : event.target
     const targetDesc = target ? view.docView.nearestDesc(target, true) : null
-    this.target = targetDesc && targetDesc.nodeDOM.nodeType == 1 ? (targetDesc.nodeDOM as HTMLElement) : null
+    this.target = targetDesc && isElt(targetDesc.nodeDOM) ? targetDesc.nodeDOM : null
 
     const { selection } = view.state
     if (
@@ -514,7 +520,7 @@ class LeftMouseDown extends MouseDown {
   override up(event: MouseEvent) {
     this.done()
 
-    if (!this.view.dom.contains(event.target as HTMLElement)) {
+    if (!event.target || !isDOMNode(event.target) || !this.view.dom.contains(event.target)) {
       return
     }
 
@@ -704,7 +710,7 @@ function selectionBeforeUneditable(view: AnyView) {
   const { focusNode, focusOffset } = view.domSelectionRange()
   if (!focusNode || focusNode.nodeType != 1 || focusOffset >= focusNode.childNodes.length) return false
   const next = focusNode.childNodes[focusOffset]
-  return next.nodeType == 1 && (next as HTMLElement).contentEditable == "false"
+  return isElt(next) && next.contentEditable == "false"
 }
 
 editHandlers.compositionend = (view, _event) => {
@@ -802,8 +808,7 @@ function captureCopy(view: AnyView, dom: HTMLElement) {
 // there, they just don't work, and they are hard to test.
 const brokenClipboardAPI = (browser.ie && browser.ie_version < 15) || (browser.ios && browser.webkit_version < 604)
 
-handlers.copy = editHandlers.cut = (view, _event) => {
-  const event = _event as ClipboardEvent
+handlers.copy = editHandlers.cut = (view, event) => {
   const sel = view.state.selection,
     cut = event.type == "cut"
   if (sel.empty) return
@@ -838,7 +843,7 @@ function capturePaste(view: AnyView, event: ClipboardEvent) {
   setTimeout(() => {
     view.focus()
     if (target.parentNode) target.parentNode.removeChild(target)
-    if (plainText) doPaste(view, (target as HTMLTextAreaElement).value, null, plain, event)
+    if (target instanceof HTMLTextAreaElement) doPaste(view, target.value, null, plain, event)
     else doPaste(view, target.textContent, target.innerHTML, plain, event)
   }, 50)
 }
@@ -870,8 +875,7 @@ function getText(clipboardData: DataTransfer) {
   return uris ? uris.replace(/\r?\n/g, " ") : ""
 }
 
-editHandlers.paste = (view, _event) => {
-  const event = _event as ClipboardEvent
+editHandlers.paste = (view, event) => {
   // Handling paste from JavaScript during composition is very poorly
   // handled by browsers, so as a dodgy but preferable kludge, we just
   // let the browser do its native thing there, except on Android,
@@ -908,25 +912,30 @@ function dragMoves(view: AnyView, event: DragEvent) {
   return asked ? !copy : !event[dragCopyModifier]
 }
 
-handlers.dragstart = (view, _event) => {
-  const event = _event as DragEvent
+// The node a drag should move, or none to drag the selection (when the drag
+// starts inside it, or on nothing draggable).
+function draggedNode(view: AnyView, event: DragEvent, mouseDown: InputState["mouseDown"]) {
+  const sel = view.state.selection
+  const pos = sel.empty ? null : Option.getOrNull(view.posAtCoords(eventCoords(event)))
+  if (pos && pos.pos >= sel.from && pos.pos <= (sel instanceof NodeSelection ? sel.to - 1 : sel.to)) return undefined
+  if (mouseDown && mouseDown.mightDrag) return NodeSelection.createUnsafe(view.state.doc, mouseDown.mightDrag.pos)
+  return draggableTarget(view, event)
+}
+
+// The draggable node whose DOM the drag event targets, if any.
+function draggableTarget(view: AnyView, event: DragEvent) {
+  if (!event.target || !isDOMNode(event.target) || !isElt(event.target)) return undefined
+  const desc = view.docView.nearestDesc(event.target, true)
+  if (!desc || !desc.node.type.spec.draggable || desc == view.docView) return undefined
+  return NodeSelection.createUnsafe(view.state.doc, desc.posBefore)
+}
+
+handlers.dragstart = (view, event) => {
   const mouseDown = view.input.mouseDown
   if (mouseDown) mouseDown.done()
   if (!event.dataTransfer) return
 
-  const sel = view.state.selection
-  const pos = sel.empty ? null : Option.getOrNull(view.posAtCoords(eventCoords(event)))
-  let node: undefined | NodeSelection<any>
-  if (pos && pos.pos >= sel.from && pos.pos <= (sel instanceof NodeSelection ? sel.to - 1 : sel.to)) {
-    // In selection
-  } else if (mouseDown && mouseDown.mightDrag) {
-    node = NodeSelection.createUnsafe(view.state.doc, mouseDown.mightDrag.pos)
-  } else if (event.target && (event.target as HTMLElement).nodeType == 1) {
-    const desc = view.docView.nearestDesc(event.target as HTMLElement, true)
-    if (desc && desc.node.type.spec.draggable && desc != view.docView) {
-      node = NodeSelection.createUnsafe(view.state.doc, desc.posBefore)
-    }
-  }
+  const node = draggedNode(view, event, mouseDown)
   const draggedSlice = (node || view.state.selection).content()
   const { dom, slice, text } = serializeForClipboard(view, draggedSlice)
   // Pre-120 Chrome versions clear files when calling `clearData`
@@ -951,7 +960,7 @@ editHandlers.dragover = editHandlers.dragenter = (_, e) => e.preventDefault()
 
 editHandlers.drop = (view, event) => {
   // try/finally: clear `dragging` even when handleDrop throws, then rethrow
-  const result = Result.try(() => handleDrop(view, event as DragEvent, view.dragging))
+  const result = Result.try(() => handleDrop(view, event, view.dragging))
   view.dragging = null
   if (Result.isFailure(result)) throw result.failure
 }
@@ -1045,21 +1054,19 @@ handlers.focus = (view) => {
   }
 }
 
-handlers.blur = (view, _event) => {
-  const event = _event as FocusEvent
+handlers.blur = (view, event) => {
   if (view.focused) {
     view.domObserver.stop()
     view.dom.classList.remove("ProseMirror-focused")
     view.domObserver.start()
-    if (event.relatedTarget && view.dom.contains(event.relatedTarget as HTMLElement)) {
+    if (event.relatedTarget && isDOMNode(event.relatedTarget) && view.dom.contains(event.relatedTarget)) {
       view.domObserver.currentSelection.clear()
     }
     view.focused = false
   }
 }
 
-handlers.beforeinput = (view, _event: Event) => {
-  const event = _event as InputEvent
+handlers.beforeinput = (view, event) => {
   // We should probably do more with beforeinput events, but support
   // is so spotty that I'm still waiting to see where they are going.
 
@@ -1075,7 +1082,8 @@ handlers.beforeinput = (view, _event: Event) => {
       view.dom.blur()
       view.focus()
       if (dispatchKey(view, "Backspace")) return
-      const $cursor = (view.state.selection as TextSelection<any>).$cursorOrNull
+      const sel = view.state.selection
+      const $cursor = sel instanceof TextSelection ? sel.$cursorOrNull : null
       // Crude approximation of backspace behavior when no command handled it
       if ($cursor && $cursor.pos > 0) {
         view.dispatchInternal(view.state.tr.deleteUnsafe($cursor.pos - 1, $cursor.pos).scrollIntoView())
@@ -1085,7 +1093,4 @@ handlers.beforeinput = (view, _event: Event) => {
 }
 
 // Make sure all handlers get registered
-for (const prop in editHandlers) {
-  const handler = editHandlers[prop]
-  if (handler) handlers[prop] = handler
-}
+Object.assign(handlers, editHandlers)

@@ -115,6 +115,11 @@ export function isElt(node: DOMNode): node is HTMLElement {
 }
 
 /** @internal */
+export function isDOMNode(target: EventTarget): target is DOMNode {
+  return "nodeType" in target
+}
+
+/** @internal */
 export function isText(node: DOMNode): node is Text {
   return node.nodeType == 3
 }

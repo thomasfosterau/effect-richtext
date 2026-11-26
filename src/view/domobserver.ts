@@ -11,7 +11,10 @@ import {
   type DOMNode,
   type DOMSelection,
   type DOMSelectionRange,
+  isDOMNode,
+  isElt,
   isEquivalentPosition,
+  isText,
   parentNode,
   selectionCollapsed
 } from "./dom.ts"
@@ -107,8 +110,10 @@ export class DOMObserver {
     if (useCharData) {
       this.onCharData = (e) => {
         const event: Event & { readonly prevValue?: string } = e
+        if (!e.target || !isDOMNode(e.target)) return
+        // SAFETY: the observer reads only `type`, `target` and `oldValue` from a queued record.
         this.queue.push({
-          target: e.target as DOMNode,
+          target: e.target,
           type: "characterData",
           oldValue: event.prevValue
         } as MutationRecord)
@@ -270,8 +275,8 @@ export class DOMObserver {
       for (const node of added) {
         if (node.nodeName == "BR" && node.parentNode) {
           let after = node.nextSibling
-          while (after && after.nodeType == 1) {
-            if ((after as HTMLElement).contentEditable == "false") {
+          while (after && isElt(after)) {
+            if (after.contentEditable == "false") {
               node.parentNode.removeChild(node)
               break
             }
@@ -280,9 +285,10 @@ export class DOMObserver {
         }
       }
     } else if (browser.gecko && added.length) {
-      const brs = added.filter((n) => n.nodeName == "BR") as Array<HTMLElement>
+      const brs = added.filter(isElt).filter((n) => n.nodeName == "BR")
       if (brs.length == 2) {
-        const [a, b] = brs as [HTMLElement, HTMLElement]
+        const a = brs[0],
+          b = brs[1]
         if (a.parentNode && a.parentNode.parentNode == b.parentNode) b.remove()
         else a.remove()
       } else {
@@ -338,7 +344,7 @@ export class DOMObserver {
       (desc == this.view.docView ||
         mut.attributeName == "contenteditable" ||
         // Firefox sometimes fires spurious events for null/empty styles
-        (mut.attributeName == "style" && !mut.oldValue && !(mut.target as HTMLElement).getAttribute("style")))
+        (mut.attributeName == "style" && !mut.oldValue && isElt(mut.target) && !mut.target.getAttribute("style")))
     ) {
       return null
     }
@@ -348,7 +354,7 @@ export class DOMObserver {
       for (let i = 0; i < mut.addedNodes.length; i++) {
         const node = mut.addedNodes[i]
         added.push(node)
-        if (node.nodeType == 3) this.lastChangedTextNode = node as Text
+        if (isText(node)) this.lastChangedTextNode = node
       }
       if (desc.contentDOM && desc.contentDOM != desc.dom && !desc.contentDOM.contains(mut.target)) {
         return { from: desc.posBefore, to: desc.posAfter }
@@ -375,7 +381,7 @@ export class DOMObserver {
       return { from: desc.posAtStart - desc.border, to: desc.posAtEnd + desc.border }
     } else {
       // "characterData"
-      this.lastChangedTextNode = mut.target as Text
+      if (isText(mut.target)) this.lastChangedTextNode = mut.target
       return {
         from: desc.posAtStart,
         to: desc.posAtEnd,
@@ -477,13 +483,7 @@ function fixUpBadSafariComposition(view: AnyView, addedNodes: ReadonlyArray<DOMN
         let parent = nextCell
         for (;;) {
           const first = parent.firstChild
-          if (
-            !first ||
-            first.nodeType != 1 ||
-            (first as HTMLElement).contentEditable == "false" ||
-            /^(BR|IMG)$/.test(first.nodeName)
-          )
-            break
+          if (!first || !isElt(first) || first.contentEditable == "false" || /^(BR|IMG)$/.test(first.nodeName)) break
           parent = first
         }
         parent.insertBefore(node, parent.firstChild)

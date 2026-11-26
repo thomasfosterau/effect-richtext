@@ -9,7 +9,7 @@ import { AllSelection, type EditorState, NodeSelection, Selection, TextSelection
 import * as browser from "./browser.ts"
 import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
-import { domIndex, type DOMNode, hasBlockDesc, isElt, selectionCollapsed } from "./dom.ts"
+import { domIndex, type DOMNode, hasBlockDesc, isElt, isText, selectionCollapsed } from "./dom.ts"
 import { selectionToDOM } from "./selection.ts"
 import type { EditorView } from "./view.ts"
 
@@ -204,8 +204,8 @@ function textNodeAfter(node: DOMNode | null, offset: number): Text | undefined {
   }
   while (node && offset < node.childNodes.length) {
     const next = node.childNodes[offset]
-    if (next.nodeType == 3) return next as Text
-    if (next.nodeType == 1 && (next as HTMLElement).contentEditable == "false") break
+    if (isText(next)) return next
+    if (isElt(next) && next.contentEditable == "false") break
     node = next
     offset = 0
   }
@@ -219,8 +219,8 @@ function textNodeBefore(node: DOMNode | null, offset: number): Text | undefined 
   }
   while (node && offset) {
     const next = node.childNodes[offset - 1]
-    if (next.nodeType == 3) return next as Text
-    if (next.nodeType == 1 && (next as HTMLElement).contentEditable == "false") break
+    if (isText(next)) return next
+    if (isElt(next) && next.contentEditable == "false") break
     node = next
     offset = node.childNodes.length
   }
@@ -346,9 +346,10 @@ function safariDownArrowBug(view: AnyView) {
     focusNode.nodeType == 1 &&
     focusOffset == 0 &&
     focusNode.firstChild &&
-    (focusNode.firstChild as HTMLElement).contentEditable == "false"
+    isElt(focusNode.firstChild) &&
+    focusNode.firstChild.contentEditable == "false"
   ) {
-    const child = focusNode.firstChild as HTMLElement
+    const child = focusNode.firstChild
     switchEditable(view, child, "true")
     setTimeout(() => switchEditable(view, child, "false"), 20)
   }
