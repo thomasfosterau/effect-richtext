@@ -11,6 +11,7 @@
  *
  * @since 0.1.0
  */
+import type { NoKeys } from "../internal/types.ts"
 import type * as Effect from "effect/Effect"
 import * as Arr from "effect/Array"
 import * as Rec from "effect/Record"
@@ -402,7 +403,7 @@ export type AttributeType<D> = D extends S.Top
         ? Widen<A>
         : unknown
 
-type AttrDefsOf<Spec> = Spec extends { readonly attrs: infer A extends AttributeDefinitions } ? A : {}
+type AttrDefsOf<Spec> = Spec extends { readonly attrs: infer A extends AttributeDefinitions } ? A : NoKeys
 
 /**
  * The (complete) attributes object for a node or mark spec.
@@ -437,7 +438,7 @@ export type AttrsInputOfSpec<Spec> = [Spec] extends [never]
         } & { readonly [K in OptionalAttrKeys<AttrDefsOf<Spec>>]?: AttributeType<AttrDefsOf<Spec>[K]> }
       >
 
-type Simplify<A> = { [K in keyof A]: A[K] } & {}
+type Simplify<A> = { [K in keyof A]: A[K] } & NoKeys
 
 /**
  * The attributes of node type `N` in schema `Sc`.
@@ -482,7 +483,7 @@ export type MarkAttrsInput<Sc, M extends string> =
  * @since 0.1.0
  * @category type-level
  */
-export type AttrsOptional<Spec> = {} extends AttrsInputOfSpec<Spec> ? true : false
+export type AttrsOptional<Spec> = NoKeys extends AttrsInputOfSpec<Spec> ? true : false
 
 // -----------------------------------------------------------------------------
 // Spec checks
@@ -1301,7 +1302,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
    * `schema` or an unknown `validate` type name fails to compile, where the
    * runtime would fail with a `SchemaDefinitionError`.
    */
-  static make<const N extends NodeSpecs, const M extends MarkSpecs = {}, const Top extends string = "doc">(
+  static make<const N extends NodeSpecs, const M extends MarkSpecs = NoKeys, const Top extends string = "doc">(
     spec: SchemaSpec<N, M, Top> & NoInfer<SchemaSpecCheck<N, M, Top>>
   ): Effect.Effect<DocSchema<N, M>, SchemaDefinitionError> {
     return attempt(
@@ -1311,7 +1312,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
   }
 
   /** Like `make`, but throws a `SchemaDefinitionError` for invalid specs. */
-  static makeUnsafe<const N extends NodeSpecs, const M extends MarkSpecs = {}, const Top extends string = "doc">(
+  static makeUnsafe<const N extends NodeSpecs, const M extends MarkSpecs = NoKeys, const Top extends string = "doc">(
     spec: SchemaSpec<N, M, Top> & NoInfer<SchemaSpecCheck<N, M, Top>>
   ): DocSchema<N, M> {
     return new DocSchema(spec)

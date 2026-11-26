@@ -244,7 +244,7 @@
       },
       {
         "from": "test-builder",
-        "allow": ["model", "schema-basic", "schema-list"]
+        "allow": ["internal", "model", "schema-basic", "schema-list"]
       },
       {
         "from": "extensions",
