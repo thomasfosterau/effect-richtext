@@ -7,6 +7,7 @@
 import type * as Cause from "effect/Cause"
 import * as Effect from "effect/Effect"
 import * as Predicate from "effect/Predicate"
+import * as Rec from "effect/Record"
 import * as Option from "effect/Option"
 import type * as Scope from "effect/Scope"
 import { fromHTMLUnsafe } from "../Html.ts"
@@ -263,7 +264,7 @@ const foldInto = (target: Transaction<any>, tr: Transaction<any>): void => {
   if (!tr.before.eq(target.doc)) {
     throw new StateError({ message: "A chained command dispatched a transaction that doesn't match the chain" })
   }
-  for (const step of tr.steps) target.stepUnsafe(step)
+  tr.steps.forEach((step) => target.stepUnsafe(step))
   if (tr.selectionSet) {
     target.setSelectionUnsafe(tr.selection.map(target.doc, target.mapping.slice(target.steps.length)))
   }
@@ -271,7 +272,7 @@ const foldInto = (target: Transaction<any>, tr: Transaction<any>): void => {
   if (tr.scrolledIntoView) target.scrollIntoView()
   // SAFETY: `meta` is the transaction's private record of metadata.
   const meta = (tr as any).meta as Record<string, unknown>
-  for (const key in meta) target.setMeta(key, meta[key])
+  Rec.toEntries(meta).forEach(([key, value]) => target.setMeta(key, value))
 }
 
 const isPlainObject = (u: unknown): u is Attrs => {
@@ -333,21 +334,22 @@ export class Editor<T extends ExtensionTypes> {
   ) {
     this._state = state
     this.creators = creators
-    const nodes: Record<string, unknown> = {}
-    for (const name in schema.nodes) nodes[name] = this.nodeBuilder(name)
+    const nodes = Rec.map(schema.nodes, (_type, name) => this.nodeBuilder(name))
     // SAFETY: a builder for each of the schema's node types.
     this.nodes = nodes as any
-    const marks: Record<string, unknown> = {}
-    for (const name in schema.marks) {
+    const marks = Rec.map(
+      schema.marks,
       // SAFETY: `name` is one of the schema's mark types; `markUnsafe` checks the attributes.
-      marks[name] = (attrs?: Attrs | null) => schema.markUnsafe(name as any, attrs as any)
-    }
+      (_type, name) => (attrs?: Attrs | null) => schema.markUnsafe(name as any, attrs as any)
+    )
     // SAFETY: a constructor for each of the schema's mark types.
     this.marks = marks as any
-    const commands: Record<string, unknown> = {}
-    for (const name in creators) {
-      commands[name] = (...args: Array<unknown>) => Effect.suspend(() => this.runCommand(creators[name](...args), true))
-    }
+    const commands = Rec.map(
+      creators,
+      (creator) =>
+        (...args: Array<unknown>) =>
+          Effect.suspend(() => this.runCommand(creator(...args), true))
+    )
     // SAFETY: a runner for each of the extension's command creators.
     this.commands = commands as any
   }
@@ -440,11 +442,12 @@ export class Editor<T extends ExtensionTypes> {
 
   /** Check whether commands apply to the current state, without dispatching. */
   can(): CanCommands<T> {
-    const result: Record<string, unknown> = {}
-    for (const name in this.creators) {
-      result[name] = (...args: Array<unknown>) =>
-        Effect.suspend(() => this.runCommand(this.creators[name](...args), false))
-    }
+    const result = Rec.map(
+      this.creators,
+      (creator) =>
+        (...args: Array<unknown>) =>
+          Effect.suspend(() => this.runCommand(creator(...args), false))
+    )
     // SAFETY: a checker for each of the extension's command creators.
     return result as any
   }
@@ -459,14 +462,14 @@ export class Editor<T extends ExtensionTypes> {
    */
   chain(): ChainedCommands<T> {
     const queue: Array<Command<any, any, any>> = []
-    const chain: Record<string, unknown> = {}
-    for (const name in this.creators) {
-      if (name === "run") continue
-      chain[name] = (...args: Array<unknown>) => {
-        queue.push(this.creators[name](...args))
-        return chain
-      }
-    }
+    const chain: Record<string, unknown> = Rec.map(
+      Rec.remove(this.creators, "run"),
+      (creator) =>
+        (...args: Array<unknown>) => {
+          queue.push(creator(...args))
+          return chain
+        }
+    )
     chain.run = Effect.gen({ self: this }, function* () {
       const state = this.state
       const tr = state.tr

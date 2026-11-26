@@ -4,6 +4,7 @@
  *
  * @since 0.1.0
  */
+import * as Arr from "effect/Array"
 import * as Effect from "effect/Effect"
 import {
   baseKeymap,
@@ -240,11 +241,10 @@ const insertNode =
   (state, dispatch) =>
     Effect.suspend(() => {
       const { $from } = state.selection
-      let applies = false
-      for (let d = $from.depth; d >= 0 && !applies; d--) {
+      const applies = Arr.range(0, $from.depth).some((d) => {
         const index = $from.index(d)
-        applies = $from.node(d).canReplaceWith(index, index, type)
-      }
+        return $from.node(d).canReplaceWith(index, index, type)
+      })
       const node = applies ? type.createAndFillOrNull(attrs) : null
       if (!node) return succeedFalse
       return dispatch

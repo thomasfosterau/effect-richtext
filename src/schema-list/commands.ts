@@ -5,6 +5,8 @@
  *
  * @since 0.1.0
  */
+import * as Arr from "effect/Array"
+import * as Option from "effect/Option"
 import { done, keepMarks, syncCommand, type SyncResult } from "../commands/internal.ts"
 import {
   type AnySchema,
@@ -87,10 +89,10 @@ function doWrapInList(
   joinBefore: boolean,
   listType: NodeType<any, any>
 ) {
-  let content: Fragment<any> = Fragment.empty
-  for (let i = wrappers.length - 1; i >= 0; i--) {
-    content = Fragment.from(wrappers[i].type.createUnsafe(wrappers[i].attrs, content))
-  }
+  const content = wrappers.reduceRight(
+    (inner: Fragment<any>, wrapper) => Fragment.from(wrapper.type.createUnsafe(wrapper.attrs, inner)),
+    Fragment.empty
+  )
 
   tr.stepUnsafe(
     new ReplaceAroundStep(
@@ -104,19 +106,20 @@ function doWrapInList(
     )
   )
 
-  let found = 0
-  for (let i = 0; i < wrappers.length; i++) if (wrappers[i].type === listType) found = i + 1
+  const found = Option.match(
+    Arr.findLastIndex(wrappers, (wrapper) => wrapper.type === listType),
+    { onNone: () => 0, onSome: (i) => i + 1 }
+  )
   const splitDepth = wrappers.length - found
 
   let splitPos = range.start + wrappers.length - (joinBefore ? 2 : 0)
-  const parent = range.parent
-  for (let i = range.startIndex, e = range.endIndex, first = true; i < e; i++, first = false) {
-    if (!first && splitDepth && canSplit(tr.doc, splitPos, splitDepth)) {
+  range.parent.content.content.slice(range.startIndex, range.endIndex).forEach((child, i) => {
+    if (i > 0 && splitDepth && canSplit(tr.doc, splitPos, splitDepth)) {
       tr.splitUnsafe(splitPos, splitDepth)
       splitPos += 2 * splitDepth
     }
-    splitPos += parent.childUnsafe(i).nodeSize
-  }
+    splitPos += child.nodeSize
+  })
   return tr
 }
 
@@ -172,13 +175,13 @@ export const splitListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(
       )
         return false
       return done(dispatching, () => {
-        let wrap: Fragment<any> = Fragment.empty
         const depthBefore = $from.index(-1) ? 1 : $from.index(-2) ? 2 : 3
         // Build a fragment containing empty versions of the structure
         // from the outer list item to the parent node of the cursor
-        for (let d = $from.depth - depthBefore; d >= $from.depth - 3; d--) {
-          wrap = Fragment.from($from.node(d).copy(wrap))
-        }
+        let wrap = Arr.reverse(Arr.range($from.depth - 3, $from.depth - depthBefore)).reduce(
+          (inner: Fragment<any>, d) => Fragment.from($from.node(d).copy(inner)),
+          Fragment.empty
+        )
         const depthAfter =
           $from.indexAfter(-1) < $from.node(-2).childCount
             ? 1
@@ -280,10 +283,11 @@ function liftOutOfList<Sc extends AnySchema>(state: EditorState<Sc, any, any>, r
   const tr = state.tr,
     list = range.parent
   // Merge the list items into a single big item
-  for (let pos = range.end, i = range.endIndex - 1, e = range.startIndex; i > e; i--) {
-    pos -= list.childUnsafe(i).nodeSize
+  list.content.content.slice(range.startIndex + 1, range.endIndex).reduceRight((end, child) => {
+    const pos = end - child.nodeSize
     tr.deleteUnsafe(pos - 1, pos + 1)
-  }
+    return pos
+  }, range.end)
   const $start = tr.doc.resolveUnsafe(range.start)
   const item = $start.nodeAfterOrNull
   if (!item) return false
