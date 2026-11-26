@@ -305,8 +305,8 @@ const b = builders(schema, {
  * @since 0.1.0
  * @category utils
  */
-export function eq<T extends { eq(other: T): boolean }>(a: T, b: T): boolean {
-  return a.eq(b)
+export function eq<T extends { eq(other: T): boolean }>(x: T, y: T): boolean {
+  return x.eq(y)
 }
 
 /** @since 0.1.0 */

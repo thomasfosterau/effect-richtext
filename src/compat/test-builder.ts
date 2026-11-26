@@ -53,8 +53,8 @@ function flatten(
     } else {
       if ((child as any).tag && (child as any).tag != (Node.prototype as any).tag) {
         if (tag == noTag) tag = Object.create(null)
-        for (const id in (child as any).tag) {
-          tag[id] = (child as any).tag[id] + ((child as any).flat || (child as any).isText ? 0 : 1) + pos
+        for (const key in (child as any).tag) {
+          tag[key] = (child as any).tag[key] + ((child as any).flat || (child as any).isText ? 0 : 1) + pos
         }
       }
       if ((child as any).flat) {
@@ -138,9 +138,9 @@ function block(type: NodeType, attrs: Attrs | null = null): NodeBuilder {
 // Create a builder function for marks.
 function mark(type: MarkType, attrs: Attrs | null): MarkBuilder {
   return function (...args) {
-    const mark = type.create(takeAttrs(attrs, args))
+    const m = type.create(takeAttrs(attrs, args))
     const { nodes, tag } = flatten(type.schema, args as Array<ChildSpec>, (n) => {
-      const newMarks = mark.addToSet(n.marks)
+      const newMarks = m.addToSet(n.marks)
       return newMarks.length > n.marks.length ? n.mark(newMarks) : n
     })
     return { flat: nodes, tag }
@@ -205,8 +205,8 @@ const b = builders(schema, {
  * @since 0.1.0
  * @category utils
  */
-export function eq<T extends { eq(other: T): boolean }>(a: T, b: T): boolean {
-  return a.eq(b)
+export function eq<T extends { eq(other: T): boolean }>(x: T, y: T): boolean {
+  return x.eq(y)
 }
 
 /** @since 0.1.0 */

@@ -773,15 +773,15 @@ function mapChildren(
     let moved = 0
     mapping.maps[i]!.forEach((oldStart: number, oldEnd: number, newStart: number, newEnd: number) => {
       const dSize = newEnd - newStart - (oldEnd - oldStart)
-      for (let i = 0; i < children.length; i += 3) {
-        const end = children[i + 1] as number
+      for (let j = 0; j < children.length; j += 3) {
+        const end = children[j + 1] as number
         if (end < 0 || oldStart > end + baseOffset - moved) continue
-        const start = (children[i] as number) + baseOffset - moved
+        const start = (children[j] as number) + baseOffset - moved
         if (oldEnd >= start) {
-          children[i + 1] = oldStart <= start ? -2 : -1
+          children[j + 1] = oldStart <= start ? -2 : -1
         } else if (oldStart >= baseOffset && dSize) {
-          ;(children[i] as number) += dSize
-          ;(children[i + 1] as number) += dSize
+          ;(children[j] as number) += dSize
+          ;(children[j + 1] as number) += dSize
         }
       }
       moved += dSize
@@ -882,14 +882,14 @@ function mapAndGatherRemainingDecorations(
   options: DecorationMapOptions
 ) {
   // Gather all decorations from the remaining marked children
-  function gather(set: DecorationSet, oldOffset: number) {
+  function gather(set: DecorationSet, base: number) {
     for (let i = 0; i < set.local.length; i++) {
-      const mapped = set.local[i]!.map(mapping, offset, oldOffset)
+      const mapped = set.local[i]!.map(mapping, offset, base)
       if (mapped) decorations.push(mapped)
       else if (options.onRemove) options.onRemove(set.local[i]!.spec)
     }
     for (let i = 0; i < set.children.length; i += 3) {
-      gather(set.children[i + 2] as DecorationSet, (set.children[i] as number) + oldOffset + 1)
+      gather(set.children[i + 2] as DecorationSet, (set.children[i] as number) + base + 1)
     }
   }
   for (let i = 0; i < children.length; i += 3) {

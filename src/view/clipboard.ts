@@ -123,8 +123,8 @@ export function parseFromClipboard(
     slice = parser.parseSliceUnsafe(dom!, {
       preserveWhitespace: !!(asText || sliceData),
       context: $context,
-      ruleFromNode(dom) {
-        if (dom.nodeName == "BR" && !dom.nextSibling && dom.parentNode && !inlineParents.test(dom.parentNode.nodeName))
+      ruleFromNode(el) {
+        if (el.nodeName == "BR" && !el.nextSibling && el.parentNode && !inlineParents.test(el.parentNode.nodeName))
           return { ignore: true }
         return null
       }

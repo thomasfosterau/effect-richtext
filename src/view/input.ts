@@ -58,11 +58,11 @@ export class InputState {
 
 /** @internal */
 export function initInput(view: AnyView): void {
-  for (const event in handlers) {
-    const handler = handlers[event]!
+  for (const eventType in handlers) {
+    const handler = handlers[eventType]!
     view.dom.addEventListener(
-      event,
-      (view.input.eventHandlers[event] = (event: Event) => {
+      eventType,
+      (view.input.eventHandlers[eventType] = (event: Event) => {
         if (
           eventBelongsToView(view, event) &&
           !runCustomHandler(view, event) &&
@@ -71,7 +71,7 @@ export function initInput(view: AnyView): void {
           handler(view, event)
         }
       }),
-      isPassiveEvent(event) ? { passive: true } : undefined
+      isPassiveEvent(eventType) ? { passive: true } : undefined
     )
   }
   // On Safari, for reasons beyond my understanding, adding an input
@@ -112,9 +112,9 @@ export function ensureListeners(view: AnyView): void {
 type DOMEventHandler = (view: AnyView, event: Event) => HandlerResult<any, any>
 
 function runCustomHandler(view: AnyView, event: Event) {
-  return view.someProp("handleDOMEvents", (handlers) => {
+  return view.someProp("handleDOMEvents", (domHandlers) => {
     // SAFETY: `handleDOMEvents` maps each event type to a handler for it.
-    const handler = (handlers as Partial<Readonly<Record<string, DOMEventHandler>>>)[event.type]
+    const handler = (domHandlers as Partial<Readonly<Record<string, DOMEventHandler>>>)[event.type]
     return handler ? view.runHandler(handler(view, event)) || event.defaultPrevented : false
   })
 }
@@ -679,8 +679,8 @@ editHandlers.compositionstart = editHandlers.compositionupdate = (view) => {
           const before = offset < 0 ? node.lastChild : node.childNodes[offset - 1]
           if (!before) break
           if (before.nodeType == 3) {
-            const sel = view.domSelection()
-            if (sel) sel.collapse(before, before.nodeValue!.length)
+            const domSel = view.domSelection()
+            if (domSel) domSel.collapse(before, before.nodeValue!.length)
             break
           } else {
             node = before

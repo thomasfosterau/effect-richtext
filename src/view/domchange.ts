@@ -74,10 +74,10 @@ function parseBetween(view: AnyView, from_: number, to_: number, addedNodes: Rea
     context: $from
   })
   if (find && find[0]!.pos != null) {
-    const anchor = find[0]!.pos
+    const anchorPos = find[0]!.pos
     let head = find[1] && find[1].pos
-    if (head == null) head = anchor
-    sel = { anchor: anchor + from, head: head + from }
+    if (head == null) head = anchorPos
+    sel = { anchor: anchorPos + from, head: head + from }
   }
   return { doc, sel, from, to }
 }
@@ -188,9 +188,9 @@ export function readDOMChange(
       change = { start: sel.from, endA: sel.to, endB: sel.to }
     } else {
       if (parse.sel) {
-        const sel = resolveSelection(view, view.state.doc, parse.sel)
-        if (sel && !sel.eq(view.state.selection)) {
-          const tr = view.state.tr.setSelectionUnsafe(sel)
+        const resolved = resolveSelection(view, view.state.doc, parse.sel)
+        if (resolved && !resolved.eq(view.state.selection)) {
+          const tr = view.state.tr.setSelectionUnsafe(resolved)
           if (compositionID) tr.setMeta("composition", compositionID)
           view.dispatchInternal(tr)
         }
@@ -308,24 +308,24 @@ export function readDOMChange(
         parse.doc.sliceUnsafe(change!.start - parse.from, change!.endB - parse.from)
       )
     if (parse.sel) {
-      const sel = resolveSelection(view, tr.doc, parse.sel)
+      const resolved = resolveSelection(view, tr.doc, parse.sel)
       // Chrome will sometimes, during composition, report the
       // selection in the wrong place. If it looks like that is
       // happening, don't update the selection.
       // Edge just doesn't move the cursor forward when you start typing
       // in an empty block or between br nodes.
       if (
-        sel &&
+        resolved &&
         !(
           (browser.chrome &&
             view.composing &&
-            sel.empty &&
+            resolved.empty &&
             (change!.start != change!.endB || view.input.lastChromeDelete < now - 100) &&
-            (sel.head == chFrom || sel.head == tr.mapping.map(chTo) - 1)) ||
-          (browser.ie && sel.empty && sel.head == chFrom)
+            (resolved.head == chFrom || resolved.head == tr.mapping.map(chTo) - 1)) ||
+          (browser.ie && resolved.empty && resolved.head == chFrom)
         )
       ) {
-        tr.setSelectionUnsafe(sel)
+        tr.setSelectionUnsafe(resolved)
       }
     }
     if (compositionID) tr.setMeta("composition", compositionID)

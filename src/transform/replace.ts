@@ -339,8 +339,8 @@ class Fitter {
       const fit = contentAfterFits($to, i, type, match, dropInner)
       if (!fit) continue
       for (let d = i - 1; d >= 0; d--) {
-        const { match, type } = this.frontier[d]!
-        const matches = contentAfterFits($to, d, type, match, true)
+        const { match: innerMatch, type: innerType } = this.frontier[d]!
+        const matches = contentAfterFits($to, d, innerType, innerMatch, true)
         if (!matches || matches.childCount) continue scan
       }
       return { depth: i, fit, move: dropInner ? $to.doc.resolveUnsafe($to.afterUnsafe(i + 1)) : $to }

@@ -775,7 +775,7 @@ class ParseContext implements RuleContext {
             if (!rule) break
             if (rule.ignore) return null
             if (rule.clearMark) marks = marks.filter((m) => !rule.clearMark!(m))
-            else marks = marks.concat(markType(this.parser.schema, rule.mark).createUnsafe(rule.attrs))
+            else marks = marks.concat(markTypeFor(this.parser.schema, rule.mark).createUnsafe(rule.attrs))
             if (rule.consuming === false) after = rule
             else break
           }
@@ -803,7 +803,7 @@ class ParseContext implements RuleContext {
         this.leafFallback(dom, marks)
       }
     } else {
-      marks = marks.concat(markType(this.parser.schema, rule.mark).createUnsafe(rule.attrs))
+      marks = marks.concat(markTypeFor(this.parser.schema, rule.mark).createUnsafe(rule.attrs))
     }
     const startIn = this.top
 
@@ -1055,7 +1055,7 @@ class ParseContext implements RuleContext {
   }
 }
 
-function markType(schema: AnySchema, name: string | undefined): MarkType {
+function markTypeFor(schema: AnySchema, name: string | undefined): MarkType {
   const type = name === undefined ? undefined : schema.marks[name]
   if (!type) throw new SchemaDefinitionError({ message: `Parse rule refers to unknown mark type ${String(name)}` })
   return type

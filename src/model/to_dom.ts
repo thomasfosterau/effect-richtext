@@ -126,7 +126,7 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
     options: SerializeOptions = {},
     target?: HTMLElement | DocumentFragment
   ): HTMLElement | DocumentFragment {
-    if (!target) target = doc(options).createDocumentFragment()
+    if (!target) target = docFor(options).createDocumentFragment()
 
     let top: globalThis.Node = target
     const active: Array<[Mark<any, any>, globalThis.Node]> = []
@@ -163,10 +163,10 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
 
   /** @internal */
   serializeNodeInner(node: Node<Sc, any>, options: SerializeOptions): globalThis.Node {
-    if (node.isText) return doc(options).createTextNode(node.textContent)
+    if (node.isText) return docFor(options).createTextNode(node.textContent)
     const toDOM = this.nodes[node.type.name]
     if (!toDOM) throw new DOMSpecError({ message: `No serializer for node type ${node.type.name}` })
-    const { contentDOM, dom } = renderSpecInner(doc(options), toDOM(node), null, node.attrs)
+    const { contentDOM, dom } = renderSpecInner(docFor(options), toDOM(node), null, node.attrs)
     if (contentDOM) {
       if (node.isLeaf) throw new DOMSpecError({ message: "Content hole not allowed in a leaf node spec" })
       this.serializeFragment(node.content, options, contentDOM)
@@ -208,7 +208,7 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
   /** @internal */
   serializeMarkOrNull(mark: Mark<Sc, any>, inline: boolean, options: SerializeOptions = {}): RenderedSpec | null {
     const toDOM = this.marks[mark.type.name]
-    return toDOM ? renderSpecInner(doc(options), toDOM(mark, inline), null, mark.attrs) : null
+    return toDOM ? renderSpecInner(docFor(options), toDOM(mark, inline), null, mark.attrs) : null
   }
 
   /**
@@ -280,7 +280,7 @@ function gatherToDOM(obj: { readonly [name: string]: NodeType<any, any> | MarkTy
   return result
 }
 
-function doc(options: SerializeOptions): Document {
+function docFor(options: SerializeOptions): Document {
   return options.document || globalThis.document
 }
 
@@ -355,8 +355,8 @@ function renderSpecInner(
     start = 2
     for (const name in attrs) {
       if (attrs[name] != null) {
-        const space = name.indexOf(" ")
-        if (space > 0) dom.setAttributeNS(name.slice(0, space), name.slice(space + 1), attrs[name])
+        const sep = name.indexOf(" ")
+        if (sep > 0) dom.setAttributeNS(name.slice(0, sep), name.slice(sep + 1), attrs[name])
         else if (name == "style" && dom.style) dom.style.cssText = attrs[name]
         else dom.setAttribute(name, attrs[name])
       }
