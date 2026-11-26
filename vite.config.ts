@@ -117,7 +117,6 @@ export default defineConfig({
       "effect/prefer-option-over-null": "warn", // 989
       "effect/imperative-loops": "warn", // 599
       "effect/avoid-any": "warn", // 409
-      "effect/no-unsafe-dictionary-type": "warn", // 68
       // The ported suites shadow the test-builder's `doc` / `schema`.
       "eslint/no-shadow": "warn", // 312
       // ---- Type-aware allowances (same rules as above) ---------------------
@@ -286,6 +285,7 @@ export default defineConfig({
       {
         files: ["src/compat/**"],
         rules: {
+          "effect/no-unsafe-dictionary-type": "off",
           "effecttsgo/any-unknown-in-error-context": "off",
           "effect/no-known-value-widening": "off",
           "effect/no-unknown-parameters": "off",
@@ -306,6 +306,32 @@ export default defineConfig({
         ],
         rules: {
           "effecttsgo/any-unknown-in-error-context": "off"
+        }
+      },
+      // Open dictionaries are part of the model: attributes, JSON input,
+      // step and selection JSON, extra plugin-spec and DOM-event props,
+      // transaction metadata and the editor's generated builder maps take
+      // values of any type, as in ProseMirror.
+      {
+        files: [
+          "src/TestBuilder.ts",
+          "src/extensions/editor.ts",
+          "src/model/attrsCodec.ts",
+          "src/model/mark.ts",
+          "src/model/node.ts",
+          "src/model/schema.ts",
+          "src/state/plugin.ts",
+          "src/state/selection.ts",
+          "src/state/state.ts",
+          "src/state/transaction.ts",
+          "src/transform/step.ts",
+          "src/view/decoration.ts",
+          "src/view/view.ts",
+          "tests/compat/keymap/keymap.test.ts",
+          "tests/keymap/keymap.test.ts"
+        ],
+        rules: {
+          "effect/no-unsafe-dictionary-type": "off"
         }
       },
       // The attribute codecs encode and decode values of any schema, whose
