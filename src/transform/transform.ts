@@ -187,7 +187,7 @@ export class Transform<Sc extends AnySchema = AnySchema> {
   }
 
   /** @internal */
-  protected effect<E>(f: () => unknown): Effect.Effect<this, E> {
+  protected effect<E>(f: () => void): Effect.Effect<this, E> {
     return attempt(
       () => {
         f()

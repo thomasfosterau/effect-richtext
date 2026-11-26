@@ -121,7 +121,6 @@ export default defineConfig({
       "effect/no-unsafe-dictionary-type": "warn", // 68
       "effect/no-unknown-parameters": "warn", // 59
       "effect/avoid-object-type": "warn", // 33
-      "effect/no-unknown-returns": "warn", // 22
       // The ported suites shadow the test-builder's `doc` / `schema`.
       "eslint/no-shadow": "warn", // 312
       // ---- Type-aware allowances (same rules as above) ---------------------
@@ -286,11 +285,22 @@ export default defineConfig({
       // The facade keeps ProseMirror's inline result types (`childAfter`,
       // `applyTransaction`, `serializeForClipboard`, …) rather than adding
       // names ProseMirror doesn't export, and converts specs and configs
-      // to the core's shapes key by key in open dictionaries.
+      // to the core's shapes key by key in open dictionaries. Its overloaded
+      // `toCore` / `fromCore` and wrappers take and return any facade or core
+      // value, so their implementation signatures return `unknown`.
       {
         files: ["src/compat/**"],
         rules: {
-          "effect/no-known-value-widening": "off"
+          "effect/no-known-value-widening": "off",
+          "effect/no-unknown-returns": "off"
+        }
+      },
+      // The attribute codecs encode and decode values of any schema, whose
+      // types are erased in the per-schema caches.
+      {
+        files: ["src/model/attrsCodec.ts"],
+        rules: {
+          "effect/no-unknown-returns": "off"
         }
       },
       // These ported prosemirror-state suites assert that `JSON.stringify`

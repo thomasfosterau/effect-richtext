@@ -44,8 +44,8 @@ const keyDown = (view: EditorView<any, any, any>, key: string, keyCode: number) 
 
 const startDoc = () => doc(p("foo<a>"))
 
-/** What `f` throws, or `undefined` when it returns normally. */
-const thrownBy = (f: () => unknown): unknown => Option.getOrUndefined(Result.getFailure(Result.try(f)))
+/** What `f` throws, if anything. */
+const thrownBy = (f: () => void): Option.Option<unknown> => Result.getFailure(Result.try(f))
 
 describe("EditorView (Effect API)", () => {
   it.effect("destroys the view when its scope closes", () =>
@@ -187,7 +187,7 @@ describe("EditorView (Effect API)", () => {
       ist(errors.length, 2)
       // `dispatchUnsafe` throws it.
       const thrown = thrownBy(() => view.dispatchUnsafe(view.state.tr.setMeta("boom", true)))
-      ist((thrown as Boom).reason, "filter")
+      ist((Option.getOrUndefined(thrown) as Boom).reason, "filter")
     }).pipe(Effect.scoped)
   )
 
@@ -239,6 +239,6 @@ describe("EditorView (Effect API)", () => {
         plugins: [new Plugin({ state: { init: () => 0, apply: (_tr: Transaction<AnySchema>, v: number) => v } })]
       })
     )
-    ist(Predicate.isError(thrown))
+    ist(Predicate.isError(Option.getOrUndefined(thrown)))
   })
 })

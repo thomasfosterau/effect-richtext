@@ -98,6 +98,9 @@ export interface StateField<PState, Sc extends AnySchema = AnySchema, E = never,
    * Convert this field to JSON. Optional, can be left off to disable
    * JSON serialization for the field.
    */
+  // Any value with a JSON form, as `JSON.stringify` takes; it is stored
+  // as-is in `EditorStateJSON`, whose plugin fields are `unknown`.
+  // oxlint-disable-next-line effect/no-unknown-returns
   readonly toJSON?: ((value: PState) => unknown) | undefined
 
   /**
