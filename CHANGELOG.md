@@ -1,5 +1,72 @@
 # @thomasfosterau/effect-richtext
 
+## 0.4.0
+
+### Minor Changes
+
+- [#120](https://github.com/thomasfosterau/effect-richtext/pull/120) [`b3f2661`](https://github.com/thomasfosterau/effect-richtext/commit/b3f2661e21046b8cb8a710d36312dc29912abc5d) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - `MarkdownSerializer.serialize` now returns `Effect<string, MarkdownError>`, failing in the error channel when strict mode meets a node or mark type with no serializer, like `MarkdownParser.parse`. The throwing version is now `serializeUnsafe`:
+  
+  ```ts
+  // before
+  const text = defaultMarkdownSerializer.serialize(doc)
+  // after
+  const text = yield * defaultMarkdownSerializer.serialize(doc)
+  // or, synchronously
+  const text = defaultMarkdownSerializer.serializeUnsafe(doc)
+  ```
+
+- [#161](https://github.com/thomasfosterau/effect-richtext/pull/161) [`bd79820`](https://github.com/thomasfosterau/effect-richtext/commit/bd798204db46af10ac31b059e235c3ecb5af8844) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - **Breaking:** the core API has no `null`s left. A value that may be absent is an `Option`, and an argument or spec field that may be left out is optional (`x?: T`), never `T | null` or `T | undefined`. The compat facade keeps ProseMirror's `null`s and converts them at the boundary, so code written against `compat/*` is unaffected.
+  
+  - **Removed `…OrNull` twins.** `ContentMatch.matchTypeOrNull`, `matchFragmentOrNull`, `defaultTypeOrNull`, `fillBeforeOrNull` and `findWrappingOrNull`; `Node.nodeAtOrNull`; `ResolvedPos.nodeAfterOrNull`, `nodeBeforeOrNull`, `marksAcrossOrNull` and `blockRangeOrNull`; `NodeType.createAndFillOrNull` (now `createAndFillOption`); `DOMSerializer.serializeMarkOrNull`; `Mapping.getMirrorOrUndefined`; `Selection.findFromOrNull`; `TextSelection.$cursorOrNull`; `EditorState.storedMarksOrNull`; `GapCursor.findGapCursorFromOrNull`. Use the `Option` accessors. `DOMParser.matchTagOrNull` / `matchStyleOrNull` are now `matchTagIn` / `matchStyleIn`, returning an `Option`.
+  - **Fields and results that are now `Option`s:** `StepResult.doc` / `failed`; `MapResult.recover`; `Slice.insertAt`; `ContentMatch.computeWrapping`; `NodeType.markSet`, `defaultAttrs`; `Extension.spec` / `priority`; `EditorView.dragging` (a `ViewDragging`), `domSelection()`, `runEffect()`, `someProp()`, `markCursor`, `cursorWrapper`, `trackWrites` and `lastSelectedViewDesc`; `Decoration.map`; the Markdown parser state's `addNode` / `closeNode` and the serializer state's `closed`.
+  - **Hooks that now return an `Option`:** `appendTransaction`, `createSelectionBetween`, `clipboardTextParser`, `SplitNodeType` (`splitBlockAs`), `ParseOptions.ruleFromNode`, and the `getPos` passed to node views and widget decorations. The `decorations` prop returns a `DecorationSource` (`DecorationSet.empty` for none). Input rule handlers return a transaction or an `Option` of one.
+  - **`null` arguments removed:** node and mark attributes (`create*`, `DocSchema.node`, `setNodeMarkup`, `setBlockType`, `wrapIn`, `wrapInList`, builders), `Fragment.from()`, `Mark.setFrom()`, `textBetween`, `ResolvedPos` depth arguments, `removeMark`, `Transaction.setStoredMarks()` (call it with no argument to clear), `EditorStateConfig.storedMarks`, `renderSpec`'s namespace, and `ViewPlace` (pass a no-op function for a detached view). `split` / `canSplit` take `typesAfter` as an array of `Option`s; `wrapRangeInList` takes an `Option` transaction.
+  - **Other shapes:** a parse rule's `getAttrs` returns `Attrs | boolean` (`true` matches with the rule's own attributes); its `namespace` is an `Option` (absent: any namespace, `None`: no namespace). `DecorationAttrs` values are strings, `DOMSerializer` mark maps leave out the marks they don't render, and `Fragment.toJSON` / `Slice.toJSON` return an empty value rather than `null`.
+
+- [#123](https://github.com/thomasfosterau/effect-richtext/pull/123) [`f963d1d`](https://github.com/thomasfosterau/effect-richtext/commit/f963d1d07b30b85cf852020ee48930e0d22af05a) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - `/Reactive` adds `editorStateAtom(source)` and `selectAtom(source, f, eq?)`: read-only `effect/reactivity` atoms over a `StateRef` or `EditorObserver`, for UIs that render from atoms. Effect still marks the `Atom` API as unstable, so these may change with an Effect minor release.
+
+- [#124](https://github.com/thomasfosterau/effect-richtext/pull/124) [`f777c95`](https://github.com/thomasfosterau/effect-richtext/commit/f777c95497850ba317642a520674c3e69b7884f2) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - `EditorStateConfig` takes a `clock` (default `Date.now`) that `state.tr` stamps `Transaction.time` from. States derived by `apply` and `reconfigure` keep it, and `reconfigure` and `fromJSON` accept one too. Pass a controllable clock to test time-dependent plugins such as the history's `newGroupDelay` grouping.
+
+### Patch Changes
+
+- [#143](https://github.com/thomasfosterau/effect-richtext/pull/143) [`9cf3f99`](https://github.com/thomasfosterau/effect-richtext/commit/9cf3f99761a87f63bc487660e77b6bd84800151e) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - Replace the core's `as any` casts with typed code. `ParseRule.skip` now also accepts a DOM node, which the view already passed to parse that node's content instead.
+
+- [#131](https://github.com/thomasfosterau/effect-richtext/pull/131) [`c4483c7`](https://github.com/thomasfosterau/effect-richtext/commit/c4483c7e0a9262e82cdcf41c7e1cd3cb295527ca) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - Empty node, mark and command maps in the extension and schema types are now written as an internal `NoKeys` alias instead of `{}`; the types are unchanged.
+
+- [#141](https://github.com/thomasfosterau/effect-richtext/pull/141) [`bcf583f`](https://github.com/thomasfosterau/effect-richtext/commit/bcf583ffd235ae3850035f48f26a09d25278b94c) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - Brand every `Schema.TaggedError` class, so error classes with the same fields are no longer structurally interchangeable.
+
+- [#138](https://github.com/thomasfosterau/effect-richtext/pull/138) [`d76b30c`](https://github.com/thomasfosterau/effect-richtext/commit/d76b30cfe6db331de835096b305891121021593d) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - `compat/*` fixes found by running TipTap and ProseKit on the facade: a `Selection` subclass can set `Sub.prototype.visible = false` (as prosemirror-gapcursor does, which failed on import), and commands read state-like objects through their public `doc`, `selection`, `storedMarks` and `tr` (as TipTap's chained commands pass them), instead of silently applying to the original state.
+
+- [#156](https://github.com/thomasfosterau/effect-richtext/pull/156) [`eafcf81`](https://github.com/thomasfosterau/effect-richtext/commit/eafcf81ad971568c9de20862c7ba7346797aecf2) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - `compat/transform`'s `ReplaceStep` now has ProseMirror's static `MAP_BIAS`. Setting it to `-1` keeps an inserting step mapped over an insertion at the same position before that insertion; it reads and writes the core `ReplaceStep.MAP_BIAS`.
+
+- [#126](https://github.com/thomasfosterau/effect-richtext/pull/126) [`d1c9db1`](https://github.com/thomasfosterau/effect-richtext/commit/d1c9db19d7a679df226784fffcb11f2fad01294d) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - `Editor` commands no longer cast away the error channel of the dispatch they receive. A dispatch whose plugins fail now records the failure, skips the command's later dispatches, and fails the command when it finishes, as `StateRef.execute` already does. Before, the failure cut the command short partway through.
+
+- [#152](https://github.com/thomasfosterau/effect-richtext/pull/152) [`6e8a98b`](https://github.com/thomasfosterau/effect-richtext/commit/6e8a98b275db78bff12adeb696f427d3f8e205aa) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - Replace imperative loops with Effect `Array` and `Record` helpers across the package, keeping plain loops only on benchmarked hot paths. No API changes.
+
+- [#125](https://github.com/thomasfosterau/effect-richtext/pull/125) [`d1bfb9d`](https://github.com/thomasfosterau/effect-richtext/commit/d1bfb9d81eceb02a8ba80ecb2c16485d479d35d9) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - `MarkdownSerializerState.getEnclosingWhitespace` now returns the named `EnclosingWhitespace` type (exported from `/Markdown`), with the same shape as before.
+
+- [#147](https://github.com/thomasfosterau/effect-richtext/pull/147) [`2d44a16`](https://github.com/thomasfosterau/effect-richtext/commit/2d44a16a7488c66c17f49527822f955faf4e99fa) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - Code that used to fail with a `TypeError` on a missing value now checks for it. Commands return `false`, view and DOM helpers skip the step or fall back, and broken invariants throw the layer's own error (`TransformError`, `StepError`, `SelectionError`, `ViewError`, `MarkdownError`, `PositionError`) with a message. A parse rule whose `contentElement` selector matches nothing now parses the whole element.
+
+- [#127](https://github.com/thomasfosterau/effect-richtext/pull/127) [`98f60e1`](https://github.com/thomasfosterau/effect-richtext/commit/98f60e1bf9580493bb0a65406dd63ad8d7c03402) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - `DOMOutputSpec` now includes `string`, as ProseMirror's does. A string renders as a text node wherever a spec is rendered. Before, a string was accepted only at the top level of `renderSpec`, and the default `text` serializer cast its string to fit the type.
+
+- [#130](https://github.com/thomasfosterau/effect-richtext/pull/130) [`a010663`](https://github.com/thomasfosterau/effect-richtext/commit/a01066315c1cfd4ffbc0f92514c219c9af6b1c3f) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - Internal: replace the remaining `typeof` checks with `Predicate` guards. No behaviour changes.
+
+- [#142](https://github.com/thomasfosterau/effect-richtext/pull/142) [`0254344`](https://github.com/thomasfosterau/effect-richtext/commit/02543449d89923fe569af42d8f27ac3c51033ad6) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - Rename shadowing locals and parameters, including `ContentExpr`'s type parameter (now `Names`) and the parameters of `TestBuilder.eq`. No behaviour changes.
+
+- [#129](https://github.com/thomasfosterau/effect-richtext/pull/129) [`054116a`](https://github.com/thomasfosterau/effect-richtext/commit/054116a11106b445cd6e9ce1635934f885665efb) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - `CommandSignature.signature` now returns `this["Return"]` instead of `unknown`, so the signature's return type is the one the signature declares.
+
+- [#151](https://github.com/thomasfosterau/effect-richtext/pull/151) [`d2a3df7`](https://github.com/thomasfosterau/effect-richtext/commit/d2a3df7d65c986a68a2299e87a1712725d8f0482) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - Internals of the commands, history, drop cursor, placeholder, input rules, state, Markdown and extensions modules use `Option` instead of `null` or `undefined`. The history state's `@internal` `prevRanges` is now an `Option`.
+
+- [#122](https://github.com/thomasfosterau/effect-richtext/pull/122) [`378f859`](https://github.com/thomasfosterau/effect-richtext/commit/378f859bb8e206992aef7dc4f11fe72c9e1ce7ca) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - `EditorState.fromJSON` now rejects an array with "Invalid input for EditorState.fromJSON", and `Selection.fromJSON` rejects a non-string `type` with "Invalid input for Selection.fromJSON", instead of failing later with a less specific error.
+
+- [#149](https://github.com/thomasfosterau/effect-richtext/pull/149) [`8b40323`](https://github.com/thomasfosterau/effect-richtext/commit/8b4032308d86cf3abbe094f4942d2d32067a46f2) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - Type assertions are justified or removed throughout. `DOMParser` matches elements with the standard `Element.matches` only (no vendor-prefixed fallbacks), and the drop cursor no longer throws when the node beside it renders to a non-element.
+
+- [#133](https://github.com/thomasfosterau/effect-richtext/pull/133) [`c50d829`](https://github.com/thomasfosterau/effect-richtext/commit/c50d8296c6f4f2796744041cd869cbcc286a2a01) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - `Mark.sameSet` (core and compat) and `DocSchema.make` / `makeUnsafe` now declare `this: void`. They can be passed around unbound, as `Model.make` already does.
+
+- [#155](https://github.com/thomasfosterau/effect-richtext/pull/155) [`6812a51`](https://github.com/thomasfosterau/effect-richtext/commit/6812a5189c3519e9031e7099503b5ec31ce5d87a) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - Replace unsafe type assertions with type guards where one can check the value: DOM nodes, shadow roots, mouse and drag events, Safari's composed selection ranges, and DOM output specs. Synthesised key events are now real `KeyboardEvent`s, and `coordsAtPos` fails with a `ViewError`, rather than a `TypeError`, if it meets a non-element where it expects one.
+
+- [#128](https://github.com/thomasfosterau/effect-richtext/pull/128) [`4153f37`](https://github.com/thomasfosterau/effect-richtext/commit/4153f37bb64a617ae408fd9771a3578ee103c58d) Thanks [@thomasfosterau](https://github.com/thomasfosterau)! - `EditorStateConfig.clock` now defaults to Effect's default `Clock` rather than to `Date.now`; both read the same time. The view's input handling also reads timestamps from the state's clock, so a clock you pass in drives its timing checks (such as composition and key timing) as well as `Transaction.time`.
+
 ## 0.3.0
 
 ### Minor Changes
