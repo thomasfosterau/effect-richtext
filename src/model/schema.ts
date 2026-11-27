@@ -732,7 +732,9 @@ export function computeAttrs(
   decoded = false
 ): Attrs {
   const built = Object.create(null)
-  Rec.keys(attrs).forEach((name) => {
+  // Every node and mark created runs this, so it stays a plain loop.
+  // oxlint-disable-next-line effect/imperative-loops
+  for (const name in attrs) {
     const attr = attrs[name]
     let given = value && value[name]
     if (given === undefined) {
@@ -750,7 +752,7 @@ export function computeAttrs(
       }
     }
     built[name] = given
-  })
+  }
   return built
 }
 

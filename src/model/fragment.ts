@@ -69,7 +69,13 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     readonly content: ReadonlyArray<Node<Sc, N>>,
     size?: number
   ) {
-    this.size = size ?? content.reduce((total, child) => total + child.nodeSize, 0)
+    if (size === undefined) {
+      size = 0
+      // Every new fragment runs this, so it stays a plain loop.
+      // oxlint-disable-next-line effect/imperative-loops
+      for (let i = 0; i < content.length; i++) size += content[i].nodeSize
+    }
+    this.size = size
   }
 
   [Symbol.iterator](): Iterator<Node<Sc, N>> {
@@ -163,10 +169,10 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     const result: Array<Node<Sc, N>> = []
     let size = 0
     if (to > from) {
-      let pos = 0
-      this.content.some((node) => {
-        if (pos >= to) return true
-        let child = node
+      // Every replace cuts fragments, so this stays a plain loop.
+      // oxlint-disable-next-line effect/imperative-loops
+      for (let i = 0, pos = 0; pos < to; i++) {
+        let child = this.content[i]
         const end = pos + child.nodeSize
         if (end > from) {
           if (pos < from || end > to) {
@@ -180,8 +186,7 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
           size += child.nodeSize
         }
         pos = end
-        return false
-      })
+      }
     }
     return new Fragment(result, size)
   }
@@ -342,7 +347,10 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     if (!array.length) return Fragment.empty
     let joined: Array<Node<Sc, N>> | undefined
     let size = 0
-    array.forEach((node, i) => {
+    // Builds every fragment made from an array, so it stays a plain loop.
+    // oxlint-disable-next-line effect/imperative-loops
+    for (let i = 0; i < array.length; i++) {
+      const node = array[i]
       size += node.nodeSize
       if (i && node.isTextNode() && array[i - 1].sameMarkup(node)) {
         if (!joined) joined = array.slice(0, i)
@@ -352,7 +360,7 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
       } else if (joined) {
         joined.push(node)
       }
-    })
+    }
     return new Fragment(joined || array, size)
   }
 

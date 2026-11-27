@@ -180,8 +180,11 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
   posAtIndex(index: number, depth?: number | null): number {
     depth = this.resolveDepth(depth)
     const node: Node<Sc> = this.path[depth * 3]
-    const start = depth === 0 ? 0 : this.path[depth * 3 - 1] + 1
-    return node.content.content.slice(0, index).reduce((pos, child) => pos + child.nodeSize, start)
+    let pos = depth === 0 ? 0 : this.path[depth * 3 - 1] + 1
+    // Commands call this per keystroke, so it stays a plain loop.
+    // oxlint-disable-next-line effect/imperative-loops
+    for (let i = 0; i < index; i++) pos += node.content.content[i].nodeSize
+    return pos
   }
 
   /**
@@ -292,18 +295,22 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
       throw new PositionError({ message: "Position " + pos + " out of range" })
     }
     const path: Array<Node<Sc> | number> = []
-    // Descends from `node`, pushing a step per level, and returns the
-    // offset into the innermost parent.
-    const descend = (node: Node<Sc>, parentOffset: number, start: number): number => {
+    let start = 0,
+      parentOffset = pos
+    // Every position resolved runs this, so it stays a plain loop.
+    // oxlint-disable-next-line effect/imperative-loops
+    for (let node = doc; ;) {
       const { index, offset } = node.content.findIndex(parentOffset)
       const rem = parentOffset - offset
       path.push(node, index, start + offset)
-      if (!rem) return parentOffset
+      if (!rem) break
       const child = node.content.content[index]
       if (!child) throw new PositionError({ message: "Position " + pos + " out of range" })
-      return child.isText ? parentOffset : descend(child, rem - 1, start + offset + 1)
+      node = child
+      if (child.isText) break
+      parentOffset = rem - 1
+      start += offset + 1
     }
-    const parentOffset = descend(doc, pos, 0)
     return new ResolvedPos(pos, path, parentOffset)
   }
 
@@ -311,8 +318,12 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
   static resolveCached<Sc extends AnySchema>(doc: Node<Sc>, pos: number): ResolvedPos<Sc> {
     let cache = resolveCache.get(doc)
     if (cache) {
-      const hit = cache.elts.find((elt) => elt.pos === pos)
-      if (hit) return hit
+      // A cache lookup per position resolved, so it stays a plain loop.
+      // oxlint-disable-next-line effect/imperative-loops
+      for (let i = 0; i < cache.elts.length; i++) {
+        const elt = cache.elts[i]
+        if (elt.pos === pos) return elt
+      }
     } else {
       resolveCache.set(doc, (cache = new ResolveCache()))
     }

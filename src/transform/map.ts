@@ -53,13 +53,6 @@ const makeRecover = (index: number, offset: number) => index + offset * factor16
 const recoverIndex = (value: number) => value & lower16
 const recoverOffset = (value: number) => (value - (value & lower16)) / factor16
 
-// Calls `f` with each (start, size, size) triple of a step map's flat
-// `ranges` and its index, until `f` returns true. Returns whether it did.
-const someRange = (
-  ranges: ReadonlyArray<number>,
-  f: (start: number, a: number, b: number, index: number) => boolean
-): boolean => ranges.some((start, k) => k % 3 === 0 && f(start, ranges[k + 1], ranges[k + 2], k / 3))
-
 const DEL_BEFORE = 1,
   DEL_AFTER = 2,
   DEL_ACROSS = 4,
@@ -139,11 +132,9 @@ export class StepMap implements Mappable {
     let diff = 0
     const index = recoverIndex(value)
     if (!this.inverted) {
-      someRange(this.ranges, (_, oldSize, newSize, i) => {
-        if (i === index) return true
-        diff += newSize - oldSize
-        return false
-      })
+      // Step maps hold ranges in flat triples, so these walks stay plain loops.
+      // oxlint-disable-next-line effect/imperative-loops
+      for (let i = 0; i < index; i++) diff += this.ranges[i * 3 + 2] - this.ranges[i * 3 + 1]
     }
     return this.ranges[index * 3] + diff + recoverOffset(value)
   }
@@ -193,37 +184,36 @@ export class StepMap implements Mappable {
 
   /** @internal */
   touches(pos: number, recover: number): boolean {
-    const inverted = this.inverted
+    let diff = 0
     const index = recoverIndex(recover)
-    let diff = 0,
-      touched = false
-    someRange(this.ranges, (rangeStart, a, b, i) => {
-      const start = rangeStart - (inverted ? diff : 0)
-      if (start > pos) return true
-      const oldSize = inverted ? b : a
-      if (pos <= start + oldSize && i === index) {
-        touched = true
-        return true
-      }
-      diff += (inverted ? a : b) - oldSize
-      return false
-    })
-    return touched
+    const oldIndex = this.inverted ? 2 : 1,
+      newIndex = this.inverted ? 1 : 2
+    // oxlint-disable-next-line effect/imperative-loops
+    for (let i = 0; i < this.ranges.length; i += 3) {
+      const start = this.ranges[i] - (this.inverted ? diff : 0)
+      if (start > pos) break
+      const oldSize = this.ranges[i + oldIndex],
+        end = start + oldSize
+      if (pos <= end && i === index * 3) return true
+      diff += this.ranges[i + newIndex] - oldSize
+    }
+    return false
   }
 
   /** Calls the given function on each of the changed ranges included in this map. */
   forEach(f: (oldStart: number, oldEnd: number, newStart: number, newEnd: number) => void): void {
-    const inverted = this.inverted
-    let diff = 0
-    someRange(this.ranges, (start, a, b) => {
-      const oldStart = start - (inverted ? diff : 0),
-        newStart = start + (inverted ? 0 : diff)
-      const oldSize = inverted ? b : a,
-        newSize = inverted ? a : b
+    const oldIndex = this.inverted ? 2 : 1,
+      newIndex = this.inverted ? 1 : 2
+    // oxlint-disable-next-line effect/imperative-loops
+    for (let i = 0, diff = 0; i < this.ranges.length; i += 3) {
+      const start = this.ranges[i],
+        oldStart = start - (this.inverted ? diff : 0),
+        newStart = start + (this.inverted ? 0 : diff)
+      const oldSize = this.ranges[i + oldIndex],
+        newSize = this.ranges[i + newIndex]
       f(oldStart, oldStart + oldSize, newStart, newStart + newSize)
       diff += newSize - oldSize
-      return false
-    })
+    }
   }
 
   /**

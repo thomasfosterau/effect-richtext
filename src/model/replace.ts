@@ -262,9 +262,7 @@ function addRange<Sc extends AnySchema>(
       startIndex++
     }
   }
-  node.content.content.forEach((child, i) => {
-    if (i >= startIndex && i < endIndex) addNode(child, target)
-  })
+  node.content.content.slice(startIndex, endIndex).forEach((child) => addNode(child, target))
   const textBefore = $end && $end.depth === depth && $end.textOffset ? $end.nodeBeforeOrNull : null
   if (textBefore) addNode(textBefore, target)
 }

@@ -1,14 +1,20 @@
-import * as Rec from "effect/Record"
 import * as Predicate from "effect/Predicate"
 
 /** @internal */
 export function compareDeep(a: unknown, b: unknown): boolean {
   if (a === b) return true
   if (!Predicate.isObjectOrArray(a) || !Predicate.isObjectOrArray(b)) return false
+  // Runs for every attribute comparison, so these stay plain loops.
   if (Array.isArray(a)) {
-    return Array.isArray(b) && a.length === b.length && a.every((value, i) => compareDeep(value, b[i]))
+    if (!Array.isArray(b) || a.length !== b.length) return false
+    // oxlint-disable-next-line effect/imperative-loops
+    for (let i = 0; i < a.length; i++) if (!compareDeep(a[i], b[i])) return false
+  } else {
+    if (Array.isArray(b)) return false
+    // oxlint-disable-next-line effect/imperative-loops
+    for (const p in a) if (!(p in b) || !compareDeep(a[p], b[p])) return false
+    // oxlint-disable-next-line effect/imperative-loops
+    for (const p in b) if (!(p in a)) return false
   }
-  return (
-    !Array.isArray(b) && Rec.keys(a).every((p) => p in b && compareDeep(a[p], b[p])) && Rec.keys(b).every((p) => p in a)
-  )
+  return true
 }

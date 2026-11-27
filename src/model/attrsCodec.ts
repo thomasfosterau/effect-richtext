@@ -38,15 +38,17 @@ type Attrs = { readonly [name: string]: unknown }
 // failure.
 const mapAttrs = (defs: { readonly [name: string]: AttrDef }, attrs: Attrs, decode: boolean): Attrs => {
   let out: Record<string, unknown> | undefined
-  Rec.keys(attrs).forEach((name) => {
+  // Runs for every node and mark in JSON input and output, so it stays a plain loop.
+  // oxlint-disable-next-line effect/imperative-loops
+  for (const name in attrs) {
     const def = defs[name]
-    if (!def?.schema || (def.identityCodec && (!decode || (def.is !== undefined && def.is(attrs[name]))))) return
+    if (!def?.schema || (def.identityCodec && (!decode || (def.is !== undefined && def.is(attrs[name]))))) continue
     const value = (decode ? decoder : encoder)(def.schema)(attrs[name])
     if (value !== attrs[name]) {
       if (!out) out = { ...attrs }
       out[name] = value
     }
-  })
+  }
   return out ?? attrs
 }
 
