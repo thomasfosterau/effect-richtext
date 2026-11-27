@@ -24,13 +24,13 @@ export interface DropCursorOptions {
    * The color of the cursor. Defaults to `black`. Use `false` to apply
    * no color and rely only on class.
    */
-  readonly color?: string | false | undefined
+  readonly color?: string | false
 
   /** The precise width of the cursor in pixels. Defaults to 1. */
-  readonly width?: number | undefined
+  readonly width?: number
 
   /** A CSS class name to add to the cursor element. */
-  readonly class?: string | undefined
+  readonly class?: string
 }
 
 /**
@@ -84,8 +84,8 @@ interface Rect {
 const isDragEvent = (event: Event): event is DragEvent => "dataTransfer" in event
 
 const isDisabledAt = (view: EditorView<any, any, any>, pos: PosAtCoords, event: DragEvent): boolean => {
-  const node = pos.inside >= 0 ? view.state.doc.nodeAtOrNull(pos.inside) : null
-  const disable = node?.type.spec.disableDropCursor
+  const node = pos.inside >= 0 ? view.state.doc.nodeAt(pos.inside) : Option.none()
+  const disable = Option.isSome(node) ? node.value.type.spec.disableDropCursor : undefined
   if (!Predicate.isFunction(disable)) return Boolean(disable)
   // SAFETY: node specs declare `disableDropCursor` as a `DisableDropCursor`.
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
@@ -148,14 +148,14 @@ class DropCursorView implements PluginView {
   blockRect(cursorPos: number, scaleY: number): Option.Option<Rect> {
     const view = this.editorView
     const $pos = view.state.doc.resolveUnsafe(cursorPos)
-    const before = $pos.nodeBeforeOrNull,
-      after = $pos.nodeAfterOrNull
-    if (!before && !after) return Option.none()
-    const node = Option.getOrNull(view.nodeDOM(cursorPos - (before ? before.nodeSize : 0)))
+    const before = $pos.nodeBefore,
+      after = $pos.nodeAfter
+    if (Option.isNone(before) && Option.isNone(after)) return Option.none()
+    const node = Option.getOrNull(view.nodeDOM(cursorPos - (Option.isSome(before) ? before.value.nodeSize : 0)))
     if (!node || !isElement(node)) return Option.none()
     const nodeRect = node.getBoundingClientRect()
-    let top = before ? nodeRect.bottom : nodeRect.top
-    if (before && after) {
+    let top = Option.isSome(before) ? nodeRect.bottom : nodeRect.top
+    if (Option.isSome(before) && Option.isSome(after)) {
       const afterDOM = Option.getOrNull(view.nodeDOM(cursorPos))
       if (afterDOM && isElement(afterDOM)) top = (top + afterDOM.getBoundingClientRect().top) / 2
     }
@@ -217,10 +217,13 @@ class DropCursorView implements PluginView {
   dragover(event: DragEvent) {
     const view = this.editorView
     if (!view.editable) return
-    const pos = Option.getOrNull(view.posAtCoords({ left: event.clientX, top: event.clientY }))
-    if (!pos || isDisabledAt(view, pos, event)) return
-    const slice = view.dragging?.slice
-    const target = slice ? Option.getOrElse(dropPoint(view.state.doc, pos.pos, slice), () => pos.pos) : pos.pos
+    const found = view.posAtCoords({ left: event.clientX, top: event.clientY })
+    if (Option.isNone(found) || isDisabledAt(view, found.value, event)) return
+    const pos = found.value.pos
+    const target = Option.getOrElse(
+      Option.flatMap(view.dragging, (dragging) => dropPoint(view.state.doc, pos, dragging.slice)),
+      () => pos
+    )
     this.setCursor(Option.some(target))
     this.scheduleRemoval(5000)
   }

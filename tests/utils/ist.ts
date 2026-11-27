@@ -41,7 +41,7 @@ function ist(value: unknown, ...rest: Array<unknown>): void {
   }
   // SAFETY: the overloads pass the expected value, then an optional comparison.
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-  const [expected, cmp] = rest as [unknown, Cmp<unknown, unknown> | undefined]
+  const [expected, cmp] = rest as [unknown, Cmp<unknown, unknown>?]
   if (cmp === undefined) {
     assert.ok(
       // Like `ist`, the default comparison is `==`.

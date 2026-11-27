@@ -1,6 +1,7 @@
 // Ported from prosemirror-commands/test/test-commands.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
+import * as Option from "effect/Option"
 import {
   autoJoin,
   createParagraphNear,
@@ -91,7 +92,7 @@ describe("joinBackward", () => {
 
   it("lifts before it deletes", () => apply(doc(hr, blockquote(p("<a>there"))), joinBackward, doc(hr, p("there"))))
 
-  it("does nothing at start of doc", () => apply(doc(p("<a>foo")), joinBackward, null))
+  it("does nothing at start of doc", () => apply(doc(p("<a>foo")), joinBackward))
 
   it("can join single-textblock-child nodes", () => {
     const s = DocSchema.makeUnsafe({
@@ -102,9 +103,9 @@ describe("joinBackward", () => {
         para: { content: Content.parse("text*") }
       }
     })
-    const d = s.nodeUnsafe("doc", null, [
-      s.nodeUnsafe("block", null, [s.nodeUnsafe("para", null, [s.textUnsafe("a")])]),
-      s.nodeUnsafe("block", null, [s.nodeUnsafe("para", null, [s.textUnsafe("b")])])
+    const d = s.nodeUnsafe("doc", undefined, [
+      s.nodeUnsafe("block", undefined, [s.nodeUnsafe("para", undefined, [s.textUnsafe("a")])]),
+      s.nodeUnsafe("block", undefined, [s.nodeUnsafe("para", undefined, [s.textUnsafe("b")])])
     ])
     let state = EditorState.createUnsafe({ doc: d, selection: Selection.near(d.resolveUnsafe(7)) })
     ist(
@@ -120,7 +121,7 @@ describe("joinBackward", () => {
   })
 
   it("doesn't return true on empty blocks that can't be deleted", () =>
-    apply(doc(p("a"), ul(li(p("<a>"), ul(li("b"))))), joinBackward, null))
+    apply(doc(p("a"), ul(li(p("<a>"), ul(li("b"))))), joinBackward))
 
   it("doesn't join surrounding nodes of different types", () =>
     apply(
@@ -139,7 +140,7 @@ describe("joinTextblockBackward", () => {
   it("can join if first block is wrapped", () =>
     apply(doc(blockquote(p("hi")), p("<a>there")), joinTextblockBackward, doc(blockquote(p("hi<a>there")))))
 
-  it("does nothing at start of doc", () => apply(doc(p("<a>foo")), joinTextblockBackward, null))
+  it("does nothing at start of doc", () => apply(doc(p("<a>foo")), joinTextblockBackward))
 
   it("can join if inside a nested block", () =>
     apply(
@@ -157,7 +158,7 @@ describe("selectNodeBackward", () => {
       doc("<a>", blockquote(p("a")), blockquote(p("b")))
     ))
 
-  it("does nothing when not at the start of the textblock", () => apply(doc(p("a<a>b")), selectNodeBackward, null))
+  it("does nothing when not at the start of the textblock", () => apply(doc(p("a<a>b")), selectNodeBackward))
 })
 
 describe("deleteSelection", () => {
@@ -183,7 +184,7 @@ describe("joinForward", () => {
   it("clears nodes from joined node that wouldn't be allowed in target node", () =>
     apply(doc(pre("foo<a>"), p("bar", img())), joinForward, doc(pre("foo<a>bar"))))
 
-  it("does nothing at the end of the document", () => apply(doc(p("foo<a>")), joinForward, null))
+  it("does nothing at the end of the document", () => apply(doc(p("foo<a>")), joinForward))
 
   it("deletes a leaf node after the current block", () =>
     apply(doc(p("foo<a>"), hr(), p("bar")), joinForward, doc(p("foo"), p("bar"))))
@@ -206,8 +207,7 @@ describe("joinForward", () => {
   it("joins two lists", () =>
     apply(doc(ul(li(p("hi<a>"))), ul(li(p("there")))), joinForward, doc(ul(li(p("hi")), li(p("there"))))))
 
-  it("does nothing in a nested node at the end of the document", () =>
-    apply(doc(ul(li(p("there<a>")))), joinForward, null))
+  it("does nothing in a nested node at the end of the document", () => apply(doc(ul(li(p("there<a>")))), joinForward))
 
   it("deletes a leaf node at the end of the document", () =>
     apply(doc(p("there<a>"), hr()), joinForward, doc(p("there"))))
@@ -215,8 +215,7 @@ describe("joinForward", () => {
   it("moves before it deletes a leaf node", () =>
     apply(doc(blockquote(p("there<a>")), hr()), joinForward, doc(blockquote(p("there"), hr()))))
 
-  it("does nothing when it can't join", () =>
-    apply(doc(p("foo<a>"), ul(li(p("bar"), ul(li(p("baz")))))), joinForward, null))
+  it("does nothing when it can't join", () => apply(doc(p("foo<a>"), ul(li(p("bar"), ul(li(p("baz")))))), joinForward))
 })
 
 describe("joinTextblockForward", () => {
@@ -228,7 +227,7 @@ describe("joinTextblockForward", () => {
   it("can join if first block is wrapped", () =>
     apply(doc(blockquote(p("hi<a>")), p("there")), joinTextblockForward, doc(blockquote(p("hi<a>there")))))
 
-  it("does nothing at end of doc", () => apply(doc(p("foo<a>")), joinTextblockForward, null))
+  it("does nothing at end of doc", () => apply(doc(p("foo<a>")), joinTextblockForward))
 })
 
 describe("selectNodeForward", () => {
@@ -239,14 +238,14 @@ describe("selectNodeForward", () => {
       doc(p("foo<a>"), "<a>", ul(li(p("bar"), ul(li(p("baz"))))))
     ))
 
-  it("does nothing at end of document", () => apply(doc(p("foo<a>")), selectNodeForward, null))
+  it("does nothing at end of document", () => apply(doc(p("foo<a>")), selectNodeForward))
 })
 
 describe("joinUp", () => {
   it("joins identical parent blocks", () =>
     apply(doc(blockquote(p("foo")), blockquote(p("<a>bar"))), joinUp, doc(blockquote(p("foo"), p("<a>bar")))))
 
-  it("does nothing in the first block", () => apply(doc(blockquote(p("<a>foo")), blockquote(p("bar"))), joinUp, null))
+  it("does nothing in the first block", () => apply(doc(blockquote(p("<a>foo")), blockquote(p("bar"))), joinUp))
 
   it("joins lists", () =>
     apply(doc(ul(li(p("foo"))), ul(li(p("<a>bar")))), joinUp, doc(ul(li(p("foo")), li(p("bar"))))))
@@ -254,7 +253,7 @@ describe("joinUp", () => {
   it("joins list items", () => apply(doc(ul(li(p("foo")), li(p("<a>bar")))), joinUp, doc(ul(li(p("foo"), p("bar"))))))
 
   it("doesn't look at ancestors when a block is selected", () =>
-    apply(doc(ul(li(p("foo")), li("<a>", p("bar")))), joinUp, null))
+    apply(doc(ul(li(p("foo")), li("<a>", p("bar")))), joinUp))
 
   it("can join selected block nodes", () =>
     apply(doc(ul(li(p("foo")), "<a>", li(p("bar")))), joinUp, doc(ul("<a>", li(p("foo"), p("bar"))))))
@@ -264,8 +263,7 @@ describe("joinDown", () => {
   it("joins parent blocks", () =>
     apply(doc(blockquote(p("foo<a>")), blockquote(p("bar"))), joinDown, doc(blockquote(p("foo<a>"), p("bar")))))
 
-  it("doesn't join with the block before", () =>
-    apply(doc(blockquote(p("foo")), blockquote(p("<a>bar"))), joinDown, null))
+  it("doesn't join with the block before", () => apply(doc(blockquote(p("foo")), blockquote(p("<a>bar"))), joinDown))
 
   it("joins lists", () =>
     apply(doc(ul(li(p("foo<a>"))), ul(li(p("bar")))), joinDown, doc(ul(li(p("foo")), li(p("bar"))))))
@@ -273,7 +271,7 @@ describe("joinDown", () => {
   it("joins list items", () => apply(doc(ul(li(p("<a>foo")), li(p("bar")))), joinDown, doc(ul(li(p("foo"), p("bar"))))))
 
   it("doesn't look at parent nodes of a selected node", () =>
-    apply(doc(ul(li("<a>", p("foo")), li(p("bar")))), joinDown, null))
+    apply(doc(ul(li("<a>", p("foo")), li(p("bar")))), joinDown))
 
   it("can join selected nodes", () =>
     apply(doc(ul("<a>", li(p("foo")), li(p("bar")))), joinDown, doc(ul("<a>", li(p("foo"), p("bar"))))))
@@ -291,7 +289,7 @@ describe("lift", () => {
 
   it("can lift out of a list", () => apply(doc(ul(li(p("<a>foo")))), lift, doc(p("foo"))))
 
-  it("does nothing for a top-level block", () => apply(doc(p("<a>foo")), lift, null))
+  it("does nothing for a top-level block", () => apply(doc(p("<a>foo")), lift))
 
   it("lifts out of the innermost parent", () =>
     apply(doc(blockquote(ul(li(p("foo<a>"))))), lift, doc(blockquote(p("foo<a>")))))
@@ -355,7 +353,7 @@ describe("splitBlock", () => {
     ))
 
   it("doesn't split the parent block when at the start", () =>
-    apply(doc(ol("<a>", li(p("a")), li(p("b")), li(p("c")))), splitBlock, null))
+    apply(doc(ol("<a>", li(p("a")), li(p("b")), li(p("c")))), splitBlock))
 
   it("splits off a normal paragraph when splitting at the start of a textblock", () =>
     apply(doc(h1("<a>foo")), splitBlock, doc(p(), h1("foo"))))
@@ -372,7 +370,7 @@ describe("splitBlock", () => {
   })
   function hDoc(a: number) {
     return withTag(
-      hSchema.nodeUnsafe("doc", null, [hSchema.nodeUnsafe("heading", null, hSchema.textUnsafe("foobar"))]),
+      hSchema.nodeUnsafe("doc", undefined, [hSchema.nodeUnsafe("heading", undefined, hSchema.textUnsafe("foobar"))]),
       a
     )
   }
@@ -381,9 +379,9 @@ describe("splitBlock", () => {
     apply(
       hDoc(4),
       splitBlock,
-      hSchema.nodeUnsafe("doc", null, [
-        hSchema.nodeUnsafe("heading", null, hSchema.textUnsafe("foo")),
-        hSchema.nodeUnsafe("paragraph", null, hSchema.textUnsafe("bar"))
+      hSchema.nodeUnsafe("doc", undefined, [
+        hSchema.nodeUnsafe("heading", undefined, hSchema.textUnsafe("foo")),
+        hSchema.nodeUnsafe("paragraph", undefined, hSchema.textUnsafe("bar"))
       ])
     ))
 
@@ -391,22 +389,22 @@ describe("splitBlock", () => {
     apply(
       hDoc(1),
       splitBlock,
-      hSchema.nodeUnsafe("doc", null, [
-        hSchema.nodeUnsafe("heading", null),
-        hSchema.nodeUnsafe("paragraph", null, hSchema.textUnsafe("foobar"))
+      hSchema.nodeUnsafe("doc", undefined, [
+        hSchema.nodeUnsafe("heading", undefined),
+        hSchema.nodeUnsafe("paragraph", undefined, hSchema.textUnsafe("foobar"))
       ])
     ))
 
   it("can split an inline node", () => {
-    const d = hSchema.nodeUnsafe("doc", null, [
-      hSchema.nodeUnsafe("heading", null, [hSchema.nodeUnsafe("span", null, hSchema.textUnsafe("abcd"))])
+    const d = hSchema.nodeUnsafe("doc", undefined, [
+      hSchema.nodeUnsafe("heading", undefined, [hSchema.nodeUnsafe("span", undefined, hSchema.textUnsafe("abcd"))])
     ])
     apply(
       withTag(d, 4),
       splitBlock,
-      hSchema.nodeUnsafe("doc", null, [
-        hSchema.nodeUnsafe("heading", null, hSchema.nodeUnsafe("span", null, hSchema.textUnsafe("ab"))),
-        hSchema.nodeUnsafe("paragraph", null, hSchema.nodeUnsafe("span", null, hSchema.textUnsafe("cd")))
+      hSchema.nodeUnsafe("doc", undefined, [
+        hSchema.nodeUnsafe("heading", undefined, hSchema.nodeUnsafe("span", undefined, hSchema.textUnsafe("ab"))),
+        hSchema.nodeUnsafe("paragraph", undefined, hSchema.nodeUnsafe("span", undefined, hSchema.textUnsafe("cd")))
       ])
     )
   })
@@ -430,13 +428,13 @@ describe("splitBlock", () => {
         doc: { content: Content.parse("para* section*") }
       }
     })
-    const d = s.nodeUnsafe("doc", null, [s.nodeUnsafe("para", null, [s.textUnsafe("hello")])])
+    const d = s.nodeUnsafe("doc", undefined, [s.nodeUnsafe("para", undefined, [s.textUnsafe("hello")])])
     apply(
       withTag(d, 3),
       splitBlock,
-      s.nodeUnsafe("doc", null, [
-        s.nodeUnsafe("para", null, [s.textUnsafe("he")]),
-        s.nodeUnsafe("para", null, [s.textUnsafe("llo")])
+      s.nodeUnsafe("doc", undefined, [
+        s.nodeUnsafe("para", undefined, [s.textUnsafe("he")]),
+        s.nodeUnsafe("para", undefined, [s.textUnsafe("llo")])
       ])
     )
   })
@@ -446,14 +444,14 @@ describe("splitBlockAs", () => {
   it("splits to the appropriate type", () =>
     apply(
       doc(p("on<a>e")),
-      splitBlockAs((n) => ({ type: present(n.type.schema.nodes.heading), attrs: { level: 1 } })),
+      splitBlockAs((n) => Option.some({ type: present(n.type.schema.nodes.heading), attrs: { level: 1 } })),
       doc(p("on"), h1("<a>e"))
     ))
 
   it("passes an end-of-block flag", () =>
     apply(
       doc(p("one<a>")),
-      splitBlockAs((n, e) => (e ? { type: present(n.type.schema.nodes.code_block) } : null)),
+      splitBlockAs((n, e) => (e ? Option.some({ type: present(n.type.schema.nodes.code_block) }) : Option.none())),
       doc(p("one"), pre("<a>"))
     ))
 })
@@ -486,8 +484,7 @@ describe("liftEmptyBlock", () => {
   it("lifts an only child", () =>
     apply(doc(blockquote(p("foo")), blockquote(p("<a>"))), liftEmptyBlock, doc(blockquote(p("foo")), p("<a>"))))
 
-  it("does not violate schema constraints", () =>
-    apply(doc(ul(li(p("<a>foo"), blockquote(p("bar"))))), liftEmptyBlock, null))
+  it("does not violate schema constraints", () => apply(doc(ul(li(p("<a>foo"), blockquote(p("bar"))))), liftEmptyBlock))
 
   it("lifts out of a list", () => apply(doc(ul(li(p("hi")), li(p("<a>")))), liftEmptyBlock, doc(ul(li(p("hi"))), p())))
 })
@@ -530,10 +527,9 @@ describe("setBlockType", () => {
     ))
 
   it("returns false when all textblocks in the selection are already this type", () =>
-    apply(doc(pre("a<a>bc"), pre("de<b>f")), setCode, null))
+    apply(doc(pre("a<a>bc"), pre("de<b>f")), setCode))
 
-  it("returns false when the selected blocks can't be changed", () =>
-    apply(doc(ul(p("a<a>b<b>c"), p("def"))), setCode, null))
+  it("returns false when the selected blocks can't be changed", () => apply(doc(ul(p("a<a>b<b>c"), p("def"))), setCode))
 })
 
 describe("selectParentNode", () => {

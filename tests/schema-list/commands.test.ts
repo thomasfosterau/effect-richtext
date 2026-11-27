@@ -35,9 +35,9 @@ describe("wrapInList", () => {
   it("can wrap multiple paragraphs", () =>
     apply(doc(p("foo"), p("ba<a>r"), p("ba<b>z")), wrap, doc(p("foo"), ul(li(p("bar")), li(p("baz"))))))
 
-  it("doesn't wrap the first paragraph in a list item", () => apply(doc(ul(li(p("<a>foo")))), wrap, null))
+  it("doesn't wrap the first paragraph in a list item", () => apply(doc(ul(li(p("<a>foo")))), wrap))
 
-  it("doesn't wrap the first para in a different type of list item", () => apply(doc(ol(li(p("<a>foo")))), wrapo, null))
+  it("doesn't wrap the first para in a different type of list item", () => apply(doc(ol(li(p("<a>foo")))), wrapo))
 
   it("does wrap the second paragraph in a list item", () =>
     apply(doc(ul(li(p("foo"), p("<a>bar")))), wrap, doc(ul(li(p("foo"), ul(li(p("bar"))))))))
@@ -56,9 +56,9 @@ describe("wrapInList", () => {
 describe("splitListItem", () => {
   const split = splitListItem(schema.nodes.list_item)
 
-  it("has no effect outside of a list", () => apply(doc(p("foo<a>bar")), split, null))
+  it("has no effect outside of a list", () => apply(doc(p("foo<a>bar")), split))
 
-  it("has no effect on the top level", () => apply(doc("<a>", p("foobar")), split, null))
+  it("has no effect on the top level", () => apply(doc("<a>", p("foobar")), split))
 
   it("can split a list item", () => apply(doc(ul(li(p("foo<a>bar")))), split, doc(ul(li(p("foo")), li(p("bar"))))))
 
@@ -173,7 +173,7 @@ describe("sinkListItem", () => {
     ))
 
   it("won't wrap the first item in a sublist", () =>
-    apply(doc(ul(li(p("o<a><b>ne")), li(p("two")), li(p("three")))), sink, null))
+    apply(doc(ul(li(p("o<a><b>ne")), li(p("two")), li(p("three")))), sink))
 
   it("will move an item's content into the item above", () =>
     apply(
@@ -224,5 +224,5 @@ describe("mixed lists", () => {
     apply(m.doc(m.list(m.task(m.p("a<a>b")))), splitListItem(items), m.doc(m.list(m.task(m.p("a")), m.task(m.p("b"))))))
 
   it("ignores item types that weren't given", () =>
-    apply(m.doc(m.list(m.task(m.p("a<a>b")))), splitListItem(mixed.nodes.item), null))
+    apply(m.doc(m.list(m.task(m.p("a<a>b")))), splitListItem(mixed.nodes.item)))
 })

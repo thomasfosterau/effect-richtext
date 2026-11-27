@@ -19,23 +19,20 @@ import { getSome } from "../utils/option.ts"
 import { present } from "../utils/present.ts"
 
 function compile(expr: ContentExpr): ContentMatch {
-  return ContentMatch.compile(expr, schema.nodes, "test")
+  return ContentMatch.compile(Option.some(expr), schema.nodes, "test")
 }
 
 function get(expr: string): ContentMatch {
   return compile(Content.parse(expr))
 }
 
-function matchTypes(m: ContentMatch | null, types: string): ContentMatch | null {
+function matchTypes(m: ContentMatch, types: string): Option.Option<ContentMatch> {
   const ts = types ? types.split(" ").map((t) => present(schema.nodes[t], "no node type " + t)) : []
-  return Option.getOrNull(
-    Arr.reduce(ts, Option.fromNullishOr(m), (cur, t) => Option.flatMap(cur, (c) => c.matchType(t)))
-  )
+  return Arr.reduce(ts, Option.some(m), (cur, t) => Option.flatMap(cur, (c) => c.matchType(t)))
 }
 
 function match(expr: string, types: string): boolean {
-  const m = matchTypes(get(expr), types)
-  return m !== null && m.validEnd
+  return Option.exists(matchTypes(get(expr), types), (m) => m.validEnd)
 }
 
 function valid(expr: string, types: string) {
@@ -45,13 +42,13 @@ function invalid(expr: string, types: string) {
   ist(!match(expr, types))
 }
 
-function fill(expr: string, before: Node, after: Node, result: Node | null) {
+function fill(expr: string, before: Node, after: Node, result?: Node) {
   const filled = getSome(get(expr).matchFragment(before.content)).fillBefore(after.content, true)
   if (result) ist(getSome(filled), result.content, eq)
   else ist(Option.isNone(filled))
 }
 
-function fill3(expr: string, before: Node, mid: Node, after: Node, left: Node | null, right?: Node) {
+function fill3(expr: string, before: Node, mid: Node, after: Node, left?: Node, right?: Node) {
   const content = get(expr)
   const a = Option.getOrNull(getSome(content.matchFragment(before.content)).fillBefore(mid.content))
   const b =
@@ -146,7 +143,7 @@ describe("ContentMatch", () => {
 
     it("adds an element for a content-less plus", () => fill("hard_break+", p(), p(), p(br())))
 
-    it("fails for a mismatched plus", () => fill("hard_break+", p(), p(img()), null))
+    it("fails for a mismatched plus", () => fill("hard_break+", p(), p(img())))
 
     it("accepts asterisk with content on both sides", () => fill("heading* paragraph*", doc(h1()), doc(p()), doc()))
 
@@ -158,7 +155,7 @@ describe("ContentMatch", () => {
 
     it("adds elements to match a count", () => fill("hard_break{3}", p(br()), p(br()), p(br())))
 
-    it("fails when there are too many elements", () => fill("hard_break{3}", p(br(), br()), p(br(), br()), null))
+    it("fails when there are too many elements", () => fill("hard_break{3}", p(br(), br()), p(br(), br())))
 
     it("adds elements for two counted groups", () =>
       fill("code_block{2} paragraph{2}", doc(pre()), doc(p()), doc(pre(), p())))
@@ -185,12 +182,12 @@ describe("ContentMatch", () => {
     it("completes a count", () =>
       fill3("code_block{3} paragraph{3}", doc(pre()), doc(p()), doc(), doc(pre(), pre()), doc(p(), p())))
 
-    it("fails on non-matching elements", () => fill3("paragraph*", doc(p()), doc(pre()), doc(p()), null))
+    it("fails on non-matching elements", () => fill3("paragraph*", doc(p()), doc(pre()), doc(p())))
 
     it("completes a plus across two bounds", () => fill3("paragraph{4}", doc(p()), doc(p()), doc(p()), doc(), doc(p())))
 
     it("refuses to complete an overflown count across two bounds", () =>
-      fill3("paragraph{2}", doc(p()), doc(p()), doc(p()), null))
+      fill3("paragraph{2}", doc(p()), doc(p()), doc(p())))
   })
 })
 
@@ -242,8 +239,9 @@ describe("Content combinators", () => {
       samples.forEach((sample) => {
         const a = matchTypes(fromString, sample),
           b = matchTypes(fromCombinators, sample)
-        assert.strictEqual(a === null, b === null, `matchability of "${sample}"`)
-        if (a && b) assert.strictEqual(a.validEnd, b.validEnd, `validEnd of "${sample}"`)
+        assert.strictEqual(Option.isNone(a), Option.isNone(b), `matchability of "${sample}"`)
+        if (Option.isSome(a) && Option.isSome(b))
+          assert.strictEqual(a.value.validEnd, b.value.validEnd, `validEnd of "${sample}"`)
       })
       assert.strictEqual(fromString.toString(), fromCombinators.toString())
     })

@@ -30,8 +30,7 @@ import {
   TextSelection,
   type Transaction
 } from "./State.ts"
-import { canJoin } from "./Transform.ts"
-import { findWrappingOrNull } from "./transform/structure.ts"
+import { canJoin, findWrapping } from "./Transform.ts"
 import type { EditorView, HandlerResult } from "./View.ts"
 
 // Resumes after a `setTimeout(0)`; interrupting it clears the timer.
@@ -46,17 +45,14 @@ const nextMacrotask: Effect.Effect<void> = Effect.callback<void>((resume) => {
 
 /**
  * What an input rule handler may return: a transaction describing the
- * rule's effect, `null`/`undefined` (or `None`) when the input was not
- * handled, an `Option` of a transaction, or an Effect producing such an
- * `Option`.
+ * rule's effect, an `Option` of one (`None` when the input was not
+ * handled), or an Effect producing such an `Option`.
  *
  * @since 0.1.0
  * @category models
  */
 export type InputRuleResult<Sc extends AnySchema = AnySchema, E = never, R = never> =
   | Transaction<Sc>
-  | null
-  | undefined
   | Option.Option<Transaction<Sc>>
   | Effect.Effect<Option.Option<Transaction<Sc>>, E, R>
 
@@ -84,18 +80,18 @@ export interface InputRuleOptions {
   /**
    * When set to false, `undoInputRule` doesn't work on this rule.
    */
-  readonly undoable?: boolean | undefined
+  readonly undoable?: boolean
   /**
    * By default, input rules will not apply inside nodes marked as
    * `code`. Set this to true to change that, or to `"only"` to _only_
    * match in such nodes.
    */
-  readonly inCode?: boolean | "only" | undefined
+  readonly inCode?: boolean | "only"
   /**
    * When set to `false`, this rule will not fire inside marks marked as
    * `code`. The default is `true`.
    */
-  readonly inCodeMark?: boolean | undefined
+  readonly inCodeMark?: boolean
 }
 
 /**
@@ -292,8 +288,11 @@ export const inputRules = <const Rules extends ReadonlyArray<InputRule<any, any,
               nextMacrotask,
               Effect.sync(() => {
                 const sel = view.state.selection
-                const $cursor = sel instanceof TextSelection ? sel.$cursorOrNull : null
-                if ($cursor) view.runHandler(run(view, $cursor.pos, $cursor.pos, "", rules, plugin, Option.none()))
+                const $cursor = sel instanceof TextSelection ? sel.$cursor : Option.none()
+                if (Option.isSome($cursor)) {
+                  const pos = $cursor.value.pos
+                  view.runHandler(run(view, pos, pos, "", rules, plugin, Option.none()))
+                }
               })
             )
           )
@@ -340,7 +339,7 @@ function run(
   const state = view.state,
     $from = state.doc.resolveUnsafe(from)
   const textBefore =
-    $from.parent.textBetween(Math.max(0, $from.parentOffset - MAX_MATCH), $from.parentOffset, null, "￼") + text
+    $from.parent.textBetween(Math.max(0, $from.parentOffset - MAX_MATCH), $from.parentOffset, undefined, "￼") + text
   return tryRules({ view, state, $from, from, to, text, textBefore, rules, plugin, deflt, sync: true }, 0)
 }
 
@@ -373,8 +372,8 @@ function tryRules(cx: RunContext, start: number): HandlerResult<any, any> {
   if (!rule.inCodeMark && hasCodeMarkBetween(state.doc, startPos, $from.pos)) return next()
   const result = rule.handler(state, match, startPos, cx.to)
   if (Effect.isEffect(result)) return runEffectRule(cx, rule, result, start + 1)
-  const tr = Option.isOption(result) ? Option.getOrNull(result) : result
-  return tr ? applyRule(cx, rule, tr) : next()
+  if (!Option.isOption(result)) return applyRule(cx, rule, result)
+  return Option.isSome(result) ? applyRule(cx, rule, result.value) : next()
 }
 
 function applyRule(cx: RunContext, rule: InputRule<any, any, any>, tr: Transaction<any>): Effect.Effect<boolean> {
@@ -472,10 +471,9 @@ export const undoInputRule: InputRuleCommand = (state, dispatch) =>
  */
 export type InputRuleAttrs<Sc extends AnySchema, N extends NodeNames<Sc>> =
   | NodeAttrsInput<Sc, N>
-  | null
-  | ((match: RegExpMatchArray) => NodeAttrsInput<Sc, N> | null)
+  | ((match: RegExpMatchArray) => NodeAttrsInput<Sc, N>)
 
-const resolveAttrs = <A>(getAttrs: A | null | ((match: RegExpMatchArray) => A | null), match: RegExpMatchArray) =>
+const resolveAttrs = <A>(getAttrs: A | ((match: RegExpMatchArray) => A), match: RegExpMatchArray): A =>
   Predicate.isFunction(getAttrs) ? getAttrs(match) : getAttrs
 
 /**
@@ -501,23 +499,22 @@ const resolveAttrs = <A>(getAttrs: A | null | ((match: RegExpMatchArray) => A | 
 export const wrappingInputRule = <Sc extends AnySchema, N extends NodeNames<Sc>>(
   regexp: RegExp,
   nodeType: NodeType<Sc, N>,
-  getAttrs: InputRuleAttrs<Sc, N> = null,
+  getAttrs?: InputRuleAttrs<Sc, N>,
   joinPredicate?: (match: RegExpMatchArray, node: Node<Sc>) => boolean
 ): InputRule<Sc> =>
   new InputRule<Sc>(regexp, (state, match, start, end) => {
-    const attrs = resolveAttrs(getAttrs, match)
+    const attrs = getAttrs === undefined ? undefined : resolveAttrs(getAttrs, match)
     const tr = state.tr.deleteUnsafe(start, end)
-    const $start = tr.doc.resolveUnsafe(start),
-      range = $start.blockRangeOrNull()
-    const wrapping = range && findWrappingOrNull(range, nodeType, attrs)
-    if (!wrapping) return null
-    tr.wrapUnsafe(range, wrapping)
-    const before = tr.doc.resolveUnsafe(start - 1).nodeBeforeOrNull
+    const range = tr.doc.resolveUnsafe(start).blockRange()
+    const wrapping = Option.flatMap(range, (r) => findWrapping(r, nodeType, attrs))
+    if (Option.isNone(range) || Option.isNone(wrapping)) return Option.none()
+    tr.wrapUnsafe(range.value, wrapping.value)
+    const before = tr.doc.resolveUnsafe(start - 1).nodeBefore
     if (
-      before &&
-      before.type === nodeType &&
+      Option.isSome(before) &&
+      before.value.type === nodeType &&
       canJoin(tr.doc, start - 1) &&
-      (!joinPredicate || joinPredicate(match, before))
+      (!joinPredicate || joinPredicate(match, before.value))
     ) {
       tr.joinUnsafe(start - 1)
     }
@@ -538,12 +535,12 @@ export const wrappingInputRule = <Sc extends AnySchema, N extends NodeNames<Sc>>
 export const textblockTypeInputRule = <Sc extends AnySchema, N extends NodeNames<Sc>>(
   regexp: RegExp,
   nodeType: NodeType<Sc, N>,
-  getAttrs: InputRuleAttrs<Sc, N> = null
+  getAttrs?: InputRuleAttrs<Sc, N>
 ): InputRule<Sc> =>
   new InputRule<Sc>(regexp, (state, match, start, end) => {
     const $start = state.doc.resolveUnsafe(start)
-    const attrs = resolveAttrs(getAttrs, match)
-    if (!$start.node(-1).canReplaceWith($start.index(-1), $start.indexAfter(-1), nodeType)) return null
+    const attrs = getAttrs === undefined ? undefined : resolveAttrs(getAttrs, match)
+    if (!$start.node(-1).canReplaceWith($start.index(-1), $start.indexAfter(-1), nodeType)) return Option.none()
     return state.tr.deleteUnsafe(start, end).setBlockTypeUnsafe(start, start, nodeType, attrs)
   })
 

@@ -6,6 +6,7 @@
  */
 import * as Arr from "effect/Array"
 import * as Effect from "effect/Effect"
+import * as Option from "effect/Option"
 import {
   baseKeymap,
   deleteSelection,
@@ -177,13 +178,11 @@ export const defineCode = () => defineMarkSpec("code", basicMarks.code)
 
 type MarkArgs<Sc, M extends string> =
   AttrsOptional<MarkSpecOf<Sc, M>> extends true
-    ? [attrs?: MarkAttrsInput<Sc, M> | null, options?: ToggleMarkOptions]
+    ? [attrs?: MarkAttrsInput<Sc, M>, options?: ToggleMarkOptions]
     : [attrs: MarkAttrsInput<Sc, M>, options?: ToggleMarkOptions]
 
 type NodeArgs<Sc, N extends string> =
-  AttrsOptional<NodeSpecOf<Sc, N>> extends true
-    ? [attrs?: NodeAttrsInput<Sc, N> | null]
-    : [attrs: NodeAttrsInput<Sc, N>]
+  AttrsOptional<NodeSpecOf<Sc, N>> extends true ? [attrs?: NodeAttrsInput<Sc, N>] : [attrs: NodeAttrsInput<Sc, N>]
 
 /**
  * `toggleMark(name, attrs?, options?)`: toggles a mark of the editor's
@@ -245,10 +244,10 @@ const insertNode =
         const index = $from.index(d)
         return $from.node(d).canReplaceWith(index, index, type)
       })
-      const node = applies ? type.createAndFillOrNull(attrs) : null
-      if (!node) return succeedFalse
+      const node = applies ? type.createAndFillOption(attrs) : Option.none()
+      if (Option.isNone(node)) return succeedFalse
       return dispatch
-        ? Effect.as(dispatch(state.tr.replaceSelectionWith(node).scrollIntoView()), true)
+        ? Effect.as(dispatch(state.tr.replaceSelectionWith(node.value).scrollIntoView()), true)
         : Effect.succeed(true)
     })
 
@@ -270,11 +269,11 @@ export const defineBaseCommands = (): CommandsExtension<BaseCommands> =>
       (name: string, attrs?: any, options?: ToggleMarkOptions): Command<any> =>
       (state, dispatch, view) => {
         const type = state.schema.marks[name]
-        return type ? toggleMark(type, attrs ?? null, options)(state, dispatch, view) : succeedFalse
+        return type ? toggleMark(type, attrs, options)(state, dispatch, view) : succeedFalse
       },
-    setBlockType: (name: string, attrs?: any) => byNodeName(name, (type) => setBlockType(type, attrs ?? null)),
-    wrapIn: (name: string, attrs?: any) => byNodeName(name, (type) => wrapIn(type, attrs ?? null)),
-    insertNode: (name: string, attrs?: any) => byNodeName(name, (type) => insertNode(type, attrs ?? null)),
+    setBlockType: (name: string, attrs?: any) => byNodeName(name, (type) => setBlockType(type, attrs)),
+    wrapIn: (name: string, attrs?: any) => byNodeName(name, (type) => wrapIn(type, attrs)),
+    insertNode: (name: string, attrs?: any) => byNodeName(name, (type) => insertNode(type, attrs)),
     insertText:
       (text: string, from?: number, to?: number): Command<any> =>
       (state, dispatch) =>
@@ -390,7 +389,7 @@ export const defineList = () =>
  * @since 0.1.0
  * @category basic
  */
-export const defineBasicExtension = (options?: { readonly history?: HistoryOptions | undefined }) =>
+export const defineBasicExtension = (options?: { readonly history?: HistoryOptions }) =>
   union(
     defineDoc(),
     defineText(),

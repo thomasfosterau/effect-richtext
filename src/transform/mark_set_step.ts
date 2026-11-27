@@ -50,7 +50,7 @@ export class MarkSetStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
   apply(doc: Node<Sc>): StepResult<Sc> {
     // Stops at the first failing step and returns its failure.
     return this.steps.reduce(
-      (result, step) => (result.docOrNull === null ? result : step.apply(result.docOrNull)),
+      (result, step) => (Option.isNone(result.doc) ? result : step.apply(result.doc.value)),
       StepResult.ok(doc)
     )
   }

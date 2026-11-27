@@ -12,6 +12,7 @@
  */
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
+import * as Rec from "effect/Record"
 import * as V from "../View.ts"
 import { DecorationGroup as CoreDecorationGroup } from "../view/decoration.ts"
 import { adopt, CORE, guard, link, registerWrapper, unwrap, unwrapArray, wrap, wrapArray } from "./internal/core.ts"
@@ -63,13 +64,16 @@ export type DecorationAttrs = {
   [attribute: string]: string | undefined
 }
 
+// Core decoration attributes leave out unset attributes rather than holding `undefined`.
+const attrsToCore = (attrs: DecorationAttrs): V.DecorationAttrs => Rec.getSomes(Rec.map(attrs, Option.fromUndefinedOr))
+
 const widgetConstructors = new WeakMap<object, V.WidgetConstructor>()
 
 const widgetToCore = (toDOM: any): V.WidgetConstructor => {
   if (!Predicate.isFunction(toDOM)) return toDOM
   let found = widgetConstructors.get(toDOM)
   if (!found) {
-    found = (view, getPos) => toDOM(wrap(view), getPos)
+    found = (view, getPos) => toDOM(wrap(view), () => Option.getOrUndefined(getPos()))
     widgetConstructors.set(toDOM, found)
   }
   return found
@@ -153,12 +157,12 @@ export class Decoration {
     attrs: DecorationAttrs,
     spec?: { inclusiveStart?: boolean; inclusiveEnd?: boolean; [key: string]: any }
   ): Decoration {
-    return wrap(V.Decoration.inline(from, to, attrs, spec))
+    return wrap(V.Decoration.inline(from, to, attrsToCore(attrs), spec))
   }
 
   /** Creates a node decoration. */
   static node(from: number, to: number, attrs: DecorationAttrs, spec?: any): Decoration {
-    return wrap(V.Decoration.node(from, to, attrs, spec))
+    return wrap(V.Decoration.node(from, to, attrsToCore(attrs), spec))
   }
 }
 
@@ -488,7 +492,9 @@ export class EditorView {
     this.dispatch = this.dispatch.bind(this)
     constructing.push(this)
     try {
-      const core = guard(() => V.EditorView.makeUnsafe(place, this.propsToCore(props)))
+      // The core view takes a placing function that does nothing for a detached editor.
+      const corePlace = place ?? (() => {})
+      const core = guard(() => V.EditorView.makeUnsafe(corePlace, this.propsToCore(props)))
       link(this, core)
     } finally {
       constructing.pop()
@@ -517,11 +523,11 @@ export class EditorView {
   /** When editor content is being dragged, this object contains information about the dragged slice and whether it is being copied or moved. */
   get dragging(): null | { readonly slice: Slice; readonly move: boolean } {
     const dragging = this[CORE].dragging
-    return dragging && { slice: wrap(dragging.slice), move: dragging.move }
+    return Option.getOrNull(Option.map(dragging, ({ move, slice }) => ({ slice: wrap(slice), move })))
   }
 
   set dragging(value: null | { readonly slice: Slice; readonly move: boolean }) {
-    this[CORE].dragging = value && { slice: value.slice[CORE], move: value.move }
+    this[CORE].dragging = value ? Option.some({ slice: value.slice[CORE], move: value.move }) : Option.none()
   }
 
   /** Holds `true` when a composition is active. */
@@ -684,7 +690,7 @@ export class EditorView {
 
   /** @internal */
   domSelection(): globalThis.Selection | null {
-    return this[CORE].domSelection()
+    return Option.getOrNull(this[CORE].domSelection())
   }
 
   /** @internal */
@@ -714,23 +720,22 @@ export class EditorView {
 
   /** @internal */
   get markCursor(): ReadonlyArray<Mark> | null {
-    const marks = this[CORE].markCursor
-    return marks && wrapArray(marks)
+    return Option.getOrNull(Option.map(this[CORE].markCursor, wrapArray))
   }
 
   /** @internal */
   get cursorWrapper(): any {
-    return this[CORE].cursorWrapper
+    return Option.getOrNull(this[CORE].cursorWrapper)
   }
 
   /** @internal */
   get lastSelectedViewDesc(): any {
-    return this[CORE].lastSelectedViewDesc
+    return Option.getOrUndefined(this[CORE].lastSelectedViewDesc)
   }
 
   /** @internal */
   get trackWrites(): DOMNode | null {
-    return this[CORE].trackWrites
+    return Option.getOrNull(this[CORE].trackWrites)
   }
 
   /** @internal */
@@ -767,7 +772,8 @@ export const __parseFromClipboard = (
   html: string | null,
   plainText: boolean,
   $context: ResolvedPos
-): Slice | null => wrap(V.__parseFromClipboard(view[CORE], text, html, plainText, $context[CORE]))
+): Slice | null =>
+  wrap(Option.getOrNull(V.__parseFromClipboard(view[CORE], text, html ?? "", plainText, $context[CORE])))
 
 /** @internal */
 export const __endComposition = (view: EditorView, restarting = false): boolean =>

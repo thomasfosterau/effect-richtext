@@ -67,12 +67,13 @@ const ORIGINAL: unique symbol = Symbol.for("effect-richtext/compat/original")
 
 /** @internal */
 export const fragmentInput = (content: unknown): any => {
-  if (content == null) return content
+  if (content == null) return undefined
   if (Array.isArray(content)) return unwrapArray(content)
   return unwrap(content)
 }
 
-const marksInput = (marks: ReadonlyArray<Mark> | null | undefined): any => (marks == null ? marks : unwrapArray(marks))
+const marksInput = (marks: ReadonlyArray<Mark> | null | undefined): any =>
+  marks == null ? undefined : unwrapArray(marks)
 
 const nullable = <A>(o: Option.Option<A>): any => wrap(Option.getOrNull(o))
 
@@ -93,7 +94,7 @@ export class Node {
 
   /** @internal */
   constructor(type: NodeType, attrs: Attrs, content?: Fragment | null, marks: ReadonlyArray<Mark> = Mark.none) {
-    link(this, new M.Node(type[CORE], attrs, content ? content[CORE] : null, unwrapArray(marks)))
+    link(this, new M.Node(type[CORE], attrs, content ? content[CORE] : undefined, unwrapArray(marks)))
   }
 
   /** The type of node that this is. */
@@ -178,7 +179,7 @@ export class Node {
     blockSeparator?: string | null,
     leafText?: null | string | ((leafNode: Node) => string)
   ): string {
-    return this[CORE].textBetween(from, to, blockSeparator, leafTextInput(leafText))
+    return this[CORE].textBetween(from, to, blockSeparator ?? undefined, leafTextInput(leafText))
   }
 
   /** Returns this node's first child, or `null` if there are no children. */
@@ -203,12 +204,12 @@ export class Node {
 
   /** Check whether this node's markup correspond to the given type, attributes, and marks. */
   hasMarkup(type: NodeType, attrs?: Attrs | null, marks?: ReadonlyArray<Mark>): boolean {
-    return this[CORE].hasMarkup(type[CORE], attrs, marksInput(marks))
+    return this[CORE].hasMarkup(type[CORE], attrs ?? undefined, marksInput(marks))
   }
 
   /** Create a new node with the same markup as this node, containing the given content. */
   copy(content: Fragment | null = null): Node {
-    return wrap(this[CORE].copy(content && content[CORE]))
+    return wrap(this[CORE].copy(content ? content[CORE] : undefined))
   }
 
   /** Create a copy of this node, with the given set of marks instead of the node's own marks. */
@@ -233,7 +234,7 @@ export class Node {
 
   /** Find the node directly after the given position. */
   nodeAt(pos: number): Node | null {
-    return wrap(this[CORE].nodeAtOrNull(pos))
+    return nullable(this[CORE].nodeAt(pos))
   }
 
   /** Find the (direct) child node after the given offset, if any. */
@@ -364,7 +365,7 @@ const visitor =
     f(wrap(node), pos, nullable(parent), index)
 
 const leafTextInput = (leafText: null | undefined | string | ((leafNode: Node) => string)) =>
-  Predicate.isFunction(leafText) ? (node: M.Node) => leafText(wrap(node)) : leafText
+  Predicate.isFunction(leafText) ? (node: M.Node) => leafText(wrap(node)) : (leafText ?? undefined)
 
 registerWrapper(M.Node, (core) => adopt(Node.prototype, core))
 registerWrapper(M.TextNode, (core) => adopt(TextNode.prototype, core))
@@ -421,7 +422,7 @@ export class Fragment {
     blockSeparator?: string | null,
     leafText?: string | null | ((leafNode: Node) => string)
   ): string {
-    return this[CORE].textBetween(from, to, blockSeparator, leafTextInput(leafText))
+    return this[CORE].textBetween(from, to, blockSeparator ?? undefined, leafTextInput(leafText))
   }
 
   /** Create a new fragment containing the combined content of this fragment and the other. */
@@ -520,7 +521,7 @@ export class Fragment {
 
   /** Create a JSON-serializeable representation of this fragment. */
   toJSON(): any {
-    return this[CORE].toJSON()
+    return this[CORE].childCount ? this[CORE].toJSON() : null
   }
 
   /** Deserialize a fragment from its JSON representation. */
@@ -690,7 +691,7 @@ export class Slice {
 
   /** Convert a slice to a JSON-serializable representation. */
   toJSON(): any {
-    return this[CORE].toJSON()
+    return this[CORE].content.size ? this[CORE].toJSON() : null
   }
 
   /** Deserialize a slice from its JSON representation. */
@@ -770,37 +771,37 @@ export class ResolvedPos {
 
   /** The ancestor node at the given level. */
   node(depth?: number | null): Node {
-    return wrap(this[CORE].node(depth))
+    return wrap(this[CORE].node(depth ?? undefined))
   }
 
   /** The index into the ancestor at the given level. */
   index(depth?: number | null): number {
-    return this[CORE].index(depth)
+    return this[CORE].index(depth ?? undefined)
   }
 
   /** The index pointing after this position into the ancestor at the given level. */
   indexAfter(depth?: number | null): number {
-    return this[CORE].indexAfter(depth)
+    return this[CORE].indexAfter(depth ?? undefined)
   }
 
   /** The (absolute) position at the start of the node at the given level. */
   start(depth?: number | null): number {
-    return this[CORE].start(depth)
+    return this[CORE].start(depth ?? undefined)
   }
 
   /** The (absolute) position at the end of the node at the given level. */
   end(depth?: number | null): number {
-    return this[CORE].end(depth)
+    return this[CORE].end(depth ?? undefined)
   }
 
   /** The (absolute) position directly before the wrapping node at the given level. */
   before(depth?: number | null): number {
-    return guard(() => this[CORE].beforeUnsafe(depth))
+    return guard(() => this[CORE].beforeUnsafe(depth ?? undefined))
   }
 
   /** The (absolute) position directly after the wrapping node at the given level. */
   after(depth?: number | null): number {
-    return guard(() => this[CORE].afterUnsafe(depth))
+    return guard(() => this[CORE].afterUnsafe(depth ?? undefined))
   }
 
   /** When this position points into a text node, this returns the distance between the position and the start of the text node. */
@@ -810,17 +811,17 @@ export class ResolvedPos {
 
   /** Get the node directly after the position, if any. */
   get nodeAfter(): Node | null {
-    return wrap(this[CORE].nodeAfterOrNull)
+    return nullable(this[CORE].nodeAfter)
   }
 
   /** Get the node directly before the position, if any. */
   get nodeBefore(): Node | null {
-    return wrap(this[CORE].nodeBeforeOrNull)
+    return nullable(this[CORE].nodeBefore)
   }
 
   /** Get the position at the given index in the parent node at the given depth. */
   posAtIndex(index: number, depth?: number | null): number {
-    return this[CORE].posAtIndex(index, depth)
+    return this[CORE].posAtIndex(index, depth ?? undefined)
   }
 
   /** Get the marks at this position. */
@@ -830,7 +831,7 @@ export class ResolvedPos {
 
   /** Get the marks after the current position, if any, except those that are non-inclusive and not present at position `$end`. */
   marksAcross($end: ResolvedPos): ReadonlyArray<Mark> | null {
-    const marks = this[CORE].marksAcrossOrNull($end[CORE])
+    const marks = Option.getOrNull(this[CORE].marksAcross($end[CORE]))
     return marks && wrapArray(marks)
   }
 
@@ -841,7 +842,7 @@ export class ResolvedPos {
 
   /** Returns a range based on the place where this position and the given position diverge around block content. */
   blockRange(other: ResolvedPos = this, pred?: (node: Node) => boolean): NodeRange | null {
-    return wrap(this[CORE].blockRangeOrNull(other[CORE], pred && ((node) => pred(wrap(node)))))
+    return nullable(this[CORE].blockRange(other[CORE], pred && ((node) => pred(wrap(node)))))
   }
 
   /** Query whether the given position shares the same parent node. */
@@ -970,17 +971,17 @@ export class ContentMatch {
   static parse(string: string, nodeTypes: { readonly [name: string]: NodeType }): ContentMatch {
     const types: Record<string, M.NodeType> = {}
     Rec.toEntries(nodeTypes).forEach(([name, type]) => (types[name] = type[CORE]))
-    return wrap(guard(() => M.ContentMatch.compile(string, types, "")))
+    return wrap(guard(() => M.ContentMatch.compile(Option.some(string), types, "")))
   }
 
   /** Match a node type, returning a match after that node if successful. */
   matchType(type: NodeType): ContentMatch | null {
-    return wrap(this[CORE].matchTypeOrNull(type[CORE]))
+    return wrap(Option.getOrNull(this[CORE].matchType(type[CORE])))
   }
 
   /** Try to match a fragment. Returns the resulting match when successful. */
   matchFragment(frag: Fragment, start = 0, end: number = frag.childCount): ContentMatch | null {
-    return wrap(this[CORE].matchFragmentOrNull(frag[CORE], start, end))
+    return wrap(Option.getOrNull(this[CORE].matchFragment(frag[CORE], start, end)))
   }
 
   /** @internal */
@@ -990,7 +991,7 @@ export class ContentMatch {
 
   /** Get the first matching node type at this match position that can be generated. */
   get defaultType(): NodeType | null {
-    return wrap(this[CORE].defaultTypeOrNull)
+    return wrap(Option.getOrNull(this[CORE].defaultType))
   }
 
   /** @internal */
@@ -1000,13 +1001,12 @@ export class ContentMatch {
 
   /** Try to match the given fragment, and if that fails, see if it can be made to match by inserting nodes in front of it. */
   fillBefore(after: Fragment, toEnd = false, startIndex = 0): Fragment | null {
-    return wrap(this[CORE].fillBeforeOrNull(after[CORE], toEnd, startIndex))
+    return wrap(Option.getOrNull(this[CORE].fillBefore(after[CORE], toEnd, startIndex)))
   }
 
   /** Find a set of wrapping node types that would allow a node of the given type to appear at this position. */
   findWrapping(target: NodeType): ReadonlyArray<NodeType> | null {
-    const found = this[CORE].findWrappingOrNull(target[CORE])
-    return found && wrapArray(found)
+    return Option.match(this[CORE].findWrapping(target[CORE]), { onNone: () => null, onSome: wrapArray })
   }
 
   /** The number of outgoing edges this node has in the finite automaton that describes the content expression. */
@@ -1168,8 +1168,15 @@ export interface StyleParseRule extends GenericParseRule {
 export type ParseRule = TagParseRule | StyleParseRule
 
 const translateRule = (rule: any): any => {
-  if (!rule.getContent && !rule.clearMark) return rule
+  if (!rule.getContent && !rule.clearMark && !rule.getAttrs && rule.namespace === undefined) return rule
   const copy = { ...rule, [ORIGINAL]: rule }
+  if (rule.getAttrs) {
+    copy.getAttrs = (input: unknown) => {
+      const attrs = rule.getAttrs(input)
+      return attrs === false ? false : attrs == null ? true : attrs
+    }
+  }
+  if (rule.namespace !== undefined) copy.namespace = Option.fromNullishOr(rule.namespace)
   if (rule.getContent) {
     copy.getContent = (dom: globalThis.Node, schema: M.AnySchema) => unwrap(rule.getContent(dom, wrap(schema)))
   }
@@ -1237,7 +1244,7 @@ export class NodeType {
 
   /** @internal */
   get defaultAttrs(): Attrs | null {
-    return this[CORE].defaultAttrs
+    return Option.getOrNull(this[CORE].defaultAttrs)
   }
 
   /** True if this is a block type. */
@@ -1262,8 +1269,7 @@ export class NodeType {
 
   /** The set of marks allowed in this node. `null` means all marks are allowed. */
   get markSet(): ReadonlyArray<MarkType> | null {
-    const set = this[CORE].markSet
-    return set && wrapArray(set)
+    return Option.getOrNull(Option.map(this[CORE].markSet, wrapArray))
   }
 
   /** True if this is an inline type. */
@@ -1308,7 +1314,7 @@ export class NodeType {
 
   /** @internal */
   computeAttrs(attrs: Attrs | null | undefined): Attrs {
-    return guard(() => this[CORE].computeAttrs(attrs))
+    return guard(() => this[CORE].computeAttrs(attrs ?? undefined))
   }
 
   /** Create a `Node` of this type. */
@@ -1317,7 +1323,7 @@ export class NodeType {
     content?: Fragment | Node | ReadonlyArray<Node> | null,
     marks?: ReadonlyArray<Mark>
   ): Node {
-    return wrap(guard(() => this[CORE].createUnsafe(attrs, fragmentInput(content), marksInput(marks))))
+    return wrap(guard(() => this[CORE].createUnsafe(attrs ?? undefined, fragmentInput(content), marksInput(marks))))
   }
 
   /** Like `create`, but check the given content against the node type's content restrictions. */
@@ -1326,7 +1332,9 @@ export class NodeType {
     content?: Fragment | Node | ReadonlyArray<Node> | null,
     marks?: ReadonlyArray<Mark>
   ): Node {
-    return wrap(guard(() => this[CORE].createCheckedUnsafe(attrs, fragmentInput(content), marksInput(marks))))
+    return wrap(
+      guard(() => this[CORE].createCheckedUnsafe(attrs ?? undefined, fragmentInput(content), marksInput(marks)))
+    )
   }
 
   /** Like `create`, but see if it is necessary to add nodes to the start or end of the given fragment to make it fit the node. */
@@ -1335,7 +1343,11 @@ export class NodeType {
     content?: Fragment | Node | ReadonlyArray<Node> | null,
     marks?: ReadonlyArray<Mark>
   ): Node | null {
-    return wrap(guard(() => this[CORE].createAndFillOrNull(attrs, fragmentInput(content), marksInput(marks))))
+    return wrap(
+      guard(() =>
+        Option.getOrNull(this[CORE].createAndFillOption(attrs ?? undefined, fragmentInput(content), marksInput(marks)))
+      )
+    )
   }
 
   /** Returns true if the given fragment is valid content for this node type. */
@@ -1435,7 +1447,7 @@ export class MarkType {
 
   /** Tests whether there is a mark of this type in the given set. */
   isInSet(set: ReadonlyArray<Mark>): Mark | undefined {
-    return wrap(this[CORE].findInSet(unwrapArray(set)))
+    return nullable(this[CORE].isInSet(unwrapArray(set)))
   }
 
   /** @internal */
@@ -1512,7 +1524,10 @@ export class Schema<Nodes extends string = any, Marks extends string = any> {
     instanceSpec.marks.forEach((name: string, s: MarkSpec) => {
       marks[name] = translateMarkSpec(s)
     })
-    const core = guard(() => M.DocSchema.makeUnsafe({ nodes, marks, topNode: spec.topNode }))
+    const core = guard(() =>
+      M.DocSchema.makeUnsafe(spec.topNode === undefined ? { nodes, marks } : { nodes, marks, topNode: spec.topNode })
+    )
+
     link(this, core)
     initSchema(this, core, instanceSpec)
   }
@@ -1529,7 +1544,7 @@ export class Schema<Nodes extends string = any, Marks extends string = any> {
         this[CORE].nodeUnsafe(
           // SAFETY: a facade schema's core is untyped, so any of its node types fits.
           Predicate.isString(type) ? type : (type[CORE] as any),
-          attrs,
+          attrs ?? undefined,
           fragmentInput(content),
           marksInput(marks)
         )
@@ -1629,8 +1644,7 @@ export const parseOptions = (options: ParseOptions | undefined): M.ParseOptions 
   if (options.ruleFromNode) {
     const f = options.ruleFromNode
     result.ruleFromNode = (node: globalThis.Node) => {
-      const rule = f(node)
-      return rule && translateRule(rule)
+      return Option.map(Option.fromNullishOr(f(node)), translateRule)
     }
   }
   return result
@@ -1756,11 +1770,11 @@ export class DOMSerializer {
       const f = nodes[name]
       if (f) coreNodes[name] = (node) => f(wrap(node))
     }
-    const coreMarks: Record<string, M.MarkSerializer | null | undefined> = {}
+    const coreMarks: Record<string, M.MarkSerializer> = {}
     // oxlint-disable-next-line effect/imperative-loops
     for (const name in marks) {
       const f = marks[name]
-      coreMarks[name] = f ? (mark, inline) => f(wrap(mark), inline) : f
+      if (f) coreMarks[name] = (mark, inline) => f(wrap(mark), inline)
     }
     link(this, new M.DOMSerializer(coreNodes, coreMarks))
   }
@@ -1786,7 +1800,7 @@ export class DOMSerializer {
     options: { document?: Document } = {}
   ): { dom: globalThis.Node; contentDOM?: HTMLElement } | null {
     // SAFETY: the core's rendered spec, whose `contentDOM` may be explicitly `undefined`.
-    return guard(() => this[CORE].serializeMarkOrNull(mark[CORE], inline, options)) as any
+    return guard(() => Option.getOrNull(this[CORE].serializeMark(mark[CORE], inline, options))) as any
   }
 
   /** Render an output spec to a DOM node. */
@@ -1797,7 +1811,7 @@ export class DOMSerializer {
     blockArraysIn?: { [name: string]: any }
   ): { dom: globalThis.Node; contentDOM?: HTMLElement } {
     // SAFETY: the core's rendered spec, whose `contentDOM` may be explicitly `undefined`.
-    return guard(() => M.DOMSerializer.renderSpecUnsafe(doc, structure, xmlNS, blockArraysIn)) as any
+    return guard(() => M.DOMSerializer.renderSpecUnsafe(doc, structure, xmlNS ?? undefined, blockArraysIn)) as any
   }
 
   /** Build a serializer using the `toDOM` properties in a schema's node and mark specs. */

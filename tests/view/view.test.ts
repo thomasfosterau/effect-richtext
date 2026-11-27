@@ -38,8 +38,9 @@ describe("EditorView", () => {
 
   it("can update props with setProp", () => {
     const view = tempEditor({ scrollThreshold: 100 })
+    const { scrollThreshold: _, ...rest } = view.props
+    view.update(rest)
     view.setProps({
-      scrollThreshold: undefined,
       scrollMargin: 10,
       state: view.state.applyUnsafe(view.state.tr.insertTextUnsafe("y"))
     })
@@ -51,7 +52,7 @@ describe("EditorView", () => {
   it("can update with a state using a different schema", () => {
     const testSchema = DocSchema.makeUnsafe({ nodes: schema.spec.nodes })
     const view = tempEditor({ doc: doc(p(strong("foo"))) })
-    view.updateState(EditorState.createUnsafe({ doc: testSchema.nodes.doc.createAndFillOrNull() ?? undefined }))
+    view.updateState(EditorState.createUnsafe({ doc: getSome(testSchema.nodes.doc.createAndFillOption()) }))
     ist(!view.dom.querySelector("strong"))
   })
 

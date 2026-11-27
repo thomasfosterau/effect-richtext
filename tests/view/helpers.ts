@@ -41,7 +41,7 @@ export function selFor(doc: PMNode<any>): Selection<any> {
   return Selection.atStart(doc)
 }
 
-let tempView: EditorView<any> | null = null
+let tempView = Option.none<EditorView<any>>()
 
 export type TempEditorProps = Partial<Omit<DirectEditorProps<any>, "plugins">> & {
   readonly plugins?: ReadonlyArray<Plugin<any, any, any>>
@@ -50,33 +50,33 @@ export type TempEditorProps = Partial<Omit<DirectEditorProps<any>, "plugins">> &
 
 export function tempEditor(inProps: TempEditorProps = {}): EditorView<any> {
   const space = workspace()
-  if (tempView) {
-    tempView.destroy()
-    tempView = null
+  if (Option.isSome(tempView)) {
+    tempView.value.destroy()
+    tempView = Option.none()
   }
 
   const { plugins, ...rest } = inProps
   const state = EditorState.createUnsafe({
-    doc: inProps.doc,
     schema,
-    selection: inProps.doc && selFor(inProps.doc),
-    plugins
+    ...(inProps.doc && { doc: inProps.doc, selection: selFor(inProps.doc) }),
+    ...(plugins && { plugins })
   })
   // SAFETY: the fixtures' plugins declare no failures the view could surface, so
   // the state's error channel is narrowed to the view's default (`never`).
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   const props: DirectEditorProps<any> = { ...rest, state: state as EditorState<any> }
-  return (tempView = EditorView.makeUnsafe(space, props))
+  const view = EditorView.makeUnsafe(space, props)
+  tempView = Option.some(view)
+  return view
 }
 
-export function findTextNode(node: Node, text: string): Text | undefined {
+export function findTextNode(node: Node, text: string): Option.Option<Text> {
   if (node.nodeType == 3) {
-    if (node.nodeValue == text) return instanceOf(Text, node)
+    return node.nodeValue == text ? Option.some(instanceOf(Text, node)) : Option.none()
   } else if (node.nodeType == 1) {
-    const found = Arr.findFirst(Array.from(node.childNodes), (ch) => Option.fromUndefinedOr(findTextNode(ch, text)))
-    return Option.getOrUndefined(found)
+    return Arr.findFirst(Array.from(node.childNodes), (ch) => findTextNode(ch, text))
   }
-  return undefined
+  return Option.none()
 }
 
 export function requireFocus<V extends EditorView<any, any, any>>(pm: V): V {

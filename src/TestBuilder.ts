@@ -169,22 +169,18 @@ function flatten<Sc extends AnySchema>(
   return { nodes: result, tag }
 }
 
-function takeAttrs(attrs: Attrs | null, args: Array<unknown>): Attrs | null {
+function takeAttrs(attrs: Attrs, args: Array<unknown>): Attrs {
   const a0 = args[0]
   if (!args.length || (a0 && (Predicate.isString(a0) || a0 instanceof Node || isFlat(a0)))) return attrs
   args.shift()
   // SAFETY: a first argument that isn't a child holds the attributes.
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   const given = a0 as Attrs
-  if (!attrs) return given
   if (!given) return attrs
   return { ...attrs, ...given }
 }
 
-function block<Sc extends AnySchema, N extends NodeNames<Sc>>(
-  type: NodeType<Sc, N>,
-  attrs: Attrs | null = null
-): NodeBuilder<Sc, N> {
+function block<Sc extends AnySchema, N extends NodeNames<Sc>>(type: NodeType<Sc, N>, attrs: Attrs): NodeBuilder<Sc, N> {
   const result = function (...args: Array<any>) {
     const myAttrs = takeAttrs(attrs, args)
     // SAFETY: `takeAttrs` removed the attributes, leaving the children.
@@ -201,9 +197,9 @@ function block<Sc extends AnySchema, N extends NodeNames<Sc>>(
   return result as NodeBuilder<Sc, N>
 }
 
-function mark<Sc extends AnySchema>(type: MarkType<Sc>, attrs: Attrs | null): MarkBuilder<Sc> {
+function mark<Sc extends AnySchema>(type: MarkType<Sc>, attrs: Attrs): MarkBuilder<Sc> {
   return function (...args: Array<any>) {
-    const m = type.createUnsafe(takeAttrs(attrs, args) ?? undefined)
+    const m = type.createUnsafe(takeAttrs(attrs, args))
     // SAFETY: `takeAttrs` removed the attributes, leaving the children.
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const { nodes, tag } = flatten(type.schema, args as Array<ChildSpec<Sc>>, (n) => {

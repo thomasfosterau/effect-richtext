@@ -30,10 +30,11 @@ export class AttrStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
   }
 
   apply(doc: Node<Sc>): StepResult<Sc> {
-    const node = doc.nodeAtOrNull(this.pos)
-    if (!node) return StepResult.fail("No node at attribute step's position")
+    const nodeFound = doc.nodeAt(this.pos)
+    if (Option.isNone(nodeFound)) return StepResult.fail("No node at attribute step's position")
+    const node = nodeFound.value
     const attrs = { ...node.attrs, [this.attr]: this.value }
-    const updated = node.type.createUnsafe(attrs, null, node.marks)
+    const updated = node.type.createUnsafe(attrs, undefined, node.marks)
     return StepResult.fromReplace(
       doc,
       this.pos,
@@ -47,8 +48,9 @@ export class AttrStep<Sc extends AnySchema = AnySchema> extends Step<Sc> {
   }
 
   invert(doc: Node<Sc>): Step<Sc> {
-    const node = doc.nodeAtOrNull(this.pos)
-    if (!node) throw new StepError({ message: "No node at attribute step's position" })
+    const nodeFound = doc.nodeAt(this.pos)
+    if (Option.isNone(nodeFound)) throw new StepError({ message: "No node at attribute step's position" })
+    const node = nodeFound.value
     const attrs: Attrs = node.attrs
     return new AttrStep(this.pos, this.attr, attrs[this.attr])
   }

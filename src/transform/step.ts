@@ -154,43 +154,35 @@ export abstract class Step<Sc extends AnySchema = AnySchema> {
 export class StepResult<Sc extends AnySchema = AnySchema> {
   /** @internal */
   constructor(
-    /** @internal */
-    readonly docOrNull: Node<Sc> | null,
-    /** @internal */
-    readonly failedOrNull: string | null
+    /** The transformed document, if successful. */
+    readonly doc: Option.Option<Node<Sc>>,
+    /** The failure message, if unsuccessful. */
+    readonly failed: Option.Option<string>
   ) {}
-
-  /** The transformed document, if successful. */
-  get doc(): Option.Option<Node<Sc>> {
-    return Option.fromNullishOr(this.docOrNull)
-  }
-
-  /** The failure message, if unsuccessful. */
-  get failed(): Option.Option<string> {
-    return Option.fromNullishOr(this.failedOrNull)
-  }
 
   /** Convert the result to an Effect that fails with a `StepError` for failed results. */
   toEffect(): Effect.Effect<Node<Sc>, StepError> {
-    return this.docOrNull !== null
-      ? Effect.succeed(this.docOrNull)
-      : Effect.fail(new StepError({ message: this.failedOrNull ?? "Step failed" }))
+    return Option.isSome(this.doc)
+      ? Effect.succeed(this.doc.value)
+      : Effect.fail(new StepError({ message: Option.getOrElse(this.failed, () => "Step failed") }))
   }
 
   /** Get the resulting document, throwing a `StepError` for failed results. */
   getUnsafe(): Node<Sc> {
-    if (this.docOrNull === null) throw new StepError({ message: this.failedOrNull ?? "Step failed" })
-    return this.docOrNull
+    if (Option.isNone(this.doc)) {
+      throw new StepError({ message: Option.getOrElse(this.failed, () => "Step failed") })
+    }
+    return this.doc.value
   }
 
   /** Create a successful step result. */
   static ok<Sc extends AnySchema>(doc: Node<Sc>): StepResult<Sc> {
-    return new StepResult(doc, null)
+    return new StepResult(Option.some(doc), Option.none())
   }
 
   /** Create a failed step result. */
   static fail<Sc extends AnySchema = AnySchema>(message: string): StepResult<Sc> {
-    return new StepResult<Sc>(null, message)
+    return new StepResult<Sc>(Option.none(), Option.some(message))
   }
 
   /**

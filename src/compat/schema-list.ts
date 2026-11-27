@@ -7,6 +7,7 @@
  *
  * @since 0.1.0
  */
+import * as Option from "effect/Option"
 import * as SL from "../SchemaList.ts"
 import { fromCoreCommand } from "./commands.ts"
 import { CORE } from "./internal/core.ts"
@@ -103,7 +104,7 @@ export function addListNodes(
  * @category commands
  */
 export function wrapInList(listType: NodeType, attrs: Attrs | null = null): Command {
-  return fromCoreCommand(SL.wrapInList(listType[CORE], attrs))
+  return fromCoreCommand(SL.wrapInList(listType[CORE], attrs ?? undefined))
 }
 
 /**
@@ -121,7 +122,12 @@ export function wrapRangeInList(
   attrs: Attrs | null = null
 ): boolean {
   // SAFETY: a facade transaction's core is untyped, so it fits any list type.
-  return SL.wrapRangeInList(tr ? (tr[CORE] as any) : null, range[CORE], listType[CORE], attrs)
+  return SL.wrapRangeInList(
+    tr ? Option.some(tr[CORE] as any) : Option.none(),
+    range[CORE],
+    listType[CORE],
+    attrs ?? undefined
+  )
 }
 
 // One item type or several (prosemirror-schema-list 1.6.0), as core types.

@@ -23,7 +23,8 @@ export function run(state: EditorState<any>, command: Command<any, any>): Editor
   return state
 }
 
-export function apply(doc: Node<any>, command: Command<any, any>, result: Node<any> | null): void {
+// Without `result`, the command is expected to leave the document unchanged.
+export function apply(doc: Node<any>, command: Command<any, any>, result?: Node<any>): void {
   const state = run(mkState(doc), command)
   ist(state.doc, result || doc, eq)
   if (result && tagsOf(result).a != null) ist(state.selection, selFor(result), eq)

@@ -1,11 +1,11 @@
 // Ported from prosemirror-view/test/webtest-clipboard.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
+import * as Option from "effect/Option"
 import { Content, DocSchema, Fragment, Slice } from "@thomasfosterau/effect-richtext/Model"
 import { NodeSelection, TextSelection } from "@thomasfosterau/effect-richtext/State"
 import { blockquote, br, doc, eq, hr, li, ol, p, strong, tagsOf, ul } from "@thomasfosterau/effect-richtext/TestBuilder"
 import ist from "../utils/ist.ts"
 import { getSome } from "../utils/option.ts"
-import { present } from "../utils/present.ts"
 import { tempEditor } from "./helpers.ts"
 
 import { __parseFromClipboard } from "@thomasfosterau/effect-richtext/View"
@@ -13,7 +13,7 @@ import { __parseFromClipboard } from "@thomasfosterau/effect-richtext/View"
 const embedContext = (url: string) => `<p data-pm-slice='1 1 ["embed",{"url":"${url}"}]'>hi</p>`
 
 const parseFromClipboard = (...args: Parameters<typeof __parseFromClipboard>) =>
-  present(__parseFromClipboard(...args), "expected a pasted slice")
+  getSome(__parseFromClipboard(...args), "expected a pasted slice")
 
 function tableSchema() {
   return DocSchema.makeUnsafe({
@@ -141,7 +141,7 @@ describe("Clipboard interface", () => {
       }
     })
     ist(
-      parseFromClipboard(view, "def", null, false, view.state.doc.resolveUnsafe(1)),
+      parseFromClipboard(view, "def", "", false, view.state.doc.resolveUnsafe(1)),
       new Slice(doc(p("abc")).content, 1, 1),
       eq
     )
@@ -150,11 +150,11 @@ describe("Clipboard interface", () => {
   it("allows text parsing to be overridden with clipboardTextParser", () => {
     const view = tempEditor({
       clipboardTextParser(text) {
-        return doc(p(text.toUpperCase())).sliceUnsafe(1, text.length + 1)
+        return Option.some(doc(p(text.toUpperCase())).sliceUnsafe(1, text.length + 1))
       }
     })
     ist(
-      parseFromClipboard(view, "abc", null, false, view.state.doc.resolveUnsafe(1)),
+      parseFromClipboard(view, "abc", "", false, view.state.doc.resolveUnsafe(1)),
       new Slice(p("ABC").content, 0, 0),
       eq
     )
@@ -173,11 +173,11 @@ describe("Clipboard interface", () => {
 
   it("adds necessary wrappers for parsing", () => {
     const s = tableSchema()
-    const doc = s.nodeUnsafe("doc", null, [
-      s.nodeUnsafe("table", null, [
-        s.nodeUnsafe("tr", null, [
-          s.nodeUnsafe("td", null, [s.textUnsafe("A")]),
-          s.nodeUnsafe("td", null, [s.textUnsafe("B")])
+    const doc = s.nodeUnsafe("doc", undefined, [
+      s.nodeUnsafe("table", undefined, [
+        s.nodeUnsafe("tr", undefined, [
+          s.nodeUnsafe("td", undefined, [s.textUnsafe("A")]),
+          s.nodeUnsafe("td", undefined, [s.textUnsafe("B")])
         ])
       ])
     ])
@@ -190,8 +190,8 @@ describe("Clipboard interface", () => {
 
   it("can parse content wrapped in comments", () => {
     const s = tableSchema()
-    const doc = s.nodeUnsafe("doc", null, [
-      s.nodeUnsafe("table", null, [s.nodeUnsafe("tr", null, [s.nodeUnsafe("td")])])
+    const doc = s.nodeUnsafe("doc", undefined, [
+      s.nodeUnsafe("table", undefined, [s.nodeUnsafe("tr", undefined, [s.nodeUnsafe("td")])])
     ])
     const html = `<html><body><!--StartFragment--><table data-pm-slice="1 1 -2 []"><tbody><tr><td class="PROSEMIRROR_TABLE_TD_CLS" align="left"><p>123</p></td></tr><tr><td class="PROSEMIRROR_TABLE_TD_CLS" align="left"><p>123</p></td></tr></tbody></table><!--EndFragment--></body></html>`
     ist(
@@ -223,7 +223,7 @@ describe("Clipboard interface", () => {
         text: {}
       }
     })
-    const d = s.nodeUnsafe("doc", null, [s.nodeUnsafe("paragraph")])
+    const d = s.nodeUnsafe("doc", undefined, [s.nodeUnsafe("paragraph")])
     const view = tempEditor({ doc: d })
     const evil = parseFromClipboard(view, "", embedContext("javascript:alert(1)"), false, d.resolveUnsafe(1))
     ist(getSome(evil.content.firstChild).type.name, "paragraph")

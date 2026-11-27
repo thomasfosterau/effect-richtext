@@ -126,7 +126,7 @@ export interface DOMEventMap extends HTMLElementEventMap {
  * @category models
  */
 export type NodeViews<Sc extends AnySchema = AnySchema> = {
-  readonly [N in NodeNames<Sc>]?: NodeViewConstructor<Sc, N> | undefined
+  readonly [N in NodeNames<Sc>]?: NodeViewConstructor<Sc, N>
 }
 
 /**
@@ -136,7 +136,7 @@ export type NodeViews<Sc extends AnySchema = AnySchema> = {
  * @category models
  */
 export type MarkViews<Sc extends AnySchema = AnySchema> = {
-  readonly [M in MarkNames<Sc>]?: MarkViewConstructor<Sc, M> | undefined
+  readonly [M in MarkNames<Sc>]?: MarkViewConstructor<Sc, M>
 }
 
 /**
@@ -183,120 +183,118 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
    * function, you are responsible for calling `preventDefault` yourself
    * (or not, if you want to allow the default behavior).
    */
-  readonly handleDOMEvents?:
-    | {
-        readonly [event in keyof DOMEventMap]?:
-          | ((this: P, view: EditorView<Sc, any, any>, event: DOMEventMap[event]) => HandlerResult<R, E>)
-          | undefined
-      }
-    | undefined
+  readonly handleDOMEvents?: {
+    readonly [event in keyof DOMEventMap]?: (
+      this: P,
+      view: EditorView<Sc, any, any>,
+      event: DOMEventMap[event]
+    ) => HandlerResult<R, E>
+  }
 
   /** Called when the editor receives a `keydown` event. */
-  readonly handleKeyDown?:
-    | ((this: P, view: EditorView<Sc, any, any>, event: KeyboardEvent) => HandlerResult<R, E>)
-    | undefined
+  readonly handleKeyDown?: (this: P, view: EditorView<Sc, any, any>, event: KeyboardEvent) => HandlerResult<R, E>
 
   /** Handler for `keypress` events. */
-  readonly handleKeyPress?:
-    | ((this: P, view: EditorView<Sc, any, any>, event: KeyboardEvent) => HandlerResult<R, E>)
-    | undefined
+  readonly handleKeyPress?: (this: P, view: EditorView<Sc, any, any>, event: KeyboardEvent) => HandlerResult<R, E>
 
   /**
    * Whenever the user directly input text, this handler is called before
    * the input is applied. If it returns `true`, the default behavior of
    * actually inserting the text is suppressed.
    */
-  readonly handleTextInput?:
-    | ((
-        this: P,
-        view: EditorView<Sc, any, any>,
-        from: number,
-        to: number,
-        text: string,
-        deflt: () => Transaction<Sc>
-      ) => HandlerResult<R, E>)
-    | undefined
+  readonly handleTextInput?: (
+    this: P,
+    view: EditorView<Sc, any, any>,
+    from: number,
+    to: number,
+    text: string,
+    deflt: () => Transaction<Sc>
+  ) => HandlerResult<R, E>
 
   /**
    * Called for each node around a click, from the inside out. The
    * `direct` flag will be true for the inner node.
    */
-  readonly handleClickOn?:
-    | ((
-        this: P,
-        view: EditorView<Sc, any, any>,
-        pos: number,
-        node: Node<Sc>,
-        nodePos: number,
-        event: MouseEvent,
-        direct: boolean
-      ) => HandlerResult<R, E>)
-    | undefined
+  readonly handleClickOn?: (
+    this: P,
+    view: EditorView<Sc, any, any>,
+    pos: number,
+    node: Node<Sc>,
+    nodePos: number,
+    event: MouseEvent,
+    direct: boolean
+  ) => HandlerResult<R, E>
 
   /** Called when the editor is clicked, after `handleClickOn` handlers have been called. */
-  readonly handleClick?:
-    | ((this: P, view: EditorView<Sc, any, any>, pos: number, event: MouseEvent) => HandlerResult<R, E>)
-    | undefined
+  readonly handleClick?: (
+    this: P,
+    view: EditorView<Sc, any, any>,
+    pos: number,
+    event: MouseEvent
+  ) => HandlerResult<R, E>
 
   /** Called for each node around a double click. */
-  readonly handleDoubleClickOn?:
-    | ((
-        this: P,
-        view: EditorView<Sc, any, any>,
-        pos: number,
-        node: Node<Sc>,
-        nodePos: number,
-        event: MouseEvent,
-        direct: boolean
-      ) => HandlerResult<R, E>)
-    | undefined
+  readonly handleDoubleClickOn?: (
+    this: P,
+    view: EditorView<Sc, any, any>,
+    pos: number,
+    node: Node<Sc>,
+    nodePos: number,
+    event: MouseEvent,
+    direct: boolean
+  ) => HandlerResult<R, E>
 
   /** Called when the editor is double-clicked, after `handleDoubleClickOn`. */
-  readonly handleDoubleClick?:
-    | ((this: P, view: EditorView<Sc, any, any>, pos: number, event: MouseEvent) => HandlerResult<R, E>)
-    | undefined
+  readonly handleDoubleClick?: (
+    this: P,
+    view: EditorView<Sc, any, any>,
+    pos: number,
+    event: MouseEvent
+  ) => HandlerResult<R, E>
 
   /** Called for each node around a triple click. */
-  readonly handleTripleClickOn?:
-    | ((
-        this: P,
-        view: EditorView<Sc, any, any>,
-        pos: number,
-        node: Node<Sc>,
-        nodePos: number,
-        event: MouseEvent,
-        direct: boolean
-      ) => HandlerResult<R, E>)
-    | undefined
+  readonly handleTripleClickOn?: (
+    this: P,
+    view: EditorView<Sc, any, any>,
+    pos: number,
+    node: Node<Sc>,
+    nodePos: number,
+    event: MouseEvent,
+    direct: boolean
+  ) => HandlerResult<R, E>
 
   /** Called when the editor is triple-clicked, after `handleTripleClickOn`. */
-  readonly handleTripleClick?:
-    | ((this: P, view: EditorView<Sc, any, any>, pos: number, event: MouseEvent) => HandlerResult<R, E>)
-    | undefined
+  readonly handleTripleClick?: (
+    this: P,
+    view: EditorView<Sc, any, any>,
+    pos: number,
+    event: MouseEvent
+  ) => HandlerResult<R, E>
 
   /**
    * Can be used to override the behavior of pasting. `slice` is the
    * pasted content parsed by the editor, but you can directly access the
    * event to get at the raw content.
    */
-  readonly handlePaste?:
-    | ((this: P, view: EditorView<Sc, any, any>, event: ClipboardEvent, slice: Slice<Sc>) => HandlerResult<R, E>)
-    | undefined
+  readonly handlePaste?: (
+    this: P,
+    view: EditorView<Sc, any, any>,
+    event: ClipboardEvent,
+    slice: Slice<Sc>
+  ) => HandlerResult<R, E>
 
   /**
    * Called when something is dropped on the editor. `moved` will be true
    * if this drop moves from the current selection (which should thus be
    * deleted).
    */
-  readonly handleDrop?:
-    | ((
-        this: P,
-        view: EditorView<Sc, any, any>,
-        event: DragEvent,
-        slice: Slice<Sc>,
-        moved: boolean
-      ) => HandlerResult<R, E>)
-    | undefined
+  readonly handleDrop?: (
+    this: P,
+    view: EditorView<Sc, any, any>,
+    event: DragEvent,
+    slice: Slice<Sc>,
+    moved: boolean
+  ) => HandlerResult<R, E>
 
   /**
    * Called when the view, after updating its state, tries to scroll the
@@ -304,53 +302,49 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
    * that it did not handle the scrolling and further handlers or the
    * default behavior should be tried.
    */
-  readonly handleScrollToSelection?: ((this: P, view: EditorView<Sc, any, any>) => HandlerResult<R, E>) | undefined
+  readonly handleScrollToSelection?: (this: P, view: EditorView<Sc, any, any>) => HandlerResult<R, E>
 
   /**
    * Determines whether an in-editor drag event should copy or move the
    * selection. When not given, the event's `altKey` property is used on
    * macOS, `ctrlKey` on other platforms.
    */
-  readonly dragCopies?: ((event: DragEvent) => boolean) | undefined
+  readonly dragCopies?: (event: DragEvent) => boolean
 
   /**
    * Can be used to override the way a selection is created when reading
    * a DOM selection between the given anchor and head.
    */
-  readonly createSelectionBetween?:
-    | ((
-        this: P,
-        view: EditorView<Sc, any, any>,
-        anchor: ResolvedPos<Sc>,
-        head: ResolvedPos<Sc>
-      ) => Selection<Sc> | null | undefined)
-    | undefined
+  readonly createSelectionBetween?: (
+    this: P,
+    view: EditorView<Sc, any, any>,
+    anchor: ResolvedPos<Sc>,
+    head: ResolvedPos<Sc>
+  ) => Option.Option<Selection<Sc>>
 
   /**
    * The parser to use when reading editor changes from the DOM. Defaults
    * to calling `DOMParser.fromSchema` on the editor's schema.
    */
-  readonly domParser?: DOMParser<Sc> | undefined
+  readonly domParser?: DOMParser<Sc>
 
   /**
    * Can be used to transform pasted HTML text, _before_ it is parsed, for
    * example to clean it up.
    */
-  readonly transformPastedHTML?: ((this: P, html: string, view: EditorView<Sc, any, any>) => string) | undefined
+  readonly transformPastedHTML?: (this: P, html: string, view: EditorView<Sc, any, any>) => string
 
   /**
    * The parser to use when reading content from the clipboard. When not
    * given, the value of the `domParser` prop is used.
    */
-  readonly clipboardParser?: DOMParser<Sc> | undefined
+  readonly clipboardParser?: DOMParser<Sc>
 
   /**
    * Transform pasted plain text. The `plain` flag will be true when the
    * text is pasted as plain text.
    */
-  readonly transformPastedText?:
-    | ((this: P, text: string, plain: boolean, view: EditorView<Sc, any, any>) => string)
-    | undefined
+  readonly transformPastedText?: (this: P, text: string, plain: boolean, view: EditorView<Sc, any, any>) => string
 
   /**
    * A function to parse text from the clipboard into a document slice.
@@ -359,30 +353,26 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
    * `clipboardParser` on it. The `plain` flag will be true when the text
    * is pasted as plain text.
    */
-  readonly clipboardTextParser?:
-    | ((
-        this: P,
-        text: string,
-        $context: ResolvedPos<Sc>,
-        plain: boolean,
-        view: EditorView<Sc, any, any>
-      ) => Slice<Sc> | null | undefined)
-    | undefined
+  readonly clipboardTextParser?: (
+    this: P,
+    text: string,
+    $context: ResolvedPos<Sc>,
+    plain: boolean,
+    view: EditorView<Sc, any, any>
+  ) => Option.Option<Slice<Sc>>
 
   /**
    * Can be used to transform pasted or dragged-and-dropped content
    * before it is applied to the document. The `plain` flag will be true
    * when the text is pasted as plain text.
    */
-  readonly transformPasted?:
-    | ((this: P, slice: Slice<Sc>, view: EditorView<Sc, any, any>, plain: boolean) => Slice<Sc>)
-    | undefined
+  readonly transformPasted?: (this: P, slice: Slice<Sc>, view: EditorView<Sc, any, any>, plain: boolean) => Slice<Sc>
 
   /**
    * Can be used to transform copied or cut content before it is
    * serialized to the clipboard.
    */
-  readonly transformCopied?: ((this: P, slice: Slice<Sc>, view: EditorView<Sc, any, any>) => Slice<Sc>) | undefined
+  readonly transformCopied?: (this: P, slice: Slice<Sc>, view: EditorView<Sc, any, any>) => Slice<Sc>
 
   /**
    * Allows you to pass custom rendering and behavior logic for nodes.
@@ -400,7 +390,7 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
    * active around the node. `innerDecorations` holds the decorations for
    * the node's content.
    */
-  readonly nodeViews?: NodeViews<Sc> | undefined
+  readonly nodeViews?: NodeViews<Sc>
 
   /**
    * Pass custom mark rendering functions. Note that these cannot provide
@@ -408,29 +398,27 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
    * custom rendering logic. The third argument indicates whether the
    * mark's content is inline.
    */
-  readonly markViews?: MarkViews<Sc> | undefined
+  readonly markViews?: MarkViews<Sc>
 
   /**
    * The DOM serializer to use when putting content onto the clipboard.
    * If not given, the result of `DOMSerializer.fromSchema` will be used.
    * This object will only have its `serializeFragment` method called.
    */
-  readonly clipboardSerializer?: ClipboardSerializer<Sc> | undefined
+  readonly clipboardSerializer?: ClipboardSerializer<Sc>
 
   /**
    * A function that will be called to get the text for the current
    * selection when copying text to the clipboard. By default, the editor
    * will use `textBetween` on the selected range.
    */
-  readonly clipboardTextSerializer?:
-    | ((this: P, content: Slice<Sc>, view: EditorView<Sc, any, any>) => string)
-    | undefined
+  readonly clipboardTextSerializer?: (this: P, content: Slice<Sc>, view: EditorView<Sc, any, any>) => string
 
   /** A set of document decorations to show in the view. */
-  readonly decorations?: ((this: P, state: EditorState<Sc>) => DecorationSource | null | undefined) | undefined
+  readonly decorations?: (this: P, state: EditorState<Sc>) => DecorationSource
 
   /** When this returns false, the content of the view is not directly editable. */
-  readonly editable?: ((this: P, state: EditorState<Sc>) => boolean) | undefined
+  readonly editable?: (this: P, state: EditorState<Sc>) => boolean
 
   /**
    * Control the DOM attributes of the editable element. May be either an
@@ -443,21 +431,20 @@ export interface EditorProps<Sc extends AnySchema = AnySchema, R = never, E = ne
    */
   readonly attributes?:
     | { readonly [name: string]: string }
-    | ((state: EditorState<Sc>) => { readonly [name: string]: string } | null | undefined)
-    | undefined
+    | ((state: EditorState<Sc>) => { readonly [name: string]: string })
 
   /**
    * Determines the distance (in pixels) between the cursor and the end
    * of the visible viewport at which point, when scrolling the cursor
    * into view, scrolling takes place. Defaults to 0.
    */
-  readonly scrollThreshold?: number | Rect | undefined
+  readonly scrollThreshold?: number | Rect
 
   /**
    * Determines the extra space (in pixels) that is left above or below
    * the cursor when it is scrolled into view. Defaults to 5.
    */
-  readonly scrollMargin?: number | Rect | undefined
+  readonly scrollMargin?: number | Rect
 }
 
 /**
@@ -481,7 +468,7 @@ export interface DirectEditorProps<Sc extends AnySchema = AnySchema, R = never, 
    * transaction filter or appender) will result in an error (a defect),
    * since such plugins must be present in the state to work.
    */
-  readonly plugins?: ReadonlyArray<Plugin<any, any, E, R>> | undefined
+  readonly plugins?: ReadonlyArray<Plugin<any, any, E, R>>
 
   /**
    * The callback over which to send transactions (state updates)
@@ -491,7 +478,7 @@ export interface DirectEditorProps<Sc extends AnySchema = AnySchema, R = never, 
    * to have the view instance as its `this` binding. It may return an
    * `Effect`, which is run with the view's captured context.
    */
-  readonly dispatchTransaction?: ((tr: Transaction<Sc>) => void | Effect.Effect<void, E, R>) | undefined
+  readonly dispatchTransaction?: (tr: Transaction<Sc>) => void | Effect.Effect<void, E, R>
 
   /**
    * Called with the cause of failures of effects run by the view on
@@ -500,7 +487,7 @@ export interface DirectEditorProps<Sc extends AnySchema = AnySchema, R = never, 
    * `dispatchTransaction` effects. Defaults to logging the cause with
    * `Effect.logError` (run with the view's captured context).
    */
-  readonly onError?: ((cause: Cause.Cause<unknown>) => void) | undefined
+  readonly onError?: (cause: Cause.Cause<unknown>) => void
 }
 
 /**
@@ -528,13 +515,25 @@ export interface ViewUpdate<Sc extends AnySchema = AnySchema, R = never, E = nev
 /**
  * Where to put the editor: a DOM node that the editor should be appended
  * to, a function that will place it into the document, an object whose
- * `mount` property holds the node to use as the document container, or
- * `null` to not add it to the document.
+ * `mount` property holds the node to use as the document container. A
+ * function that doesn't place the editor leaves it out of the document.
  *
  * @since 0.1.0
  * @category models
  */
-export type ViewPlace = null | DOMNode | ((editor: HTMLElement) => void) | { readonly mount: HTMLElement }
+export type ViewPlace = DOMNode | ((editor: HTMLElement) => void) | { readonly mount: HTMLElement }
+
+/**
+ * Content being dragged from the editor (`EditorView.dragging`): the
+ * dragged slice, and whether it is moved rather than copied.
+ *
+ * @since 0.5.0
+ * @category models
+ */
+export interface ViewDragging<Sc extends AnySchema = AnySchema> {
+  readonly slice: Slice<Sc>
+  readonly move: boolean
+}
 
 type NodeViewSet = { [name: string]: NodeViewConstructor<any, any> | MarkViewConstructor<any, any> }
 
@@ -600,20 +599,20 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
   /** @internal */
   _props: DirectEditorProps<Sc, R, E>
   private directPlugins: ReadonlyArray<Plugin<any, any, any, any>>
-  private _root: Document | ShadowRoot | null = null
+  private _root = Option.none<Document | ShadowRoot>()
   /** @internal */
   focused = false
   /** Kludge used to work around a Chrome bug @internal */
-  trackWrites: DOMNode | null = null
+  trackWrites = Option.none<DOMNode>()
   private mounted = false
   /** @internal */
-  markCursor: ReadonlyArray<Mark<any, any>> | null = null
+  markCursor = Option.none<ReadonlyArray<Mark<any, any>>>()
   /** @internal */
-  cursorWrapper: { dom: DOMNode; deco: Decoration } | null = null
+  cursorWrapper = Option.none<{ readonly dom: DOMNode; readonly deco: Decoration }>()
   /** @internal */
   nodeViews: NodeViewSet
   /** @internal */
-  lastSelectedViewDesc: ViewDesc | undefined = undefined
+  lastSelectedViewDesc = Option.none<ViewDesc>()
   /** @internal */
   docView: NodeViewDesc
   /** @internal */
@@ -625,7 +624,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
   // both, so `EditorView<S, never, never>` would stop being assignable to
   // `EditorView<S, any, any>` under TypeScript 7.
   private listeners: Array<(update: ViewUpdate<Sc, any, any>) => void> = []
-  private dispatching: ReadonlyArray<Transaction<Sc>> | null = null
+  private dispatching = Option.none<ReadonlyArray<Transaction<Sc>>>()
   /** @internal */
   declare domObserver: DOMObserver
   /**
@@ -660,12 +659,15 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     this.directPlugins = props.plugins || []
     this.directPlugins.forEach(checkStateComponent)
 
-    const mount = place && !Predicate.isFunction(place) && "mount" in place ? place.mount : null
-    this.dom = mount || document.createElement("div")
-    if (place) {
-      if (Predicate.isFunction(place)) place(this.dom)
-      else if (mount) this.mounted = true
-      else if (!("mount" in place)) place.appendChild(this.dom)
+    if (Predicate.isFunction(place)) {
+      this.dom = document.createElement("div")
+      place(this.dom)
+    } else if ("mount" in place) {
+      this.dom = place.mount
+      this.mounted = true
+    } else {
+      this.dom = document.createElement("div")
+      place.appendChild(this.dom)
     }
 
     this.editable = getEditable(this)
@@ -685,8 +687,8 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
    * Create a view inside a scope. `place` may be a DOM node that the
    * editor should be appended to, a function that will place it into the
    * document, or an object whose `mount` property holds the node to use
-   * as the document container. If it is `null`, the editor will not be
-   * added to the document.
+   * as the document container. A function that doesn't place the editor
+   * leaves it out of the document.
    *
    * The view captures the current context (which must provide `R`) to
    * run the effects of its plugins and props, and is destroyed when the
@@ -745,9 +747,9 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
   /**
    * When editor content is being dragged, this object contains
    * information about the dragged slice and whether it is being copied
-   * or moved. At any other time, it is null.
+   * or moved. At any other time, it is `None`.
    */
-  dragging: null | { readonly slice: Slice<Sc>; readonly move: boolean } = null
+  dragging = Option.none<ViewDragging<Sc>>()
 
   /** Holds `true` when a composition is active. */
   get composing(): boolean {
@@ -794,13 +796,13 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     const prev = this.state
     // The transactions being dispatched belong to this update only, not to
     // nested updates (made by plugin views, for example).
-    const transactions = this.dispatching ?? []
-    this.dispatching = null
+    const transactions = Option.getOrElse(this.dispatching, (): ReadonlyArray<Transaction<Sc>> => [])
+    this.dispatching = Option.none()
     let redraw = false,
       updateSel = false
     // When stored marks are added, stop composition, so that they can
     // be displayed.
-    if (state.storedMarksOrNull && this.composing) {
+    if (Option.isSome(state.storedMarks) && this.composing) {
       clearComposition(this)
       updateSel = true
     }
@@ -851,14 +853,15 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
         // Chrome sometimes starts misreporting the selection, so this
         // tracks that and forces a selection reset when our update
         // did write to the node.
-        const chromeKludge = browser.chrome ? (this.trackWrites = this.domSelectionRange().focusNode) : null
+        if (browser.chrome) this.trackWrites = Option.fromNullOr(this.domSelectionRange().focusNode)
+        const chromeKludge = Option.isSome(this.trackWrites)
         if (this.composing) this.input.compositionNode = findCompositionNode(this)
         if (redraw || !this.docView.update(state.doc, outerDeco, innerDeco, this)) {
           this.docView.updateOuterDeco(outerDeco)
           this.docView.destroy()
           this.docView = docViewDesc(state.doc, outerDeco, innerDeco, this.dom, this)
         }
-        if (chromeKludge && (!this.trackWrites || !this.dom.contains(this.trackWrites))) forceSelUpdate = true
+        if (chromeKludge && !Option.exists(this.trackWrites, (dom) => this.dom.contains(dom))) forceSelUpdate = true
       }
       // Work around for an issue where an update arriving right between
       // a DOM selection change and the "selectionchange" event for it
@@ -867,10 +870,10 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
       if (
         forceSelUpdate ||
         !(
-          this.input.mouseDown &&
+          Option.isSome(this.input.mouseDown) &&
           this.domObserver.currentSelection.eq(this.domSelectionRange()) &&
           anchorInRightPlace(this) &&
-          this.input.mouseDown.delaySelUpdate()
+          this.input.mouseDown.value.delaySelUpdate()
         )
       ) {
         selectionToDOM(this, forceSelUpdate)
@@ -882,8 +885,9 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     }
 
     this.updatePluginViews(prev)
-    if (this.dragging instanceof Dragging && this.dragging.node && !prev.doc.eq(state.doc)) {
-      this.updateDraggedNode(this.dragging, prev)
+    const dragging = Option.getOrUndefined(this.dragging)
+    if (dragging instanceof Dragging && dragging.node && !prev.doc.eq(state.doc)) {
+      this.updateDraggedNode(dragging, dragging.node, prev)
     }
 
     if (scroll == "reset") {
@@ -923,7 +927,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
 
   private withDispatching<A>(transactions: ReadonlyArray<Transaction<Sc>>, f: () => A): A {
     const prev = this.dispatching
-    this.dispatching = transactions
+    this.dispatching = Option.some(transactions)
     try {
       return f()
     } finally {
@@ -962,21 +966,18 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     }
   }
 
-  private updateDraggedNode(dragging: Dragging, prev: EditorState<Sc, R, E>) {
-    const sel = dragging.node
-    if (!sel) return
+  private updateDraggedNode(dragging: Dragging, sel: NodeSelection<any>, prev: EditorState<Sc, R, E>) {
+    const { doc } = this.state
+    const isDragged = (pos: number) => Option.exists(doc.nodeAt(pos), (node) => node == sel.node)
     let found = -1
-    if (sel.from < this.state.doc.content.size && this.state.doc.nodeAtOrNull(sel.from) == sel.node) {
+    if (sel.from < doc.content.size && isDragged(sel.from)) {
       found = sel.from
     } else {
-      const movedPos = sel.from + (this.state.doc.content.size - prev.doc.content.size)
-      const moved = movedPos > 0 && movedPos < this.state.doc.content.size && this.state.doc.nodeAtOrNull(movedPos)
-      if (moved == sel.node) found = movedPos
+      const movedPos = sel.from + (doc.content.size - prev.doc.content.size)
+      if (movedPos > 0 && movedPos < doc.content.size && isDragged(movedPos)) found = movedPos
     }
-    this.dragging = new Dragging(
-      dragging.slice,
-      dragging.move,
-      found < 0 ? undefined : NodeSelection.createUnsafe(this.state.doc, found)
+    this.dragging = Option.some(
+      new Dragging(dragging.slice, dragging.move, found < 0 ? undefined : NodeSelection.createUnsafe(doc, found))
     )
   }
 
@@ -984,9 +985,10 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
    * Goes over the values of a prop, first those provided directly, then
    * those from plugins given to the view, then from plugins in the state
    * (in order), and calls `f` every time a non-undefined value is found.
-   * When `f` returns a truthy value, that is immediately returned. When
-   * `f` isn't provided, it is treated as the identity function (the prop
-   * value is returned directly).
+   * When `f` returns a truthy value, that is immediately returned (in a
+   * `Some`; `None` when there is none). When `f` isn't provided, it is
+   * treated as the identity function (the prop value is returned
+   * directly).
    *
    * Note that event handler props may return Effects, which are returned
    * as-is (and are truthy).
@@ -994,14 +996,14 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
   someProp<PropName extends keyof EditorProps<Sc, R, E>, Result>(
     propName: PropName,
     f: (value: NonNullable<EditorProps<Sc, R, E>[PropName]>) => Result
-  ): Result | undefined
+  ): Option.Option<Result>
   someProp<PropName extends keyof EditorProps<Sc, R, E>>(
     propName: PropName
-  ): NonNullable<EditorProps<Sc, R, E>[PropName]> | undefined
+  ): Option.Option<NonNullable<EditorProps<Sc, R, E>[PropName]>>
   someProp<PropName extends keyof EditorProps<Sc, R, E>, Result>(
     propName: PropName,
     f?: (value: NonNullable<EditorProps<Sc, R, E>[PropName]>) => Result
-  ): Result | undefined {
+  ): Option.Option<Result> {
     const read = (props: EditorProps<Sc, R, E>) => {
       const prop = props && props[propName]
       // SAFETY: without `f`, the second overload returns the prop itself.
@@ -1009,20 +1011,20 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
       return prop != null && (f ? f(prop) : (prop as Result))
     }
     let value = read(this._props)
-    if (value) return value
+    if (value) return Option.some(value)
     // Prop lookups run many times per keystroke, so these stay plain loops.
     // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0; i < this.directPlugins.length; i++) {
-      if ((value = read(this.directPlugins[i].props))) return value
+      if ((value = read(this.directPlugins[i].props))) return Option.some(value)
     }
     const plugins = this.state.plugins
     if (plugins) {
       // oxlint-disable-next-line effect/imperative-loops
       for (let i = 0; i < plugins.length; i++) {
-        if ((value = read(plugins[i].props))) return value
+        if ((value = read(plugins[i].props))) return Option.some(value)
       }
     }
-    return undefined
+    return Option.none()
   }
 
   /**
@@ -1035,7 +1037,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     propName: PropName,
     f: (value: NonNullable<EditorProps<Sc, R, E>[PropName]>) => HandlerResult<any, any>
   ): boolean {
-    return !!this.someProp(propName, (h) => this.runHandler(f(h)))
+    return Option.isSome(this.someProp(propName, (h) => this.runHandler(f(h))))
   }
 
   /**
@@ -1055,27 +1057,27 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     }
     // SAFETY: a view runs only handlers from its own props and plugins, which require at most `R`.
     const exit = this.runEffect(result)
-    if (exit === undefined) return true
-    return Exit.isSuccess(exit) ? exit.value : false
+    if (Option.isNone(exit)) return true
+    return Exit.isSuccess(exit.value) ? exit.value.value : false
   }
 
   /**
    * Run an effect with the view's captured context. Returns its exit
    * when it completed synchronously (reporting failures to `onError`),
-   * or `undefined` when it is still running in the background (in which
+   * or `None` when it is still running in the background (in which
    * case failures are reported when it completes).
    *
    * @internal
    */
-  runEffect<A>(effect: Effect.Effect<A, unknown, R>): Exit.Exit<A, unknown> | undefined {
+  runEffect<A>(effect: Effect.Effect<A, unknown, R>): Option.Option<Exit.Exit<A, unknown>> {
     const fiber = Effect.runForkWith(this.runContext)(effect)
     const exit = fiber.pollUnsafe()
     if (exit) {
       if (Exit.isFailure(exit)) this.reportError(exit.cause)
-      return exit
+      return Option.some(exit)
     }
     this.track(fiber)
-    return undefined
+    return Option.none()
   }
 
   // Keep a background fiber until it ends, reporting its failure; one
@@ -1128,20 +1130,21 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
    * editor is inside one.
    */
   get root(): Document | ShadowRoot {
-    const cached = this._root
-    if (cached == null) {
-      const search = (this.dom.parentNode ? parentChain(this.dom.parentNode) : []).find(
-        (node) => node.nodeType == 9 || (node.nodeType == 11 && Predicate.hasProperty(node, "host") && node.host)
-      )
-      if (search) {
-        if (!Predicate.hasProperty(search, "getSelection") || !search.getSelection) {
-          const doc = search.ownerDocument
-          Object.getPrototypeOf(search).getSelection = () => (doc ? doc.getSelection() : null)
-        }
-        if (isDocument(search) || isShadowRoot(search)) return (this._root = search)
+    if (Option.isSome(this._root)) return this._root.value
+    const search = (this.dom.parentNode ? parentChain(this.dom.parentNode) : []).find(
+      (node) => node.nodeType == 9 || (node.nodeType == 11 && Predicate.hasProperty(node, "host") && node.host)
+    )
+    if (search) {
+      if (!Predicate.hasProperty(search, "getSelection") || !search.getSelection) {
+        const doc = search.ownerDocument
+        Object.getPrototypeOf(search).getSelection = () => (doc ? doc.getSelection() : null)
+      }
+      if (isDocument(search) || isShadowRoot(search)) {
+        this._root = Option.some(search)
+        return search
       }
     }
-    return cached || document
+    return document
   }
 
   /**
@@ -1149,7 +1152,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
    * tree, call this to make it recompute its root.
    */
   updateRoot(): void {
-    this._root = null
+    this._root = Option.none()
   }
 
   /**
@@ -1158,7 +1161,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
    * aren't inside of the editor.
    */
   posAtCoords(coords: { readonly left: number; readonly top: number }): Option.Option<PosAtCoords> {
-    return Option.fromNullishOr(posAtCoords(this, coords))
+    return posAtCoords(this, coords)
   }
 
   /**
@@ -1198,8 +1201,9 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
    * immediately overriden by the editor as it redraws the node.
    */
   nodeDOM(pos: number): Option.Option<DOMNode> {
-    const desc = this.docView.descAt(pos)
-    return Option.fromNullishOr(desc instanceof NodeViewDesc ? desc.nodeDOM : null)
+    return Option.flatMap(this.docView.descAt(pos), (desc) =>
+      desc instanceof NodeViewDesc ? Option.some(desc.nodeDOM) : Option.none()
+    )
   }
 
   /**
@@ -1216,7 +1220,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
   posAtDOM(node: DOMNode, offset: number, bias = -1): Effect.Effect<number, ViewError> {
     return Effect.suspend(() => {
       const pos = this.docView.posFromDOM(node, offset, bias)
-      return pos == null || pos < 0
+      return pos < 0
         ? Effect.fail(new ViewError({ message: "DOM position not inside the editor" }))
         : Effect.succeed(pos)
     })
@@ -1225,7 +1229,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
   /** Like `posAtDOM`, but throws a `ViewError` when the position is not inside the editor. */
   posAtDOMUnsafe(node: DOMNode, offset: number, bias = -1): number {
     const pos = this.docView.posFromDOM(node, offset, bias)
-    if (pos == null || pos < 0) throw new ViewError({ message: "DOM position not inside the editor" })
+    if (pos < 0) throw new ViewError({ message: "DOM position not inside the editor" })
     return pos
   }
 
@@ -1251,7 +1255,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
 
   /** Run the editor's paste logic with the given plain-text input. */
   pasteText(text: string, event?: ClipboardEvent): boolean {
-    return doPaste(this, text, null, true, event || new ClipboardEvent("paste"))
+    return doPaste(this, text, "", true, event || new ClipboardEvent("paste"))
   }
 
   /**
@@ -1329,11 +1333,12 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
           if (!Effect.isEffect(result)) return Effect.void
           return Effect.suspend(() => {
             const transactions = [tr]
-            this.dispatching = transactions
+            this.dispatching = Option.some(transactions)
             return Effect.ensuring(
               result,
               Effect.sync(() => {
-                if (this.dispatching === transactions) this.dispatching = null
+                if (Option.exists(this.dispatching, (current) => current === transactions))
+                  this.dispatching = Option.none()
               })
             )
           })
@@ -1377,19 +1382,22 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
   domSelectionRange(): DOMSelectionRange {
     // Don't query the selection for an editor that isn't in the document
     // (prosemirror-view 1.42.6).
-    const sel = this.dom.isConnected && this.domSelection()
-    if (!sel) return { focusNode: null, focusOffset: 0, anchorNode: null, anchorOffset: 0 }
-    return (
-      (browser.safari &&
-        this.root.nodeType === 11 &&
-        deepActiveElement(this.dom.ownerDocument) == this.dom &&
-        safariShadowSelectionRange(this, sel)) ||
-      sel
-    )
+    const found = this.dom.isConnected ? this.domSelection() : Option.none()
+    if (Option.isNone(found)) return { focusNode: null, focusOffset: 0, anchorNode: null, anchorOffset: 0 }
+    const sel = found.value
+    if (
+      browser.safari &&
+      this.root.nodeType === 11 &&
+      Option.exists(deepActiveElement(this.dom.ownerDocument), (elt) => elt == this.dom)
+    ) {
+      const shadow = safariShadowSelectionRange(this, sel)
+      if (Option.isSome(shadow)) return shadow.value
+    }
+    return sel
   }
 
   /** @internal */
-  domSelection(): DOMSelection | null {
+  domSelection(): Option.Option<DOMSelection> {
     // `root` gives a shadow root `getSelection` when it lacks one.
     return selectionOf(this.root)
   }
@@ -1402,11 +1410,11 @@ function computeDocDeco(view: EditorView<any, any, any>) {
 
   view.someProp("attributes", (prop) => {
     // SAFETY: attribute props only read the state, so its requirement and error types don't matter.
-    const value: { readonly [name: string]: string } | null | undefined = Predicate.isFunction(prop)
+    const value: { readonly [name: string]: string } = Predicate.isFunction(prop)
       ? // oxlint-disable-next-line typescript/no-unsafe-type-assertion
         prop(view.state as EditorState<any>)
       : prop
-    if (value) {
+    {
       Rec.keys(value).forEach((attr) => {
         if (attr == "class") {
           attrs.class += " " + value[attr]
@@ -1424,24 +1432,24 @@ function computeDocDeco(view: EditorView<any, any, any>) {
 }
 
 function updateCursorWrapper(view: EditorView<any, any, any>) {
-  if (view.markCursor) {
+  if (Option.isSome(view.markCursor)) {
     const dom = document.createElement("img")
     dom.className = "ProseMirror-separator"
     dom.setAttribute("mark-placeholder", "true")
     dom.setAttribute("alt", "")
-    view.cursorWrapper = {
+    view.cursorWrapper = Option.some({
       dom,
-      deco: Decoration.widget(view.state.selection.from, dom, { raw: true, marks: view.markCursor ?? undefined })
-    }
+      deco: Decoration.widget(view.state.selection.from, dom, { raw: true, marks: view.markCursor.value })
+    })
   } else {
-    view.cursorWrapper = null
+    view.cursorWrapper = Option.none()
   }
 }
 
 function getEditable(view: EditorView<any, any, any>) {
   // SAFETY: `editable` props only read the state, so its requirement and error types don't matter.
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-  return !view.someProp("editable", (value) => !value(view.state as EditorState<any>))
+  return Option.isNone(view.someProp("editable", (value) => !value(view.state as EditorState<any>)))
 }
 
 function selectionContextChanged(sel1: Selection<any>, sel2: Selection<any>) {

@@ -253,7 +253,7 @@ export abstract class Selection {
 
   /** Find a valid cursor or leaf node selection starting at the given position and searching back if `dir` is negative, and forward if positive. */
   static findFrom($pos: ResolvedPos, dir: number, textOnly = false): Selection | null {
-    return wrap(guard(() => S.Selection.findFromOrNull($pos[CORE], dir, textOnly)))
+    return wrap(guard(() => Option.getOrNull(S.Selection.findFrom($pos[CORE], dir, textOnly))))
   }
 
   /** Find a valid cursor or leaf node selection near the given position. */
@@ -400,7 +400,7 @@ export class TextSelection extends Selection {
 
   /** Returns a resolved position if this is a cursor selection (an empty text selection), and null otherwise. */
   get $cursor(): ResolvedPos | null {
-    return wrap(this[CORE].$cursorOrNull)
+    return wrap(Option.getOrNull(this[CORE].$cursor))
   }
 
   map(doc: Node, mapping: Mappable): Selection {
@@ -557,8 +557,7 @@ export class Transaction extends Transform {
 
   /** The stored marks set by this transaction, if any. */
   get storedMarks(): ReadonlyArray<Mark> | null {
-    const marks = this[CORE].storedMarksOrNull
-    return marks && wrapArray(marks)
+    return Option.getOrNull(Option.map(this[CORE].storedMarks, wrapArray))
   }
 
   /** The transaction's current selection. */
@@ -579,7 +578,7 @@ export class Transaction extends Transform {
 
   /** Set the current stored marks. */
   setStoredMarks(marks: ReadonlyArray<Mark> | null): this {
-    this[CORE].setStoredMarks(marks && unwrapArray(marks))
+    this[CORE].setStoredMarks(marks ? unwrapArray(marks) : undefined)
     return this
   }
 
@@ -762,7 +761,7 @@ const pluginSpecToCore = (spec: PluginSpec<any>, self: Plugin): S.PluginSpec => 
   const append = spec.appendTransaction
   if (append) {
     result.appendTransaction = (trs: ReadonlyArray<any>, oldState: any, newState: any) =>
-      unwrap(append.call(self, trs.map(wrap), wrap(oldState), wrap(newState)))
+      Option.map(Option.fromNullishOr(append.call(self, trs.map(wrap), wrap(oldState), wrap(newState))), unwrap)
   }
   const view = spec.view
   if (view) result.view = (v: any) => pluginViewToCore(view.call(self, wrap(v)))
@@ -875,6 +874,7 @@ const configToCore = (config: EditorStateConfig): any => {
   if (config.doc) result.doc = config.doc[CORE]
   if (config.selection) result.selection = config.selection[CORE]
   if (config.storedMarks) result.storedMarks = unwrapArray(config.storedMarks)
+  else delete result.storedMarks
   if (config.plugins) result.plugins = config.plugins.map(unwrap)
   configs.set(result, config)
   return result
@@ -905,8 +905,7 @@ export class EditorState {
 
   /** A set of marks to apply to the next input. Will be null when no explicit marks have been set. */
   get storedMarks(): ReadonlyArray<Mark> | null {
-    const marks = this[CORE].storedMarksOrNull
-    return marks && wrapArray(marks)
+    return Option.getOrNull(Option.map(this[CORE].storedMarks, wrapArray))
   }
 
   /** @internal */
@@ -1031,7 +1030,7 @@ const commandState = (state: EditorState): S.EditorState<any, any, any> => {
   return Object.create(core, {
     doc: { get: () => state.doc[CORE] },
     selection: { get: () => state.selection[CORE] },
-    storedMarksOrNull: { get: () => (state.storedMarks ? unwrapArray(state.storedMarks) : null) },
+    storedMarks: { get: () => Option.map(Option.fromNullOr(state.storedMarks), unwrapArray) },
     tr: { get: () => state.tr[CORE] }
   })
 }

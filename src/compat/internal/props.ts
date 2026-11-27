@@ -14,8 +14,10 @@
  * @internal
  */
 import * as Effect from "effect/Effect"
+import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import * as Rec from "effect/Record"
+import { DecorationSet } from "../../view/decoration.ts"
 import { runSync, unwrap, unwrapArray, wrap, wrapArray } from "./core.ts"
 
 /** A translation cache. @internal */
@@ -52,8 +54,29 @@ export const fromCoreFunction = (f: (...args: Array<any>) => any, self: unknown)
       args.map((a) => (Array.isArray(a) ? unwrapArray(a) : unwrap(a)))
     )
     if (isRequirementFree(result)) result = runSync(result)
+    // Core props return `Option` where ProseMirror's return `null`.
+    if (Option.isOption(result)) result = Option.getOrNull(result)
     return Array.isArray(result) ? wrapArray(result) : wrap(result)
   }
+
+// Props whose core versions return an `Option` (ProseMirror's may return
+// `null` or `undefined`).
+const isOptionProp = (name: string): boolean => name === "createSelectionBetween" || name === "clipboardTextParser"
+
+// Adapt a ProseMirror-style prop function to a core prop named `name`.
+const propToCore = (name: string, f: (...args: Array<any>) => any, self: unknown): ((...args: Array<any>) => any) => {
+  const core = toCoreFunction(f, self)
+  if (isOptionProp(name)) return (...args) => Option.fromNullishOr(core(...args))
+  // The core `decorations` prop always returns a source.
+  if (name === "decorations") return (...args) => core(...args) ?? DecorationSet.empty
+  return core
+}
+
+// A node view's `getPos` returns `undefined` rather than `None` when the node is gone.
+const getPosFromCore =
+  (getPos: () => Option.Option<number>): (() => number | undefined) =>
+  () =>
+    Option.getOrUndefined(getPos())
 
 /** Adapt a ProseMirror-style node or mark view object for the core view. @internal */
 export const viewObjectToCore = (view: any): any =>
@@ -69,7 +92,7 @@ export const viewObjectToCore = (view: any): any =>
     }
   })
 
-const translateViews = (views: Record<string, any>, cache: PropsCache | undefined): any => {
+const translateViews = (views: Record<string, any>, cache: PropsCache | undefined, nodeViews: boolean): any => {
   const result: Record<string, any> = {}
   // ProseMirror's for-in copies inherited properties too, so this keeps it.
   // oxlint-disable-next-line effect/imperative-loops
@@ -77,13 +100,12 @@ const translateViews = (views: Record<string, any>, cache: PropsCache | undefine
     const ctor = views[name]
     result[name] =
       ctor &&
-      cached(
-        cache,
-        ctor,
-        () =>
-          (...args: Array<any>) =>
-            viewObjectToCore(ctor(...wrapArgs(args)))
-      )
+      cached(cache, ctor, () => (...args: Array<any>) => {
+        const wrapped = wrapArgs(args)
+        // A node view constructor's third argument is `getPos`.
+        if (nodeViews) wrapped[2] = getPosFromCore(args[2])
+        return viewObjectToCore(ctor(...wrapped))
+      })
   }
   return result
 }
@@ -105,7 +127,7 @@ export const propsToCore = (
     if (name === "handleDOMEvents" && value) {
       target[name] = cached(cache, value, () => propsToCore(value, self, cache))
     } else if ((name === "nodeViews" || name === "markViews") && value) {
-      target[name] = cached(cache, value, () => translateViews(value, cache))
+      target[name] = cached(cache, value, () => translateViews(value, cache, name === "nodeViews"))
     } else if (name === "handleTextInput" && Predicate.isFunction(value)) {
       target[name] = cached(
         cache,
@@ -124,7 +146,7 @@ export const propsToCore = (
     } else if (name === "plugins" && Array.isArray(value)) {
       target[name] = unwrapArray(value)
     } else if (Predicate.isFunction(value)) {
-      target[name] = cached(cache, value, () => toCoreFunction(value, self))
+      target[name] = cached(cache, value, () => propToCore(name, value, self))
     } else {
       target[name] = unwrap(value)
     }

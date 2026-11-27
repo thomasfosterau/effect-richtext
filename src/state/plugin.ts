@@ -28,13 +28,13 @@ import type { Transaction } from "./transaction.ts"
 export type MaybeEffect<A, E = never, R = never> = A | Effect.Effect<A, E, R>
 
 /**
- * The editor view type, as passed to commands (which may be called
- * without a view, hence `undefined`).
+ * The editor view type, as passed to commands (which may also be called
+ * without a view).
  *
  * @since 0.1.0
  * @category models
  */
-export type EditorViewLike = EditorView<any, any, any> | undefined
+export type EditorViewLike = EditorView<any, any, any>
 
 /**
  * The props a plugin adds to the editor view: the view's `EditorProps`.
@@ -54,9 +54,9 @@ export type PluginProps<Sc extends AnySchema = AnySchema, E = never, R = never> 
  */
 export interface PluginView<Sc extends AnySchema = AnySchema> {
   /** Called whenever the view's state is updated. */
-  readonly update?: ((view: EditorView<Sc, any, any>, prevState: EditorState<Sc, any, any>) => void) | undefined
+  readonly update?: (view: EditorView<Sc, any, any>, prevState: EditorState<Sc, any, any>) => void
   /** Called when the view is destroyed or receives a state with different plugins. */
-  readonly destroy?: (() => void) | undefined
+  readonly destroy?: () => void
 }
 
 /**
@@ -97,15 +97,17 @@ export interface StateField<PState, Sc extends AnySchema = AnySchema, E = never,
   // Any value with a JSON form, as `JSON.stringify` takes; it is stored
   // as-is in `EditorStateJSON`, whose plugin fields are `unknown`.
   // oxlint-disable-next-line effect/no-unknown-returns
-  readonly toJSON?: ((value: PState) => unknown) | undefined
+  readonly toJSON?: (value: PState) => unknown
 
   /**
    * Deserialize the JSON representation of this field. Note that the
    * `state` argument is again a half-initialized state.
    */
-  readonly fromJSON?:
-    | ((config: EditorStateConfig<Sc>, value: unknown, state: EditorState<Sc, any, any>) => MaybeEffect<PState, E, R>)
-    | undefined
+  readonly fromJSON?: (
+    config: EditorStateConfig<Sc>,
+    value: unknown,
+    state: EditorState<Sc, any, any>
+  ) => MaybeEffect<PState, E, R>
 }
 
 /**
@@ -125,13 +127,13 @@ export interface PluginSpec<PState = any, Sc extends AnySchema = AnySchema, E = 
    * The view props added by this plugin. Props that are functions will
    * be bound to have the plugin instance as their `this` binding.
    */
-  readonly props?: PluginProps<Sc, E, R> | undefined
+  readonly props?: PluginProps<Sc, E, R>
 
   /**
    * Allows a plugin to define a state field, an extra slot in the state
    * object in which it can keep its own data.
    */
-  readonly state?: StateField<PState, Sc, E, R> | undefined
+  readonly state?: StateField<PState, Sc, E, R>
 
   /**
    * Can be used to make this a keyed plugin. You can have only one
@@ -139,23 +141,21 @@ export interface PluginSpec<PState = any, Sc extends AnySchema = AnySchema, E = 
    * access the plugin's configuration and state through the key,
    * without having access to the plugin instance object.
    */
-  readonly key?: PluginKey<PState> | undefined
+  readonly key?: PluginKey<PState>
 
   /**
    * When the plugin needs to interact with the editor view, or set
    * something up in the DOM, use this field. The function will be
    * called when the plugin's state is associated with an editor view.
    */
-  readonly view?: ((view: EditorView<Sc, any, any>) => PluginView<Sc>) | undefined
+  readonly view?: (view: EditorView<Sc, any, any>) => PluginView<Sc>
 
   /**
    * When present, this will be called before a transaction is applied
    * by the state, allowing the plugin to cancel it (by returning
    * false).
    */
-  readonly filterTransaction?:
-    | ((tr: Transaction<Sc>, state: EditorState<Sc, any, any>) => MaybeEffect<boolean, E, R>)
-    | undefined
+  readonly filterTransaction?: (tr: Transaction<Sc>, state: EditorState<Sc, any, any>) => MaybeEffect<boolean, E, R>
 
   /**
    * Allows the plugin to append another transaction to be applied after
@@ -164,13 +164,11 @@ export interface PluginSpec<PState = any, Sc extends AnySchema = AnySchema, E = 
    * state and new transactions—but only the new transactions, i.e. it
    * won't be passed transactions that it already saw.
    */
-  readonly appendTransaction?:
-    | ((
-        transactions: ReadonlyArray<Transaction<Sc>>,
-        oldState: EditorState<Sc, any, any>,
-        newState: EditorState<Sc, any, any>
-      ) => MaybeEffect<Transaction<Sc> | null | undefined | void, E, R>)
-    | undefined
+  readonly appendTransaction?: (
+    transactions: ReadonlyArray<Transaction<Sc>>,
+    oldState: EditorState<Sc, any, any>,
+    newState: EditorState<Sc, any, any>
+  ) => MaybeEffect<Option.Option<Transaction<Sc>>, E, R>
 
   /**
    * Additional properties are allowed on plugin specs, which can be

@@ -134,7 +134,7 @@ export class Mapping implements Mappable {
 
   /** Finds the offset of the step map that mirrors the map at the given offset, in this mapping. */
   getMirror(n: number): number | undefined {
-    return this[CORE].getMirrorOrUndefined(n)
+    return Option.getOrUndefined(this[CORE].getMirror(n))
   }
 
   /** @internal */
@@ -200,9 +200,11 @@ export class StepResult {
   }
 }
 
-const fromCoreResult = (result: T.StepResult): StepResult => new StepResult(wrap(result.docOrNull), result.failedOrNull)
+const fromCoreResult = (result: T.StepResult): StepResult =>
+  new StepResult(wrap(Option.getOrNull(result.doc)), Option.getOrNull(result.failed))
 
-const toCoreResult = (result: StepResult): T.StepResult => new T.StepResult(unwrap(result.doc), result.failed)
+const toCoreResult = (result: StepResult): T.StepResult =>
+  new T.StepResult(Option.fromNullishOr(unwrap(result.doc)), Option.fromNullishOr(result.failed))
 
 /**
  * A step object represents an atomic change. Subclass it to define
@@ -762,8 +764,12 @@ export interface NodeTypeWithAttrs {
   attrs?: Attrs | null
 }
 
-const wrappersToCore = (wrappers: ReadonlyArray<NodeTypeWithAttrs | null | undefined> | undefined): any =>
-  wrappers && wrappers.map((w) => w && { type: w.type[CORE], attrs: w.attrs ?? null })
+const wrapperToCore = (w: NodeTypeWithAttrs): any => ({ type: w.type[CORE], ...(w.attrs && { attrs: w.attrs }) })
+
+const wrappersToCore = (wrappers: ReadonlyArray<NodeTypeWithAttrs>): any => wrappers.map(wrapperToCore)
+
+const typesAfterToCore = (types: ReadonlyArray<NodeTypeWithAttrs | null | undefined> | undefined): any =>
+  types?.map((w) => Option.map(Option.fromNullishOr(w), wrapperToCore))
 
 /**
  * Try to find a target depth to which the content in the given range
@@ -787,7 +793,7 @@ export const findWrapping = (
   attrs: Attrs | null = null,
   innerRange: NodeRange = range
 ): Array<{ type: NodeType; attrs: Attrs | null }> | null => {
-  const found = Option.getOrNull(T.findWrapping(range[CORE], nodeType[CORE], attrs, innerRange[CORE]))
+  const found = Option.getOrNull(T.findWrapping(range[CORE], nodeType[CORE], attrs ?? undefined, innerRange[CORE]))
   return found && found.map((w) => ({ type: wrap(w.type), attrs: w.attrs ?? null }))
 }
 
@@ -802,7 +808,7 @@ export const canSplit = (
   pos: number,
   depth = 1,
   typesAfter?: ReadonlyArray<NodeTypeWithAttrs | null | undefined>
-): boolean => guard(() => T.canSplit(doc[CORE], pos, depth, wrappersToCore(typesAfter)))
+): boolean => guard(() => T.canSplit(doc[CORE], pos, depth, typesAfterToCore(typesAfter)))
 
 /**
  * Test whether the blocks before and after a given position can be
@@ -1004,7 +1010,14 @@ export class Transform {
 
   /** Change the type, attributes, and/or marks of the node at `pos`. */
   setNodeMarkup(pos: number, type?: NodeType | null, attrs: Attrs | null = null, marks?: ReadonlyArray<Mark>): this {
-    guard(() => this[CORE].setNodeMarkupUnsafe(pos, type && type[CORE], attrs, marks && unwrapArray(marks)))
+    guard(() =>
+      this[CORE].setNodeMarkupUnsafe(
+        pos,
+        type ? type[CORE] : undefined,
+        attrs ?? undefined,
+        marks && unwrapArray(marks)
+      )
+    )
     return this
   }
 
@@ -1034,7 +1047,7 @@ export class Transform {
 
   /** Split the node at the given position, and optionally, if `depth` is greater than one, any number of nodes above that. */
   split(pos: number, depth = 1, typesAfter?: ReadonlyArray<NodeTypeWithAttrs | null | undefined>): this {
-    guard(() => this[CORE].splitUnsafe(pos, depth, wrappersToCore(typesAfter)))
+    guard(() => this[CORE].splitUnsafe(pos, depth, typesAfterToCore(typesAfter)))
     return this
   }
 
@@ -1046,7 +1059,7 @@ export class Transform {
 
   /** Remove marks from inline nodes between `from` and `to`. */
   removeMark(from: number, to: number, mark?: Mark | MarkType | null): this {
-    guard(() => this[CORE].removeMark(from, to, mark && mark[CORE]))
+    guard(() => this[CORE].removeMark(from, to, mark ? mark[CORE] : undefined))
     return this
   }
 

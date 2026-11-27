@@ -5,6 +5,7 @@
  *
  * @internal
  */
+import type { Node, ResolvedPos } from "../Model.ts"
 import { AllSelection, type EditorState, NodeSelection, Selection, TextSelection } from "../State.ts"
 import * as browser from "./browser.ts"
 import * as Arr from "effect/Array"
@@ -15,16 +16,17 @@ import type { EditorView } from "./view.ts"
 
 type AnyView = EditorView<any, any, any>
 
-function moveSelectionBlock(state: EditorState<any, any, any>, dir: number): Selection<any> | null {
+function moveSelectionBlock(state: EditorState<any, any, any>, dir: number): Option.Option<Selection<any>> {
   const { $anchor, $head } = state.selection
   const $side = dir > 0 ? $anchor.max($head) : $anchor.min($head)
-  const $start = !$side.parent.inlineContent
-    ? $side
-    : $side.depth
-      ? state.doc.resolveUnsafe(dir > 0 ? $side.afterUnsafe() : $side.beforeUnsafe())
-      : null
-  return $start && Selection.findFromOrNull($start, dir)
+  if (!$side.parent.inlineContent) return Selection.findFrom($side, dir)
+  if (!$side.depth) return Option.none()
+  return Selection.findFrom(state.doc.resolveUnsafe(dir > 0 ? $side.afterUnsafe() : $side.beforeUnsafe()), dir)
 }
+
+// The node directly before (`dir < 0`) or after the cursor, unless it is inside a text node.
+const nodeBeside = ($head: ResolvedPos<any>, dir: number): Option.Option<Node<any>> =>
+  $head.textOffset ? Option.none() : dir < 0 ? $head.nodeBefore : $head.nodeAfter
 
 function apply(view: AnyView, sel: Selection<any>) {
   view.dispatchInternal(view.state.tr.setSelectionUnsafe(sel).scrollIntoView())
@@ -36,23 +38,25 @@ function selectHorizontally(view: AnyView, dir: number, mods: string) {
   if (sel instanceof TextSelection) {
     if (mods.indexOf("s") > -1) {
       const { $head } = sel,
-        node = $head.textOffset ? null : dir < 0 ? $head.nodeBeforeOrNull : $head.nodeAfterOrNull
-      if (!node || node.isText || !node.isLeaf) return false
+        found = nodeBeside($head, dir)
+      if (Option.isNone(found) || found.value.isText || !found.value.isLeaf) return false
+      const node = found.value
       const $newHead = view.state.doc.resolveUnsafe($head.pos + node.nodeSize * (dir < 0 ? -1 : 1))
       return apply(view, new TextSelection(sel.$anchor, $newHead))
     } else if (!sel.empty) {
       return false
     } else if (view.endOfTextblock(dir > 0 ? "forward" : "backward")) {
       const next = moveSelectionBlock(view.state, dir)
-      if (next && next instanceof NodeSelection) return apply(view, next)
+      if (Option.isSome(next) && next.value instanceof NodeSelection) return apply(view, next.value)
       return false
     } else if (!(browser.mac && mods.indexOf("m") > -1)) {
       const $head = sel.$head,
-        node = $head.textOffset ? null : dir < 0 ? $head.nodeBeforeOrNull : $head.nodeAfterOrNull
-      let desc
-      if (!node || node.isText) return false
+        found = nodeBeside($head, dir)
+      if (Option.isNone(found) || found.value.isText) return false
+      const node = found.value
       const nodePos = dir < 0 ? $head.pos - node.nodeSize : $head.pos
-      if (!(node.isAtom || ((desc = view.docView.descAt(nodePos)) && !desc.contentDOM))) return false
+      const opaque = Option.exists(view.docView.descAt(nodePos), (desc) => Option.isNone(desc.contentDOM))
+      if (!(node.isAtom || opaque)) return false
       if (NodeSelection.isSelectable(node)) {
         return apply(view, new NodeSelection(dir < 0 ? view.state.doc.resolveUnsafe($head.pos - node.nodeSize) : $head))
       } else {
@@ -69,8 +73,7 @@ function selectHorizontally(view: AnyView, dir: number, mods: string) {
     return apply(view, new TextSelection(dir > 0 ? sel.$to : sel.$from))
   } else {
     const next = moveSelectionBlock(view.state, dir)
-    if (next) return apply(view, next)
-    return false
+    return Option.isSome(next) && apply(view, next.value)
   }
 }
 
@@ -178,15 +181,16 @@ const point = (node: DOMNode, offset: number): DOMPoint => [node, offset]
 
 function isBlockNode(dom: DOMNode) {
   const desc = dom.pmViewDesc
-  return desc && desc.node && desc.node.isBlock
+  return !!desc && desc.isNode() && desc.node.isBlock
 }
 
-function textNodeAfter(node: DOMNode | null, offset: number): Text | undefined {
+function textNodeAfter(node: DOMNode, offset: number): Option.Option<Text> {
   // Climb out of the nodes that `offset` is at the end of, then descend.
-  if (node && offset == node.childNodes.length && !hasBlockDesc(node)) {
-    return textNodeAfter(node.parentNode, domIndex(node) + 1)
+  if (offset == node.childNodes.length && !hasBlockDesc(node)) {
+    const parent = node.parentNode
+    return parent ? textNodeAfter(parent, domIndex(node) + 1) : Option.none()
   }
-  return node ? Option.getOrUndefined(firstTextAfter(node, offset)) : undefined
+  return firstTextAfter(node, offset)
 }
 
 function firstTextAfter(node: DOMNode, offset: number): Option.Option<Text> {
@@ -196,10 +200,13 @@ function firstTextAfter(node: DOMNode, offset: number): Option.Option<Text> {
   return isElt(next) && next.contentEditable == "false" ? Option.none() : firstTextAfter(next, 0)
 }
 
-function textNodeBefore(node: DOMNode | null, offset: number): Text | undefined {
+function textNodeBefore(node: DOMNode, offset: number): Option.Option<Text> {
   // Climb out of the nodes that `offset` is at the start of, then descend.
-  if (node && !offset && !hasBlockDesc(node)) return textNodeBefore(node.parentNode, domIndex(node))
-  return node ? Option.getOrUndefined(lastTextBefore(node, offset)) : undefined
+  if (!offset && !hasBlockDesc(node)) {
+    const parent = node.parentNode
+    return parent ? textNodeBefore(parent, domIndex(node)) : Option.none()
+  }
+  return lastTextBefore(node, offset)
 }
 
 function lastTextBefore(node: DOMNode, offset: number): Option.Option<Text> {
@@ -211,19 +218,23 @@ function lastTextBefore(node: DOMNode, offset: number): Option.Option<Text> {
 
 function setSelFocus(view: AnyView, node: DOMNode, offset: number) {
   if (node.nodeType != 3) {
-    let before, after
-    if ((after = textNodeAfter(node, offset))) {
-      node = after
+    const after = textNodeAfter(node, offset)
+    if (Option.isSome(after)) {
+      node = after.value
       offset = 0
-    } else if ((before = textNodeBefore(node, offset))) {
-      node = before
-      offset = before.data.length
+    } else {
+      const before = textNodeBefore(node, offset)
+      if (Option.isSome(before)) {
+        node = before.value
+        offset = before.value.data.length
+      }
     }
   }
 
-  const sel = view.domSelection(),
+  const found = view.domSelection(),
     range = view.domSelectionRange()
-  if (!sel) return
+  if (Option.isNone(found)) return
+  const sel = found.value
   if (selectionCollapsed(range)) {
     sel.collapse(node, offset)
   } else if (sel.extend) {
@@ -280,14 +291,14 @@ function selectVertically(view: AnyView, dir: number, mods: string) {
 
   if (!$from.parent.inlineContent || view.endOfTextblock(dir < 0 ? "up" : "down")) {
     const next = moveSelectionBlock(view.state, dir)
-    if (next && next instanceof NodeSelection) {
-      return apply(view, next)
+    if (Option.isSome(next) && next.value instanceof NodeSelection) {
+      return apply(view, next.value)
     }
   }
   if (!$from.parent.inlineContent) {
     const side = dir < 0 ? $from : $to
-    const beyond = sel instanceof AllSelection ? Selection.near(side, dir) : Selection.findFromOrNull(side, dir)
-    return beyond ? apply(view, beyond) : false
+    const beyond = sel instanceof AllSelection ? Option.some(Selection.near(side, dir)) : Selection.findFrom(side, dir)
+    return Option.isSome(beyond) ? apply(view, beyond.value) : false
   }
   return false
 }
@@ -298,8 +309,9 @@ function stopNativeHorizontalDelete(view: AnyView, dir: number) {
   if (!$head.sameParent($anchor)) return true
   if (!empty) return false
   if (view.endOfTextblock(dir > 0 ? "forward" : "backward")) return true
-  const nextNode = !$head.textOffset && (dir < 0 ? $head.nodeBeforeOrNull : $head.nodeAfterOrNull)
-  if (nextNode && !nextNode.isText) {
+  const found = Option.filter(nodeBeside($head, dir), (node) => !node.isText)
+  if (Option.isSome(found)) {
+    const nextNode = found.value
     const tr = view.state.tr
     if (dir < 0) tr.deleteUnsafe($head.pos - nextNode.nodeSize, $head.pos)
     else tr.deleteUnsafe($head.pos, $head.pos + nextNode.nodeSize)

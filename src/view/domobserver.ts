@@ -4,6 +4,7 @@
  *
  * @internal
  */
+import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
 import { Selection } from "../State.ts"
 import * as browser from "./browser.ts"
@@ -35,29 +36,28 @@ const observeOptions = {
 // IE11 has very broken mutation observers, so we also listen to DOMCharacterDataModified
 const useCharData = browser.ie && browser.ie_version <= 11
 
+const noSelection: DOMSelectionRange = { anchorNode: null, anchorOffset: 0, focusNode: null, focusOffset: 0 }
+
 class SelectionState {
-  anchorNode: DOMNode | null = null
-  anchorOffset: number = 0
-  focusNode: DOMNode | null = null
-  focusOffset: number = 0
+  // A copy of the last DOM selection seen, as the browser reports it.
+  range: DOMSelectionRange = noSelection
 
   set(sel: DOMSelectionRange) {
-    this.anchorNode = sel.anchorNode
-    this.anchorOffset = sel.anchorOffset
-    this.focusNode = sel.focusNode
-    this.focusOffset = sel.focusOffset
+    const { anchorNode, anchorOffset, focusNode, focusOffset } = sel
+    this.range = { anchorNode, anchorOffset, focusNode, focusOffset }
   }
 
   clear() {
-    this.anchorNode = this.focusNode = null
+    this.range = { ...this.range, anchorNode: null, focusNode: null }
   }
 
   eq(sel: DOMSelectionRange) {
+    const range = this.range
     return (
-      sel.anchorNode == this.anchorNode &&
-      sel.anchorOffset == this.anchorOffset &&
-      sel.focusNode == this.focusNode &&
-      sel.focusOffset == this.focusOffset
+      sel.anchorNode == range.anchorNode &&
+      sel.anchorOffset == range.anchorOffset &&
+      sel.focusNode == range.focusNode &&
+      sel.focusOffset == range.focusOffset
     )
   }
 }
@@ -66,50 +66,52 @@ class SelectionState {
 export class DOMObserver {
   queue: Array<MutationRecord> = []
   flushingSoon = -1
-  observer: MutationObserver | null = null
+  observer: Option.Option<MutationObserver> = Option.none()
   currentSelection = new SelectionState()
-  onCharData: ((e: Event) => void) | null = null
+  onCharData: Option.Option<(e: Event) => void> = Option.none()
   suppressingSelectionUpdates = false
-  lastChangedTextNode: Text | null = null
+  lastChangedTextNode: Option.Option<Text> = Option.none()
 
   constructor(
     readonly view: AnyView,
     readonly handleDOMChange: (from: number, to: number, typeOver: boolean, added: Array<DOMNode>) => void
   ) {
-    this.observer =
-      window.MutationObserver &&
-      new window.MutationObserver((mutations) => {
-        mutations.forEach((m) => this.queue.push(m))
-        if (
-          browser.ie &&
-          browser.ie_version <= 11 &&
-          mutations.some(
-            (m) =>
-              (m.type == "childList" && m.removedNodes.length) ||
-              (m.type == "characterData" && (m.oldValue ?? "").length > (m.target.nodeValue ?? "").length)
-          )
-        ) {
-          // IE11 will sometimes (on backspacing out a single character
-          // text node after a BR node) call the observer callback
-          // before actually updating the DOM, which will cause
-          // ProseMirror to miss the change
-          this.flushSoon()
-        } else if (
-          browser.safari &&
-          view.composing &&
-          mutations.some((m) => m.type == "childList" && m.target.nodeName == "TR")
-        ) {
-          // Safari does weird stuff when finishing a composition in a
-          // table cell, which tends to involve inserting inappropriate
-          // nodes in the table row.
-          view.input.badSafariComposition = true
-          this.flushSoon()
-        } else {
-          this.flush()
-        }
-      })
+    this.observer = Option.map(
+      Option.fromUndefinedOr(window.MutationObserver),
+      (MutationObserver) =>
+        new MutationObserver((mutations) => {
+          mutations.forEach((m) => this.queue.push(m))
+          if (
+            browser.ie &&
+            browser.ie_version <= 11 &&
+            mutations.some(
+              (m) =>
+                (m.type == "childList" && m.removedNodes.length) ||
+                (m.type == "characterData" && (m.oldValue ?? "").length > (m.target.nodeValue ?? "").length)
+            )
+          ) {
+            // IE11 will sometimes (on backspacing out a single character
+            // text node after a BR node) call the observer callback
+            // before actually updating the DOM, which will cause
+            // ProseMirror to miss the change
+            this.flushSoon()
+          } else if (
+            browser.safari &&
+            view.composing &&
+            mutations.some((m) => m.type == "childList" && m.target.nodeName == "TR")
+          ) {
+            // Safari does weird stuff when finishing a composition in a
+            // table cell, which tends to involve inserting inappropriate
+            // nodes in the table row.
+            view.input.badSafariComposition = true
+            this.flushSoon()
+          } else {
+            this.flush()
+          }
+        })
+    )
     if (useCharData) {
-      this.onCharData = (e) => {
+      this.onCharData = Option.some((e: Event) => {
         const event: Event & { readonly prevValue?: string } = e
         if (!e.target || !isDOMNode(e.target)) return
         // SAFETY: the observer reads only `type`, `target` and `oldValue` from a queued record.
@@ -120,7 +122,7 @@ export class DOMObserver {
           oldValue: event.prevValue
         } as MutationRecord)
         this.flushSoon()
-      }
+      })
     }
   }
 
@@ -142,26 +144,28 @@ export class DOMObserver {
   }
 
   start() {
-    if (this.observer) {
-      this.observer.takeRecords()
-      this.observer.observe(this.view.dom, observeOptions)
+    if (Option.isSome(this.observer)) {
+      this.observer.value.takeRecords()
+      this.observer.value.observe(this.view.dom, observeOptions)
     }
-    if (this.onCharData) {
-      this.view.dom.addEventListener("DOMCharacterDataModified", this.onCharData)
+    if (Option.isSome(this.onCharData)) {
+      this.view.dom.addEventListener("DOMCharacterDataModified", this.onCharData.value)
     }
     this.connectSelection()
   }
 
   stop() {
-    if (this.observer) {
-      const take = this.observer.takeRecords()
+    if (Option.isSome(this.observer)) {
+      const take = this.observer.value.takeRecords()
       if (take.length) {
         take.forEach((m) => this.queue.push(m))
         window.setTimeout(() => this.flush(), 20)
       }
-      this.observer.disconnect()
+      this.observer.value.disconnect()
     }
-    if (this.onCharData) this.view.dom.removeEventListener("DOMCharacterDataModified", this.onCharData)
+    if (Option.isSome(this.onCharData)) {
+      this.view.dom.removeEventListener("DOMCharacterDataModified", this.onCharData.value)
+    }
     this.disconnectSelection()
   }
 
@@ -206,14 +210,14 @@ export class DOMObserver {
     if (!sel.focusNode) return true
     const aroundFocus: WeakSet<DOMNode> = new WeakSet(ancestors(sel.focusNode))
     const container = (sel.anchorNode ? ancestors(sel.anchorNode) : []).find((scan) => aroundFocus.has(scan))
-    const desc = container && this.view.docView.nearestDesc(container)
     if (
       container &&
-      desc &&
-      desc.ignoreMutation({
-        type: "selection",
-        target: (container.nodeType == 3 && container.parentNode) || container
-      })
+      Option.exists(this.view.docView.nearestDesc(container), (desc) =>
+        desc.ignoreMutation({
+          type: "selection",
+          target: (container.nodeType == 3 && container.parentNode) || container
+        })
+      )
     ) {
       this.setCurSelection()
       return true
@@ -222,8 +226,8 @@ export class DOMObserver {
   }
 
   pendingRecords() {
-    if (this.observer) {
-      this.observer.takeRecords().forEach((mut) => this.queue.push(mut))
+    if (Option.isSome(this.observer)) {
+      this.observer.value.takeRecords().forEach((mut) => this.queue.push(mut))
     }
     return this.queue
   }
@@ -259,8 +263,8 @@ export class DOMObserver {
 
     if (
       added.some((n) => n.nodeName == "BR") &&
-      (view.input.lastKeyCode == 8 ||
-        view.input.lastKeyCode == 46 ||
+      (view.input.lastKeyCode === 8 ||
+        view.input.lastKeyCode === 46 ||
         (browser.chrome &&
           (view.composing || view.input.compositionEndedAt > now - 50) &&
           mutations.some((m) => m.type == "childList" && m.removedNodes.length)))
@@ -276,16 +280,15 @@ export class DOMObserver {
         if (a.parentNode && a.parentNode.parentNode == b.parentNode) b.remove()
         else a.remove()
       } else {
-        const { focusNode } = this.currentSelection
-        const focusBlock = focusNode && blockParent(view, focusNode)
+        const { focusNode } = this.currentSelection.range
+        const focusBlock = focusNode ? blockParent(view, focusNode) : Option.none()
         brs.forEach((br) => {
           const parent = br.parentNode
-          if (parent && parent.nodeName == "LI" && focusBlock != parent) br.remove()
+          if (parent && parent.nodeName == "LI" && !Option.exists(focusBlock, (block) => block == parent)) br.remove()
         })
       }
     }
 
-    let readSel: Selection<any> | null = null
     // If it looks like the browser has reset the selection to the
     // start of the document after focus, restore the selection from
     // the state
@@ -295,8 +298,7 @@ export class DOMObserver {
       view.input.lastFocus > now - 200 &&
       Math.max(view.input.lastTouch, view.input.lastClick.time) < now - 300 &&
       selectionCollapsed(selRange) &&
-      (readSel = selectionFromDOM(view)) &&
-      readSel.eq(Selection.near(view.state.doc.resolveUnsafe(0), 1))
+      Option.exists(selectionFromDOM(view), (readSel) => readSel.eq(Selection.near(view.state.doc.resolveUnsafe(0), 1)))
     ) {
       view.input.lastFocus = 0
       selectionToDOM(view)
@@ -321,24 +323,25 @@ export class DOMObserver {
   registerMutation(mut: MutationRecord, added: Array<DOMNode>) {
     // Ignore mutations inside nodes that were already noted as inserted
     if (added.indexOf(mut.target) > -1) return null
-    const desc = this.view.docView.nearestDesc(mut.target)
+    const found = this.view.docView.nearestDesc(mut.target)
     if (
       mut.type == "attributes" &&
-      (desc == this.view.docView ||
+      (Option.exists(found, (desc) => desc == this.view.docView) ||
         mut.attributeName == "contenteditable" ||
         // Firefox sometimes fires spurious events for null/empty styles
         (mut.attributeName == "style" && !mut.oldValue && isElt(mut.target) && !mut.target.getAttribute("style")))
     ) {
       return null
     }
-    if (!desc || desc.ignoreMutation(mut)) return null
+    if (Option.isNone(found) || found.value.ignoreMutation(mut)) return null
+    const desc = found.value
 
     if (mut.type == "childList") {
       mut.addedNodes.forEach((node) => {
         added.push(node)
-        if (isText(node)) this.lastChangedTextNode = node
+        if (isText(node)) this.lastChangedTextNode = Option.some(node)
       })
-      if (desc.contentDOM && desc.contentDOM != desc.dom && !desc.contentDOM.contains(mut.target)) {
+      if (Option.exists(desc.contentDOM, (content) => content != desc.dom && !content.contains(mut.target))) {
         return { from: desc.posBefore, to: desc.posAfter }
       }
       let prev = mut.previousSibling,
@@ -361,7 +364,7 @@ export class DOMObserver {
       return { from: desc.posAtStart - desc.border, to: desc.posAtEnd + desc.border }
     } else {
       // "characterData"
-      if (isText(mut.target)) this.lastChangedTextNode = mut.target
+      if (isText(mut.target)) this.lastChangedTextNode = Option.some(mut.target)
       return {
         from: desc.posAtStart,
         to: desc.posAtEnd,
@@ -418,18 +421,18 @@ const hasComposedRanges = (selection: DOMSelection): selection is DOMSelection &
 // Used to work around a Safari Selection/shadow DOM bug
 // Based on https://github.com/codemirror/dev/issues/414 fix
 /** @internal */
-export function safariShadowSelectionRange(view: AnyView, selection: DOMSelection): DOMSelectionRange | null {
+export function safariShadowSelectionRange(view: AnyView, selection: DOMSelection): Option.Option<DOMSelectionRange> {
   // Safari's version takes the shadow roots as arguments.
   if (hasComposedRanges(selection)) {
-    const range = selection.getComposedRanges(view.root)[0]
-    if (range) return rangeToSelectionRange(view, range)
+    const ranges = selection.getComposedRanges(view.root)
+    if (ranges.length) return Option.some(rangeToSelectionRange(view, ranges[0]))
   }
 
-  let found: StaticRange | undefined
+  let found: Option.Option<StaticRange> = Option.none()
   function read(event: InputEvent) {
     event.preventDefault()
     event.stopImmediatePropagation()
-    found = event.getTargetRanges()[0]
+    found = Arr.head(event.getTargetRanges())
   }
 
   // Because Safari (at least in 2018-2022) doesn't provide regular
@@ -441,14 +444,15 @@ export function safariShadowSelectionRange(view: AnyView, selection: DOMSelectio
   document.execCommand("indent")
   view.dom.removeEventListener("beforeinput", read, true)
 
-  return found ? rangeToSelectionRange(view, found) : null
+  return Option.map(found, (range) => rangeToSelectionRange(view, range))
 }
 
-function blockParent(view: AnyView, node: DOMNode): DOMNode | null {
+function blockParent(view: AnyView, node: DOMNode): Option.Option<DOMNode> {
   const p = node.parentNode
-  if (!p || p == view.dom) return null
-  const desc = view.docView.nearestDesc(p, true)
-  return desc && desc.node.isBlock ? p : blockParent(view, p)
+  if (!p || p == view.dom) return Option.none()
+  return Option.exists(view.docView.nearestDesc(p, true), (desc) => desc.node.isBlock)
+    ? Option.some(p)
+    : blockParent(view, p)
 }
 
 // Whether `node` or one of its first descendants is an uneditable element.
@@ -489,7 +493,7 @@ function fixUpBadSafariComposition(view: AnyView, addedNodes: ReadonlyArray<DOMN
         onSome: (nextCell) => {
           const parent = innermostFirst(nextCell)
           parent.insertBefore(node, parent.firstChild)
-          if (focusNode == node) view.domSelection()?.collapse(node, focusOffset)
+          if (focusNode == node) Option.map(view.domSelection(), (sel) => sel.collapse(node, focusOffset))
         }
       })
     )

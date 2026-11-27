@@ -7,6 +7,7 @@
 import * as Predicate from "effect/Predicate"
 import * as Arr from "effect/Array"
 import type * as Effect from "effect/Effect"
+import * as Option from "effect/Option"
 import * as Order from "effect/Order"
 import { attempt } from "../internal/attempt.ts"
 import { type AnySchema, type Attrs, Mark, type Node } from "../Model.ts"
@@ -51,7 +52,7 @@ export interface MarkSerializerSpec<Sc extends AnySchema = AnySchema> {
    * can be varied. (For example, you can say `**a *b***` and `*a **b***`,
    * but not `` `a *b*` ``.)
    */
-  readonly mixable?: boolean | undefined
+  readonly mixable?: boolean
   /**
    * When enabled, causes the serializer to move enclosing whitespace
    * from inside the marks to outside the marks. This is necessary for
@@ -59,13 +60,13 @@ export interface MarkSerializerSpec<Sc extends AnySchema = AnySchema> {
    * inside emphasis marks, see:
    * http://spec.commonmark.org/0.26/#example-330
    */
-  readonly expelEnclosingWhitespace?: boolean | undefined
+  readonly expelEnclosingWhitespace?: boolean
   /**
    * Can be set to `false` to disable character escaping in a mark. A
    * non-escaping mark has to have the highest precedence (must always
    * be the innermost mark).
    */
-  readonly escape?: boolean | undefined
+  readonly escape?: boolean
 }
 
 /**
@@ -80,16 +81,16 @@ export interface MarkdownSerializerOptions {
    * to `String.replace()`, and the matching characters are preceded by
    * a backslash.
    */
-  readonly escapeExtraCharacters?: RegExp | undefined
+  readonly escapeExtraCharacters?: RegExp
   /** Specify the node name of hard breaks. Defaults to `"hard_break"`. */
-  readonly hardBreakNodeName?: string | undefined
+  readonly hardBreakNodeName?: string
   /**
    * By default, the serializer throws a `MarkdownError` when it finds a
    * node or mark type for which no serializer is defined. Set this to
    * `false` to make it just ignore such elements, rendering only their
    * content.
    */
-  readonly strict?: boolean | undefined
+  readonly strict?: boolean
 }
 
 /**
@@ -104,7 +105,7 @@ export interface MarkdownSerializeOptions {
    * a node level by specifying a tight attribute on the node. Defaults
    * to false.
    */
-  readonly tightLists?: boolean | undefined
+  readonly tightLists?: boolean
 }
 
 /**
@@ -126,8 +127,8 @@ export interface MarkdownSerializerStateOptions extends MarkdownSerializerOption
  * @category models
  */
 export interface EnclosingWhitespace {
-  readonly leading?: string | undefined
-  readonly trailing?: string | undefined
+  readonly leading?: string
+  readonly trailing?: string
 }
 
 const blankMark: MarkSerializerSpec<any> = { open: "", close: "", mixable: true }
@@ -211,7 +212,7 @@ function isPlainURL(link: Mark<any, any>, parent: Node<any, any>, index: number)
 export const defaultMarkdownSerializer: MarkdownSerializer = new MarkdownSerializer(
   {
     blockquote(state, node) {
-      state.wrapBlock("> ", null, node, () => state.renderContent(node))
+      state.wrapBlock("> ", Option.none(), node, () => state.renderContent(node))
     },
     code_block(state, node) {
       // Make sure the front matter fences are longer than any dash sequence within it
@@ -282,7 +283,7 @@ export const defaultMarkdownSerializer: MarkdownSerializer = new MarkdownSeriali
       },
       close(state, mark) {
         const { inAutolink } = state
-        state.inAutolink = undefined
+        state.inAutolink = false
         return inAutolink
           ? ">"
           : "](" +
@@ -318,9 +319,9 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
   /** @internal */
   out: string = ""
   /** @internal */
-  closed: Node<Sc, any> | null = null
+  closed: Option.Option<Node<Sc, any>> = Option.none()
   /** @internal */
-  inAutolink: boolean | undefined = undefined
+  inAutolink: boolean = false
   /** @internal */
   atBlockStart: boolean = false
   /** @internal */
@@ -346,7 +347,7 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
 
   /** @internal */
   flushClose(size: number = 2): void {
-    if (this.closed) {
+    if (Option.isSome(this.closed)) {
       if (!this.atBlank()) this.out += "\n"
       if (size > 1) {
         let delimMin = this.delim
@@ -354,7 +355,7 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
         if (trim) delimMin = delimMin.slice(0, delimMin.length - trim[0].length)
         this.out += (delimMin + "\n").repeat(size - 1)
       }
-      this.closed = null
+      this.closed = Option.none()
     }
   }
 
@@ -372,13 +373,13 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
 
   /**
    * Render a block, prefixing each line with `delim`, and the first line
-   * in `firstDelim`. `node` should be the node that is closed at the end
+   * in `firstDelim` (or `delim`, when it is `None`). `node` should be the node that is closed at the end
    * of the block, and `f` is a function that renders the content of the
    * block.
    */
-  wrapBlock(delim: string, firstDelim: string | null, node: Node<Sc, any>, f: () => void): void {
+  wrapBlock(delim: string, firstDelim: Option.Option<string>, node: Node<Sc, any>, f: () => void): void {
     const old = this.delim
-    this.write(firstDelim != null ? firstDelim : delim)
+    this.write(Option.getOrElse(firstDelim, () => delim))
     this.delim += delim
     f()
     this.delim = old
@@ -408,7 +409,7 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
 
   /** Close the block for the given node. */
   closeBlock(node: Node<Sc, any>): void {
-    this.closed = node
+    this.closed = Option.some(node)
   }
 
   /** Add the given text to the document. When escape is not `false`, it will be escaped. */
@@ -454,13 +455,15 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
     this.atBlockStart = fromBlockStart
     const active: Array<Mark<Sc, any>> = []
     let trailing = ""
-    const progress = (node: Node<Sc, any> | null, _offset: number, index: number) => {
-      let marks: ReadonlyArray<Mark<Sc, any>> = node ? node.marks : []
+    // Called for each child, then once more with `None` to close the marks still open.
+    const progress = (child: Option.Option<Node<Sc, any>>, index: number) => {
+      let node = child
+      let marks: ReadonlyArray<Mark<Sc, any>> = Option.isSome(node) ? node.value.marks : []
 
       // Remove marks from `hard_break` that are the last node inside
       // that mark to prevent parser edge cases with new lines just
       // before closing marks.
-      if (node && node.type.name === this.options.hardBreakNodeName) {
+      if (Option.isSome(node) && node.value.type.name === this.options.hardBreakNodeName) {
         marks = marks.filter((m) => {
           if (index + 1 == parent.childCount) return false
           const next = parent.childUnsafe(index + 1)
@@ -468,8 +471,8 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
         })
       }
 
-      const inner = marks.length ? marks[marks.length - 1] : null
-      const noEsc = inner && this.getMark(inner.type.name).escape === false
+      const inner = Arr.last(marks)
+      const noEsc = Option.exists(inner, (mark) => this.getMark(mark.type.name).escape === false)
       const len = marks.length - (noEsc ? 1 : 0)
 
       // Try to reorder 'mixable' marks, such as em and strong, which
@@ -515,39 +518,41 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
       // prefix of marks is known, so whitespace is only expelled from
       // marks that actually open or close here (prosemirror-markdown
       // 1.13.6 / 1.13.7).
+      const text = Option.filter(node, (n) => n.isTextNode())
       if (
-        node &&
-        node.isTextNode() &&
+        Option.isSome(text) &&
         marks.some((mark) => {
           const info = this.getMark(mark.type.name)
           return info && info.expelEnclosingWhitespace && !active.some((m, i) => i < keep && m.eq(mark))
         })
       ) {
-        const [_, lead, rest] = /^(\s*)(.*)$/m.exec(node.text) ?? []
+        const textNode = text.value
+        const [_, lead, rest] = textNode.isTextNode() ? (/^(\s*)(.*)$/m.exec(textNode.text) ?? []) : []
         if (lead) {
           leading += lead
-          node = rest ? node.withText(rest) : null
-          if (!node) marks = active
+          node = rest ? Option.some(textNode.withText(rest)) : Option.none()
+          if (Option.isNone(node)) marks = active
         }
       }
+      const textAfter = Option.filter(node, (n) => n.isTextNode())
       if (
-        node &&
-        node.isTextNode() &&
+        Option.isSome(textAfter) &&
         marks.some((mark, i) => {
           const info = this.getMark(mark.type.name)
           return info && info.expelEnclosingWhitespace && !this.isMarkAhead(parent, index + 1, marks.slice(0, i + 1))
         })
       ) {
-        const [_, rest, trail] = /^(.*?)(\s*)$/m.exec(node.text) ?? []
+        const textNode = textAfter.value
+        const [_, rest, trail] = textNode.isTextNode() ? (/^(.*?)(\s*)$/m.exec(textNode.text) ?? []) : []
         if (trail) {
           trailing = trail
-          node = rest ? node.withText(rest) : null
-          if (!node) marks = active
+          node = rest ? Option.some(textNode.withText(rest)) : Option.none()
+          if (Option.isNone(node)) marks = active
         }
       }
 
       // Close the marks that need to be closed
-      if (node || index == parent.childCount) {
+      if (Option.isSome(node) || index == parent.childCount) {
         active
           .splice(keep)
           .reverse()
@@ -558,7 +563,8 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
       if (leading) this.text(leading)
 
       // Open the marks that need to be opened
-      if (node) {
+      if (Option.isSome(node)) {
+        const rendered = node.value
         marks.slice(active.length, len).forEach((add) => {
           active.push(add)
           this.text(this.markString(add, true, parent, index), false)
@@ -567,13 +573,16 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
 
         // Render the node. Special case code marks, since their content
         // may not be escaped.
-        if (noEsc && node.isTextNode()) {
+        if (noEsc && Option.isSome(inner) && rendered.isTextNode()) {
+          const code = inner.value
           this.text(
-            this.markString(inner, true, parent, index) + node.text + this.markString(inner, false, parent, index + 1),
+            this.markString(code, true, parent, index) +
+              rendered.text +
+              this.markString(code, false, parent, index + 1),
             false
           )
         } else {
-          this.render(node, parent, index)
+          this.render(rendered, parent, index)
         }
         this.atBlockStart = false
 
@@ -583,11 +592,11 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
         // FIXME: If a non-text node writes something to the output for this
         // block, the end of output is also no longer at block start. But how
         // can we detect that?
-        if (node.isText && node.nodeSize > 0) this.atBlockStart = false
+        if (rendered.isText && rendered.nodeSize > 0) this.atBlockStart = false
       }
     }
-    parent.forEach(progress)
-    progress(null, 0, parent.childCount)
+    parent.forEach((child, _offset, index) => progress(Option.some(child), index))
+    progress(Option.none(), parent.childCount)
     this.atBlockStart = false
   }
 
@@ -598,7 +607,7 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
    * for the first line of the item.
    */
   renderList(node: Node<Sc, any>, delim: string, firstDelim: (index: number) => string): void {
-    if (this.closed && this.closed.type == node.type) this.flushClose(3)
+    if (Option.exists(this.closed, (closed) => closed.type == node.type)) this.flushClose(3)
     else if (this.inTightList) this.flushClose(1)
 
     const attrs: Attrs = node.attrs
@@ -607,7 +616,7 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
     this.inTightList = isTight
     node.forEach((child, _, i) => {
       if (i && isTight) this.flushClose(1)
-      this.wrapBlock(delim, firstDelim(i), node, () => this.render(child, node, i))
+      this.wrapBlock(delim, Option.some(firstDelim(i)), node, () => this.render(child, node, i))
     })
     this.inTightList = prevTight
   }
@@ -650,15 +659,14 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
   }
 
   /**
-   * Get leading and trailing whitespace from a string. Values of leading
-   * or trailing property of the return object will be undefined if there
-   * is no match.
+   * Get leading and trailing whitespace from a string. The leading or
+   * trailing property of the return object is absent if there is no
+   * match.
    */
   getEnclosingWhitespace(text: string): EnclosingWhitespace {
-    return {
-      leading: (text.match(/^(\s+)/) || [undefined])[0],
-      trailing: (text.match(/(\s+)$/) || [undefined])[0]
-    }
+    const leading = /^\s+/.exec(text),
+      trailing = /\s+$/.exec(text)
+    return { ...(leading && { leading: leading[0] }), ...(trailing && { trailing: trailing[0] }) }
   }
 
   /** @internal */

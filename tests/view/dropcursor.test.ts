@@ -8,19 +8,19 @@ import { EditorState } from "@thomasfosterau/effect-richtext/State"
 import { doc, hr, p } from "@thomasfosterau/effect-richtext/TestBuilder"
 import { EditorView } from "@thomasfosterau/effect-richtext/View"
 import ist from "../utils/ist.ts"
-import { instanceOf } from "../utils/present.ts"
+import { instanceOf, present } from "../utils/present.ts"
 import { tempEditor, workspace } from "./helpers.ts"
 
 const cursors = () => document.querySelectorAll(".test-dropcursor")
 
-const drag = (view: EditorView<any, any, any>, type: string, pos: number, relatedTarget: EventTarget | null = null) => {
+const drag = (view: EditorView<any, any, any>, type: string, pos: number, relatedTarget?: EventTarget) => {
   const coords = view.coordsAtPos(pos)
   const event = new DragEvent(type, {
     clientX: coords.left,
     clientY: (coords.top + coords.bottom) / 2,
     bubbles: true,
     cancelable: true,
-    relatedTarget
+    relatedTarget: relatedTarget ?? null
   })
   view.dom.dispatchEvent(event)
   return event
@@ -66,7 +66,7 @@ describe("dropCursor", () => {
     drag(view, "dragover", 2)
     ist(cursors().length, 1)
     // Leaving to an element inside the editor keeps the cursor.
-    drag(view, "dragleave", 2, view.dom.firstChild)
+    drag(view, "dragleave", 2, present(view.dom.firstChild))
     ist(cursors().length, 1)
     drag(view, "dragleave", 2, document.body)
     ist(cursors().length, 0)
@@ -86,7 +86,9 @@ describe("dropCursor", () => {
       nodes: { ...nodes, paragraph: { ...nodes.paragraph, disableDropCursor: true } },
       marks
     })
-    const d = schema.nodeUnsafe("doc", null, [schema.nodeUnsafe("paragraph", null, [schema.textUnsafe("hello")])])
+    const d = schema.nodeUnsafe("doc", undefined, [
+      schema.nodeUnsafe("paragraph", undefined, [schema.textUnsafe("hello")])
+    ])
     const view = EditorView.makeUnsafe(workspace(), {
       state: EditorState.createUnsafe({ doc: d, plugins: [dropCursor({ class: "test-dropcursor" })] })
     })

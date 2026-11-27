@@ -153,7 +153,7 @@ export type NodeBuilder<Sc extends DocSchema<any, any>, N extends NodeNames<Sc>>
     }
   : AttrsOptional<NodeSpecOf<Sc, N>> extends true
     ? {
-        (attrs?: NodeAttrsInput<Sc, N> | null, ...children: ReadonlyArray<NodeChild<Sc, N>>): Node<Sc, N>
+        (attrs?: NodeAttrsInput<Sc, N>, ...children: ReadonlyArray<NodeChild<Sc, N>>): Node<Sc, N>
         (...children: ReadonlyArray<NodeChild<Sc, N>>): Node<Sc, N>
       }
     : (attrs: NodeAttrsInput<Sc, N>, ...children: ReadonlyArray<NodeChild<Sc, N>>) => Node<Sc, N>
@@ -166,7 +166,7 @@ export type NodeBuilder<Sc extends DocSchema<any, any>, N extends NodeNames<Sc>>
  */
 export type MarkBuilder<Sc extends DocSchema<any, any>, M extends MarkNames<Sc>> =
   AttrsOptional<MarkSpecOf<Sc, M>> extends true
-    ? (attrs?: MarkAttrsInput<Sc, M> | null) => Mark<Sc, M>
+    ? (attrs?: MarkAttrsInput<Sc, M>) => Mark<Sc, M>
     : (attrs: MarkAttrsInput<Sc, M>) => Mark<Sc, M>
 
 /**
@@ -199,9 +199,9 @@ export type EditorContent<Sc extends DocSchema<any, any>> = Node<Sc> | NodeJSON 
  */
 export interface EditorOptions<Sc extends DocSchema<any, any>> {
   /** The initial document. Defaults to an empty document. */
-  readonly doc?: EditorContent<Sc> | undefined
+  readonly doc?: EditorContent<Sc>
   /** The initial selection. Defaults to the start of the document. */
-  readonly selection?: ((doc: Node<Sc>) => Selection<Sc>) | undefined
+  readonly selection?: (doc: Node<Sc>) => Selection<Sc>
 }
 
 /**
@@ -248,8 +248,8 @@ class ChainableState<Sc extends DocSchema<any, any>> extends EditorState<Sc, any
   override get selection(): Selection<Sc> {
     return this.chainTr.selection
   }
-  override get storedMarksOrNull(): ReadonlyArray<Mark<Sc>> | null {
-    return this.chainTr.storedMarksOrNull
+  override get storedMarks(): Option.Option<ReadonlyArray<Mark<Sc>>> {
+    return this.chainTr.storedMarks
   }
   override get tr(): Transaction<Sc> {
     return this.chainTr
@@ -268,7 +268,7 @@ const foldInto = (target: Transaction<any>, tr: Transaction<any>): void => {
   if (tr.selectionSet) {
     target.setSelectionUnsafe(tr.selection.map(target.doc, target.mapping.slice(target.steps.length)))
   }
-  if (tr.storedMarksSet) target.setStoredMarks(tr.storedMarksOrNull)
+  if (tr.storedMarksSet) target.setStoredMarks(Option.getOrUndefined(tr.storedMarks))
   if (tr.scrolledIntoView) target.scrollIntoView()
   // SAFETY: `meta` is the transaction's private record of metadata.
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
@@ -343,7 +343,7 @@ export class Editor<T extends ExtensionTypes> {
       schema.marks,
       // SAFETY: `name` is one of the schema's mark types; `markUnsafe` checks the attributes.
       // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-      (_type, name) => (attrs?: Attrs | null) => schema.markUnsafe(name as any, attrs as any)
+      (_type, name) => (attrs?: Attrs) => schema.markUnsafe(name as any, attrs as any)
     )
     // SAFETY: a constructor for each of the schema's mark types.
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion
@@ -523,18 +523,16 @@ export class Editor<T extends ExtensionTypes> {
 
   /** Create a text node with the given marks. Throws for empty strings. */
   text(text: string, ...marks: ReadonlyArray<Mark<SchemaOf<T>>>): TextNode<SchemaOf<T>> {
-    return this.schema.textUnsafe(text, marks.length ? Mark.setFrom(marks) : null)
+    return this.schema.textUnsafe(text, marks.length ? Mark.setFrom(marks) : undefined)
   }
 
   private nodeBuilder(name: string) {
     const type = this.schema.nodes[name]
     return (...args: Array<unknown>) => {
-      let attrs: Attrs | null = null
       const first = args[0]
-      if (args.length && (first === null || isPlainObject(first))) {
-        args.shift()
-        attrs = first
-      }
+      // Attributes come first, if given; `null` stands for none.
+      const attrs = isPlainObject(first) ? Option.some(first) : Option.none()
+      if (Option.isSome(attrs) || (args.length && first === null)) args.shift()
       const children: Array<Node<any, any>> = []
       const add = (child: unknown) => {
         if (Predicate.isString(child)) {
@@ -547,7 +545,7 @@ export class Editor<T extends ExtensionTypes> {
       args.forEach(add)
       // SAFETY: `createCheckedUnsafe` checks the attributes and content at runtime.
       // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-      return type.createCheckedUnsafe(attrs as any, children as any)
+      return type.createCheckedUnsafe(Option.getOrUndefined(attrs) as any, children as any)
     }
   }
 }
@@ -597,9 +595,8 @@ export const createEditor = <T extends ExtensionTypes>(
     const doc = content === undefined ? undefined : yield* attempt(() => parseContent(schema, content), isModelError)
     const config: EditorStateConfig<SchemaOf<T>> = {
       schema,
-      doc,
-      selection: doc && options.selection ? options.selection(doc) : undefined,
-      plugins
+      plugins,
+      ...(doc && { doc, ...(options.selection && { selection: options.selection(doc) }) })
     }
     const state = yield* EditorState.create(config)
     // SAFETY: created with the extension's plugins.

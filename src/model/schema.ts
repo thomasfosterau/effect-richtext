@@ -62,9 +62,9 @@ import { Node, TextNode } from "./node.ts"
  * @category models
  */
 export interface AttributeSpec<A = any, I = any> {
-  readonly schema?: S.Codec<A, I> | undefined
+  readonly schema?: S.Codec<A, I>
   readonly default?: A
-  readonly validate?: string | ((value: unknown) => void) | undefined
+  readonly validate?: string | ((value: unknown) => void)
 }
 
 /**
@@ -98,7 +98,7 @@ export interface NodeSpec {
    * read as ProseMirror content syntax (`"paragraph block*"`), and is
    * only precisely typed when it is a single bare name.
    */
-  readonly content?: ContentInput | undefined
+  readonly content?: ContentInput
   /**
    * The marks that are allowed inside of this node. May be a
    * space-separated string referring to mark names or groups, `"_"` to
@@ -106,45 +106,45 @@ export interface NodeSpec {
    * given, nodes with inline content default to allowing all marks,
    * other nodes default to not allowing marks.
    */
-  readonly marks?: string | undefined
+  readonly marks?: string
   /** The group or space-separated groups to which this node belongs. */
-  readonly group?: string | undefined
+  readonly group?: string
   /** Should be set to true for inline nodes. (Implied for text nodes.) */
-  readonly inline?: boolean | undefined
+  readonly inline?: boolean
   /**
    * Can be set to true to indicate that, though this isn't a leaf node,
    * it doesn't have directly editable content and should be treated as
    * a single unit in the view.
    */
-  readonly atom?: boolean | undefined
+  readonly atom?: boolean
   /** The attributes that nodes of this type get. */
-  readonly attrs?: AttributeDefinitions | undefined
+  readonly attrs?: AttributeDefinitions
   /** Whether nodes of this type can be selected as a node selection. */
-  readonly selectable?: boolean | undefined
+  readonly selectable?: boolean
   /** Whether nodes of this type can be dragged without being selected. */
-  readonly draggable?: boolean | undefined
+  readonly draggable?: boolean
   /** Indicates that this node contains code. */
-  readonly code?: boolean | undefined
+  readonly code?: boolean
   /** Controls the way whitespace in this node is parsed. */
-  readonly whitespace?: "pre" | "normal" | undefined
+  readonly whitespace?: "pre" | "normal"
   /** Whether this node is considered an important parent during replace operations. */
-  readonly definingAsContext?: boolean | undefined
+  readonly definingAsContext?: boolean
   /** Whether defining parents of inserted content are preserved. */
-  readonly definingForContent?: boolean | undefined
+  readonly definingForContent?: boolean
   /** Enables both `definingAsContext` and `definingForContent`. */
-  readonly defining?: boolean | undefined
+  readonly defining?: boolean
   /** Whether the sides of nodes of this type count as editing boundaries. */
-  readonly isolating?: boolean | undefined
+  readonly isolating?: boolean
   /** Defines the default way a node of this type should be serialized to DOM/HTML. */
-  readonly toDOM?: ((node: Node<any, any>) => DOMOutputSpec) | undefined
+  readonly toDOM?: (node: Node<any, any>) => DOMOutputSpec
   /** DOM parser rules for this node type. */
-  readonly parseDOM?: ReadonlyArray<TagParseRule> | undefined
+  readonly parseDOM?: ReadonlyArray<TagParseRule>
   /** Defines the way a node of this type is rendered for debugging. */
-  readonly toDebugString?: ((node: Node<any, any>) => string) | undefined
+  readonly toDebugString?: (node: Node<any, any>) => string
   /** Defines the way a leaf node of this type is serialized to a string. */
-  readonly leafText?: ((node: Node<any, any>) => string) | undefined
+  readonly leafText?: (node: Node<any, any>) => string
   /** Marks this (inline leaf) node as the schema's linebreak equivalent. */
-  readonly linebreakReplacement?: boolean | undefined
+  readonly linebreakReplacement?: boolean
   /** Node specs may include arbitrary extra properties. */
   readonly [key: string]: unknown
 }
@@ -157,21 +157,21 @@ export interface NodeSpec {
  */
 export interface MarkSpec {
   /** The attributes that marks of this type get. */
-  readonly attrs?: AttributeDefinitions | undefined
+  readonly attrs?: AttributeDefinitions
   /** Whether this mark should be active when the cursor is positioned at its end. Defaults to true. */
-  readonly inclusive?: boolean | undefined
+  readonly inclusive?: boolean
   /** Space-separated mark names or groups this mark excludes. */
-  readonly excludes?: string | undefined
+  readonly excludes?: string
   /** The group or space-separated groups to which this mark belongs. */
-  readonly group?: string | undefined
+  readonly group?: string
   /** Whether marks of this type can span multiple adjacent nodes when serialized. Defaults to true. */
-  readonly spanning?: boolean | undefined
+  readonly spanning?: boolean
   /** Marks the content of this span as being code. */
-  readonly code?: boolean | undefined
+  readonly code?: boolean
   /** Defines the default way marks of this type should be serialized to DOM/HTML. */
-  readonly toDOM?: ((mark: Mark<any, any>, inline: boolean) => DOMOutputSpec) | undefined
+  readonly toDOM?: (mark: Mark<any, any>, inline: boolean) => DOMOutputSpec
   /** DOM parser rules for this mark type. */
-  readonly parseDOM?: ReadonlyArray<ParseRule> | undefined
+  readonly parseDOM?: ReadonlyArray<ParseRule>
   /** Mark specs may include arbitrary extra properties. */
   readonly [key: string]: unknown
 }
@@ -208,9 +208,9 @@ export interface SchemaSpec<
   Top extends string = string
 > {
   readonly nodes: N
-  readonly marks?: M | undefined
+  readonly marks?: M
   /** The name of the default top-level node. Defaults to `"doc"`. */
-  readonly topNode?: Top | undefined
+  readonly topNode?: Top
 }
 
 // -----------------------------------------------------------------------------
@@ -353,9 +353,11 @@ type Widen<A> = A extends string
     ? number
     : A extends boolean
       ? boolean
-      : A extends null | undefined
+      : A extends null
         ? unknown
-        : A
+        : A extends undefined
+          ? unknown
+          : A
 
 // The value types a `validate` type name admits: the names
 // `typeof` returns, plus "null" (see `validateType`).
@@ -616,13 +618,13 @@ export type MarksWithOptionalAttrs<Sc> = {
 export type Attrs = { readonly [attr: string]: any }
 
 /**
- * The marks given to a node constructor: a mark set, or nothing (`null`
- * or `undefined`) for none.
+ * The marks given to a node constructor: a mark set, or `undefined` for
+ * none.
  *
  * @since 0.1.0
  * @category models
  */
-export type MarksInput<Sc extends AnySchema = AnySchema> = ReadonlyArray<Mark<Sc>> | null | undefined
+export type MarksInput<Sc extends AnySchema = AnySchema> = ReadonlyArray<Mark<Sc>>
 
 /**
  * Anything that can be converted to a fragment of `N` nodes.
@@ -634,8 +636,6 @@ export type FragmentInput<Sc extends AnySchema = AnySchema, N extends string = s
   | Fragment<Sc, N>
   | Node<Sc, N>
   | ReadonlyArray<Node<Sc, N>>
-  | null
-  | undefined
 
 // -----------------------------------------------------------------------------
 // Attributes
@@ -645,9 +645,9 @@ export type FragmentInput<Sc extends AnySchema = AnySchema, N extends string = s
 export class Attribute {
   readonly hasDefault: boolean
   readonly default: unknown
-  readonly schema: S.Codec<any, any> | undefined
-  readonly validate: ((value: unknown) => void) | undefined
-  readonly is: ((value: unknown) => boolean) | undefined
+  readonly schema: Option.Option<S.Codec<any, any>>
+  readonly validate: Option.Option<(value: unknown) => void>
+  readonly is: Option.Option<(value: unknown) => boolean>
   // The schema has no transformation (see attrsCodec).
   readonly identityCodec: boolean
 
@@ -657,12 +657,12 @@ export class Attribute {
     const options: AttributeSpec = S.isSchema(definition) ? { schema: definition as S.Codec<any, any> } : definition
     this.hasDefault = Object.prototype.hasOwnProperty.call(options, "default")
     this.default = options.default
-    this.schema = options.schema
-    this.is = options.schema ? S.is(options.schema) : undefined
+    this.schema = Option.fromUndefinedOr(options.schema)
+    this.is = Option.map(this.schema, (schema) => S.is(schema))
     this.identityCodec = !options.schema || SchemaAST.toEncoded(options.schema.ast) === options.schema.ast
     this.validate = Predicate.isString(options.validate)
-      ? validateType(typeName, attrName, options.validate)
-      : options.validate
+      ? Option.some(validateType(typeName, attrName, options.validate))
+      : Option.fromUndefinedOr(options.validate)
   }
 
   get isRequired(): boolean {
@@ -722,10 +722,13 @@ function defaultAttrs(attrs: Record<string, Attribute>): Option.Option<Attrs> {
   return complete ? Option.some(defaults) : Option.none()
 }
 
+// The attributes given when none are.
+const noAttrs: Attrs = Object.freeze(Object.create(null))
+
 /** @internal */
 export function computeAttrs(
   attrs: Record<string, Attribute>,
-  value: Attrs | null | undefined,
+  value: Attrs,
   type: string,
   typeName: string,
   // `value` holds values already decoded by their attribute Schemas (JSON
@@ -737,7 +740,7 @@ export function computeAttrs(
   // oxlint-disable-next-line effect/imperative-loops
   for (const name in attrs) {
     const attr = attrs[name]
-    let given = value && value[name]
+    let given = value[name]
     if (given === undefined) {
       if (attr.hasDefault) given = attr.default
       else throw new AttributeError({ message: "No value supplied for attribute " + name })
@@ -745,8 +748,8 @@ export function computeAttrs(
       // Validate every supplied value at creation, so no way of creating
       // a node or mark can skip it (prosemirror-model 1.25.12). Defaults
       // are trusted.
-      if (attr.validate) attr.validate(given)
-      if (!decoded && attr.is && !attr.is(given)) {
+      if (Option.isSome(attr.validate)) attr.validate.value(given)
+      if (!decoded && Option.isSome(attr.is) && !attr.is.value(given)) {
         throw new AttributeError({
           message: `Invalid value for attribute ${name} on ${type} of type ${typeName}: ${showJson(given)}`
         })
@@ -765,8 +768,8 @@ export function checkAttrs(attrs: Record<string, Attribute>, values: Attrs, type
     }
   })
   Rec.toEntries(attrs).forEach(([name, attr]) => {
-    if (attr.validate) attr.validate(values[name])
-    if (attr.is && !attr.is(values[name])) {
+    if (Option.isSome(attr.validate)) attr.validate.value(values[name])
+    if (Option.isSome(attr.is) && !attr.is.value(values[name])) {
       throw new AttributeError({
         message: `Invalid value for attribute ${name} on ${type} of type ${typeName}: ${showJson(values[name])}`
       })
@@ -792,7 +795,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   /** @internal */
   readonly attrs: Record<string, Attribute>
   /** @internal */
-  readonly defaultAttrs: Attrs | null
+  readonly defaultAttrs: Option.Option<Attrs>
   /** @internal Every attribute's codec is the identity: JSON attrs are the attrs. */
   readonly identityAttrs: boolean
   /** True if this is a block type. */
@@ -803,8 +806,8 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   inlineContent!: boolean
   /** The starting match of the node type's content expression. */
   contentMatch!: ContentMatch
-  /** The set of marks allowed in this node. `null` means all marks are allowed. */
-  markSet: ReadonlyArray<MarkType<Sc>> | null = null
+  /** The set of marks allowed in this node. `None` means all marks are allowed. */
+  markSet: Option.Option<ReadonlyArray<MarkType<Sc>>> = Option.none()
 
   /** @internal */
   constructor(
@@ -817,7 +820,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   ) {
     this.groups = spec.group ? spec.group.split(" ") : []
     this.attrs = initAttrs(name, spec.attrs)
-    this.defaultAttrs = Option.getOrNull(defaultAttrs(this.attrs))
+    this.defaultAttrs = defaultAttrs(this.attrs)
     this.identityAttrs = identityAttrs(this.attrs)
     this.isBlock = !(spec.inline || name === "text")
     this.isText = name === "text"
@@ -864,9 +867,9 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   }
 
   /** @internal */
-  computeAttrs(attrs: Attrs | null | undefined): Attrs {
-    if (!attrs && this.defaultAttrs) return this.defaultAttrs
-    return computeAttrs(this.attrs, attrs, "node", this.name)
+  computeAttrs(attrs?: Attrs): Attrs {
+    if (!attrs && Option.isSome(this.defaultAttrs)) return this.defaultAttrs.value
+    return computeAttrs(this.attrs, attrs ?? noAttrs, "node", this.name)
   }
 
   /**
@@ -877,7 +880,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
    */
   create(
     this: NodeType<Sc, NodesWithOptionalAttrs<Sc>>,
-    attrs?: NodeAttrsInput<Sc, N> | null,
+    attrs?: NodeAttrsInput<Sc, N>,
     content?: FragmentInput<Sc, ChildNames<Sc, N>>,
     marks?: MarksInput<Sc>
   ): Effect.Effect<Node<Sc, N>, AttributeError | ContentError>
@@ -887,7 +890,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     marks?: MarksInput<Sc>
   ): Effect.Effect<Node<Sc, N>, AttributeError | ContentError>
   create(
-    attrs?: NodeAttrsInput<Sc, N> | null,
+    attrs?: NodeAttrsInput<Sc, N>,
     content?: FragmentInput<Sc, ChildNames<Sc, N>>,
     marks?: MarksInput<Sc>
   ): Effect.Effect<Node<Sc, N>, AttributeError | ContentError> {
@@ -897,7 +900,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   /** Like `create`, but throws an `AttributeError` on failure. */
   createUnsafe(
     this: NodeType<Sc, NodesWithOptionalAttrs<Sc>>,
-    attrs?: NodeAttrsInput<Sc, N> | null,
+    attrs?: NodeAttrsInput<Sc, N>,
     content?: FragmentInput<Sc, ChildNames<Sc, N>>,
     marks?: MarksInput<Sc>
   ): Node<Sc, N>
@@ -907,7 +910,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     marks?: MarksInput<Sc>
   ): Node<Sc, N>
   createUnsafe(
-    attrs?: NodeAttrsInput<Sc, N> | null,
+    attrs?: NodeAttrsInput<Sc, N>,
     content?: FragmentInput<Sc, ChildNames<Sc, N>>,
     marks?: MarksInput<Sc>
   ): Node<Sc, N> {
@@ -933,7 +936,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   private computeDecodedAttrs(attrs: Option.Option<Attrs>): Attrs {
     return Option.isSome(attrs)
       ? computeAttrs(this.attrs, attrs.value, "node", this.name, true)
-      : this.computeAttrs(Option.getOrNull(attrs))
+      : this.computeAttrs(Option.getOrUndefined(attrs))
   }
 
   /**
@@ -942,7 +945,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
    */
   createChecked(
     this: NodeType<Sc, NodesWithOptionalAttrs<Sc>>,
-    attrs?: NodeAttrsInput<Sc, N> | null,
+    attrs?: NodeAttrsInput<Sc, N>,
     content?: FragmentInput<Sc, ChildNames<Sc, N>>,
     marks?: MarksInput<Sc>
   ): Effect.Effect<Node<Sc, N>, AttributeError | ContentError>
@@ -952,7 +955,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     marks?: MarksInput<Sc>
   ): Effect.Effect<Node<Sc, N>, AttributeError | ContentError>
   createChecked(
-    attrs?: NodeAttrsInput<Sc, N> | null,
+    attrs?: NodeAttrsInput<Sc, N>,
     content?: FragmentInput<Sc, ChildNames<Sc, N>>,
     marks?: MarksInput<Sc>
   ): Effect.Effect<Node<Sc, N>, AttributeError | ContentError> {
@@ -962,7 +965,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   /** Like `createChecked`, but throws on failure. */
   createCheckedUnsafe(
     this: NodeType<Sc, NodesWithOptionalAttrs<Sc>>,
-    attrs?: NodeAttrsInput<Sc, N> | null,
+    attrs?: NodeAttrsInput<Sc, N>,
     content?: FragmentInput<Sc, ChildNames<Sc, N>>,
     marks?: MarksInput<Sc>
   ): Node<Sc, N>
@@ -972,7 +975,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     marks?: MarksInput<Sc>
   ): Node<Sc, N>
   createCheckedUnsafe(
-    attrs?: NodeAttrsInput<Sc, N> | null,
+    attrs?: NodeAttrsInput<Sc, N>,
     content?: FragmentInput<Sc, ChildNames<Sc, N>>,
     marks?: MarksInput<Sc>
   ): Node<Sc, N> {
@@ -990,7 +993,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
    */
   createAndFill(
     this: NodeType<Sc, NodesWithOptionalAttrs<Sc>>,
-    attrs?: NodeAttrsInput<Sc, N> | null,
+    attrs?: NodeAttrsInput<Sc, N>,
     content?: FragmentInput<Sc, ChildNames<Sc, N>>,
     marks?: MarksInput<Sc>
   ): Effect.Effect<Node<Sc, N>, AttributeError | ContentError>
@@ -1000,42 +1003,48 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     marks?: MarksInput<Sc>
   ): Effect.Effect<Node<Sc, N>, AttributeError | ContentError>
   createAndFill(
-    attrs?: NodeAttrsInput<Sc, N> | null,
+    attrs?: NodeAttrsInput<Sc, N>,
     content?: FragmentInput<Sc, ChildNames<Sc, N>>,
     marks?: MarksInput<Sc>
   ): Effect.Effect<Node<Sc, N>, AttributeError | ContentError> {
     return attempt(() => {
-      const node = this.createAndFillOrNull(attrs, content, marks)
-      if (!node) {
+      const node = this.createAndFillOption(attrs, content, marks)
+      if (Option.isNone(node)) {
         throw new ContentError({ message: `Content does not fit node type ${this.name} and cannot be filled` })
       }
-      return node
+      return node.value
     }, isModelError)
   }
 
-  /** @internal */
-  createAndFillOrNull(
-    attrs?: Attrs | null,
+  /**
+   * Like `createAndFill`, but `None` when the content can't be made to
+   * fit, and throws an `AttributeError` for invalid attributes.
+   *
+   * @internal
+   */
+  createAndFillOption(
+    attrs?: Attrs,
     content?: FragmentInput<any, any>,
-    marks?: ReadonlyArray<Mark<any>> | null
-  ): Node<Sc, N> | null {
+    marks?: ReadonlyArray<Mark<any>>
+  ): Option.Option<Node<Sc, N>> {
     const computed = this.computeAttrs(attrs)
     let frag = Fragment.from(content)
     if (frag.size) {
-      const before = this.contentMatch.fillBeforeOrNull(frag)
-      if (!before) return null
-      frag = before.append(frag)
+      const before = this.contentMatch.fillBefore(frag)
+      if (Option.isNone(before)) return Option.none()
+      frag = before.value.append(frag)
     }
-    const matched = this.contentMatch.matchFragmentOrNull(frag)
-    const after = matched && matched.fillBeforeOrNull(Fragment.empty, true)
-    if (!after) return null
-    return this.build(computed, frag.append(after), Mark.setFrom(marks))
+    const filled = frag
+    return Option.map(
+      Option.flatMap(this.contentMatch.matchFragment(filled), (matched) => matched.fillBefore(Fragment.empty, true)),
+      (after) => this.build(computed, filled.append(after), Mark.setFrom(marks))
+    )
   }
 
   /** Returns true if the given fragment is valid content for this node type. */
   validContent(content: Fragment<any, any>): boolean {
-    const result = this.contentMatch.matchFragmentOrNull(content)
-    if (!result || !result.validEnd) return false
+    const result = this.contentMatch.matchFragment(content)
+    if (Option.isNone(result) || !result.value.validEnd) return false
     // Plain loops here and in `allowsMarks`: every replace checks its
     // content, and callbacks cost the block-moves benchmark a fifth of
     // its speed.
@@ -1062,12 +1071,12 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
 
   /** Check whether the given mark type is allowed in this node. */
   allowsMarkType(markType: MarkType<any, any>): boolean {
-    return this.markSet === null || this.markSet.indexOf(markType) > -1
+    return Option.isNone(this.markSet) || this.markSet.value.indexOf(markType) > -1
   }
 
   /** Test whether the given set of marks are allowed in this node. */
   allowsMarks(marks: ReadonlyArray<Mark<any>>): boolean {
-    if (this.markSet === null) return true
+    if (Option.isNone(this.markSet)) return true
     // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0; i < marks.length; i++) if (!this.allowsMarkType(marks[i].type)) return false
     return true
@@ -1146,7 +1155,7 @@ export class MarkType<Sc extends AnySchema = AnySchema, out M extends MarkNames<
   createUnsafe(attrs: MarkAttrsInput<Sc, M>): Mark<Sc, M>
   createUnsafe(attrs?: MarkAttrsInput<Sc, M>): Mark<Sc, M> {
     if (!attrs && Option.isSome(this.instance)) return this.instance.value
-    return this.build(computeAttrs(this.attrs, attrs, "mark", this.name))
+    return this.build(computeAttrs(this.attrs, attrs ?? noAttrs, "mark", this.name))
   }
 
   private build(attrs: Attrs): Mark<Sc, M> {
@@ -1175,14 +1184,9 @@ export class MarkType<Sc extends AnySchema = AnySchema, out M extends MarkNames<
 
   /** Find a mark of this type in the given set. */
   isInSet(set: ReadonlyArray<Mark<any>>): Option.Option<Mark<Sc, M>> {
-    return Option.fromNullishOr(this.findInSet(set))
-  }
-
-  /** @internal */
-  findInSet(set: ReadonlyArray<Mark<any>>): Mark<Sc, M> | undefined {
     // SAFETY: a mark of this type is a `Mark<Sc, M>`.
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-    return set.find((mark) => mark.type === this) as Mark<Sc, M> | undefined
+    return Arr.findFirst(set, (mark) => mark.type === this) as Option.Option<Mark<Sc, M>>
   }
 
   /** @internal */
@@ -1212,6 +1216,14 @@ type NodeTypes<Sc extends AnySchema, N extends NodeSpecs> = {
 type MarkTypes<Sc extends AnySchema, M extends MarkSpecs> = {
   readonly [K in keyof M & string]: MarkType<Sc, K>
 }
+
+// The arguments of `DocSchema.node`'s implementation signature.
+type NodeArgs = readonly [
+  type: string | NodeType<any, any>,
+  attrs?: Attrs,
+  content?: FragmentInput<any, any>,
+  marks?: MarksInput<any>
+]
 
 /**
  * A document schema. Holds node and mark type objects for the nodes and
@@ -1247,7 +1259,7 @@ type MarkTypes<Sc extends AnySchema, M extends MarkSpecs> = {
  * assert.strictEqual(heading.textContent, "Title")
  *
  * // A `doc` needs at least one block, so an empty one is rejected.
- * const error = Effect.runSync(Effect.flip(schema.node("doc", null, [])))
+ * const error = Effect.runSync(Effect.flip(schema.node("doc", undefined, [])))
  * assert.strictEqual(error._tag, "ContentError")
  * ```
  *
@@ -1256,7 +1268,7 @@ type MarkTypes<Sc extends AnySchema, M extends MarkSpecs> = {
  */
 export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = MarkSpecs> {
   /** The spec on which the schema is based. */
-  readonly spec: { readonly nodes: N; readonly marks: M; readonly topNode?: string | undefined }
+  readonly spec: { readonly nodes: N; readonly marks: M; readonly topNode?: string }
   /** An object mapping the schema's node names to node type objects. */
   readonly nodes: NodeTypes<DocSchema<N, M>, N> & Readonly<Partial<Record<string, NodeType<DocSchema<N, M>>>>>
   /** A map from mark names to mark type objects. */
@@ -1304,7 +1316,8 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
     Rec.toEntries(nodes).forEach(([prop, type]) => {
       if (prop in marks) throw new SchemaDefinitionError({ message: prop + " can not be both a node and a mark" })
       const markExpr = type.spec.marks
-      type.contentMatch = ContentMatch.compile(type.spec.content, nodes, prop)
+      type.contentMatch = ContentMatch.compile(Option.fromUndefinedOr(type.spec.content), nodes, prop)
+
       type.inlineContent = type.contentMatch.inlineContent
       if (type.spec.linebreakReplacement) {
         if (Option.isSome(linebreak)) throw new SchemaDefinitionError({ message: "Multiple linebreak nodes defined" })
@@ -1315,12 +1328,12 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
       }
       type.markSet =
         markExpr === "_"
-          ? null
+          ? Option.none()
           : markExpr
-            ? gatherMarks(this, markExpr.split(" "))
+            ? Option.some(gatherMarks(this, markExpr.split(" ")))
             : markExpr === "" || !type.inlineContent
-              ? []
-              : null
+              ? Option.some([])
+              : Option.none()
     })
     Rec.values(marks).forEach((type) => {
       const excl = type.spec.excludes
@@ -1363,7 +1376,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
    */
   node<K extends NodesWithOptionalAttrs<DocSchema<N, M>>>(
     type: K | NodeType<DocSchema<N, M>, K>,
-    attrs?: NodeAttrsInput<DocSchema<N, M>, K> | null,
+    attrs?: NodeAttrsInput<DocSchema<N, M>, K>,
     content?: FragmentInput<DocSchema<N, M>, ChildNames<DocSchema<N, M>, K>>,
     marks?: MarksInput<DocSchema<N, M>>
   ): Effect.Effect<Node<DocSchema<N, M>, K>, AttributeError | ContentError>
@@ -1373,19 +1386,14 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
     content?: FragmentInput<DocSchema<N, M>, ChildNames<DocSchema<N, M>, K>>,
     marks?: MarksInput<DocSchema<N, M>>
   ): Effect.Effect<Node<DocSchema<N, M>, K>, AttributeError | ContentError>
-  node<K extends keyof N & string>(
-    type: K | NodeType<DocSchema<N, M>, K>,
-    attrs?: NodeAttrsInput<DocSchema<N, M>, K> | null,
-    content?: FragmentInput<DocSchema<N, M>, ChildNames<DocSchema<N, M>, K>>,
-    marks?: MarksInput<DocSchema<N, M>>
-  ): Effect.Effect<Node<DocSchema<N, M>, K>, AttributeError | ContentError> {
-    return attempt(() => this.nodeUnsafe(type, attrs, content, marks), isModelError)
+  node(...args: NodeArgs): Effect.Effect<Node<any, any>, AttributeError | ContentError> {
+    return attempt(() => this.nodeFrom(...args), isModelError)
   }
 
   /** Like `node`, but throws on failure. */
   nodeUnsafe<K extends NodesWithOptionalAttrs<DocSchema<N, M>>>(
     type: K | NodeType<DocSchema<N, M>, K>,
-    attrs?: NodeAttrsInput<DocSchema<N, M>, K> | null,
+    attrs?: NodeAttrsInput<DocSchema<N, M>, K>,
     content?: FragmentInput<DocSchema<N, M>, ChildNames<DocSchema<N, M>, K>>,
     marks?: MarksInput<DocSchema<N, M>>
   ): Node<DocSchema<N, M>, K>
@@ -1395,12 +1403,16 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
     content?: FragmentInput<DocSchema<N, M>, ChildNames<DocSchema<N, M>, K>>,
     marks?: MarksInput<DocSchema<N, M>>
   ): Node<DocSchema<N, M>, K>
-  nodeUnsafe<K extends keyof N & string>(
-    type: K | NodeType<DocSchema<N, M>, K>,
-    attrs?: NodeAttrsInput<DocSchema<N, M>, K> | null,
-    content?: FragmentInput<DocSchema<N, M>, ChildNames<DocSchema<N, M>, K>>,
-    marks?: MarksInput<DocSchema<N, M>>
-  ): Node<DocSchema<N, M>, K> {
+  nodeUnsafe(...args: NodeArgs): Node<any, any> {
+    return this.nodeFrom(...args)
+  }
+
+  private nodeFrom(
+    type: string | NodeType<any, any>,
+    attrs?: Attrs,
+    content?: FragmentInput<any, any>,
+    marks?: MarksInput<any>
+  ): Node<any, any> {
     let nodeType: NodeType<any, any>
     if (Predicate.isString(type)) nodeType = this.nodeType(type)
     else if (!(type instanceof NodeType)) throw new ContentError({ message: "Invalid node type: " + type })
@@ -1422,10 +1434,10 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
   }
 
   /** Like `text`, but throws a `ContentError` for empty strings. */
-  textUnsafe(text: string, marks?: ReadonlyArray<Mark<DocSchema<N, M>>> | null): TextNode<this> {
+  textUnsafe(text: string, marks?: ReadonlyArray<Mark<DocSchema<N, M>>>): TextNode<this> {
     // SAFETY: `DocSchema` requires a `text` node type.
     const type = this.nodes.text as NodeType<any, any>
-    return new TextNode(type, type.computeAttrs(null), text, Mark.setFrom(marks))
+    return new TextNode(type, type.computeAttrs(), text, Mark.setFrom(marks))
   }
 
   /** Create a mark with the given type and attributes. */
@@ -1494,8 +1506,8 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
 
 function gatherMarks(schema: DocSchema<any, any>, marks: ReadonlyArray<string>) {
   return marks.flatMap((name): ReadonlyArray<MarkType<any, any>> => {
-    const mark: MarkType<any, any> | undefined = schema.marks[name]
-    if (mark) return [mark]
+    const mark: Option.Option<MarkType<any, any>> = Option.fromUndefinedOr(schema.marks[name])
+    if (Option.isSome(mark)) return [mark.value]
     const all: ReadonlyArray<MarkType<any, any>> = Rec.values(schema.marks)
     const inGroup = all.filter(
       (candidate) =>

@@ -72,7 +72,7 @@ export class MapResult {
     /** @internal */
     readonly delInfo: number,
     /** @internal */
-    readonly recover: number | null
+    readonly recover: Option.Option<number>
   ) {}
 
   /**
@@ -168,7 +168,7 @@ export class StepMap implements Mappable {
         const side = !oldSize ? assoc : pos === start ? -1 : pos === end ? 1 : assoc
         const result = start + diff + (side < 0 ? 0 : newSize)
         if (simple) return result
-        const recover = pos === (assoc < 0 ? start : end) ? null : makeRecover(i / 3, pos - start)
+        const recover = pos === (assoc < 0 ? start : end) ? Option.none() : Option.some(makeRecover(i / 3, pos - start))
         // Pure insertions delete nothing (transform 1.12.2).
         let del = 0
         if (oldSize) {
@@ -179,7 +179,7 @@ export class StepMap implements Mappable {
       }
       diff += newSize - oldSize
     }
-    return simple ? pos + diff : new MapResult(pos + diff, 0, null)
+    return simple ? pos + diff : new MapResult(pos + diff, 0, Option.none())
   }
 
   /** @internal */
@@ -308,8 +308,8 @@ export class Mapping implements Mappable {
   appendMapping(mapping: Mapping): void {
     const startSize = this._maps.length
     mapping._maps.forEach((map, i) => {
-      const mirr = mapping.getMirrorOrUndefined(i)
-      this.appendMap(map, mirr != null && mirr < i ? startSize + mirr : undefined)
+      const mirr = mapping.getMirror(i)
+      this.appendMap(map, Option.isSome(mirr) && mirr.value < i ? startSize + mirr.value : undefined)
     })
   }
 
@@ -319,13 +319,8 @@ export class Mapping implements Mappable {
    * `appendMap`).
    */
   getMirror(n: number): Option.Option<number> {
-    return Option.fromUndefinedOr(this.getMirrorOrUndefined(n))
-  }
-
-  /** @internal */
-  getMirrorOrUndefined(n: number): number | undefined {
     const i = this.mirror ? this.mirror.indexOf(n) : -1
-    return this.mirror && i >= 0 ? this.mirror[i + (i % 2 ? -1 : 1)] : undefined
+    return this.mirror && i >= 0 ? Option.some(this.mirror[i + (i % 2 ? -1 : 1)]) : Option.none()
   }
 
   /** Record that the maps at offsets `n` and `m` mirror each other. */
@@ -340,8 +335,8 @@ export class Mapping implements Mappable {
     const last = mapping._maps.length - 1
     Arr.reverse(mapping._maps).forEach((map, k) => {
       const i = last - k,
-        mirr = mapping.getMirrorOrUndefined(i)
-      this.appendMap(map.invert(), mirr != null && mirr > i ? totalSize - mirr - 1 : undefined)
+        mirr = mapping.getMirror(i)
+      this.appendMap(map.invert(), Option.isSome(mirr) && mirr.value > i ? totalSize - mirr.value - 1 : undefined)
     })
   }
 
@@ -378,18 +373,18 @@ export class Mapping implements Mappable {
     for (let i = this.from; i < this.to; i++) {
       const map = this._maps[i],
         result = map.mapResult(pos, assoc)
-      if (result.recover != null) {
-        const corr = this.getMirrorOrUndefined(i)
-        if (corr != null && corr > i && corr < this.to) {
+      if (Option.isSome(result.recover)) {
+        const corr = this.getMirror(i)
+        if (Option.isSome(corr) && corr.value > i && corr.value < this.to) {
           // A mirrored pair cancels out: skip to its other half.
-          i = corr
-          pos = this._maps[corr].recover(result.recover)
+          i = corr.value
+          pos = this._maps[i].recover(result.recover.value)
           continue
         }
       }
       delInfo |= result.delInfo
       pos = result.pos
     }
-    return simple ? pos : new MapResult(pos, delInfo, null)
+    return simple ? pos : new MapResult(pos, delInfo, Option.none())
   }
 }

@@ -44,22 +44,29 @@ import { present } from "../utils/present.ts"
 
 type Node_ = Node<any>
 
-function tag$(node: Node_, tag: string): number | null {
-  return tagsOf(node)[tag]
+function tag$(node: Node_, tag: string): Option.Option<number> {
+  return Option.fromNullishOr(tagsOf(node)[tag])
 }
 
 function tag(node: Node_, tag: string): number {
-  const value = tag$(node, tag)
-  if (value == null) return assert.fail(`Missing tag ${tag} on ${node.toString()}`)
-  return value
+  return Option.getOrElse(tag$(node, tag), () => assert.fail(`Missing tag ${tag} on ${node.toString()}`))
+}
+
+// The position of tag `b`, or of `a` when there is none.
+function tagB(node: Node_): number {
+  return Option.getOrElse(tag$(node, "b"), () => tag(node, "a"))
 }
 
 function addInAddmark(doc: Node_, mark: Mark<any>, expect: Node_) {
   testTransform(new Transform(doc).addMark(tag(doc, "a"), tag(doc, "b"), mark), expect)
 }
 
-function rem(doc: Node_, mark: Mark<any> | null, expect: Node_) {
+function rem(doc: Node_, mark: Mark<any>, expect: Node_) {
   testTransform(new Transform(doc).removeMark(tag(doc, "a"), tag(doc, "b"), mark), expect)
+}
+
+function remAll(doc: Node_, expect: Node_) {
+  testTransform(new Transform(doc).removeMark(tag(doc, "a"), tag(doc, "b")), expect)
 }
 
 function ins(doc: Node_, nodes: Node_ | Array<Node_>, expect: Node_) {
@@ -78,7 +85,7 @@ function split(
   doc: Node_,
   expect: Node_ | "fail",
   depth?: number,
-  typesAfter?: (null | { type: NodeType<any, any>; attrs?: Attrs | null })[]
+  typesAfter?: ReadonlyArray<Option.Option<{ readonly type: NodeType<any, any>; readonly attrs?: Attrs }>>
 ) {
   if (expect == "fail") {
     ist.throws(() => new Transform(doc).splitUnsafe(tag(doc, "a"), depth, typesAfter))
@@ -88,12 +95,12 @@ function split(
 }
 
 function lift(doc: Node_, expect: Node_) {
-  const range = getSome(doc.resolveUnsafe(tag(doc, "a")).blockRange(doc.resolveUnsafe(tag$(doc, "b") || tag(doc, "a"))))
+  const range = getSome(doc.resolveUnsafe(tag(doc, "a")).blockRange(doc.resolveUnsafe(tagB(doc))))
   testTransform(new Transform(doc).liftUnsafe(range, getSome(liftTarget(range))), expect)
 }
 
 function wrap(doc: Node_, expect: Node, type: string, attrs?: Attrs) {
-  const range = getSome(doc.resolveUnsafe(tag(doc, "a")).blockRange(doc.resolveUnsafe(tag$(doc, "b") || tag(doc, "a"))))
+  const range = getSome(doc.resolveUnsafe(tag(doc, "a")).blockRange(doc.resolveUnsafe(tagB(doc))))
   testTransform(
     new Transform(doc).wrapUnsafe(
       range,
@@ -105,12 +112,7 @@ function wrap(doc: Node_, expect: Node, type: string, attrs?: Attrs) {
 
 function typeInSetBlockType(doc: Node_, expect: Node, nodeType: string, attrs?: Attrs | ((oldNode: Node_) => Attrs)) {
   testTransform(
-    new Transform(doc).setBlockTypeUnsafe(
-      tag(doc, "a"),
-      tag$(doc, "b") || tag(doc, "a"),
-      doc.type.schema.nodes[nodeType],
-      attrs
-    ),
+    new Transform(doc).setBlockTypeUnsafe(tag(doc, "a"), tagB(doc), doc.type.schema.nodes[nodeType], attrs),
     expect
   )
 }
@@ -119,13 +121,9 @@ function markup(doc: Node_, expect: Node, type: string, attrs?: Attrs) {
   testTransform(new Transform(doc).setNodeMarkupUnsafe(tag(doc, "a"), schema.nodes[type], attrs), expect)
 }
 
-function replInReplace(doc: Node_, source: Node_ | Slice<any> | null, expect: Node_) {
-  const slice = !source
-    ? Slice.empty
-    : source instanceof Slice
-      ? source
-      : source.sliceUnsafe(tag(source, "a"), tag(source, "b"))
-  testTransform(new Transform(doc).replaceUnsafe(tag(doc, "a"), tag$(doc, "b") || tag(doc, "a"), slice), expect)
+function replInReplace(doc: Node_, source: Node_ | Slice<any>, expect: Node_) {
+  const slice = source instanceof Slice ? source : source.sliceUnsafe(tag(source, "a"), tag(source, "b"))
+  testTransform(new Transform(doc).replaceUnsafe(tag(doc, "a"), tagB(doc), slice), expect)
 }
 
 function replInReplacerange(doc: Node_, source: Node_ | Slice<any>, expect: Node_) {
@@ -134,15 +132,15 @@ function replInReplacerange(doc: Node_, source: Node_ | Slice<any>, expect: Node
     : source instanceof Slice
       ? source
       : source.sliceUnsafe(tag(source, "a"), tag(source, "b"), true)
-  testTransform(new Transform(doc).replaceRangeUnsafe(tag(doc, "a"), tag$(doc, "b") || tag(doc, "a"), slice), expect)
+  testTransform(new Transform(doc).replaceRangeUnsafe(tag(doc, "a"), tagB(doc), slice), expect)
 }
 
 function replInReplacerangewith(doc: Node_, node: Node_, expect: Node_) {
-  testTransform(new Transform(doc).replaceRangeWithUnsafe(tag(doc, "a"), tag$(doc, "b") || tag(doc, "a"), node), expect)
+  testTransform(new Transform(doc).replaceRangeWithUnsafe(tag(doc, "a"), tagB(doc), node), expect)
 }
 
 function delInDeleterange(doc: Node_, expect: Node_) {
-  testTransform(new Transform(doc).deleteRangeUnsafe(tag(doc, "a"), tag$(doc, "b") || tag(doc, "a")), expect)
+  testTransform(new Transform(doc).deleteRangeUnsafe(tag(doc, "a"), tagB(doc)), expect)
 }
 
 function addInAddnodemark(doc: Node_, mark: Mark<any>, expect: Node_) {
@@ -212,7 +210,7 @@ describe("Transform", () => {
         marks: { comment: { excludes: "", attrs: { id: {} } } }
       })
       const tr = new Transform(
-        schema.nodeUnsafe("doc", null, schema.textUnsafe("hi", [schema.markUnsafe("comment", { id: 10 })]))
+        schema.nodeUnsafe("doc", undefined, schema.textUnsafe("hi", [schema.markUnsafe("comment", { id: 10 })]))
       )
       tr.addMark(0, 2, schema.markUnsafe("comment", { id: 20 }))
       ist(tr.doc.firstChild.pipe(getSome).marks.length, 2)
@@ -226,7 +224,7 @@ describe("Transform", () => {
       const tr = new Transform(
         schema.nodeUnsafe(
           "doc",
-          null,
+          undefined,
           schema.textUnsafe("hi", [schema.markUnsafe("small1"), schema.markUnsafe("small2")])
         )
       )
@@ -261,9 +259,8 @@ describe("Transform", () => {
       ))
 
     it("can remove everything", () =>
-      rem(
+      remAll(
         doc(p("<a>hello, ", em("this is ", strong("much"), " ", a("markup<b>")))),
-        null,
         doc(p("<a>hello, this is much markup"))
       ))
 
@@ -275,7 +272,7 @@ describe("Transform", () => {
       const tr = new Transform(
         schema.nodeUnsafe(
           "doc",
-          null,
+          undefined,
           schema.textUnsafe("hi", [schema.markUnsafe("comment", { id: 1 }), schema.markUnsafe("comment", { id: 2 })])
         )
       )
@@ -295,7 +292,7 @@ describe("Transform", () => {
     it("can insert two block nodes", () =>
       ins(
         doc(p("one"), "<a>", p("two<2>")),
-        [schema.nodeUnsafe("paragraph", null, [schema.textUnsafe("hi")]), schema.nodeUnsafe("horizontal_rule")],
+        [schema.nodeUnsafe("paragraph", undefined, [schema.textUnsafe("hi")]), schema.nodeUnsafe("horizontal_rule")],
         doc(p("one"), p("hi"), hr(), "<a>", p("two<2>"))
       ))
 
@@ -316,7 +313,7 @@ describe("Transform", () => {
     it("will wrap a node with the suitable parent", () =>
       ins(
         doc(p("foo<a>bar")),
-        present(schema.nodes.list_item.createAndFillOrNull()),
+        getSome(schema.nodes.list_item.createAndFillOption()),
         doc(p("foo"), ol(li(p())), p("bar"))
       ))
   })
@@ -425,7 +422,9 @@ describe("Transform", () => {
       ))
 
     it("respects the type param", () =>
-      split(doc(h1("hell<a>o!")), doc(h1("hell"), p("<a>o!")), undefined, [{ type: schema.nodes.paragraph }]))
+      split(doc(h1("hell<a>o!")), doc(h1("hell"), p("<a>o!")), undefined, [
+        Option.some({ type: schema.nodes.paragraph })
+      ]))
 
     it("preserves content constraints before", () => split(doc(blockquote("<a>", p("x"))), "fail"))
 
@@ -594,15 +593,23 @@ describe("Transform", () => {
   })
 
   describe("replace", () => {
-    it("can delete text", () => replInReplace(doc(p("hell<a>o y<b>ou")), null, doc(p("hell<a><b>ou"))))
+    it("can delete text", () => replInReplace(doc(p("hell<a>o y<b>ou")), Slice.empty, doc(p("hell<a><b>ou"))))
 
-    it("can join blocks", () => replInReplace(doc(p("hell<a>o"), p("y<b>ou")), null, doc(p("hell<a><b>ou"))))
+    it("can join blocks", () => replInReplace(doc(p("hell<a>o"), p("y<b>ou")), Slice.empty, doc(p("hell<a><b>ou"))))
 
     it("can delete right-leaning lopsided regions", () =>
-      replInReplace(doc(blockquote(p("ab<a>c")), "<b>", p("def")), null, doc(blockquote(p("ab<a>")), "<b>", p("def"))))
+      replInReplace(
+        doc(blockquote(p("ab<a>c")), "<b>", p("def")),
+        Slice.empty,
+        doc(blockquote(p("ab<a>")), "<b>", p("def"))
+      ))
 
     it("can delete left-leaning lopsided regions", () =>
-      replInReplace(doc(p("abc"), "<a>", blockquote(p("d<b>ef"))), null, doc(p("abc"), "<a>", blockquote(p("<b>ef")))))
+      replInReplace(
+        doc(p("abc"), "<a>", blockquote(p("d<b>ef"))),
+        Slice.empty,
+        doc(p("abc"), "<a>", blockquote(p("<b>ef")))
+      ))
 
     it("can overwrite text", () =>
       replInReplace(doc(p("hell<a>o y<b>ou")), doc(p("<a>i k<b>")), doc(p("hell<a>i k<b>ou"))))
@@ -623,22 +630,22 @@ describe("Transform", () => {
       ))
 
     it("merges blocks across deleted content", () =>
-      replInReplace(doc(p("a<a>"), p("b"), p("<b>c")), null, doc(p("a<a><b>c"))))
+      replInReplace(doc(p("a<a>"), p("b"), p("<b>c")), Slice.empty, doc(p("a<a><b>c"))))
 
     it("can merge text down from nested nodes", () =>
-      replInReplace(doc(h1("wo<a>ah"), blockquote(p("ah<b>ha"))), null, doc(h1("wo<a><b>ha"))))
+      replInReplace(doc(h1("wo<a>ah"), blockquote(p("ah<b>ha"))), Slice.empty, doc(h1("wo<a><b>ha"))))
 
     it("can merge text up into nested nodes", () =>
       replInReplace(
         doc(blockquote(p("foo<a>bar")), p("middle"), h1("quux<b>baz")),
-        null,
+        Slice.empty,
         doc(blockquote(p("foo<a><b>baz")))
       ))
 
     it("will join multiple levels when possible", () =>
       replInReplace(
         doc(blockquote(ul(li(p("a")), li(p("b<a>")), li(p("c")), li(p("<b>d")), li(p("e"))))),
-        null,
+        Slice.empty,
         doc(blockquote(ul(li(p("a")), li(p("b<a><b>d")), li(p("e")))))
       ))
 
@@ -669,7 +676,8 @@ describe("Transform", () => {
     it("can replace text with a break", () =>
       replInReplace(doc(p("foo<a>b<inside>b<b>bar")), doc(p("<a>", br(), "<b>")), doc(p("foo", br(), "<inside>bar"))))
 
-    it("can join different blocks", () => replInReplace(doc(h1("hell<a>o"), p("by<b>e")), null, doc(h1("helle"))))
+    it("can join different blocks", () =>
+      replInReplace(doc(h1("hell<a>o"), p("by<b>e")), Slice.empty, doc(h1("helle"))))
 
     it("can restore a list parent", () =>
       replInReplace(
@@ -723,7 +731,8 @@ describe("Transform", () => {
         doc(p("x"), ul(li(p("a")), li(p())), "<a>")
       ))
 
-    it("can delete the whole document", () => replInReplace(doc("<a>", h1("hi"), p("you"), "<b>"), null, doc(p())))
+    it("can delete the whole document", () =>
+      replInReplace(doc("<a>", h1("hi"), p("you"), "<b>"), Slice.empty, doc(p())))
 
     it("preserves an empty parent to the left", () =>
       replInReplace(doc(blockquote("<a>", p("hi")), p("b<b>x")), doc(p("<a>hi<b>")), doc(blockquote(p("hix")))))
@@ -776,9 +785,9 @@ describe("Transform", () => {
 
     it("preserves marks on block nodes", () => {
       const tr = new Transform(
-        ms.nodeUnsafe("doc", null, [
-          ms.nodeUnsafe("paragraph", null, [ms.textUnsafe("hey")], [ms.markUnsafe("em")]),
-          ms.nodeUnsafe("paragraph", null, [ms.textUnsafe("ok")], [ms.markUnsafe("strong")])
+        ms.nodeUnsafe("doc", undefined, [
+          ms.nodeUnsafe("paragraph", undefined, [ms.textUnsafe("hey")], [ms.markUnsafe("em")]),
+          ms.nodeUnsafe("paragraph", undefined, [ms.textUnsafe("ok")], [ms.markUnsafe("strong")])
         ])
       )
       tr.replaceUnsafe(2, 7, tr.doc.sliceUnsafe(2, 7))
@@ -786,12 +795,16 @@ describe("Transform", () => {
     })
 
     it("preserves marks on open slice block nodes", () => {
-      const tr = new Transform(ms.nodeUnsafe("doc", null, [ms.nodeUnsafe("paragraph", null, [ms.textUnsafe("a")])]))
+      const tr = new Transform(
+        ms.nodeUnsafe("doc", undefined, [ms.nodeUnsafe("paragraph", undefined, [ms.textUnsafe("a")])])
+      )
       tr.replaceUnsafe(
         3,
         3,
         ms
-          .nodeUnsafe("doc", null, [ms.nodeUnsafe("paragraph", null, [ms.textUnsafe("b")], [ms.markUnsafe("em")])])
+          .nodeUnsafe("doc", undefined, [
+            ms.nodeUnsafe("paragraph", undefined, [ms.textUnsafe("b")], [ms.markUnsafe("em")])
+          ])
           .sliceUnsafe(1, 3)
       )
       ist(tr.doc.childCount, 2)
@@ -850,14 +863,14 @@ describe("Transform", () => {
           doc: { content: Content.parse("title? block*") }
         }
       })
-      const tr = new Transform(s.nodeUnsafe("doc", null, s.nodeUnsafe("title", null, s.textUnsafe("hi"))))
+      const tr = new Transform(s.nodeUnsafe("doc", undefined, s.nodeUnsafe("title", undefined, s.textUnsafe("hi"))))
       tr.replaceUnsafe(
         1,
         1,
         s
-          .nodeUnsafe("bullet_list", null, [
-            s.nodeUnsafe("list_item", null, s.nodeUnsafe("paragraph", null, s.textUnsafe("one"))),
-            s.nodeUnsafe("list_item", null, s.nodeUnsafe("paragraph", null, s.textUnsafe("two")))
+          .nodeUnsafe("bullet_list", undefined, [
+            s.nodeUnsafe("list_item", undefined, s.nodeUnsafe("paragraph", undefined, s.textUnsafe("one"))),
+            s.nodeUnsafe("list_item", undefined, s.nodeUnsafe("paragraph", undefined, s.textUnsafe("two")))
           ])
           .sliceUnsafe(2, 12)
       )
@@ -872,14 +885,14 @@ describe("Transform", () => {
           doc: { content: Content.parse("title? block*") }
         }
       })
-      const tr = new Transform(s.nodeUnsafe("doc", null, [s.nodeUnsafe("title", null, [])]))
+      const tr = new Transform(s.nodeUnsafe("doc", undefined, [s.nodeUnsafe("title", undefined, [])]))
       tr.replaceUnsafe(
         1,
         1,
         s
-          .nodeUnsafe("doc", null, [
-            s.nodeUnsafe("title", null, s.textUnsafe("title")),
-            s.nodeUnsafe("code_block", null, s.textUnsafe("two"))
+          .nodeUnsafe("doc", undefined, [
+            s.nodeUnsafe("title", undefined, s.textUnsafe("title")),
+            s.nodeUnsafe("code_block", undefined, s.textUnsafe("two"))
           ])
           .sliceUnsafe(1)
       )
@@ -894,14 +907,14 @@ describe("Transform", () => {
           doc: { content: Content.parse("title? block*") }
         }
       })
-      const tr = new Transform(s.nodeUnsafe("doc", null, [s.nodeUnsafe("title")]))
+      const tr = new Transform(s.nodeUnsafe("doc", undefined, [s.nodeUnsafe("title")]))
       tr.replaceUnsafe(
         1,
         1,
         s
-          .nodeUnsafe("doc", null, [
+          .nodeUnsafe("doc", undefined, [
             s.nodeUnsafe("heading", { level: 1 }, [s.textUnsafe("heading")]),
-            s.nodeUnsafe("code_block", null, [s.textUnsafe("code")])
+            s.nodeUnsafe("code_block", undefined, [s.textUnsafe("code")])
           ])
           .sliceUnsafe(1)
       )
@@ -919,10 +932,10 @@ describe("Transform", () => {
         }
       })
 
-      const doc = s.nodeUnsafe("doc", null, [
-        s.nodeUnsafe("block", null, [
-          s.nodeUnsafe("a", null, [s.textUnsafe("aa")]),
-          s.nodeUnsafe("b", null, [s.textUnsafe("bb")])
+      const doc = s.nodeUnsafe("doc", undefined, [
+        s.nodeUnsafe("block", undefined, [
+          s.nodeUnsafe("a", undefined, [s.textUnsafe("aa")]),
+          s.nodeUnsafe("b", undefined, [s.textUnsafe("bb")])
         ])
       ])
       const from = 3,
@@ -941,20 +954,22 @@ describe("Transform", () => {
           }
         }
       })
-      const doc = s.nodeUnsafe("doc", null, [s.nodeUnsafe("paragraph", null, [s.textUnsafe("one")])])
-      const iso = Fragment.from(s.nodeUnsafe("iso", null, [s.nodeUnsafe("paragraph", null, s.textUnsafe("two"))]))
+      const doc = s.nodeUnsafe("doc", undefined, [s.nodeUnsafe("paragraph", undefined, [s.textUnsafe("one")])])
+      const iso = Fragment.from(
+        s.nodeUnsafe("iso", undefined, [s.nodeUnsafe("paragraph", undefined, s.textUnsafe("two"))])
+      )
       ist(
         new Transform(doc).replaceUnsafe(2, 3, new Slice(iso, 2, 0)).doc,
-        s.nodeUnsafe("doc", null, [
-          s.nodeUnsafe("paragraph", null, [s.textUnsafe("o")]),
-          s.nodeUnsafe("iso", null, [s.nodeUnsafe("paragraph", null, s.textUnsafe("two"))]),
-          s.nodeUnsafe("paragraph", null, [s.textUnsafe("e")])
+        s.nodeUnsafe("doc", undefined, [
+          s.nodeUnsafe("paragraph", undefined, [s.textUnsafe("o")]),
+          s.nodeUnsafe("iso", undefined, [s.nodeUnsafe("paragraph", undefined, s.textUnsafe("two"))]),
+          s.nodeUnsafe("paragraph", undefined, [s.textUnsafe("e")])
         ]),
         eq
       )
       ist(
         new Transform(doc).replaceUnsafe(2, 3, new Slice(iso, 2, 2)).doc,
-        s.nodeUnsafe("doc", null, [s.nodeUnsafe("paragraph", null, [s.textUnsafe("otwoe")])]),
+        s.nodeUnsafe("doc", undefined, [s.nodeUnsafe("paragraph", undefined, [s.textUnsafe("otwoe")])]),
         eq
       )
     })
@@ -1160,17 +1175,17 @@ describe("Transform", () => {
         },
         marks: { comment: { excludes: "", attrs: { id: {} } } }
       })
-      const doc = s.nodeUnsafe("doc", null, [
+      const doc = s.nodeUnsafe("doc", undefined, [
         s.nodeUnsafe(
           "p",
-          null,
+          undefined,
           [s.textUnsafe("abc")],
           [s.markUnsafe("comment", { id: 1 }), s.markUnsafe("comment", { id: 2 })]
         )
       ])
       testTransform(
         new Transform(doc).removeNodeMarkUnsafe(0, s.marks.comment),
-        s.nodeUnsafe("doc", null, [s.nodeUnsafe("p", null, [s.textUnsafe("abc")])])
+        s.nodeUnsafe("doc", undefined, [s.nodeUnsafe("p", undefined, [s.textUnsafe("abc")])])
       )
     })
   })

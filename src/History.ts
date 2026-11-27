@@ -72,11 +72,12 @@ export class Branch {
       0
     )
 
-    let remap: Mapping | undefined,
+    let remap: Option.Option<Mapping> = Option.none(),
       mapFrom = 0
     if (preserveItems) {
-      remap = this.remapping(end, this.items.length)
-      mapFrom = remap.maps.length
+      const mapping = this.remapping(end, this.items.length)
+      remap = Option.some(mapping)
+      mapFrom = mapping.maps.length
     }
     const transform = state.tr
     let popped: Option.Option<PopResult> = Option.none()
@@ -86,23 +87,25 @@ export class Branch {
     this.items.forEach(
       (item, i) => {
         if (!item.step) {
-          if (!remap) {
-            remap = this.remapping(end, i + 1)
-            mapFrom = remap.maps.length
+          if (Option.isNone(remap)) {
+            const mapping = this.remapping(end, i + 1)
+            remap = Option.some(mapping)
+            mapFrom = mapping.maps.length
           }
           mapFrom--
           addBefore.push(item)
           return true
         }
 
-        if (remap) {
+        if (Option.isSome(remap)) {
+          const mapping = remap.value
           addBefore.push(new Item(item.map))
-          const step = item.step.map(remap.slice(mapFrom))
+          const step = item.step.map(mapping.slice(mapFrom))
           mapFrom--
-          if (Option.isSome(step) && transform.maybeStep(step.value).docOrNull) {
+          if (Option.isSome(step) && Option.isSome(transform.maybeStep(step.value).doc)) {
             const map = transform.mapping.maps[transform.mapping.maps.length - 1]
             addAfter.push(new Item(map, undefined, undefined, addAfter.length + addBefore.length))
-            remap.appendMap(map, mapFrom)
+            mapping.appendMap(map, mapFrom)
           }
         } else {
           transform.maybeStep(item.step)
@@ -115,7 +118,7 @@ export class Branch {
               this.eventCount - 1
             ),
             transform,
-            selection: remap ? item.selection.map(remap.slice(mapFrom)) : item.selection
+            selection: Option.isSome(remap) ? item.selection.map(remap.value.slice(mapFrom)) : item.selection
           })
           return false
         }
@@ -206,8 +209,9 @@ export class Branch {
 
     let iRebased = count
     this.items.forEach((item) => {
-      const pos = mapping.getMirrorOrUndefined(--iRebased)
-      if (pos == null) return
+      const mirror = mapping.getMirror(--iRebased)
+      if (Option.isNone(mirror)) return
+      const pos = mirror.value
       newUntil = Math.min(newUntil, pos)
       const map = mapping.maps[pos]
       if (item.step) {
@@ -536,14 +540,14 @@ export interface HistoryOptions {
    * The amount of history events that are collected before the oldest
    * events are discarded. Defaults to 100.
    */
-  readonly depth?: number | undefined
+  readonly depth?: number
 
   /**
    * The delay between changes after which a new group should be
    * started. Defaults to 500 (milliseconds). Note that when changes
    * aren't adjacent, a new group is always started.
    */
-  readonly newGroupDelay?: number | undefined
+  readonly newGroupDelay?: number
 }
 
 /**

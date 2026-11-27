@@ -11,7 +11,6 @@ import { attempt } from "../internal/attempt.ts"
 import {
   type AnySchema,
   type AttributeError,
-  type Attrs,
   type ContentMatch,
   Fragment,
   Mark,
@@ -29,7 +28,7 @@ import { isTransformOrModelError, type StepError, TransformError } from "./error
 import { Mapping } from "./map.ts"
 import { addMark, clearIncompatible, removeMark } from "./mark.ts"
 import { AddNodeMarkStep, RemoveNodeMarkStep } from "./mark_step.ts"
-import { deleteRange, replaceRange, replaceRangeWith, replaceStepOrNull } from "./replace.ts"
+import { deleteRange, replaceRange, replaceRangeWith, replaceStep } from "./replace.ts"
 import { applyStep, type Step, type StepResult } from "./step.ts"
 import { join, lift, type NodeTypeWithAttrs, setBlockType, setNodeMarkup, split, wrap } from "./structure.ts"
 
@@ -138,7 +137,7 @@ export class Transform<Sc extends AnySchema = AnySchema> {
   /** Like `step`, but throws a `StepError` when the step fails. */
   stepUnsafe(step: Step<Sc>): this {
     const result = this.maybeStep(step)
-    if (result.failedOrNull !== null) result.getUnsafe()
+    if (Option.isSome(result.failed)) result.getUnsafe()
     return this
   }
 
@@ -148,7 +147,7 @@ export class Transform<Sc extends AnySchema = AnySchema> {
    */
   maybeStep(step: Step<Sc>): StepResult<Sc> {
     const result = applyStep(step, this.currentDoc)
-    if (result.docOrNull !== null) this.addStep(step, result.docOrNull)
+    if (Option.isSome(result.doc)) this.addStep(step, result.doc.value)
     return result
   }
 
@@ -211,8 +210,8 @@ export class Transform<Sc extends AnySchema = AnySchema> {
 
   /** Like `replace`, but throws on failure. */
   replaceUnsafe(from: number, to = from, slice: Slice<Sc> = Slice.empty): this {
-    const step = replaceStepOrNull(this.currentDoc, from, to, slice)
-    if (step) this.stepUnsafe(step)
+    const step = replaceStep(this.currentDoc, from, to, slice)
+    if (Option.isSome(step)) this.stepUnsafe(step.value)
     return this
   }
 
@@ -363,9 +362,9 @@ export class Transform<Sc extends AnySchema = AnySchema> {
    */
   setBlockType<N extends NodeNames<Sc>>(
     from: number,
-    to: number | undefined,
+    to: number = from,
     type: NodeType<Sc, N>,
-    attrs?: NodeAttrsInput<Sc, N> | null | ((oldNode: Node<Sc>) => NodeAttrsInput<Sc, N>)
+    attrs?: NodeAttrsInput<Sc, N> | ((oldNode: Node<Sc>) => NodeAttrsInput<Sc, N>)
   ): Effect.Effect<this, StructureFailure> {
     return this.effect(() => this.setBlockTypeUnsafe(from, to, type, attrs))
   }
@@ -373,12 +372,11 @@ export class Transform<Sc extends AnySchema = AnySchema> {
   /** Like `setBlockType`, but throws on failure. */
   setBlockTypeUnsafe<N extends NodeNames<Sc>>(
     from: number,
-    to: number | undefined,
+    to: number = from,
     type: NodeType<Sc, N>,
-    attrs?: NodeAttrsInput<Sc, N> | null | ((oldNode: Node<Sc>) => NodeAttrsInput<Sc, N>)
+    attrs?: NodeAttrsInput<Sc, N> | ((oldNode: Node<Sc>) => NodeAttrsInput<Sc, N>)
   ): this {
-    // SAFETY: attributes typed for `N` are attributes.
-    setBlockType(this, from, to ?? from, type, attrs as Attrs | null | undefined | ((n: Node<any>) => Attrs))
+    setBlockType(this, from, to, type, attrs)
     return this
   }
 
@@ -388,8 +386,8 @@ export class Transform<Sc extends AnySchema = AnySchema> {
    */
   setNodeMarkup<N extends NodeNames<Sc>>(
     pos: number,
-    type?: NodeType<Sc, N> | null,
-    attrs?: NodeAttrsInput<Sc, N> | null,
+    type?: NodeType<Sc, N>,
+    attrs?: NodeAttrsInput<Sc, N>,
     marks?: ReadonlyArray<Mark<Sc>>
   ): Effect.Effect<this, StructureFailure> {
     return this.effect(() => this.setNodeMarkupUnsafe(pos, type, attrs, marks))
@@ -398,8 +396,8 @@ export class Transform<Sc extends AnySchema = AnySchema> {
   /** Like `setNodeMarkup`, but throws on failure. */
   setNodeMarkupUnsafe<N extends NodeNames<Sc>>(
     pos: number,
-    type?: NodeType<Sc, N> | null,
-    attrs?: NodeAttrsInput<Sc, N> | null,
+    type?: NodeType<Sc, N>,
+    attrs?: NodeAttrsInput<Sc, N>,
     marks?: ReadonlyArray<Mark<Sc>>
   ): this {
     setNodeMarkup(this, pos, type, attrs, marks)
@@ -451,8 +449,9 @@ export class Transform<Sc extends AnySchema = AnySchema> {
 
   /** Like `removeNodeMark`, but throws on failure. */
   removeNodeMarkUnsafe(pos: number, mark: Mark<Sc> | MarkType<Sc>): this {
-    const node = this.currentDoc.nodeAtOrNull(pos)
-    if (!node) throw new TransformError({ message: "No node at position " + pos })
+    const nodeFound = this.currentDoc.nodeAt(pos)
+    if (Option.isNone(nodeFound)) throw new TransformError({ message: "No node at position " + pos })
+    const node = nodeFound.value
     if (mark instanceof Mark) {
       if (mark.isInSet(node.marks)) this.stepUnsafe(new RemoveNodeMarkStep(pos, mark))
     } else {
@@ -473,13 +472,13 @@ export class Transform<Sc extends AnySchema = AnySchema> {
   split(
     pos: number,
     depth = 1,
-    typesAfter?: ReadonlyArray<NodeTypeWithAttrs<Sc> | null | undefined>
+    typesAfter?: ReadonlyArray<Option.Option<NodeTypeWithAttrs<Sc>>>
   ): Effect.Effect<this, StructureFailure> {
     return this.effect(() => this.splitUnsafe(pos, depth, typesAfter))
   }
 
   /** Like `split`, but throws on failure. */
-  splitUnsafe(pos: number, depth = 1, typesAfter?: ReadonlyArray<NodeTypeWithAttrs<Sc> | null | undefined>): this {
+  splitUnsafe(pos: number, depth = 1, typesAfter?: ReadonlyArray<Option.Option<NodeTypeWithAttrs<Sc>>>): this {
     split(this, pos, depth, typesAfter)
     return this
   }
@@ -497,10 +496,10 @@ export class Transform<Sc extends AnySchema = AnySchema> {
   /**
    * Remove marks from inline nodes between `from` and `to`. When `mark`
    * is a single mark, remove precisely that mark. When it is a mark
-   * type, remove all marks of that type. When it is null, remove all
+   * type, remove all marks of that type. When it is omitted, remove all
    * marks of any type.
    */
-  removeMark(from: number, to: number, mark?: Mark<Sc> | MarkType<Sc> | null): this {
+  removeMark(from: number, to: number, mark?: Mark<Sc> | MarkType<Sc>): this {
     removeMark(this, from, to, mark)
     return this
   }
@@ -520,7 +519,7 @@ export class Transform<Sc extends AnySchema = AnySchema> {
 
   /** Like `clearIncompatible`, but throws on failure. */
   clearIncompatibleUnsafe(pos: number, parentType: NodeType<Sc, any>, match?: ContentMatch): this {
-    if (!this.currentDoc.nodeAtOrNull(pos)) throw new TransformError({ message: "No node at position " + pos })
+    if (Option.isNone(this.currentDoc.nodeAt(pos))) throw new TransformError({ message: "No node at position " + pos })
     clearIncompatible(this, pos, parentType, match)
     return this
   }

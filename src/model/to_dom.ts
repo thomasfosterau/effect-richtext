@@ -39,7 +39,7 @@ import type { AnySchema, Attrs, MarkType, NodeType } from "./schema.ts"
 export type DOMOutputSpec =
   | string
   | Element
-  | { readonly dom: Element; readonly contentDOM?: HTMLElement | undefined }
+  | { readonly dom: Element; readonly contentDOM?: HTMLElement }
   | readonly [string, ...Array<any>]
   | ReadonlyArray<any>
 
@@ -53,7 +53,7 @@ export type DOMOutputSpec =
  */
 export interface RenderedSpec {
   readonly dom: globalThis.Node
-  readonly contentDOM?: HTMLElement | undefined
+  readonly contentDOM?: HTMLElement
 }
 
 /**
@@ -64,7 +64,7 @@ export interface RenderedSpec {
  * @category models
  */
 export interface SerializeOptions {
-  readonly document?: Document | undefined
+  readonly document?: Document
 }
 
 /**
@@ -103,15 +103,14 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
    * that take a node and return a description of the corresponding
    * DOM. `marks` does the same for mark names, but also gets an
    * argument that tells it whether the mark's content is block or
-   * inline content (for typical use, it'll always be inline). A mark
-   * serializer may be `null` to indicate that marks of that type
-   * should not be serialized.
+   * inline content (for typical use, it'll always be inline). Marks
+   * whose type has no serializer are not serialized.
    */
   constructor(
     /** The node serialization functions. */
     readonly nodes: { readonly [node: string]: NodeSerializer<Sc> },
     /** The mark serialization functions. */
-    readonly marks: { readonly [mark: string]: MarkSerializer<Sc> | null | undefined }
+    readonly marks: { readonly [mark: string]: MarkSerializer<Sc> }
   ) {}
 
   /**
@@ -139,7 +138,7 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
           rendered = 0
         node.marks.some((next) => {
           if (keep === active.length) return true
-          if (this.marks[next.type.name]) {
+          if (Object.hasOwn(this.marks, next.type.name)) {
             if (!next.eq(active[keep][0]) || next.type.spec.spanning === false) return true
             keep++
           }
@@ -151,12 +150,11 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
           active.length = keep
         }
         node.marks.slice(rendered).forEach((add) => {
-          const markDOM = this.serializeMarkOrNull(add, node.isInline, options)
-          if (markDOM) {
+          Option.map(this.serializeMark(add, node.isInline, options), (markDOM) => {
             active.push([add, top])
             top.appendChild(markDOM.dom)
             top = markDOM.contentDOM || markDOM.dom
-          }
+          })
         })
       }
       top.appendChild(this.serializeNodeInner(node, options))
@@ -170,7 +168,7 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
     if (node.isText) return docFor(options).createTextNode(node.textContent)
     const toDOM = this.nodes[node.type.name]
     if (!toDOM) throw new DOMSpecError({ message: `No serializer for node type ${node.type.name}` })
-    const { contentDOM, dom } = renderSpecInner(docFor(options), toDOM(node), null, node.attrs)
+    const { contentDOM, dom } = renderSpecInner(docFor(options), toDOM(node), Option.none(), node.attrs)
     if (contentDOM) {
       if (node.isLeaf) throw new DOMSpecError({ message: "Content hole not allowed in a leaf node spec" })
       this.serializeFragment(node.content, options, contentDOM)
@@ -190,10 +188,10 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
   serializeNode(node: Node<Sc, any>, options: SerializeOptions = {}): globalThis.Node {
     return node.marks.reduceRight<globalThis.Node>(
       (dom, mark) => {
-        const wrap = this.serializeMarkOrNull(mark, node.isInline, options)
-        if (!wrap) return dom
-        ;(wrap.contentDOM || wrap.dom).appendChild(dom)
-        return wrap.dom
+        const wrap = this.serializeMark(mark, node.isInline, options)
+        if (Option.isNone(wrap)) return dom
+        ;(wrap.value.contentDOM || wrap.value.dom).appendChild(dom)
+        return wrap.value.dom
       },
       this.serializeNodeInner(node, options)
     )
@@ -206,13 +204,9 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
    * Throws a `DOMSpecError` (as a defect) for invalid output specs.
    */
   serializeMark(mark: Mark<Sc, any>, inline: boolean, options: SerializeOptions = {}): Option.Option<RenderedSpec> {
-    return Option.fromNullishOr(this.serializeMarkOrNull(mark, inline, options))
-  }
-
-  /** @internal */
-  serializeMarkOrNull(mark: Mark<Sc, any>, inline: boolean, options: SerializeOptions = {}): RenderedSpec | null {
-    const toDOM = this.marks[mark.type.name]
-    return toDOM ? renderSpecInner(docFor(options), toDOM(mark, inline), null, mark.attrs) : null
+    return Option.map(Rec.get(this.marks, mark.type.name), (toDOM) =>
+      renderSpecInner(docFor(options), toDOM(mark, inline), Option.none(), mark.attrs)
+    )
   }
 
   /**
@@ -223,7 +217,7 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
   static renderSpec(
     doc: Document,
     structure: DOMOutputSpec,
-    xmlNS: string | null = null
+    xmlNS?: string
   ): Effect.Effect<RenderedSpec, DOMSpecError> {
     return attempt(() => DOMSerializer.renderSpecUnsafe(doc, structure, xmlNS), isDOMSpecError)
   }
@@ -236,10 +230,10 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
   static renderSpecUnsafe(
     doc: Document,
     structure: DOMOutputSpec,
-    xmlNS: string | null = null,
+    xmlNS?: string,
     blockArraysIn?: Attrs
   ): RenderedSpec {
-    return renderSpecInner(doc, structure, xmlNS, blockArraysIn)
+    return renderSpecInner(doc, structure, Option.fromUndefinedOr(xmlNS), blockArraysIn)
   }
 
   /**
@@ -248,15 +242,15 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
    * schema.
    */
   static fromSchema<Sc extends AnySchema>(schema: Sc): DOMSerializer<Sc> {
-    return (
-      // SAFETY: only this method writes `domSerializer`, with a serializer for this schema.
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-      (schema.cached.domSerializer as DOMSerializer<Sc> | undefined) ||
-      (schema.cached.domSerializer = new DOMSerializer<Sc>(
-        DOMSerializer.nodesFromSchema(schema),
-        DOMSerializer.marksFromSchema(schema)
-      ))
+    // Only this method writes `domSerializer`, with a serializer for this schema.
+    const cached = schema.cached.domSerializer
+    if (cached instanceof DOMSerializer) return cached
+    const serializer = new DOMSerializer<Sc>(
+      DOMSerializer.nodesFromSchema(schema),
+      DOMSerializer.marksFromSchema(schema)
     )
+    schema.cached.domSerializer = serializer
+    return serializer
   }
 
   /**
@@ -283,8 +277,8 @@ function gatherToDOM(obj: { readonly [name: string]: NodeType<any, any> | MarkTy
   const result: { [name: string]: (value: any, inline: boolean) => DOMOutputSpec } = {}
   Rec.toEntries(obj).forEach(([name, type]) => {
     // SAFETY: node and mark specs' `toDOM` share this shape; `inline` is ignored by node serializers.
-    const toDOM = type.spec.toDOM as ((value: any, inline: boolean) => DOMOutputSpec) | undefined
-    if (toDOM) result[name] = toDOM
+    const spec: { readonly toDOM?: (value: any, inline: boolean) => DOMOutputSpec } = type.spec
+    if (spec.toDOM) result[name] = spec.toDOM
   })
   return result
 }
@@ -293,21 +287,23 @@ function docFor(options: SerializeOptions): Document {
   return options.document || globalThis.document
 }
 
-const suspiciousAttributeCache = new WeakMap<Attrs, ReadonlyArray<unknown> | null>()
+// The arrays in each attribute object that look like DOM specs.
+const suspiciousAttributeCache = new WeakMap<Attrs, ReadonlyArray<unknown>>()
 
-function suspiciousAttributes(attrs: Attrs): ReadonlyArray<unknown> | null {
-  let value = suspiciousAttributeCache.get(attrs)
-  if (value === undefined) suspiciousAttributeCache.set(attrs, (value = suspiciousAttributesInner(attrs)))
+function suspiciousAttributes(attrs: Attrs): ReadonlyArray<unknown> {
+  const cached = suspiciousAttributeCache.get(attrs)
+  if (cached) return cached
+  const value = suspiciousAttributesInner(attrs)
+  suspiciousAttributeCache.set(attrs, value)
   return value
 }
 
-function suspiciousAttributesInner(attrs: Attrs): ReadonlyArray<unknown> | null {
-  let result: Array<unknown> | null = null
+function suspiciousAttributesInner(attrs: Attrs): ReadonlyArray<unknown> {
+  const result: Array<unknown> = []
   function scan(value: any) {
     if (Predicate.isObjectOrArray(value)) {
       if (Array.isArray(value)) {
         if (Predicate.isString(value[0])) {
-          if (!result) result = []
           result.push(value)
         } else {
           value.forEach(scan)
@@ -327,7 +323,7 @@ const isElementSpec = (structure: DOMOutputSpec): structure is Element =>
 function renderSpecInner(
   doc: Document,
   structure: DOMOutputSpec,
-  xmlNS: string | null,
+  xmlNS: Option.Option<string>,
   blockArraysIn?: Attrs
 ): RenderedSpec {
   // Kludge for backwards-compatibility with accidental original behaviour
@@ -345,9 +341,8 @@ function renderSpecInner(
   const spec: ReadonlyArray<any> = structure
   const first = spec[0]
   if (!Predicate.isString(first)) throw new DOMSpecError({ message: "Invalid array passed to renderSpec" })
-  let tagName = first,
-    suspicious
-  if (blockArraysIn && (suspicious = suspiciousAttributes(blockArraysIn)) && suspicious.indexOf(structure) > -1) {
+  let tagName = first
+  if (blockArraysIn && suspiciousAttributes(blockArraysIn).indexOf(structure) > -1) {
     throw new DOMSpecError({
       message:
         "Using an array from an attribute object as a DOM spec. This may be an attempted cross site scripting attack."
@@ -355,13 +350,15 @@ function renderSpecInner(
   }
   const space = tagName.indexOf(" ")
   if (space > 0) {
-    xmlNS = tagName.slice(0, space)
+    xmlNS = Option.some(tagName.slice(0, space))
     tagName = tagName.slice(space + 1)
   }
-  let contentDOM: HTMLElement | undefined
+  let contentDOM = Option.none<HTMLElement>()
   // SAFETY: node views treat rendered elements as HTML elements, as ProseMirror does.
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-  const dom = (xmlNS ? doc.createElementNS(xmlNS, tagName) : doc.createElement(tagName)) as HTMLElement
+  const dom = (
+    Option.isSome(xmlNS) ? doc.createElementNS(xmlNS.value, tagName) : doc.createElement(tagName)
+  ) as HTMLElement
   const attrs = spec[1]
   let start = 1
   // Checked on `spec[1]` so that `attrs` keeps its `any` values.
@@ -390,10 +387,11 @@ function renderSpecInner(
       const { contentDOM: innerContent, dom: inner } = renderSpecInner(doc, child, xmlNS, blockArraysIn)
       dom.appendChild(inner)
       if (innerContent) {
-        if (contentDOM) throw new DOMSpecError({ message: "Multiple content holes" })
-        contentDOM = innerContent
+        if (Option.isSome(contentDOM)) throw new DOMSpecError({ message: "Multiple content holes" })
+        contentDOM = Option.some(innerContent)
       }
     }
   })
-  return hole ? { dom, contentDOM: dom } : { dom, contentDOM }
+  if (hole) return { dom, contentDOM: dom }
+  return Option.isSome(contentDOM) ? { dom, contentDOM: contentDOM.value } : { dom }
 }

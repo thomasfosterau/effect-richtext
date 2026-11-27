@@ -46,8 +46,8 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
   }
 
   /** @internal */
-  resolveDepth(val: number | undefined | null): number {
-    if (val == null) return this.depth
+  resolveDepth(val?: number): number {
+    if (val === undefined) return this.depth
     if (val < 0) return this.depth + val
     return val
   }
@@ -67,7 +67,7 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
   }
 
   /** The ancestor node at the given level. `p.node(p.depth)` is the same as `p.parent`. */
-  node(depth?: number | null): Node<Sc> {
+  node(depth?: number): Node<Sc> {
     return this.path[this.resolveDepth(depth) * 3]
   }
 
@@ -76,24 +76,24 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
    * the 3rd node in the 2nd paragraph on the top level, for example,
    * `p.index(0)` is 1 and `p.index(1)` is 2.
    */
-  index(depth?: number | null): number {
+  index(depth?: number): number {
     return this.path[this.resolveDepth(depth) * 3 + 1]
   }
 
   /** The index pointing after this position into the ancestor at the given level. */
-  indexAfter(depth?: number | null): number {
+  indexAfter(depth?: number): number {
     depth = this.resolveDepth(depth)
     return this.index(depth) + (depth === this.depth && !this.textOffset ? 0 : 1)
   }
 
   /** The (absolute) position at the start of the node at the given level. */
-  start(depth?: number | null): number {
+  start(depth?: number): number {
     depth = this.resolveDepth(depth)
     return depth === 0 ? 0 : this.path[depth * 3 - 1] + 1
   }
 
   /** The (absolute) position at the end of the node at the given level. */
-  end(depth?: number | null): number {
+  end(depth?: number): number {
     depth = this.resolveDepth(depth)
     return this.start(depth) + this.node(depth).content.size
   }
@@ -104,12 +104,12 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
    * position. Fails for depth 0, since there is no position before the
    * top-level node.
    */
-  before(depth?: number | null): Effect.Effect<number, PositionError> {
+  before(depth?: number): Effect.Effect<number, PositionError> {
     return attempt(() => this.beforeUnsafe(depth), isPositionError)
   }
 
   /** Like `before`, but throws a `PositionError` for depth 0. */
-  beforeUnsafe(depth?: number | null): number {
+  beforeUnsafe(depth?: number): number {
     depth = this.resolveDepth(depth)
     if (!depth) throw new PositionError({ message: "There is no position before the top-level node" })
     return depth === this.depth + 1 ? this.pos : this.path[depth * 3 - 1]
@@ -120,12 +120,12 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
    * given level, or the original position when `depth` is
    * `this.depth + 1`. Fails for depth 0.
    */
-  after(depth?: number | null): Effect.Effect<number, PositionError> {
+  after(depth?: number): Effect.Effect<number, PositionError> {
     return attempt(() => this.afterUnsafe(depth), isPositionError)
   }
 
   /** Like `after`, but throws a `PositionError` for depth 0. */
-  afterUnsafe(depth?: number | null): number {
+  afterUnsafe(depth?: number): number {
     depth = this.resolveDepth(depth)
     if (!depth) throw new PositionError({ message: "There is no position after the top-level node" })
     return depth === this.depth + 1 ? this.pos : this.path[depth * 3 - 1] + this.path[depth * 3].nodeSize
@@ -146,17 +146,12 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
    * position is returned.
    */
   get nodeAfter(): Option.Option<Node<Sc>> {
-    return Option.fromNullishOr(this.nodeAfterOrNull)
-  }
-
-  /** @internal */
-  get nodeAfterOrNull(): Node<Sc> | null {
     const parent = this.parent,
       index = this.index(this.depth)
-    if (index === parent.childCount) return null
+    if (index === parent.childCount) return Option.none()
     const dOff = this.pos - this.path[this.path.length - 1],
       child = parent.content.content[index]
-    return dOff ? child.cut(dOff) : child
+    return Option.some(dOff ? child.cut(dOff) : child)
   }
 
   /**
@@ -165,19 +160,14 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
    * position is returned.
    */
   get nodeBefore(): Option.Option<Node<Sc>> {
-    return Option.fromNullishOr(this.nodeBeforeOrNull)
-  }
-
-  /** @internal */
-  get nodeBeforeOrNull(): Node<Sc> | null {
     const index = this.index(this.depth)
     const dOff = this.pos - this.path[this.path.length - 1]
-    if (dOff) return this.parent.content.content[index].cut(0, dOff)
-    return index === 0 ? null : this.parent.content.content[index - 1]
+    if (dOff) return Option.some(this.parent.content.content[index].cut(0, dOff))
+    return index === 0 ? Option.none() : Option.some(this.parent.content.content[index - 1])
   }
 
   /** Get the position at the given index in the parent node at the given depth (which defaults to `this.depth`). */
-  posAtIndex(index: number, depth?: number | null): number {
+  posAtIndex(index: number, depth?: number): number {
     depth = this.resolveDepth(depth)
     const node: Node<Sc> = this.path[depth * 3]
     let pos = depth === 0 ? 0 : this.path[depth * 3 - 1] + 1
@@ -227,16 +217,13 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
    * marks should be preserved).
    */
   marksAcross($end: ResolvedPos<Sc>): Option.Option<ReadonlyArray<Mark<Sc>>> {
-    return Option.fromNullishOr(this.marksAcrossOrNull($end))
-  }
-
-  /** @internal */
-  marksAcrossOrNull($end: ResolvedPos<Sc>): ReadonlyArray<Mark<Sc>> | null {
-    const after = this.parent.content.content[this.index()]
-    if (!after || !after.isInline) return null
-
-    const next = $end.parent.content.content[$end.index()]
-    return inclusiveMarks(after.marks, next ? next.marks : Mark.none)
+    const index = this.index()
+    if (index >= this.parent.childCount) return Option.none()
+    const after = this.parent.content.content[index]
+    if (!after.isInline) return Option.none()
+    const endIndex = $end.index()
+    const next = endIndex < $end.parent.childCount ? $end.parent.content.content[endIndex].marks : Mark.none
+    return Option.some(inclusiveMarks(after.marks, next))
   }
 
   /** The depth up to which this position and the given (non-resolved) position share the same parent nodes. */
@@ -256,16 +243,11 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
    * if a range into that parent is acceptable.
    */
   blockRange(other: ResolvedPos<Sc> = this, pred?: (node: Node<Sc>) => boolean): Option.Option<NodeRange<Sc>> {
-    return Option.fromNullishOr(this.blockRangeOrNull(other, pred))
-  }
-
-  /** @internal */
-  blockRangeOrNull(other: ResolvedPos<Sc> = this, pred?: (node: Node<Sc>) => boolean): NodeRange<Sc> | null {
-    if (other.pos < this.pos) return other.blockRangeOrNull(this)
+    if (other.pos < this.pos) return other.blockRange(this)
     const from = (d: number): number =>
       d < 0 || (other.pos <= this.end(d) && (!pred || pred(this.node(d)))) ? d : from(d - 1)
     const depth = from(this.depth - (this.parent.inlineContent || this.pos === other.pos ? 1 : 0))
-    return depth < 0 ? null : new NodeRange(this, other, depth)
+    return depth < 0 ? Option.none() : Option.some(new NodeRange(this, other, depth))
   }
 
   /** Query whether the given position shares the same parent node. */

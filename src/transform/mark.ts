@@ -30,27 +30,21 @@ export function addMark(tr: Transform<any>, from: number, to: number, mark: Mark
 }
 
 /** @internal */
-export function removeMark(
-  tr: Transform<any>,
-  from: number,
-  to: number,
-  mark?: Mark<any> | MarkType<any> | null
-): void {
+export function removeMark(tr: Transform<any>, from: number, to: number, mark?: Mark<any> | MarkType<any>): void {
   const matched: Array<{ style: Mark<any>; from: number; to: number; step: number }> = []
   let step = 0
   tr.doc.nodesBetween(from, to, (node, pos) => {
     if (!node.isInline || !node.isAtom) return
     step++
-    let toRemove: ReadonlyArray<Mark<any>> | null = null
-    if (mark instanceof MarkType) {
-      const list = node.marks.filter((m) => m.type === mark)
-      if (list.length) toRemove = list
-    } else if (mark) {
-      if (mark.isInSet(node.marks)) toRemove = [mark]
-    } else {
-      toRemove = node.marks
-    }
-    if (toRemove && toRemove.length) {
+    const toRemove: ReadonlyArray<Mark<any>> =
+      mark instanceof MarkType
+        ? node.marks.filter((m) => m.type === mark)
+        : mark
+          ? mark.isInSet(node.marks)
+            ? [mark]
+            : []
+          : node.marks
+    if (toRemove.length) {
       const end = Math.min(pos + node.nodeSize, to)
       toRemove.forEach((style) => {
         // Extend the range of the same mark on the previous inline node.
@@ -75,17 +69,18 @@ export function clearIncompatible(
   match: ContentMatch = parentType.contentMatch,
   clearNewlines = true
 ): void {
-  const node = tr.doc.nodeAtOrNull(pos)
-  if (!node) throw new TransformError({ message: "No node at position " + pos })
+  const nodeFound = tr.doc.nodeAt(pos)
+  if (Option.isNone(nodeFound)) throw new TransformError({ message: "No node at position " + pos })
+  const node = nodeFound.value
   const replSteps: Array<Step<any>> = []
   let cur = pos + 1
   node.content.content.forEach((child) => {
     const end = cur + child.nodeSize
-    const allowed = match.matchTypeOrNull(child.type)
-    if (!allowed) {
+    const allowed = match.matchType(child.type)
+    if (Option.isNone(allowed)) {
       replSteps.push(new ReplaceStep(cur, end, Slice.empty))
     } else {
-      match = allowed
+      match = allowed.value
       child.marks.forEach((mark) => {
         if (!parentType.allowsMarkType(mark.type)) tr.stepUnsafe(new RemoveMarkStep(cur, end, mark))
       })
@@ -107,9 +102,9 @@ export function clearIncompatible(
     cur = end
   })
   if (!match.validEnd) {
-    const fill = match.fillBeforeOrNull(Fragment.empty, true)
-    if (!fill) throw new TransformError({ message: "Can't complete the content of " + node.type.name })
-    tr.replaceUnsafe(cur, cur, new Slice(fill, 0, 0))
+    const fill = match.fillBefore(Fragment.empty, true)
+    if (Option.isNone(fill)) throw new TransformError({ message: "Can't complete the content of " + node.type.name })
+    tr.replaceUnsafe(cur, cur, new Slice(fill.value, 0, 0))
   }
   Arr.reverse(replSteps).forEach((step) => tr.stepUnsafe(step))
 }

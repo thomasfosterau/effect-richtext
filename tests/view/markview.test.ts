@@ -1,8 +1,10 @@
 // Ported from prosemirror-view/test/webtest-markview.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
+import * as Option from "effect/Option"
 import { a, doc, p, strong } from "@thomasfosterau/effect-richtext/TestBuilder"
 import type { ViewMutationRecord } from "@thomasfosterau/effect-richtext/View"
 import ist from "../utils/ist.ts"
+import { getSome } from "../utils/option.ts"
 import { instanceOf, present } from "../utils/present.ts"
 import { flush, tempEditor } from "./helpers.ts"
 
@@ -38,7 +40,7 @@ describe("markViews prop", () => {
   })
 
   it("has its ignoreMutation method called", async () => {
-    let mutation: ViewMutationRecord | undefined
+    let mutation = Option.none<ViewMutationRecord>()
     const view = tempEditor({
       doc: doc(p("foo", strong("bar"))),
       markViews: {
@@ -46,18 +48,17 @@ describe("markViews prop", () => {
           return {
             dom: document.createElement("var"),
             ignoreMutation: (m) => {
-              mutation = m
+              mutation = Option.some(m)
               return true
             }
           }
         }
       }
     })
-    ist(!mutation)
+    ist(Option.isNone(mutation))
     present(view.dom.querySelector("var")).classList.add("foo")
     flush(view)
-    ist(mutation)
-    ist(instanceOf(HTMLElement, present(mutation).target).tagName, "VAR")
+    ist(instanceOf(HTMLElement, getSome(mutation).target).tagName, "VAR")
   })
 
   it("has its destroy method called", () => {

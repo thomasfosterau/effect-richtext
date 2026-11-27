@@ -39,12 +39,14 @@ const isPassiveEvent = (event: string): boolean => event === "touchstart" || eve
 /** @internal */
 export class InputState {
   shiftKey = false
-  mouseDown: MouseDown | null = null
-  lastKeyCode: number | null = null
+  mouseDown = Option.none<MouseDown>()
+  // The key code of the last keydown, or -1. A plain number, since the
+  // compat facade exposes this state to ProseMirror code that sets it.
+  lastKeyCode = -1
   lastKeyCodeTime = 0
   lastKeyDispatched = false
   lastClick = { time: 0, x: 0, y: 0, type: "", button: 0 }
-  lastSelectionOrigin: string | null = null
+  lastSelectionOrigin = Option.none<string>()
   lastSelectionTime = 0
   lastIOSEnter = 0
   lastIOSEnterFallbackTimeout: any = -1
@@ -52,7 +54,7 @@ export class InputState {
   lastTouch = 0
   lastChromeDelete = 0
   composing = false
-  compositionNode: Text | null = null
+  compositionNode = Option.none<Text>()
   composingTimeout: any = -1
   compositionNodes: Array<ViewDesc> = []
   compositionEndedAt = -2e8
@@ -62,7 +64,7 @@ export class InputState {
   compositionPendingChanges = 0
   domChangeCount = 0
   eventHandlers: { [event: string]: (event: Event) => void } = Object.create(null)
-  hideSelectionGuard: (() => void) | null = null
+  hideSelectionGuard = Option.none<() => void>()
 }
 
 /** @internal */
@@ -95,13 +97,13 @@ export function initInput(view: AnyView): void {
 }
 
 function setSelectionOrigin(view: AnyView, origin: string) {
-  view.input.lastSelectionOrigin = origin
+  view.input.lastSelectionOrigin = Option.some(origin)
   view.input.lastSelectionTime = view.state.config.clock()
 }
 
 /** @internal */
 export function destroyInput(view: AnyView): void {
-  if (view.input.mouseDown) view.input.mouseDown.done()
+  if (Option.isSome(view.input.mouseDown)) view.input.mouseDown.value.done()
   view.domObserver.stop()
   Rec.toEntries(view.input.eventHandlers).forEach(([type, handler]) => view.dom.removeEventListener(type, handler))
   clearTimeout(view.input.composingTimeout)
@@ -121,12 +123,31 @@ export function ensureListeners(view: AnyView): void {
 
 type DOMEventHandler = (view: AnyView, event: Event) => HandlerResult<any, any>
 
-function runCustomHandler(view: AnyView, event: Event) {
-  return view.someProp("handleDOMEvents", (domHandlers) => {
-    // SAFETY: `handleDOMEvents` maps each event type to a handler for it.
-    const handler = (domHandlers as Partial<Readonly<Record<string, DOMEventHandler>>>)[event.type]
-    return handler ? view.runHandler(handler(view, event)) || event.defaultPrevented : false
+// A node a pointer press might start dragging, and the DOM changes made to allow it.
+interface MightDrag {
+  readonly node: Node<any, any>
+  readonly pos: number
+  readonly addAttr: boolean
+  readonly setUneditable: boolean
+}
+
+// Apply the `transformPasted` props to a dragged slice.
+function transformDragged(view: AnyView, slice: Slice<any>): Slice<any> {
+  let dragged = slice
+  view.someProp("transformPasted", (f) => {
+    dragged = f(dragged, view, false)
   })
+  return dragged
+}
+
+function runCustomHandler(view: AnyView, event: Event): boolean {
+  return Option.isSome(
+    view.someProp("handleDOMEvents", (domHandlers) => {
+      // SAFETY: `handleDOMEvents` maps each event type to a handler for it.
+      const handler = (domHandlers as Partial<Readonly<Record<string, DOMEventHandler>>>)[event.type]
+      return handler ? view.runHandler(handler(view, event)) || event.defaultPrevented : false
+    })
+  )
 }
 
 function eventBelongsToView(view: AnyView, event: Event) {
@@ -267,9 +288,8 @@ function updateSelection(view: AnyView, selection: Selection<any>, origin: strin
 
 function selectClickedLeaf(view: AnyView, inside: number) {
   if (inside == -1) return false
-  const $pos = view.state.doc.resolveUnsafe(inside),
-    node = $pos.nodeAfterOrNull
-  if (node && node.isAtom && NodeSelection.isSelectable(node)) {
+  const $pos = view.state.doc.resolveUnsafe(inside)
+  if (Option.exists($pos.nodeAfter, (node) => node.isAtom && NodeSelection.isSelectable(node))) {
     updateSelection(view, new NodeSelection($pos), "pointer")
     return true
   }
@@ -280,15 +300,16 @@ function selectClickedLeaf(view: AnyView, inside: number) {
 // clicked node directly after it.
 function nodeAround($pos: ResolvedPos<any>, depth: number): Node<any, any> {
   if (depth <= $pos.depth) return $pos.node(depth)
-  const node = $pos.nodeAfterOrNull
-  if (!node) throw new ViewError({ message: "No node after position " + $pos.pos })
+  const nodeFound = $pos.nodeAfter
+  if (Option.isNone(nodeFound)) throw new ViewError({ message: "No node after position " + $pos.pos })
+  const node = nodeFound.value
   return node
 }
 
 function selectClickedNode(view: AnyView, inside: number) {
   if (inside == -1) return false
   const sel = view.state.selection
-  const selectedNode = sel instanceof NodeSelection ? sel.node : undefined
+  const selectedNode = sel instanceof NodeSelection
 
   const $pos = view.state.doc.resolveUnsafe(inside)
   const selectAt = Arr.findFirst(depthsAround($pos), (i) => {
@@ -343,7 +364,7 @@ function defaultTripleClick(view: AnyView, inside: number, event: MouseEvent) {
   // Dragging after a triple click extends the selection by whole blocks
   // (prosemirror-view 1.41.9).
   if (selection instanceof TextSelection && doc.eq(view.state.doc)) {
-    view.input.mouseDown = new TripleClickDrag(view, selection)
+    view.input.mouseDown = Option.some(new TripleClickDrag(view, selection))
   }
   return true
 }
@@ -389,13 +410,14 @@ handlers.mousedown = (view, event) => {
   }
   view.input.lastClick = { time: now, x: event.clientX, y: event.clientY, type, button: event.button }
 
-  if (view.input.mouseDown) view.input.mouseDown.done()
+  if (Option.isSome(view.input.mouseDown)) view.input.mouseDown.value.done()
 
-  const pos = Option.getOrNull(view.posAtCoords(eventCoords(event)))
-  if (!pos) return
+  const found = view.posAtCoords(eventCoords(event))
+  if (Option.isNone(found)) return
+  const pos = found.value
 
   if (type == "singleClick") {
-    view.input.mouseDown = new LeftMouseDown(view, pos, event, flushed)
+    view.input.mouseDown = Option.some(new LeftMouseDown(view, pos, event, flushed))
   } else if ((type == "doubleClick" ? handleDoubleClick : handleTripleClick)(view, pos.pos, pos.inside, event)) {
     event.preventDefault()
   } else {
@@ -409,7 +431,7 @@ const isMouseEvent = (event: Event): event is MouseEvent => "clientX" in event &
 // A pointer interaction in progress: listens for mouse moves and the
 // release on the view's root until done.
 abstract class MouseDown {
-  mightDrag: { node: Node<any, any>; pos: number; addAttr: boolean; setUneditable: boolean } | null = null
+  mightDrag = Option.none<MightDrag>()
   // These listen for `mouseup` and `mousemove`, which are mouse events.
   private readonly onUp = (event: Event) => {
     if (isMouseEvent(event)) this.up(event)
@@ -434,7 +456,12 @@ abstract class MouseDown {
   done(): void {
     this.view.root.removeEventListener("mouseup", this.onUp)
     this.view.root.removeEventListener("mousemove", this.onMove)
-    if (this.view.input.mouseDown == this) this.view.input.mouseDown = null
+    if (this.isCurrent()) this.view.input.mouseDown = Option.none()
+  }
+
+  // Whether this is the view's current pointer interaction.
+  isCurrent(): boolean {
+    return Option.exists(this.view.input.mouseDown, (current) => current == this)
   }
 
   // Asks a pending default pointer selection to sync the DOM selection
@@ -449,7 +476,7 @@ class LeftMouseDown extends MouseDown {
   selectNode: boolean
   allowDefault: boolean
   delayedSelectionSync = false
-  target: HTMLElement | null
+  target: Option.Option<HTMLElement>
 
   constructor(
     view: AnyView,
@@ -463,9 +490,9 @@ class LeftMouseDown extends MouseDown {
     this.allowDefault = event.shiftKey
 
     let targetNode: Node<any, any>, targetPos
-    const clicked = pos.inside > -1 ? view.state.doc.nodeAtOrNull(pos.inside) : null
-    if (clicked) {
-      targetNode = clicked
+    const clicked = pos.inside > -1 ? view.state.doc.nodeAt(pos.inside) : Option.none()
+    if (Option.isSome(clicked)) {
+      targetNode = clicked.value
       targetPos = pos.inside
     } else {
       const $pos = view.state.doc.resolveUnsafe(pos.pos)
@@ -473,9 +500,12 @@ class LeftMouseDown extends MouseDown {
       targetPos = $pos.depth ? $pos.beforeUnsafe() : 0
     }
 
-    const target = flushed || !event.target || !isDOMNode(event.target) ? null : event.target
-    const targetDesc = target ? view.docView.nearestDesc(target, true) : null
-    this.target = targetDesc && isElt(targetDesc.nodeDOM) ? targetDesc.nodeDOM : null
+    const target = flushed || !event.target || !isDOMNode(event.target) ? undefined : event.target
+    const targetDesc = target ? view.docView.nearestDesc(target, true) : Option.none()
+    this.target = Option.flatMap(targetDesc, (desc) =>
+      isElt(desc.nodeDOM) ? Option.some(desc.nodeDOM) : Option.none()
+    )
+    const targetElt = Option.getOrUndefined(this.target)
 
     const { selection } = view.state
     if (
@@ -483,20 +513,21 @@ class LeftMouseDown extends MouseDown {
       ((targetNode.type.spec.draggable && targetNode.type.spec.selectable !== false) ||
         (selection instanceof NodeSelection && selection.from <= targetPos && selection.to > targetPos))
     ) {
-      this.mightDrag = {
+      this.mightDrag = Option.some({
         node: targetNode,
         pos: targetPos,
-        addAttr: !!(this.target && !this.target.draggable),
-        setUneditable: !!(this.target && browser.gecko && !this.target.hasAttribute("contentEditable"))
-      }
+        addAttr: !!(targetElt && !targetElt.draggable),
+        setUneditable: !!(targetElt && browser.gecko && !targetElt.hasAttribute("contentEditable"))
+      })
     }
 
-    if (this.target && this.mightDrag && (this.mightDrag.addAttr || this.mightDrag.setUneditable)) {
+    const drag = Option.getOrUndefined(this.mightDrag)
+    if (targetElt && drag && (drag.addAttr || drag.setUneditable)) {
       this.view.domObserver.stop()
-      if (this.mightDrag.addAttr) this.target.draggable = true
-      if (this.mightDrag.setUneditable) {
+      if (drag.addAttr) targetElt.draggable = true
+      if (drag.setUneditable) {
         setTimeout(() => {
-          if (this.view.input.mouseDown == this) this.target?.setAttribute("contentEditable", "false")
+          if (this.isCurrent()) targetElt.setAttribute("contentEditable", "false")
         }, 20)
       }
       this.view.domObserver.start()
@@ -507,10 +538,12 @@ class LeftMouseDown extends MouseDown {
 
   override done() {
     super.done()
-    if (this.mightDrag && this.target) {
+    if (Option.isSome(this.mightDrag) && Option.isSome(this.target)) {
+      const drag = this.mightDrag.value,
+        target = this.target.value
       this.view.domObserver.stop()
-      if (this.mightDrag.addAttr) this.target.removeAttribute("draggable")
-      if (this.mightDrag.setUneditable) this.target.removeAttribute("contentEditable")
+      if (drag.addAttr) target.removeAttribute("draggable")
+      if (drag.setUneditable) target.removeAttribute("contentEditable")
       this.view.domObserver.start()
     }
     if (this.delayedSelectionSync) {
@@ -527,19 +560,22 @@ class LeftMouseDown extends MouseDown {
       return
     }
 
-    let pos: { pos: number; inside: number } | null = this.pos
-    if (this.view.state.doc != this.startDoc) pos = Option.getOrNull(this.view.posAtCoords(eventCoords(event)))
+    const found =
+      this.view.state.doc != this.startDoc ? this.view.posAtCoords(eventCoords(event)) : Option.some(this.pos)
 
     this.updateAllowDefault(event)
-    if (this.allowDefault || !pos) {
+    if (this.allowDefault || Option.isNone(found)) {
       setSelectionOrigin(this.view, "pointer")
-    } else if (handleSingleClick(this.view, pos.pos, pos.inside, event, this.selectNode)) {
+      return
+    }
+    const pos = found.value
+    if (handleSingleClick(this.view, pos.pos, pos.inside, event, this.selectNode)) {
       event.preventDefault()
     } else if (
       event.button == 0 &&
       (this.flushed ||
         // Safari ignores clicks on draggable elements
-        (browser.safari && this.mightDrag && !this.mightDrag.node.isAtom) ||
+        (browser.safari && Option.exists(this.mightDrag, (drag) => !drag.node.isAtom)) ||
         // Chrome will sometimes treat a node selection as a
         // cursor, but still report that the node is selected
         // when asked through getSelection. You'll then get a
@@ -658,11 +694,11 @@ function needsMarkCursor(view: AnyView): boolean {
   const { state } = view,
     $pos = state.selection.$to
   if (!(state.selection instanceof TextSelection) || !state.selection.empty) return false
-  return !!(
-    state.storedMarksOrNull ||
+  return (
+    Option.isSome(state.storedMarks) ||
     (!$pos.textOffset &&
-      $pos.parentOffset &&
-      $pos.nodeBeforeOrNull?.marks.some((m) => m.type.spec.inclusive === false)) ||
+      $pos.parentOffset > 0 &&
+      Option.exists($pos.nodeBefore, (node) => node.marks.some((m) => m.type.spec.inclusive === false))) ||
     (browser.chrome && browser.windows && selectionBeforeUneditable(view))
   )
 }
@@ -674,9 +710,9 @@ editHandlers.compositionstart = editHandlers.compositionupdate = (view) => {
       $pos = state.selection.$to
     if (needsMarkCursor(view)) {
       // Need to wrap the cursor in mark nodes different from the ones in the DOM context
-      view.markCursor = view.state.storedMarksOrNull || $pos.marks()
+      view.markCursor = Option.some(Option.getOrElse(view.state.storedMarks, () => $pos.marks()))
       endComposition(view, true)
-      view.markCursor = null
+      view.markCursor = Option.none()
     } else {
       endComposition(view, !state.selection.empty)
       // In firefox, if the cursor is after but outside a marked node,
@@ -687,7 +723,7 @@ editHandlers.compositionstart = editHandlers.compositionupdate = (view) => {
         state.selection.empty &&
         $pos.parentOffset &&
         !$pos.textOffset &&
-        $pos.nodeBeforeOrNull?.marks.length
+        Option.exists($pos.nodeBefore, (node) => Arr.isReadonlyArrayNonEmpty(node.marks))
       ) {
         const sel = view.domSelectionRange()
         // Find the text node before the cursor, and put the DOM selection at its end.
@@ -697,7 +733,7 @@ editHandlers.compositionstart = editHandlers.compositionupdate = (view) => {
           if (!before) return
           if (before.nodeType != 3) return collapseIntoText(before, -1)
           const domSel = view.domSelection()
-          if (domSel) domSel.collapse(before, (before.nodeValue ?? "").length)
+          if (Option.isSome(domSel)) domSel.value.collapse(before, (before.nodeValue ?? "").length)
         }
         if (sel.focusNode) collapseIntoText(sel.focusNode, sel.focusOffset)
       }
@@ -719,7 +755,7 @@ editHandlers.compositionend = (view, _event) => {
     view.input.composing = false
     view.input.compositionEndedAt = view.state.config.clock()
     view.input.compositionPendingChanges = view.domObserver.pendingRecords().length ? view.input.compositionID : 0
-    view.input.compositionNode = null
+    view.input.compositionNode = Option.none()
     if (view.input.badSafariComposition) view.domObserver.forceFlush()
     else if (view.input.compositionPendingChanges) void Promise.resolve().then(() => view.domObserver.flush())
     view.input.compositionID++
@@ -742,25 +778,27 @@ export function clearComposition(view: AnyView): void {
 }
 
 /** @internal */
-export function findCompositionNode(view: AnyView): Text | null {
+export function findCompositionNode(view: AnyView): Option.Option<Text> {
   const sel = view.domSelectionRange()
-  if (!sel.focusNode) return null
-  const textBefore = textNodeBefore(sel.focusNode, sel.focusOffset)
-  const textAfter = textNodeAfter(sel.focusNode, sel.focusOffset)
-  if (textBefore && textAfter && textBefore != textAfter) {
+  if (!sel.focusNode) return Option.none()
+  const before = textNodeBefore(sel.focusNode, sel.focusOffset)
+  const after = textNodeAfter(sel.focusNode, sel.focusOffset)
+  if (Option.isSome(before) && Option.isSome(after) && before.value != after.value) {
+    const textBefore = before.value,
+      textAfter = after.value
     const descAfter = textAfter.pmViewDesc,
       lastChanged = view.domObserver.lastChangedTextNode
-    if (textBefore == lastChanged || textAfter == lastChanged) return lastChanged
+    if (Option.exists(lastChanged, (node) => node == textBefore || node == textAfter)) return lastChanged
     if (!descAfter || !descAfter.isText(textAfter.data)) {
-      return textAfter
-    } else if (view.input.compositionNode == textAfter) {
+      return after
+    } else if (Option.exists(view.input.compositionNode, (node) => node == textAfter)) {
       const descBefore = textBefore.pmViewDesc
       if (!(!descBefore || !descBefore.isText(textBefore.data))) {
-        return textAfter
+        return after
       }
     }
   }
-  return textBefore || textAfter
+  return Option.orElse(before, () => after)
 }
 
 /** @internal */
@@ -771,8 +809,11 @@ export function endComposition(view: AnyView, restarting = false): boolean {
   if (restarting || (view.docView && view.docView.dirty)) {
     const sel = selectionFromDOM(view),
       cur = view.state.selection
-    if (sel && !sel.eq(cur)) view.dispatchInternal(view.state.tr.setSelectionUnsafe(sel))
-    else if ((view.markCursor || restarting) && !cur.$from.node(cur.$from.sharedDepth(cur.to)).inlineContent) {
+    if (Option.isSome(sel) && !sel.value.eq(cur)) view.dispatchInternal(view.state.tr.setSelectionUnsafe(sel.value))
+    else if (
+      (Option.isSome(view.markCursor) || restarting) &&
+      !cur.$from.node(cur.$from.sharedDepth(cur.to)).inlineContent
+    ) {
       view.dispatchInternal(view.state.tr.deleteSelection())
     } else view.updateState(view.state)
     return true
@@ -813,7 +854,7 @@ handlers.copy = editHandlers.cut = (view, event) => {
   if (sel.empty) return
 
   // IE and Edge's clipboard interface is completely broken
-  const data = brokenClipboardAPI ? null : event.clipboardData
+  const data = brokenClipboardAPI ? undefined : event.clipboardData
   const slice = sel.content(),
     { dom, text } = serializeForClipboard(view, slice)
   if (data) {
@@ -827,8 +868,10 @@ handlers.copy = editHandlers.cut = (view, event) => {
   if (cut) view.dispatchInternal(view.state.tr.deleteSelection().scrollIntoView().setMeta("uiEvent", "cut"))
 }
 
-function sliceSingleNode(slice: Slice<any>) {
-  return slice.openStart == 0 && slice.openEnd == 0 && slice.content.childCount == 1 ? slice.content.content[0] : null
+function sliceSingleNode(slice: Slice<any>): Option.Option<Node<any, any>> {
+  return slice.openStart == 0 && slice.openEnd == 0 && slice.content.childCount == 1
+    ? Option.some(slice.content.content[0])
+    : Option.none()
 }
 
 function capturePaste(view: AnyView, event: ClipboardEvent) {
@@ -842,26 +885,40 @@ function capturePaste(view: AnyView, event: ClipboardEvent) {
   setTimeout(() => {
     view.focus()
     if (target.parentNode) target.parentNode.removeChild(target)
-    if (target instanceof HTMLTextAreaElement) doPaste(view, target.value, null, plain, event)
+    if (target instanceof HTMLTextAreaElement) doPaste(view, target.value, "", plain, event)
     else doPaste(view, target.textContent, target.innerHTML, plain, event)
   }, 50)
 }
 
-/** @internal */
+/**
+ * Paste `text`, or `html` when it is not empty.
+ *
+ * @internal
+ */
 export function doPaste(
   view: AnyView,
   text: string,
-  html: string | null,
+  html: string,
   preferPlain: boolean,
   event: ClipboardEvent
 ): boolean {
-  const slice = parseFromClipboard(view, text, html, preferPlain, view.state.selection.$from)
-  if (view.someHandler("handlePaste", (f) => f(view, event, slice || Slice.empty))) return true
-  if (!slice) return false
+  const parsed = parseFromClipboard(view, text, html, preferPlain, view.state.selection.$from)
+  if (
+    view.someHandler("handlePaste", (f) =>
+      f(
+        view,
+        event,
+        Option.getOrElse(parsed, () => Slice.empty)
+      )
+    )
+  )
+    return true
+  if (Option.isNone(parsed)) return false
+  const slice = parsed.value
 
   const singleNode = sliceSingleNode(slice)
-  const tr = singleNode
-    ? view.state.tr.replaceSelectionWith(singleNode, preferPlain)
+  const tr = Option.isSome(singleNode)
+    ? view.state.tr.replaceSelectionWith(singleNode.value, preferPlain)
     : view.state.tr.replaceSelection(slice)
   view.dispatchInternal(tr.scrollIntoView().setMeta("paste", true).setMeta("uiEvent", "paste"))
   return true
@@ -880,7 +937,7 @@ editHandlers.paste = (view, event) => {
   // let the browser do its native thing there, except on Android,
   // where the editor is almost always composing.
   if (view.composing && !browser.android) return
-  const data = brokenClipboardAPI ? null : event.clipboardData
+  const data = brokenClipboardAPI ? undefined : event.clipboardData
   const plain = view.input.shiftKey && view.input.lastKeyCode != 45
   if (data && doPaste(view, getText(data), data.getData("text/html"), plain, event)) {
     event.preventDefault()
@@ -913,29 +970,42 @@ function dragMoves(view: AnyView, event: DragEvent) {
 
 // The node a drag should move, or none to drag the selection (when the drag
 // starts inside it, or on nothing draggable).
-function draggedNode(view: AnyView, event: DragEvent, mouseDown: InputState["mouseDown"]) {
+function draggedNode(
+  view: AnyView,
+  event: DragEvent,
+  mouseDown: InputState["mouseDown"]
+): Option.Option<NodeSelection<any>> {
   const sel = view.state.selection
-  const pos = sel.empty ? null : Option.getOrNull(view.posAtCoords(eventCoords(event)))
-  if (pos && pos.pos >= sel.from && pos.pos <= (sel instanceof NodeSelection ? sel.to - 1 : sel.to)) return undefined
-  if (mouseDown && mouseDown.mightDrag) return NodeSelection.createUnsafe(view.state.doc, mouseDown.mightDrag.pos)
+  const pos = sel.empty ? Option.none() : view.posAtCoords(eventCoords(event))
+  if (
+    Option.exists(
+      pos,
+      (found) => found.pos >= sel.from && found.pos <= (sel instanceof NodeSelection ? sel.to - 1 : sel.to)
+    )
+  )
+    return Option.none()
+  const drag = Option.flatMap(mouseDown, (down) => down.mightDrag)
+  if (Option.isSome(drag)) return Option.some(NodeSelection.createUnsafe(view.state.doc, drag.value.pos))
   return draggableTarget(view, event)
 }
 
 // The draggable node whose DOM the drag event targets, if any.
-function draggableTarget(view: AnyView, event: DragEvent) {
-  if (!event.target || !isDOMNode(event.target) || !isElt(event.target)) return undefined
-  const desc = view.docView.nearestDesc(event.target, true)
-  if (!desc || !desc.node.type.spec.draggable || desc == view.docView) return undefined
-  return NodeSelection.createUnsafe(view.state.doc, desc.posBefore)
+function draggableTarget(view: AnyView, event: DragEvent): Option.Option<NodeSelection<any>> {
+  if (!event.target || !isDOMNode(event.target) || !isElt(event.target)) return Option.none()
+  return Option.flatMap(view.docView.nearestDesc(event.target, true), (desc) =>
+    !desc.node.type.spec.draggable || desc == view.docView
+      ? Option.none()
+      : Option.some(NodeSelection.createUnsafe(view.state.doc, desc.posBefore))
+  )
 }
 
 handlers.dragstart = (view, event) => {
   const mouseDown = view.input.mouseDown
-  if (mouseDown) mouseDown.done()
+  if (Option.isSome(mouseDown)) mouseDown.value.done()
   if (!event.dataTransfer) return
 
   const node = draggedNode(view, event, mouseDown)
-  const draggedSlice = (node || view.state.selection).content()
+  const draggedSlice = Option.getOrElse(node, (): Selection<any> => view.state.selection).content()
   const { dom, slice, text } = serializeForClipboard(view, draggedSlice)
   // Pre-120 Chrome versions clear files when calling `clearData`
   if (!event.dataTransfer.files.length || !browser.chrome || browser.chrome_version > 120) {
@@ -945,13 +1015,13 @@ handlers.dragstart = (view, event) => {
   // See https://code.haverbeke.berlin/prosemirror/prosemirror/issues/1156
   event.dataTransfer.effectAllowed = "copyMove"
   if (!brokenClipboardAPI) event.dataTransfer.setData("text/plain", text)
-  view.dragging = new Dragging(slice, dragMoves(view, event), node)
+  view.dragging = Option.some(new Dragging(slice, dragMoves(view, event), Option.getOrUndefined(node)))
 }
 
 handlers.dragend = (view) => {
   const dragging = view.dragging
   window.setTimeout(() => {
-    if (view.dragging == dragging) view.dragging = null
+    if (Option.getOrUndefined(view.dragging) == Option.getOrUndefined(dragging)) view.dragging = Option.none()
   }, 50)
 }
 
@@ -960,46 +1030,49 @@ editHandlers.dragover = editHandlers.dragenter = (_, e) => e.preventDefault()
 editHandlers.drop = (view, event) => {
   // try/finally: clear `dragging` even when handleDrop throws, then rethrow
   const result = Result.try(() => handleDrop(view, event, view.dragging))
-  view.dragging = null
+  view.dragging = Option.none()
   if (Result.isFailure(result)) throw result.failure
 }
 
-function handleDrop(view: AnyView, event: DragEvent, dragging: Dragging | null) {
+function handleDrop(view: AnyView, event: DragEvent, dragging: Option.Option<Dragging>) {
   if (!event.dataTransfer) return
 
-  const eventPos = Option.getOrNull(view.posAtCoords(eventCoords(event)))
-  if (!eventPos) return
-  const $mouse = view.state.doc.resolveUnsafe(eventPos.pos)
-  let slice: Slice<any> | null = dragging && dragging.slice
-  if (slice) {
-    let dragged: Slice<any> = slice
-    view.someProp("transformPasted", (f) => {
-      dragged = f(dragged, view, false)
-    })
-    slice = dragged
-  } else {
-    slice = parseFromClipboard(
-      view,
-      getText(event.dataTransfer),
-      brokenClipboardAPI ? null : event.dataTransfer.getData("text/html"),
-      false,
-      $mouse
+  const eventPos = view.posAtCoords(eventCoords(event))
+  if (Option.isNone(eventPos)) return
+  const $mouse = view.state.doc.resolveUnsafe(eventPos.value.pos)
+  const dropped = Option.isSome(dragging)
+    ? Option.some(transformDragged(view, dragging.value.slice))
+    : parseFromClipboard(
+        view,
+        getText(event.dataTransfer),
+        brokenClipboardAPI ? "" : event.dataTransfer.getData("text/html"),
+        false,
+        $mouse
+      )
+  const moving = Option.filter(dragging, () => dragMoves(view, event))
+  const move = Option.isSome(moving)
+  if (
+    view.someHandler("handleDrop", (f) =>
+      f(
+        view,
+        event,
+        Option.getOrElse(dropped, () => Slice.empty),
+        move
+      )
     )
-  }
-  const move = !!(dragging && dragMoves(view, event))
-  if (view.someHandler("handleDrop", (f) => f(view, event, slice || Slice.empty, move))) {
+  ) {
     event.preventDefault()
     return
   }
-  if (!slice) return
+  if (Option.isNone(dropped)) return
+  const slice = dropped.value
 
   event.preventDefault()
-  let insertPos = slice ? Option.getOrNull(dropPoint(view.state.doc, $mouse.pos, slice)) : $mouse.pos
-  if (insertPos == null) insertPos = $mouse.pos
+  const insertPos = Option.getOrElse(dropPoint(view.state.doc, $mouse.pos, slice), () => $mouse.pos)
 
   const tr = view.state.tr
-  if (move) {
-    const { node } = dragging
+  if (Option.isSome(moving)) {
+    const { node } = moving.value
     if (node) node.replace(tr)
     else tr.deleteSelection()
   }
@@ -1018,8 +1091,7 @@ function handleDrop(view: AnyView, event: DragEvent, dragging: Dragging | null) 
   if (
     isNode &&
     NodeSelection.isSelectable(slice.content.content[0]) &&
-    $pos.nodeAfterOrNull &&
-    $pos.nodeAfterOrNull.sameMarkup(slice.content.content[0])
+    Option.exists($pos.nodeAfter, (node) => node.sameMarkup(slice.content.content[0]))
   ) {
     tr.setSelectionUnsafe(new NodeSelection($pos))
   } else {
@@ -1082,10 +1154,11 @@ handlers.beforeinput = (view, event) => {
       view.focus()
       if (dispatchKey(view, "Backspace")) return
       const sel = view.state.selection
-      const $cursor = sel instanceof TextSelection ? sel.$cursorOrNull : null
+      const $cursor = sel instanceof TextSelection ? sel.$cursor : Option.none()
       // Crude approximation of backspace behavior when no command handled it
-      if ($cursor && $cursor.pos > 0) {
-        view.dispatchInternal(view.state.tr.deleteUnsafe($cursor.pos - 1, $cursor.pos).scrollIntoView())
+      if (Option.isSome($cursor) && $cursor.value.pos > 0) {
+        const pos = $cursor.value.pos
+        view.dispatchInternal(view.state.tr.deleteUnsafe(pos - 1, pos).scrollIntoView())
       }
     }, 50)
   }

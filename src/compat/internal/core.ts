@@ -125,10 +125,6 @@ export const unwrapArray = (arr: ReadonlyArray<any>): ReadonlyArray<any> => {
   return arr.some(isFacade) ? arr.map(unwrap) : arr
 }
 
-/** @internal */
-export const unwrapArrayOrNull = (arr: ReadonlyArray<any> | null | undefined): any =>
-  arr == null ? arr : unwrapArray(arr)
-
 // -----------------------------------------------------------------------------
 // Errors
 // -----------------------------------------------------------------------------

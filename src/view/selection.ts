@@ -32,18 +32,23 @@ const geckoKeySelection = (
   byKey: boolean
 ) =>
   browser.gecko && byKey
-    ? Option.getOrUndefined(Option.map(nearestDesc, (desc) => skippedScrollWrapper(view, domSel, head, desc)))
-    : undefined
+    ? Option.flatMap(nearestDesc, (desc) => skippedScrollWrapper(view, domSel, head, desc))
+    : Option.none()
 
 // Firefox will jump across scrollable wrapper nodes on keyboard cursor
 // motion. Detect a cursor that landed past such a wrapper and put
 // it at the start of the node it skipped (prosemirror-view 1.42.6).
-function skippedScrollWrapper(view: AnyView, domSel: DOMSelectionRange, head: number, nearestDesc: ViewDesc) {
+function skippedScrollWrapper(
+  view: AnyView,
+  domSel: DOMSelectionRange,
+  head: number,
+  nearestDesc: ViewDesc
+): Option.Option<Selection<any>> {
   const to = view.state.selection.to
-  if (head <= to || nearestDesc.posAtStart <= to) return undefined
+  if (head <= to || nearestDesc.posAtStart <= to) return Option.none()
   const focus = domSel.focusNode
-  if (!focus || !focusAtElementEnd(domSel) || !inScrollableWrapper(focus, nearestDesc.dom)) return undefined
-  return Option.getOrUndefined(Selection.findFrom(view.state.doc.resolveUnsafe(nearestDesc.posAtStart), 1))
+  if (!focus || !focusAtElementEnd(domSel) || !inScrollableWrapper(focus, nearestDesc.dom)) return Option.none()
+  return Selection.findFrom(view.state.doc.resolveUnsafe(nearestDesc.posAtStart), 1)
 }
 
 const focusAtElementEnd = ({ focusNode, focusOffset }: DOMSelectionRange): boolean =>
@@ -64,33 +69,32 @@ const inScrollableWrapper = (scan: globalThis.Node, stop: globalThis.Node): bool
   Option.match(climb(scan, stop), { onNone: () => false, onSome: (up) => inScrollableWrapper(up, stop) })
 
 /** @internal */
-export function selectionFromDOM(view: AnyView, origin: string | null = null): Selection<any> | null {
+export function selectionFromDOM(view: AnyView, origin?: string): Option.Option<Selection<any>> {
   const domSel = view.domSelectionRange(),
     doc = view.state.doc
-  if (!domSel.focusNode) return null
-  let nearestDesc: ViewDesc | undefined = view.docView.nearestDesc(domSel.focusNode)
-  const inWidget = nearestDesc && nearestDesc.size == 0
+  if (!domSel.focusNode) return Option.none()
+  const focusDesc = view.docView.nearestDesc(domSel.focusNode)
+  const inWidget = Option.exists(focusDesc, (desc) => desc.size == 0)
   let head = view.docView.posFromDOM(domSel.focusNode, domSel.focusOffset, 1)
-  if (head < 0) return null
+  if (head < 0) return Option.none()
   let $head = doc.resolveUnsafe(head),
     anchor,
-    selection: Selection<any> | undefined
+    selection = Option.none<Selection<any>>()
   if (selectionCollapsed(domSel)) {
     anchor = head
-    nearestDesc = nearestDesc && Option.getOrUndefined(withNode(nearestDesc))
-    const nearestDescNode = nearestDesc?.node
+    const nodeDesc = Option.flatMap(focusDesc, withNode)
+    const desc = Option.getOrUndefined(nodeDesc)
     if (
-      nearestDesc &&
-      nearestDescNode &&
-      nearestDescNode.isAtom &&
-      NodeSelection.isSelectable(nearestDescNode) &&
-      nearestDesc.parent &&
-      !(nearestDescNode.isInline && isOnEdge(domSel.focusNode, domSel.focusOffset, nearestDesc.dom))
+      desc &&
+      desc.node.isAtom &&
+      NodeSelection.isSelectable(desc.node) &&
+      Option.isSome(desc.parent) &&
+      !(desc.node.isInline && isOnEdge(domSel.focusNode, domSel.focusOffset, desc.dom))
     ) {
-      const pos = nearestDesc.posBefore
-      selection = new NodeSelection(head == pos ? $head : doc.resolveUnsafe(pos))
+      const pos = desc.posBefore
+      selection = Option.some(new NodeSelection(head == pos ? $head : doc.resolveUnsafe(pos)))
     } else {
-      selection = geckoKeySelection(view, domSel, head, Option.fromNullishOr(nearestDesc), origin == "key")
+      selection = geckoKeySelection(view, domSel, head, nodeDesc, origin == "key")
     }
   } else {
     const win = view.dom.ownerDocument.defaultView
@@ -101,28 +105,25 @@ export function selectionFromDOM(view: AnyView, origin: string | null = null): S
         min = Math.min(min, view.docView.posFromDOM(range.startContainer, range.startOffset, 1))
         max = Math.max(max, view.docView.posFromDOM(range.endContainer, range.endOffset, -1))
       })
-      if (min < 0) return null
+      if (min < 0) return Option.none()
       ;[anchor, head] = max == view.state.selection.anchor ? [max, min] : [min, max]
       $head = doc.resolveUnsafe(head)
     } else {
-      if (!domSel.anchorNode) return null
+      if (!domSel.anchorNode) return Option.none()
       anchor = view.docView.posFromDOM(domSel.anchorNode, domSel.anchorOffset, 1)
     }
-    if (anchor < 0) return null
+    if (anchor < 0) return Option.none()
   }
+  if (Option.isSome(selection)) return selection
   const $anchor = doc.resolveUnsafe(anchor)
-
-  if (!selection) {
-    const bias = origin == "pointer" || (view.state.selection.head < $head.pos && !inWidget) ? 1 : -1
-    selection = selectionBetween(view, $anchor, $head, bias)
-  }
-  return selection
+  const bias = origin == "pointer" || (view.state.selection.head < $head.pos && !inWidget) ? 1 : -1
+  return Option.some(selectionBetween(view, $anchor, $head, bias))
 }
 
 // The nearest of `desc` and its ancestors that describes a node.
-function withNode(desc: ViewDesc): Option.Option<ViewDesc> {
-  if (desc.node) return Option.some(desc)
-  return desc.parent ? withNode(desc.parent) : Option.none()
+function withNode(desc: ViewDesc): Option.Option<NodeViewDesc> {
+  if (desc.isNode()) return Option.some(desc)
+  return Option.flatMap(desc.parent, withNode)
 }
 
 function editorOwnsSelection(view: AnyView) {
@@ -141,14 +142,14 @@ export function selectionToDOM(view: AnyView, force = false): void {
   // Need to delay selection normalization during a native selection
   // drag on Chrome, or it will cause further dragging to glitch.
   const mouseDown = view.input.mouseDown
-  if (!force && browser.chrome && mouseDown) {
+  if (!force && browser.chrome && Option.isSome(mouseDown)) {
     const domSel = view.domSelectionRange(),
-      curSel = view.domObserver.currentSelection
+      curSel = view.domObserver.currentSelection.range
     if (
       domSel.anchorNode &&
       curSel.anchorNode &&
       isEquivalentPosition(domSel.anchorNode, domSel.anchorOffset, curSel.anchorNode, curSel.anchorOffset) &&
-      mouseDown.delaySelUpdate()
+      mouseDown.value.delaySelUpdate()
     ) {
       view.domObserver.setCurSelection()
       return
@@ -157,8 +158,8 @@ export function selectionToDOM(view: AnyView, force = false): void {
 
   view.domObserver.disconnectSelection()
 
-  if (view.cursorWrapper) {
-    selectCursorWrapper(view)
+  if (Option.isSome(view.cursorWrapper)) {
+    selectCursorWrapper(view, view.cursorWrapper.value.dom)
   } else {
     const { anchor, head } = sel
     let resetEditableFrom, resetEditableTo
@@ -193,13 +194,12 @@ export function selectionToDOM(view: AnyView, force = false): void {
 
 const brokenSelectBetweenUneditable = browser.safari || (browser.chrome && browser.chrome_version < 63)
 
-const uneditable = (node: DOMNode | null): node is HTMLElement =>
-  !!node && isElt(node) && node.contentEditable == "false"
+const uneditable = (node?: DOMNode): node is HTMLElement => !!node && isElt(node) && node.contentEditable == "false"
 
 function temporarilyEditableNear(view: AnyView, pos: number) {
   const { node, offset } = view.docView.domFromPos(pos, 0)
-  const after = offset < node.childNodes.length ? node.childNodes[offset] : null
-  const before = offset ? node.childNodes[offset - 1] : null
+  const after = offset < node.childNodes.length ? node.childNodes[offset] : undefined
+  const before = offset ? node.childNodes[offset - 1] : undefined
   if (browser.safari && uneditable(after)) return setEditable(after)
   if ((!after || uneditable(after)) && (!before || uneditable(before))) {
     if (uneditable(after)) return setEditable(after)
@@ -232,7 +232,7 @@ function resetEditable(element: EditableElement) {
 function removeClassOnSelectionChange(view: AnyView) {
   const doc = view.dom.ownerDocument
   const prevGuard = view.input.hideSelectionGuard
-  if (prevGuard) doc.removeEventListener("selectionchange", prevGuard)
+  if (Option.isSome(prevGuard)) doc.removeEventListener("selectionchange", prevGuard.value)
   const domSel = view.domSelectionRange()
   const node = domSel.anchorNode,
     offset = domSel.anchorOffset
@@ -246,16 +246,15 @@ function removeClassOnSelectionChange(view: AnyView) {
       }, 20)
     }
   }
-  view.input.hideSelectionGuard = guard
+  view.input.hideSelectionGuard = Option.some(guard)
   doc.addEventListener("selectionchange", guard)
 }
 
-function selectCursorWrapper(view: AnyView) {
-  const domSel = view.domSelection()
-  if (!domSel) return
-  if (!view.cursorWrapper) return
-  const node = view.cursorWrapper.dom,
-    img = node.nodeName == "IMG"
+function selectCursorWrapper(view: AnyView, node: DOMNode) {
+  const found = view.domSelection()
+  if (Option.isNone(found)) return
+  const domSel = found.value
+  const img = node.nodeName == "IMG"
   if (img) domSel.collapse(node.parentNode, domIndex(node) + 1)
   else domSel.collapse(node, 0)
   // Kludge to kill 'control selection' in IE11 when selecting an
@@ -274,10 +273,10 @@ function selectCursorWrapper(view: AnyView) {
 export function syncNodeSelection(view: AnyView, sel: Selection<any>): void {
   if (sel instanceof NodeSelection) {
     const desc = view.docView.descAt(sel.from)
-    if (desc != view.lastSelectedViewDesc) {
+    if (Option.getOrUndefined(desc) != Option.getOrUndefined(view.lastSelectedViewDesc)) {
       clearNodeSelection(view)
       // The desc at a node selection's start is the selected node's desc.
-      if (desc instanceof NodeViewDesc) desc.selectNode()
+      if (Option.isSome(desc) && desc.value instanceof NodeViewDesc) desc.value.selectNode()
       view.lastSelectedViewDesc = desc
     }
   } else {
@@ -287,10 +286,10 @@ export function syncNodeSelection(view: AnyView, sel: Selection<any>): void {
 
 // Clear all DOM statefulness of the last node selection.
 function clearNodeSelection(view: AnyView) {
-  if (view.lastSelectedViewDesc) {
-    const selected = view.lastSelectedViewDesc
-    if (selected.parent && selected instanceof NodeViewDesc) selected.deselectNode()
-    view.lastSelectedViewDesc = undefined
+  if (Option.isSome(view.lastSelectedViewDesc)) {
+    const selected = view.lastSelectedViewDesc.value
+    if (Option.isSome(selected.parent) && selected instanceof NodeViewDesc) selected.deselectNode()
+    view.lastSelectedViewDesc = Option.none()
   }
 }
 
@@ -301,8 +300,8 @@ export function selectionBetween(
   $head: ResolvedPos<any>,
   bias?: number
 ): Selection<any> {
-  return (
-    view.someProp("createSelectionBetween", (f) => f(view, $anchor, $head)) ||
+  const custom = view.someProp("createSelectionBetween", (f) => Option.getOrUndefined(f(view, $anchor, $head)))
+  return Option.getOrElse(Option.flatMap(custom, Option.fromUndefinedOr), () =>
     TextSelection.between($anchor, $head, bias)
   )
 }

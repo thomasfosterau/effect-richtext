@@ -25,7 +25,7 @@ import { collect } from "./helpers.ts"
 import { getSome } from "../utils/option.ts"
 
 const stateFor = <const P extends ReadonlyArray<Plugin<any, any, any>> = readonly []>(d: Node<any>, plugins?: P) =>
-  EditorState.createUnsafe({ doc: d, selection: selFor(d), plugins })
+  EditorState.createUnsafe({ doc: d, selection: selFor(d), ...(plugins && { plugins }) })
 
 class Step extends Context.Service<Step, { readonly step: number }>()("test/Step") {}
 class Boom extends Schema.TaggedError<Boom, { readonly brand: unique symbol }>()("Boom", {}) {}
@@ -62,7 +62,9 @@ describe("StateRef", () => {
     Effect.gen(function* () {
       const appender = new Plugin({
         appendTransaction: (trs: ReadonlyArray<Transaction>, _old, state: EditorState<AnySchema, any, any>) =>
-          trs.some((tr) => Option.isSome(tr.getMeta("append"))) ? state.tr.insertTextUnsafe("+") : null
+          trs.some((tr) => Option.isSome(tr.getMeta("append")))
+            ? Option.some(state.tr.insertTextUnsafe("+"))
+            : Option.none()
       })
       const ref = yield* StateRef.make(stateFor(doc(p("a<a>")), [appender]))
       // Not seen by the subscriber, which subscribes afterwards.

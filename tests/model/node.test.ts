@@ -79,7 +79,7 @@ function between(doc: Node, ...nodes: Array<string>) {
   })
 }
 
-function from(arg: Node | Array<Node> | Fragment | null, expect: Node) {
+function from(arg: Node | Array<Node> | Fragment, expect: Node) {
   ist(expect.copy(Fragment.from(arg)), expect, eq)
 }
 
@@ -226,7 +226,7 @@ describe("Node", () => {
 
     it("notices marks in wrong places", () => {
       ist.throws(
-        () => doc(schema.nodes.paragraph.createUnsafe(null, [], [schema.marks.em.createUnsafe()])).checkUnsafe(),
+        () => doc(schema.nodes.paragraph.createUnsafe(undefined, [], [schema.marks.em.createUnsafe()])).checkUnsafe(),
         /Invalid content for node doc/
       )
     })
@@ -312,7 +312,7 @@ describe("Node", () => {
 
     it("preserves a fragment", () => from(doc(p("foo")).content, doc(p("foo"))))
 
-    it("accepts null", () => from(null, p()))
+    it("accepts nothing", () => ist(p().copy(Fragment.from()), p(), eq))
 
     it("joins adjacent text", () => from([schema.textUnsafe("a"), schema.textUnsafe("b")], p("ab")))
   })
@@ -425,11 +425,11 @@ describe("Node", () => {
       Effect.gen(function* () {
         // SAFETY: deliberately ill-typed, to check the runtime error.
         // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-        const err = yield* Effect.flip(schema.nodes.doc.createChecked(null, [schema.textUnsafe("x") as any]))
+        const err = yield* Effect.flip(schema.nodes.doc.createChecked(undefined, [schema.textUnsafe("x") as any]))
         assert.strictEqual(err._tag, "ContentError")
         // SAFETY: deliberately ill-typed, to check the runtime error.
         // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-        ist.throws(() => schema.nodeUnsafe("doc", null, [schema.textUnsafe("x") as any]), /Invalid content/)
+        ist.throws(() => schema.nodeUnsafe("doc", undefined, [schema.textUnsafe("x") as any]), /Invalid content/)
       })
     )
 
@@ -439,7 +439,7 @@ describe("Node", () => {
         ist(filled, doc(p()), eq)
         // SAFETY: deliberately ill-typed, to check the runtime error.
         // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-        const err = yield* Effect.flip(schema.nodes.paragraph.createAndFill(null, [p() as any]))
+        const err = yield* Effect.flip(schema.nodes.paragraph.createAndFill(undefined, [p() as any]))
         assert.strictEqual(err._tag, "ContentError")
       })
     )

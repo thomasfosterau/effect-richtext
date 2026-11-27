@@ -109,13 +109,13 @@ export default defineConfig({
     },
     rules: {
       "eslint/no-unused-vars": [
-        "warn",
+        "error",
         {
           argsIgnorePattern: "^_",
           varsIgnorePattern: "^_"
         }
       ],
-      "eslint/prefer-const": "warn",
+      "eslint/prefer-const": "error",
       "eslint/no-console": "error",
       "typescript/consistent-type-imports": "error",
       // Fires on every `as`, including the narrowings the DOM types require;
@@ -124,10 +124,6 @@ export default defineConfig({
       // Not adopted yet: the code imports Effect modules under their full names.
       "effect/prefer-namespace-imports": "off",
 
-      // ---- Allowances for the ported ProseMirror code ----------------------
-      // `warn`, with the site count when added: a new site is a defect, not
-      // headroom. Lower the count as sites go; delete the line at zero.
-      "effect/prefer-option-over-null": "warn", // 608
       // `@effect/tsgo`'s preset warns on these; they have no sites left.
       "effecttsgo/any-unknown-in-error-context": "error",
       "effecttsgo/unnecessary-fail-yieldable-error": "error",
@@ -190,6 +186,7 @@ export default defineConfig({
             "parseWith",
             "recover",
             "rem",
+            "remAll",
             "repl",
             "rm",
             "roundTrip",

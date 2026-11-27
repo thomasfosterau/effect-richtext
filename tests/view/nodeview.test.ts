@@ -1,11 +1,11 @@
 // Ported from prosemirror-view/test/webtest-nodeview.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
-import { constUndefined } from "effect/Function"
 import * as Option from "effect/Option"
 import { Plugin } from "@thomasfosterau/effect-richtext/State"
 import { blockquote, br, doc, p } from "@thomasfosterau/effect-richtext/TestBuilder"
 import { Decoration, DecorationSet, type ViewMutationRecord } from "@thomasfosterau/effect-richtext/View"
 import ist from "../utils/ist.ts"
+import { getSome } from "../utils/option.ts"
 import { instanceOf, present } from "../utils/present.ts"
 import { flush, tempEditor } from "./helpers.ts"
 
@@ -106,7 +106,7 @@ describe("nodeViews prop", () => {
   })
 
   it("has its ignoreMutation method called", async () => {
-    let mutation: ViewMutationRecord | undefined
+    let mutation = Option.none<ViewMutationRecord>()
     const view = tempEditor({
       doc: doc(p("foo")),
       nodeViews: {
@@ -119,18 +119,17 @@ describe("nodeViews prop", () => {
             dom,
             contentDOM,
             ignoreMutation: (m) => {
-              mutation = m
+              mutation = Option.some(m)
               return true
             }
           }
         }
       }
     })
-    ist(!mutation)
+    ist(Option.isNone(mutation))
     present(view.dom.querySelector("x-info")).textContent = "info"
     flush(view)
-    ist(mutation)
-    ist(instanceOf(HTMLElement, present(mutation).target).tagName, "X-INFO")
+    ist(instanceOf(HTMLElement, getSome(mutation).target).tagName, "X-INFO")
   })
 
   it("has its destroy method called", () => {
@@ -149,38 +148,37 @@ describe("nodeViews prop", () => {
   })
 
   it("can query its own position", () => {
-    let get: () => number | undefined = constUndefined
+    let get: () => Option.Option<number> = Option.none
     const view = tempEditor({
       doc: doc(blockquote(p("abc"), p("foo", br()))),
       nodeViews: {
         hard_break(_n, _v, getPos) {
-          ist(getPos(), 10)
+          ist(getSome(getPos()), 10)
           get = getPos
           return { dom: document.createElement("br") }
         }
       }
     })
-    ist(get(), 10)
+    ist(getSome(get()), 10)
     view.dispatchUnsafe(view.state.tr.insertTextUnsafe("a"))
-    ist(get(), 11)
+    ist(getSome(get()), 11)
   })
 
   it("has access to outer decorations", () => {
     const plugin = new Plugin({
       state: {
-        init(): string | null {
-          return null
-        },
+        init: () => Option.none<string>(),
         apply(tr, prev) {
-          return Option.getOrUndefined(tr.getMeta<string>("setDeco")) || prev
+          return Option.orElse(tr.getMeta<string>("setDeco"), () => prev)
         }
       },
       props: {
         decorations(this: Plugin, state) {
-          const deco = Option.getOrNull(this.getState(state))
-          return (
-            deco && DecorationSet.create(state.doc, [Decoration.inline(0, state.doc.content.size, {}, { name: deco })])
-          )
+          return Option.match(Option.flatten(this.getState(state)), {
+            onNone: () => DecorationSet.empty,
+            onSome: (deco) =>
+              DecorationSet.create(state.doc, [Decoration.inline(0, state.doc.content.size, {}, { name: deco })])
+          })
         }
       }
     })

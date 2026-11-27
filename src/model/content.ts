@@ -37,7 +37,6 @@ import * as Rec from "effect/Record"
 import { SchemaDefinitionError } from "./errors.ts"
 import { Fragment } from "./fragment.ts"
 import type { NodeType } from "./schema.ts"
-import type { Node } from "./node.ts"
 
 const TypeId = "~effect-richtext/model/ContentExpr"
 
@@ -196,9 +195,9 @@ export const repeat = <const C extends ContentInput>(item: C, min: number, max: 
  */
 export const parse = (source: string): ContentExpr => {
   const stream = new TokenStream(source)
-  if (stream.next === undefined) return make({ _tag: "Seq", exprs: [] })
+  if (Option.isNone(stream.next)) return make({ _tag: "Seq", exprs: [] })
   const expr = parseExpr(stream)
-  if (stream.next !== undefined) stream.err("Unexpected trailing text")
+  if (Option.isSome(stream.next)) stream.err("Unexpected trailing text")
   return make(expr)
 }
 
@@ -241,11 +240,11 @@ class TokenStream {
     if (this.tokens[this.tokens.length - 1] === "") this.tokens.pop()
     if (this.tokens[0] === "") this.tokens.shift()
   }
-  get next(): string | undefined {
-    return this.tokens[this.pos]
+  get next(): Option.Option<string> {
+    return Arr.get(this.tokens, this.pos)
   }
   eat(tok: string): boolean {
-    if (this.next === tok) {
+    if (this.tokens[this.pos] === tok) {
       this.pos++
       return true
     }
@@ -273,7 +272,7 @@ function parseExprSeq(stream: TokenStream): ExprAST {
 
 function parseSeqItems(stream: TokenStream): Array<ExprAST> {
   const first = parseExprSubscript(stream)
-  const ended = stream.next === undefined || stream.next === ")" || stream.next === "|"
+  const ended = Option.match(stream.next, { onNone: () => true, onSome: (next) => next === ")" || next === "|" })
   return ended ? [first] : [first, ...parseSeqItems(stream)]
 }
 
@@ -290,8 +289,8 @@ function parseSuffixes(stream: TokenStream, expr: ExprAST): ExprAST {
 }
 
 function parseNum(stream: TokenStream): number {
-  const next = stream.next
-  if (next === undefined || /\D/.test(next)) stream.err("Expected number, got '" + next + "'")
+  const next = Option.getOrElse(stream.next, () => stream.err("Expected number, got 'undefined'"))
+  if (/\D/.test(next)) stream.err("Expected number, got '" + next + "'")
   stream.pos++
   return Number(next)
 }
@@ -300,7 +299,7 @@ function parseExprRange(stream: TokenStream, expr: ExprAST): ExprAST {
   const min = parseNum(stream)
   let max = min
   if (stream.eat(",")) {
-    if (stream.next !== "}") max = parseNum(stream)
+    if (!Option.contains(stream.next, "}")) max = parseNum(stream)
     else max = -1
   }
   if (!stream.eat("}")) stream.err("Unclosed braced range")
@@ -313,8 +312,8 @@ function parseExprAtom(stream: TokenStream): ExprAST {
     if (!stream.eat(")")) stream.err("Missing closing paren")
     return expr
   }
-  const next = stream.next
-  if (next !== undefined && !/\W/.test(next)) {
+  const next = Option.getOrElse(stream.next, () => stream.err("Unexpected token 'undefined'"))
+  if (!/\W/.test(next)) {
     stream.pos++
     return { _tag: "Name", name: next }
   }
@@ -346,17 +345,8 @@ export interface MatchEdge {
 }
 
 // A step in the breadth-first search of `computeWrapping`: the wrapper
-// entered to reach `match`, and the step it was entered from.
-type WrapStep = { match: ContentMatch; type: NodeType | null; via: WrapStep | null }
-
-// The wrapper types on the path to `step`, outermost first.
-function wrapPath(step: WrapStep, out: Array<NodeType>): Array<NodeType> {
-  if (step.type) {
-    if (step.via) wrapPath(step.via, out)
-    out.push(step.type)
-  }
-  return out
-}
+// types entered to reach `match`, outermost first.
+type WrapStep = { readonly match: ContentMatch; readonly path: ReadonlyArray<NodeType> }
 
 /**
  * Instances of this class represent a match state of a node type's
@@ -371,27 +361,36 @@ export class ContentMatch {
   /** @internal */
   readonly next: Array<MatchEdge> = []
   /** @internal */
-  readonly wrapCache: Array<NodeType | ReadonlyArray<NodeType> | null> = []
+  readonly wrapCache: Array<readonly [NodeType, Option.Option<ReadonlyArray<NodeType>>]> = []
+  /**
+   * This match, in an `Option`: matching returns it, so that content
+   * checks, which match every node, don't allocate.
+   *
+   * @internal
+   */
+  readonly some: Option.Option<ContentMatch>
 
   /** @internal */
   constructor(
     /** True when this match state represents a valid end of the node. */
     readonly validEnd: boolean
-  ) {}
+  ) {
+    this.some = Option.some(this)
+  }
 
   /** @internal */
   static compile(
-    content: ContentInput | undefined,
+    content: Option.Option<ContentInput>,
     nodeTypes: Readonly<Partial<Record<string, NodeType>>>,
     typeName: string
   ): ContentMatch {
-    if (content === undefined) return ContentMatch.empty
+    if (Option.isNone(content)) return ContentMatch.empty
     // A plain string in a spec's `content` field is read as ProseMirror
     // content expression syntax (a bare name parses to itself).
-    const ast = Predicate.isString(content) ? parse(content).ast : content.ast
+    const ast = Predicate.isString(content.value) ? parse(content.value).ast : content.value.ast
     if (isEmptyAST(ast)) return ContentMatch.empty
     const source = formatAST(ast, 0)
-    const ctx: ResolveContext = { inline: null, nodeTypes, source, typeName }
+    const ctx: ResolveContext = { inline: Option.none(), nodeTypes, source, typeName }
     const expr = resolve(ast, ctx)
     const match = dfa(nfa(expr))
     checkForDeadEnds(match, source)
@@ -403,33 +402,34 @@ export class ContentMatch {
    * successful.
    */
   matchType(type: NodeType): Option.Option<ContentMatch> {
-    return Option.fromNullishOr(this.matchTypeOrNull(type))
+    const edge = this.edgeIndex(type)
+    return edge < 0 ? Option.none() : this.next[edge].next.some
   }
 
-  /** @internal */
-  matchTypeOrNull(type: NodeType): ContentMatch | null {
-    // Plain loops here and in `matchFragmentOrNull`: content checks run
-    // them for every node, and callbacks cost the block-moves benchmark
-    // a fifth of its speed.
+  // The index in `next` of the edge for `type`, or -1. Plain loops here
+  // and in `matchFragment`: content checks run them for every node, and
+  // callbacks cost the block-moves benchmark a fifth of its speed.
+  private edgeIndex(type: NodeType): number {
     // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0; i < this.next.length; i++) {
-      if (this.next[i].type === type) return this.next[i].next
+      if (this.next[i].type === type) return i
     }
-    return null
+    return -1
   }
 
   /** Try to match a fragment. Returns the resulting match when successful. */
   matchFragment(frag: Fragment, start = 0, end = frag.childCount): Option.Option<ContentMatch> {
-    return Option.fromNullishOr(this.matchFragmentOrNull(frag, start, end))
-  }
-
-  /** @internal */
-  matchFragmentOrNull(frag: Fragment, start = 0, end = frag.childCount): ContentMatch | null {
-    if (start >= end) return this
-    let cur = this.matchTypeOrNull(frag.content[start].type)
+    if (start >= end) return this.some
+    const first = this.edgeIndex(frag.content[start].type)
+    if (first < 0) return Option.none()
+    let cur = this.next[first].next
     // oxlint-disable-next-line effect/imperative-loops
-    for (let i = start + 1; cur && i < end; i++) cur = cur.matchTypeOrNull(frag.content[i].type)
-    return cur
+    for (let i = start + 1; i < end; i++) {
+      const edge = cur.edgeIndex(frag.content[i].type)
+      if (edge < 0) return Option.none()
+      cur = cur.next[edge].next
+    }
+    return cur.some
   }
 
   /** @internal */
@@ -439,13 +439,10 @@ export class ContentMatch {
 
   /** Get the first matching node type at this match position that can be generated. */
   get defaultType(): Option.Option<NodeType> {
-    return Option.fromNullishOr(this.defaultTypeOrNull)
-  }
-
-  /** @internal */
-  get defaultTypeOrNull(): NodeType | null {
-    const edge = this.next.find(({ type }) => !(type.isText || type.hasRequiredAttrs()))
-    return edge ? edge.type : null
+    return Option.map(
+      Arr.findFirst(this.next, ({ type }) => !(type.isText || type.hasRequiredAttrs())),
+      ({ type }) => type
+    )
   }
 
   /** @internal */
@@ -462,16 +459,11 @@ export class ContentMatch {
    * content expression.
    */
   fillBefore(after: Fragment, toEnd = false, startIndex = 0): Option.Option<Fragment> {
-    return Option.fromNullishOr(this.fillBeforeOrNull(after, toEnd, startIndex))
-  }
-
-  /** @internal */
-  fillBeforeOrNull(after: Fragment, toEnd = false, startIndex = 0): Fragment | null {
     const seen: Array<ContentMatch> = [this]
     function search(match: ContentMatch, types: ReadonlyArray<NodeType>): Option.Option<Fragment> {
-      const finished = match.matchFragmentOrNull(after, startIndex)
-      if (finished && (!toEnd || finished.validEnd)) {
-        return Option.fromNullishOr(createAndFillAll(types))
+      const finished = match.matchFragment(after, startIndex)
+      if (Option.isSome(finished) && (!toEnd || finished.value.validEnd)) {
+        return createAndFillAll(types)
       }
       return Arr.findFirst(match.next, ({ next, type }) => {
         if (type.isText || type.hasRequiredAttrs() || seen.indexOf(next) !== -1) return Option.none()
@@ -479,7 +471,7 @@ export class ContentMatch {
         return search(next, types.concat(type))
       })
     }
-    return Option.getOrNull(search(this, []))
+    return search(this, [])
   }
 
   /**
@@ -489,41 +481,37 @@ export class ContentMatch {
    * exists.
    */
   findWrapping(target: NodeType): Option.Option<ReadonlyArray<NodeType>> {
-    return Option.fromNullishOr(this.findWrappingOrNull(target))
-  }
-
-  /** @internal */
-  findWrappingOrNull(target: NodeType): ReadonlyArray<NodeType> | null {
-    const i = this.wrapCache.findIndex((entry, k) => k % 2 === 0 && entry === target)
-    if (i >= 0) {
-      // SAFETY: the cache alternates targets and their wrappings.
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-      return this.wrapCache[i + 1] as ReadonlyArray<NodeType> | null
-    }
+    const cached = this.wrapCache.find((entry) => entry[0] === target)
+    if (cached) return cached[1]
     const computed = this.computeWrapping(target)
-    this.wrapCache.push(target, computed)
+    this.wrapCache.push([target, computed])
     return computed
   }
 
   /** @internal */
-  computeWrapping(target: NodeType): ReadonlyArray<NodeType> | null {
+  computeWrapping(target: NodeType): Option.Option<ReadonlyArray<NodeType>> {
     const seen: Record<string, boolean> = Object.create(null)
-    const active: Array<WrapStep> = [{ match: this, type: null, via: null }]
+    const active: Array<WrapStep> = [{ match: this, path: [] }]
     // A breadth-first search, which appends to `active` as it goes.
     const visit = (head: number): Option.Option<ReadonlyArray<NodeType>> => {
       if (head === active.length) return Option.none()
       const current = active[head]
       const match = current.match
-      if (match.matchTypeOrNull(target)) return Option.some(wrapPath(current, []))
+      if (Option.isSome(match.matchType(target))) return Option.some(current.path)
       match.next.forEach(({ next, type }) => {
-        if (!type.isLeaf && !type.hasRequiredAttrs() && !(type.name in seen) && (!current.type || next.validEnd)) {
-          active.push({ match: type.contentMatch, type, via: current })
+        if (
+          !type.isLeaf &&
+          !type.hasRequiredAttrs() &&
+          !(type.name in seen) &&
+          (Arr.isReadonlyArrayEmpty(current.path) || next.validEnd)
+        ) {
+          active.push({ match: type.contentMatch, path: [...current.path, type] })
           seen[type.name] = true
         }
       })
       return visit(head + 1)
     }
-    return Option.getOrNull(visit(0))
+    return visit(0)
   }
 
   /** The number of outgoing edges this node has in the content automaton. */
@@ -559,7 +547,7 @@ export class ContentMatch {
 }
 
 interface ResolveContext {
-  inline: boolean | null
+  inline: Option.Option<boolean>
   readonly nodeTypes: Readonly<Partial<Record<string, NodeType>>>
   readonly source: string
   readonly typeName: string
@@ -584,8 +572,9 @@ function resolve(ast: ExprAST, ctx: ResolveContext): Expr {
   return Match.valueTags(ast, {
     Name: (a): Expr => {
       const exprs = resolveName(ctx, a.name).map((type): Expr => {
-        if (ctx.inline === null) ctx.inline = type.isInline
-        else if (ctx.inline !== type.isInline) fail(ctx, "Mixing inline and block content")
+        if (Option.isNone(ctx.inline)) ctx.inline = Option.some(type.isInline)
+        else if (ctx.inline.value !== type.isInline) fail(ctx, "Mixing inline and block content")
+
         return { type: "name", value: type }
       })
       return exprs.length === 1 ? exprs[0] : { type: "choice", exprs }
@@ -608,7 +597,7 @@ function resolve(ast: ExprAST, ctx: ResolveContext): Expr {
 // deterministic finite automaton. For a good introduction to these
 // concepts, see https://swtch.com/~rsc/regexp/regexp1.html
 
-type Edge = { term: NodeType | undefined; to: number | undefined }
+type Edge = { readonly term: Option.Option<NodeType>; to: Option.Option<number> }
 
 // Construct an NFA from an expression. The NFA is represented as an
 // array of states, which are themselves arrays of edges. The first
@@ -625,13 +614,17 @@ function nfa(root: Expr): Array<Array<Edge>> {
   function node() {
     return graph.push([]) - 1
   }
-  function edge(from: number, to?: number, term?: NodeType) {
-    const e = { term, to }
+  function edge(
+    from: number,
+    to: Option.Option<number> = Option.none(),
+    term: Option.Option<NodeType> = Option.none()
+  ) {
+    const e: Edge = { term, to }
     graph[from].push(e)
     return e
   }
   function connect(edges: Array<Edge>, to: number) {
-    edges.forEach((e) => (e.to = to))
+    edges.forEach((e) => (e.to = Option.some(to)))
   }
 
   function compile(expr: Expr, from: number): Array<Edge> {
@@ -648,7 +641,7 @@ function nfa(root: Expr): Array<Array<Edge>> {
         },
         star: (x) => {
           const loop = node()
-          edge(from, loop)
+          edge(from, Option.some(loop))
           connect(compile(x.expr, loop), loop)
           return [edge(loop)]
         },
@@ -671,14 +664,14 @@ function nfa(root: Expr): Array<Array<Edge>> {
           } else {
             times(x.max - x.min, () => {
               const next = node()
-              edge(cur, next)
+              edge(cur, Option.some(next))
               connect(compile(x.expr, cur), next)
               cur = next
             })
           }
           return [edge(cur)]
         },
-        name: (x) => [edge(from, undefined, x.value)]
+        name: (x) => [edge(from, Option.none(), Option.some(x.value))]
       })
     )
   }
@@ -692,16 +685,9 @@ const times = (n: number, f: () => void): void => Array.from({ length: n }).forE
 // Get the set of nodes reachable by null edges from `node`. Omit
 // nodes with only a single null-out-edge, since they may lead to
 // needless duplicated nodes.
-// A default node of each of `types`, or null when one can't be created.
-function createAndFillAll(types: ReadonlyArray<NodeType>) {
-  const nodes: Array<Node> = []
-  const filled = types.every((type) => {
-    const node = type.createAndFillOrNull()
-    if (node) nodes.push(node)
-    return node !== null
-  })
-  return filled ? Fragment.fromArray(nodes) : null
-}
+// A default node of each of `types`, or `None` when one can't be created.
+const createAndFillAll = (types: ReadonlyArray<NodeType>): Option.Option<Fragment> =>
+  Option.map(Option.all(types.map((type) => type.createAndFillOption())), (nodes) => Fragment.fromArray(nodes))
 
 function nullFrom(graph: Array<Array<Edge>>, node: number): ReadonlyArray<number> {
   const result: Array<number> = []
@@ -710,11 +696,10 @@ function nullFrom(graph: Array<Array<Edge>>, node: number): ReadonlyArray<number
 
   function scan(n: number): void {
     const edges = graph[n]
-    const only = edges.length === 1 ? edges[0] : undefined
-    if (only && !only.term && only.to !== undefined) return scan(only.to)
+    if (edges.length === 1 && Option.isNone(edges[0].term) && Option.isSome(edges[0].to)) return scan(edges[0].to.value)
     result.push(n)
     edges.forEach(({ term, to }) => {
-      if (!term && to !== undefined && result.indexOf(to) === -1) scan(to)
+      if (Option.isNone(term) && Option.isSome(to) && result.indexOf(to.value) === -1) scan(to.value)
     })
   }
 }
@@ -729,10 +714,11 @@ function dfa(graph: Array<Array<Edge>>): ContentMatch {
   function explore(states: ReadonlyArray<number>): ContentMatch {
     const out: Array<[NodeType, Array<number>]> = []
     states.forEach((node) => {
-      graph[node].forEach(({ term, to }) => {
-        if (!term || to === undefined) return
+      graph[node].forEach((edge) => {
+        if (Option.isNone(edge.term) || Option.isNone(edge.to)) return
+        const term = edge.term.value
         let set = out.find((entry) => entry[0] === term)?.[1]
-        nullFrom(graph, to).forEach((n) => {
+        nullFrom(graph, edge.to.value).forEach((n) => {
           if (!set) out.push([term, (set = [])])
           if (set.indexOf(n) === -1) set.push(n)
         })

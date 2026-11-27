@@ -177,14 +177,14 @@ describe("EditorView draw", () => {
       }
     })
     const paragraphs = Array.from({ length: 10 }, (_, i) =>
-      s.nodeUnsafe("paragraph", null, [s.textUnsafe("para " + (i + 1))], [s.markUnsafe("m")])
+      s.nodeUnsafe("paragraph", undefined, [s.textUnsafe("para " + (i + 1))], [s.markUnsafe("m")])
     )
     const view = tempEditor({
-      doc: s.nodeUnsafe("doc", null, paragraphs)
+      doc: s.nodeUnsafe("doc", undefined, paragraphs)
     })
     const initialChildren = Array.from(view.dom.querySelectorAll("p"))
     const newParagraphs = Array.from({ length: 6 }, (_, i) =>
-      s.nodeUnsafe("paragraph", null, [s.textUnsafe("para " + (i - 6))], [s.markUnsafe("m")])
+      s.nodeUnsafe("paragraph", undefined, [s.textUnsafe("para " + (i - 6))], [s.markUnsafe("m")])
     )
     view.dispatchUnsafe(view.state.tr.replaceWithUnsafe(0, 8, newParagraphs))
     const currentChildren = Array.from(view.dom.querySelectorAll("p"))

@@ -65,12 +65,13 @@ export function scrollRectIntoView(view: AnyView, startRect: Rect, startDOM: DOM
   // has no CSS box (display: none) (prosemirror-view 1.42.1).
   if (!nonZero(startRect) && startRect.left == 0) return
 
-  const scrollThreshold = view.someProp("scrollThreshold") || 0,
-    scrollMargin = view.someProp("scrollMargin") || 5
+  const scrollThreshold = Option.getOrElse(view.someProp("scrollThreshold"), (): number | Rect => 0),
+    scrollMargin = Option.getOrElse(view.someProp("scrollMargin"), (): number | Rect => 5)
   const doc = view.dom.ownerDocument
   // Scroll each scrollable ancestor in turn, stopping at a fixed or sticky one.
-  const scrollFrom = (parent: DOMNode | null, rect: Rect): void => {
-    if (!parent) return
+  const scrollFrom = (found: Option.Option<DOMNode>, rect: Rect): void => {
+    if (Option.isNone(found)) return
+    const parent = found.value
     if (!isElt(parent)) return scrollFrom(parentNode(parent), rect)
     const elt: HTMLElement = parent
     const atTop = elt == doc.body
@@ -106,9 +107,9 @@ export function scrollRectIntoView(view: AnyView, startRect: Rect, startDOM: DOM
     }
     const pos: string = atTop ? "fixed" : getComputedStyle(elt).position
     if (/^(fixed|sticky)$/.test(pos)) return
-    scrollFrom(pos == "absolute" ? elt.offsetParent : parentNode(elt), next)
+    scrollFrom(pos == "absolute" ? Option.fromNullOr(elt.offsetParent) : parentNode(elt), next)
   }
-  scrollFrom(startDOM || view.dom, startRect)
+  scrollFrom(Option.some(startDOM || view.dom), startRect)
 }
 
 /** @internal */
@@ -168,28 +169,34 @@ function restoreScrollStack(stack: Array<{ dom: HTMLElement; top: number; left: 
   })
 }
 
-let preventScrollSupported: false | null | { preventScroll: boolean } = null
+// Whether `focus` supports the `preventScroll` option, once detected.
+interface ScrollSupport {
+  support: "unknown" | "supported" | "unsupported"
+}
+const preventScroll: ScrollSupport = { support: "unknown" }
+// Read through a function, since the `focus` call below can change it.
+const preventScrollSupported = (): boolean => preventScroll.support == "supported"
 // Feature-detects support for .focus({preventScroll: true}), and uses
 // a fallback kludge when not supported.
 /** @internal */
 export function focusPreventScroll(dom: HTMLElement): void {
   const ieDom: HTMLElement & { setActive?: () => void } = dom
   if (ieDom.setActive) return ieDom.setActive() // in IE
-  if (preventScrollSupported) return dom.focus(preventScrollSupported)
+  if (preventScroll.support == "supported") return dom.focus({ preventScroll: true })
 
   const stored = scrollStack(dom)
   dom.focus(
-    preventScrollSupported == null
+    preventScroll.support == "unknown"
       ? {
           get preventScroll() {
-            preventScrollSupported = { preventScroll: true }
+            preventScroll.support = "supported"
             return true
           }
         }
       : undefined
   )
-  if (!preventScrollSupported) {
-    preventScrollSupported = false
+  if (!preventScrollSupported()) {
+    preventScroll.support = "unsupported"
     restoreScrollStack(stored, 0)
   }
 }
@@ -201,13 +208,15 @@ interface DOMOffset {
 }
 
 function findOffsetInNode(node: Element, coords: { top: number; left: number }): DOMOffset {
-  let closest: DOMNode | undefined,
-    dxClosest = 2e8,
-    coordsClosest: { left: number; top: number } | undefined
+  // The closest child so far, with the coordinates to look for inside it.
+  let closest: Option.Option<{ readonly node: ChildNode; readonly coords: { left: number; top: number } }> =
+      Option.none(),
+    dxClosest = 2e8
   let offset = 0
   let rowBot = coords.top,
     rowTop = coords.top
-  let firstBelow: DOMNode | undefined, coordsBelow: { left: number; top: number } | undefined
+  let firstBelow: Option.Option<{ readonly node: ChildNode; readonly coords: { left: number; top: number } }> =
+    Option.none()
   Array.from(node.childNodes).forEach((child, childIndex) => {
     childRects(child).forEach((rect) => {
       if (rect.top <= rowBot && rect.bottom >= rowTop) {
@@ -216,26 +225,35 @@ function findOffsetInNode(node: Element, coords: { top: number; left: number }):
         const dx =
           rect.left > coords.left ? rect.left - coords.left : rect.right < coords.left ? coords.left - rect.right : 0
         if (dx < dxClosest) {
-          closest = child
           dxClosest = dx
-          coordsClosest =
-            dx && closest.nodeType == 3
-              ? {
-                  left: rect.right < coords.left ? rect.right : rect.left,
-                  top: coords.top
-                }
-              : coords
+          closest = Option.some({
+            node: child,
+            coords:
+              dx && child.nodeType == 3
+                ? {
+                    left: rect.right < coords.left ? rect.right : rect.left,
+                    top: coords.top
+                  }
+                : coords
+          })
           if (child.nodeType == 1 && dx) {
             offset = childIndex + (coords.left >= (rect.left + rect.right) / 2 ? 1 : 0)
           }
           return
         }
-      } else if (rect.top > coords.top && !firstBelow && rect.left <= coords.left && rect.right >= coords.left) {
-        firstBelow = child
-        coordsBelow = { left: Math.max(rect.left, Math.min(rect.right, coords.left)), top: rect.top }
+      } else if (
+        rect.top > coords.top &&
+        Option.isNone(firstBelow) &&
+        rect.left <= coords.left &&
+        rect.right >= coords.left
+      ) {
+        firstBelow = Option.some({
+          node: child,
+          coords: { left: Math.max(rect.left, Math.min(rect.right, coords.left)), top: rect.top }
+        })
       }
       if (
-        !closest &&
+        Option.isNone(closest) &&
         ((coords.left >= rect.right && coords.top >= rect.top) ||
           (coords.left >= rect.left && coords.top >= rect.bottom))
       ) {
@@ -243,15 +261,15 @@ function findOffsetInNode(node: Element, coords: { top: number; left: number }):
       }
     })
   })
-  if (!closest && firstBelow) {
+  if (Option.isNone(closest) && Option.isSome(firstBelow)) {
     closest = firstBelow
-    coordsClosest = coordsBelow
     dxClosest = 0
   }
-  if (!closest || !coordsClosest) return { node, offset }
-  if (isText(closest)) return findOffsetInText(closest, coordsClosest)
-  if (!isElt(closest) || dxClosest) return { node, offset }
-  return findOffsetInNode(closest, coordsClosest)
+  if (Option.isNone(closest)) return { node, offset }
+  const { node: child, coords: at } = closest.value
+  if (isText(child)) return findOffsetInText(child, at)
+  if (!isElt(child) || dxClosest) return { node, offset }
+  return findOffsetInNode(child, at)
 }
 
 // The client rectangles of an element or text node.
@@ -313,23 +331,26 @@ function posFromCaret(view: AnyView, node: DOMNode, offset: number, coords: { to
   const atEnd = () => Option.some(outsideBlock > -1 ? outsideBlock : view.docView.posFromDOM(node, offset, -1))
   const climb = (cur: DOMNode, sawBlock: boolean): Option.Option<number> => {
     if (cur == view.dom) return atEnd()
-    const desc = view.docView.nearestDesc(cur, true)
+    const found = view.docView.nearestDesc(cur, true)
     let rect,
       saw = sawBlock
-    if (!desc) return Option.none()
+    if (Option.isNone(found)) return Option.none()
+    const desc = found.value
+    const hasParent = Option.isSome(desc.parent),
+      leaf = Option.isNone(desc.contentDOM)
     if (
       isElt(desc.dom) &&
-      ((desc.node.isBlock && desc.parent) || !desc.contentDOM) &&
+      ((desc.node.isBlock && hasParent) || leaf) &&
       // Ignore elements with zero-size bounding rectangles
       ((rect = desc.dom.getBoundingClientRect()).width || rect.height)
     ) {
-      if (desc.node.isBlock && desc.parent && !/^T(R|BODY|HEAD|FOOT)$/.test(desc.dom.nodeName)) {
+      if (desc.node.isBlock && hasParent && !/^T(R|BODY|HEAD|FOOT)$/.test(desc.dom.nodeName)) {
         // Only apply the horizontal test to the innermost block. Vertical for any parent.
         if ((!saw && rect.left > coords.left) || rect.top > coords.top) outsideBlock = desc.posBefore
         else if ((!saw && rect.right < coords.left) || rect.bottom < coords.top) outsideBlock = desc.posAfter
         saw = true
       }
-      if (!desc.contentDOM && outsideBlock < 0 && !desc.node.isText) {
+      if (leaf && outsideBlock < 0 && !desc.node.isText) {
         // If we are inside a leaf, return the side of the leaf closer to the coords
         const before = desc.node.isBlock
           ? coords.top < (rect.top + rect.bottom) / 2
@@ -366,27 +387,26 @@ function elementFromPoint(element: Element, coords: { top: number; left: number 
 export function posAtCoords(
   view: AnyView,
   coords: { top: number; left: number }
-): { pos: number; inside: number } | null {
+): Option.Option<{ pos: number; inside: number }> {
   const doc = view.dom.ownerDocument
-  let node: DOMNode | undefined,
-    offset = 0
-  const caret = caretFromPoint(doc, coords.left, coords.top)
-  if (caret) ({ node, offset } = caret)
+  let caret = caretFromPoint(doc, coords.left, coords.top)
 
   let elt = ("elementFromPoint" in view.root ? view.root : doc).elementFromPoint(coords.left, coords.top)
   let pos
   if (!elt || !view.dom.contains(elt.nodeType != 1 ? elt.parentNode : elt)) {
     const box = view.dom.getBoundingClientRect()
-    if (!inRect(coords, box)) return null
+    if (!inRect(coords, box)) return Option.none()
     elt = elementFromPoint(view.dom, coords, box)
-    if (!elt) return null
+    if (!elt) return Option.none()
   }
   // Safari's caretRangeFromPoint returns nonsense when on a draggable element
   if (browser.safari) {
-    if (ancestors(elt).some((p) => isElt(p) && p.draggable)) node = undefined
+    if (ancestors(elt).some((p) => isElt(p) && p.draggable)) caret = Option.none()
   }
   elt = targetKludge(elt, coords)
-  if (node) {
+  if (Option.isSome(caret)) {
+    const node = caret.value.node
+    let offset = caret.value.offset
     if (browser.gecko && node.nodeType == 1) {
       // Firefox will sometimes return offsets into <input> nodes, which
       // have no actual children, from caretPositionFromPoint
@@ -437,8 +457,11 @@ export function posAtCoords(
   }
   if (pos == null) pos = posFromElement(view, elt, coords)
 
-  const desc = view.docView.nearestDesc(elt, true)
-  return { pos, inside: desc ? desc.posAtStart - desc.border : -1 }
+  const inside = Option.match(view.docView.nearestDesc(elt, true), {
+    onNone: () => -1,
+    onSome: (desc) => desc.posAtStart - desc.border
+  })
+  return Option.some({ pos, inside })
 }
 
 function nonZero(rect: Rect) {
@@ -531,12 +554,12 @@ export function coordsAtPos(view: AnyView, pos: number, side: number): Rect {
   }
   if (atom == null && offset < nodeSize(node)) {
     const after = skipIgnoredForCoords(node.childNodes[offset])
-    const target = !after
+    const target = Option.isNone(after)
       ? null
-      : isText(after)
-        ? textRange(after, 0, supportEmptyRange ? 0 : 1)
-        : isElt(after)
-          ? after
+      : isText(after.value)
+        ? textRange(after.value, 0, supportEmptyRange ? 0 : 1)
+        : isElt(after.value)
+          ? after.value
           : null
     if (target) return flattenV(singleRect(target, -1), true)
   }
@@ -546,8 +569,9 @@ export function coordsAtPos(view: AnyView, pos: number, side: number): Rect {
   return flattenV(singleRect(node, -side), side >= 0)
 }
 
-function skipIgnoredForCoords(node: ChildNode | null): ChildNode | null {
-  return node && node.pmViewDesc && node.pmViewDesc.ignoreForCoords ? skipIgnoredForCoords(node.nextSibling) : node
+function skipIgnoredForCoords(node: ChildNode): Option.Option<ChildNode> {
+  if (!node.pmViewDesc || !node.pmViewDesc.ignoreForCoords) return Option.some(node)
+  return node.nextSibling ? skipIgnoredForCoords(node.nextSibling) : Option.none()
 }
 
 function flattenV(rect: DOMRect, left: boolean): Rect {
@@ -583,9 +607,10 @@ function endOfTextblockVertical(view: AnyView, state: EditorState<any, any, any>
   return withFlushedState(view, state, () => {
     // The DOM of the innermost block around the position.
     const blockDOM = (dom: DOMNode): DOMNode => {
-      const nearest = view.docView.nearestDesc(dom, true)
-      if (!nearest) return dom
-      if (nearest.node.isBlock) return nearest.contentDOM || nearest.dom
+      const found = view.docView.nearestDesc(dom, true)
+      if (Option.isNone(found)) return dom
+      const nearest = found.value
+      if (nearest.node.isBlock) return Option.getOrElse(nearest.contentDOM, (): DOMNode => nearest.dom)
       const up = nearest.dom.parentNode
       return up ? blockDOM(up) : dom
     }
@@ -615,8 +640,9 @@ function endOfTextblockHorizontal(
   const offset = $head.parentOffset,
     atStart = !offset,
     atEnd = offset == $head.parent.content.size
-  const sel = view.domSelection()
-  if (!sel) return $head.pos == $head.start() || $head.pos == $head.end()
+  const found = view.domSelection()
+  if (Option.isNone(found)) return $head.pos == $head.start() || $head.pos == $head.end()
+  const sel = found.value
   // If the textblock is all LTR, or the browser doesn't support
   // Selection.modify (Edge), fall back to a primitive approach
   // `modify` is missing in old Edge; `caretBidiLevel` is Firefox-only.
@@ -659,16 +685,17 @@ function endOfTextblockHorizontal(
  */
 export type TextblockDir = "up" | "down" | "left" | "right" | "forward" | "backward"
 
-let cachedState: EditorState<any, any, any> | null = null
-let cachedDir: TextblockDir | null = null
-let cachedResult: boolean = false
+// The last query and its answer.
+let cached: Option.Option<{
+  readonly state: EditorState<any, any, any>
+  readonly dir: TextblockDir
+  readonly result: boolean
+}> = Option.none()
 /** @internal */
 export function endOfTextblock(view: AnyView, state: EditorState<any, any, any>, dir: TextblockDir): boolean {
-  if (cachedState == state && cachedDir == dir) return cachedResult
-  cachedState = state
-  cachedDir = dir
-  return (cachedResult =
-    dir == "up" || dir == "down"
-      ? endOfTextblockVertical(view, state, dir)
-      : endOfTextblockHorizontal(view, state, dir))
+  if (Option.isSome(cached) && cached.value.state == state && cached.value.dir == dir) return cached.value.result
+  const result =
+    dir == "up" || dir == "down" ? endOfTextblockVertical(view, state, dir) : endOfTextblockHorizontal(view, state, dir)
+  cached = Option.some({ state, dir, result })
+  return result
 }
