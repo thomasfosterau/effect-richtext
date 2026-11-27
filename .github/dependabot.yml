@@ -38,6 +38,14 @@ updates:
         exclude-patterns:
           - "@effect/language-service"
           - "@effect/tsgo"
+      # The reference implementation and its consumers, for the ported suites
+      # and benchmarks: a bump can fail them, so it stays out of `toolchain`.
+      prosemirror:
+        dependency-type: "development"
+        patterns:
+          - "prosemirror-*"
+          - "@tiptap/*"
+          - "@prosekit/*"
       toolchain:
         dependency-type: "development"
         patterns:
