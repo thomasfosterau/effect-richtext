@@ -264,6 +264,7 @@ function isStyleRule(rule: ParseRule): rule is StyleParseRule {
 // instead). This maps such copies back to the original rules.
 const ruleOrigin = new WeakMap<ParseRule, ParseRule>()
 // SAFETY: `withAttrs` maps each copy to an original of the same kind.
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion
 const originOf = <R extends ParseRule>(rule: R): R => (ruleOrigin.get(rule) as R | undefined) ?? rule
 
 function withAttrs<R extends ParseRule>(rule: R, attrs: Attrs | false | null | undefined): R {
@@ -336,6 +337,7 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
     const context = new ParseContext(this, options, false)
     context.addAll(dom, Mark.none, options.from, options.to)
     // SAFETY: a context that isn't open finishes its top node, built from this schema.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return context.finish() as Node<Sc>
   }
 
@@ -356,6 +358,7 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
     const context = new ParseContext(this, options, true)
     context.addAll(dom, Mark.none, options.from, options.to)
     // SAFETY: an open context finishes to its top node's content, built from this schema.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return Slice.maxOpen(context.finish() as Fragment<Sc>)
   }
 
@@ -469,6 +472,7 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
   static fromSchema<Sc extends AnySchema>(schema: Sc): DOMParser<Sc> {
     return (
       // SAFETY: only this method writes `domParser`, with a parser for this schema.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       (schema.cached.domParser as DOMParser<Sc> | undefined) ||
       (schema.cached.domParser = new DOMParser(schema, DOMParser.schemaRules(schema)))
     )
@@ -947,6 +951,7 @@ class ParseContext implements RuleContext {
       // Finish each context into its parent, innermost first.
       this.nodes.slice(this.open).reduceRight((inner, outer) => {
         // SAFETY: every context above the top one has a node type, so it finishes to a node.
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion
         outer.content.push(inner.finish(openEnd) as Node)
         return outer
       })

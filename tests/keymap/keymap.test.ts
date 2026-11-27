@@ -11,6 +11,7 @@ import ist from "../utils/ist.ts"
 
 const fakeViewProps: Partial<KeymapView> = { dispatch: () => Effect.void }
 // SAFETY: the keymaps under test only dispatch.
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion
 const fakeView = fakeViewProps as KeymapView
 
 // The maps `dispatch` drives bind commands that never fail.
@@ -21,6 +22,7 @@ function dispatch(map: Plugin<any, any, any>, key: string, props?: { [name: stri
   if (props) Object.assign(event, props)
   event.key = key
   // SAFETY: a keymap's key handler, whose bindings here never fail.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   return Effect.runSync((map.props.handleKeyDown as Handler)(fakeView, event))
 }
 

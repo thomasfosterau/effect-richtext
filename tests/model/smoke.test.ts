@@ -61,6 +61,7 @@ describe("model smoke", () => {
       const h = yield* s.nodes.heading.create({ level: 2 })
       assert.strictEqual(h.attrs.level, 2)
       // SAFETY: deliberately ill-typed, to check the runtime error.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       const err = yield* Effect.flip(s.nodes.heading.create({ level: 3 as any }))
       assert.strictEqual(err._tag, "AttributeError")
       assert.isTrue(Option.isSome(s.nodes.doc.contentMatch.defaultType))

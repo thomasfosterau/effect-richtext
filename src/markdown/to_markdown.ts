@@ -9,7 +9,7 @@ import * as Arr from "effect/Array"
 import type * as Effect from "effect/Effect"
 import * as Order from "effect/Order"
 import { attempt } from "../internal/attempt.ts"
-import { type AnySchema, type Attrs, Mark, type Node, type TextNode } from "../Model.ts"
+import { type AnySchema, type Attrs, Mark, type Node } from "../Model.ts"
 import { isMarkdownError, MarkdownError } from "./errors.ts"
 
 /**
@@ -268,8 +268,8 @@ export const defaultMarkdownSerializer: MarkdownSerializer = new MarkdownSeriali
       if (parent.content.content.slice(index + 1).some((next) => next.type != node.type)) state.write("\\\n")
     },
     text(state, node) {
-      // SAFETY: the `text` serializer is only called for text nodes.
-      state.text((node as TextNode<any>).text, !state.inAutolink)
+      // Only called for text nodes.
+      if (node.isTextNode()) state.text(node.text, !state.inAutolink)
     }
   },
   {

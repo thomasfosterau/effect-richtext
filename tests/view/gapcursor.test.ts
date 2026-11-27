@@ -28,6 +28,7 @@ const schema = DocSchema.makeUnsafe({
 
 function docWith(...content: Array<Node<any>>) {
   // SAFETY: the builders' nodes are nodes of `schema`; `nodeUnsafe` checks the content.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   return schema.nodeUnsafe("doc", null, content as any)
 }
 

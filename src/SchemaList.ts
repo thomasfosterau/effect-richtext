@@ -137,6 +137,7 @@ export const addListNodes = <
   listGroup?: Group
 ): N & ListNodes<ItemRefs, Group> =>
   // SAFETY: the three list nodes are spelled out as `ListNodes` describes them.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   ({
     ...nodes,
     ordered_list: { ...orderedList, content: Content.oneOrMore("list_item"), group: listGroup },

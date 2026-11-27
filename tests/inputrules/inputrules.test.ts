@@ -47,6 +47,7 @@ function apply(rule: InputRule<any, any, any>, d: Node<any>, typed: string): Tra
   const result = rule.handler(state, match, from - (match[0].length - typed.length), to)
   if (Effect.isEffect(result)) {
     // SAFETY: the rules under test need no services and don't fail.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return Option.getOrNull(Effect.runSync(result as Effect.Effect<any>))
   }
   return Option.isOption(result) ? Option.getOrNull(result) : (result ?? null)

@@ -305,6 +305,7 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
   /** Like `replace`, but throws on failure. */
   replaceUnsafe(from: number, to: number, slice: Slice<Sc>): Node<Sc, N> {
     // SAFETY: replacing inside a node keeps its type.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return replace(this.resolveUnsafe(from), this.resolveUnsafe(to), slice) as Node<Sc, N>
   }
 

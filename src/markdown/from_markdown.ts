@@ -224,6 +224,7 @@ function makeTokenHandlers<Sc extends AnySchema>(
   Rec.toEntries(tokens).forEach(([type, spec]) => {
     if (spec.block) {
       // SAFETY: a node type of `schema`, which is `Sc`.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       const nodeType = schema.nodeType(spec.block) as NodeType<Sc, any>
       if (noCloseToken(spec, type)) {
         handlers[type] = (state, tok, toks, i) => {
@@ -237,10 +238,12 @@ function makeTokenHandlers<Sc extends AnySchema>(
       }
     } else if (spec.node) {
       // SAFETY: a node type of `schema`, which is `Sc`.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       const nodeType = schema.nodeType(spec.node) as NodeType<Sc, any>
       handlers[type] = (state, tok, toks, i) => state.addNode(nodeType, tokenAttrs(spec, tok, toks, i))
     } else if (spec.mark) {
       // SAFETY: the schema may not have a mark type of this name.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       const markType = schema.marks[spec.mark] as MarkType<Sc, any> | undefined
       if (!markType) throw new MarkdownError({ message: "Unknown mark type: " + spec.mark })
       if (noCloseToken(spec, type)) {
@@ -338,6 +341,7 @@ export class MarkdownParser<Sc extends AnySchema = AnySchema> {
     const result = doc || this.schema.topNodeType.createAndFillOrNull()
     if (!result) throw new MarkdownError({ message: "Can't create an empty document for the schema" })
     // SAFETY: built from this parser's schema, `Sc`.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return result as Node<Sc>
   }
 }

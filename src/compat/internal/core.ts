@@ -20,8 +20,7 @@ import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 
 /** @internal */
-// SAFETY: `Symbol.for` is typed `symbol`; its registered key makes this one unique.
-export const CORE: unique symbol = Symbol.for("effect-richtext/compat/core") as never
+export const CORE: unique symbol = Symbol.for("effect-richtext/compat/core")
 
 const facades = new WeakMap<object, object>()
 const factories = new WeakMap<object, (core: any) => object>()
@@ -73,8 +72,7 @@ export const unwrap = (x: any): any => (Predicate.isObjectOrArray(x) && CORE in 
  * overrides. They store the prototype holding the core's own
  * implementations under `BASE`. @internal
  */
-// SAFETY: `Symbol.for` is typed `symbol`; its registered key makes this one unique.
-export const BASE: unique symbol = Symbol.for("effect-richtext/compat/base") as never
+export const BASE: unique symbol = Symbol.for("effect-richtext/compat/base")
 
 /** Call a core method, bypassing the overrides that delegate to a facade. @internal */
 export const callBase = (core: any, method: string, args: ArrayLike<unknown> = []): any => {

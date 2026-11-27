@@ -128,8 +128,6 @@ export default defineConfig({
       // `warn`, with the site count when added: a new site is a defect, not
       // headroom. Lower the count as sites go; delete the line at zero.
       "effect/prefer-option-over-null": "warn", // 608
-      // ---- Type-aware allowances (same rules as above) ---------------------
-      "typescript/no-unsafe-type-assertion": "warn", // 227
       // `@effect/tsgo`'s preset warns on these; they have no sites left.
       "effecttsgo/any-unknown-in-error-context": "error",
       "effecttsgo/unnecessary-fail-yieldable-error": "error",
@@ -283,11 +281,14 @@ export default defineConfig({
           "effect/no-object-parameters": "off"
         }
       },
-      // ProseMirror's suites run against the facade with its `null`s.
+      // ProseMirror's suites run against the facade with its `null`s, and
+      // its loosely typed props, builders and specs, as ProseMirror's own
+      // suites cast them.
       {
         files: ["tests/compat/**", "tests/view/compat-*.ts"],
         rules: {
-          "effect/prefer-option-over-null": "off"
+          "effect/prefer-option-over-null": "off",
+          "typescript/no-unsafe-type-assertion": "off"
         }
       },
       // The facade keeps ProseMirror's inline result types (`childAfter`,
@@ -298,9 +299,13 @@ export default defineConfig({
       // value, so their implementation signatures return `unknown`, and
       // its `as any` casts stand where ProseMirror's own types say `any`,
       // as its `null`s stand where ProseMirror returns or takes `null`.
+      // Its other casts narrow values whose type only the facade's wrapping
+      // records (a core object behind a facade, a spec ProseMirror types
+      // loosely), which no type guard can check.
       {
         files: ["src/compat/**"],
         rules: {
+          "typescript/no-unsafe-type-assertion": "off",
           "effect/prefer-option-over-null": "off",
           "effect/avoid-any": "off",
           "effect/no-unsafe-dictionary-type": "off",

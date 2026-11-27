@@ -250,6 +250,7 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
   static fromSchema<Sc extends AnySchema>(schema: Sc): DOMSerializer<Sc> {
     return (
       // SAFETY: only this method writes `domSerializer`, with a serializer for this schema.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       (schema.cached.domSerializer as DOMSerializer<Sc> | undefined) ||
       (schema.cached.domSerializer = new DOMSerializer<Sc>(
         DOMSerializer.nodesFromSchema(schema),
@@ -264,6 +265,7 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
    */
   static nodesFromSchema<Sc extends AnySchema>(schema: Sc): { [node: string]: NodeSerializer<Sc> } {
     // SAFETY: each node type's `toDOM` takes nodes of that type, from this schema.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const result = gatherToDOM(schema.nodes) as { [node: string]: NodeSerializer<Sc> }
     if (!result.text) result.text = (node) => node.textContent
     return result
@@ -339,8 +341,9 @@ function renderSpecInner(
     structure.dom.nodeType === 1
   )
     return structure
-  // SAFETY: any other spec is an array; its first item is checked below.
-  const first = (structure as ReadonlyArray<unknown>)[0]
+  if (!Array.isArray(structure)) throw new DOMSpecError({ message: "Invalid DOM spec passed to renderSpec" })
+  const spec: ReadonlyArray<any> = structure
+  const first = spec[0]
   if (!Predicate.isString(first)) throw new DOMSpecError({ message: "Invalid array passed to renderSpec" })
   let tagName = first,
     suspicious
@@ -357,9 +360,8 @@ function renderSpecInner(
   }
   let contentDOM: HTMLElement | undefined
   // SAFETY: node views treat rendered elements as HTML elements, as ProseMirror does.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   const dom = (xmlNS ? doc.createElementNS(xmlNS, tagName) : doc.createElement(tagName)) as HTMLElement
-  // SAFETY: checked to be an array by its string tag name above.
-  const spec = structure as ReadonlyArray<any>
   const attrs = spec[1]
   let start = 1
   // Checked on `spec[1]` so that `attrs` keeps its `any` values.

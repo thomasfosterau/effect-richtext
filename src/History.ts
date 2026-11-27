@@ -473,6 +473,7 @@ function histTransaction<Sc extends AnySchema>(
   // Unreachable: callers only get here after reading the plugin's state.
   if (!plugin) return Option.none()
   // SAFETY: the history plugin's spec holds its config.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   const histOptions = plugin.spec.config as HistoryConfig
   const popped = (redo ? history.undone : history.done).popEvent(state, preserveItems)
   if (Option.isNone(popped)) return Option.none()

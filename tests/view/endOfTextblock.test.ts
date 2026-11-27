@@ -85,6 +85,7 @@ describe("EditorView.endOfTextblock", () => {
 
   // Bidi functionality only works when the browser has Selection.modify
   // SAFETY: `modify` is missing from some browsers' selections, though the DOM types declare it.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   if (!(getSelection() as any).modify) return
 
   it("works at the start of an RTL block", () => {

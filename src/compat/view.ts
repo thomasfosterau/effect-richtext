@@ -48,8 +48,7 @@ export type ViewMutationRecord = MutationRecord | { type: "selection"; target: D
 // Decorations
 // -----------------------------------------------------------------------------
 
-// SAFETY: `Symbol.for` is typed `symbol`; its registered key makes this one unique.
-const ORIGINAL: unique symbol = Symbol.for("effect-richtext/compat/original") as never
+const ORIGINAL: unique symbol = Symbol.for("effect-richtext/compat/original")
 
 /**
  * A set of attributes to add to a decorated node.

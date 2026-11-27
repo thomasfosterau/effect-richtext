@@ -653,6 +653,7 @@ export class Attribute {
 
   constructor(typeName: string, attrName: string, definition: AttributeDefinition) {
     // SAFETY: attribute schemas decode the JSON values stored in attributes.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const options: AttributeSpec = S.isSchema(definition) ? { schema: definition as S.Codec<any, any> } : definition
     this.hasDefault = Object.prototype.hasOwnProperty.call(options, "default")
     this.default = options.default
@@ -1077,6 +1078,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     if (this.allowsMarks(marks)) return marks
     const kept = marks.filter((mark) => this.allowsMarkType(mark.type))
     // SAFETY: the empty set holds no mark of any other type.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return kept.length ? kept : (Mark.none as ReadonlyArray<M>)
   }
 
@@ -1179,6 +1181,7 @@ export class MarkType<Sc extends AnySchema = AnySchema, out M extends MarkNames<
   /** @internal */
   findInSet(set: ReadonlyArray<Mark<any>>): Mark<Sc, M> | undefined {
     // SAFETY: a mark of this type is a `Mark<Sc, M>`.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return set.find((mark) => mark.type === this) as Mark<Sc, M> | undefined
   }
 
@@ -1271,6 +1274,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
   /** @internal */
   constructor(spec: SchemaSpec<N, M>) {
     // SAFETY: a spec without marks declares none, so `M` is empty.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     this.spec = { ...spec, nodes: spec.nodes, marks: (spec.marks ?? {}) as M }
     const nodes: Record<string, NodeType<any, any>> = Object.create(null)
     Rec.toEntries(this.spec.nodes).forEach(([name, nodeSpec]) => {
@@ -1290,8 +1294,10 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
       marks[name] = new MarkType<AnySchema, string>(name, rank, this, markSpec)
     })
     // SAFETY: built with one type per name in the spec.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     this.nodes = nodes as DocSchema<N, M>["nodes"]
     // SAFETY: as above.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     this.marks = marks as DocSchema<N, M>["marks"]
 
     let linebreak = Option.none<NodeType<any, any>>()
@@ -1454,6 +1460,7 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
     const markType = Predicate.isString(type) ? this.marks[type] : type
     if (!markType) throw new AttributeError({ message: "Unknown mark type: " + String(type) })
     // SAFETY: `markType` is the type named by (or given as) `type`.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return markType.createUnsafe(attrs) as Mark<DocSchema<N, M>, K>
   }
 

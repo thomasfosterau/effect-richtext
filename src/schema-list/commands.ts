@@ -350,10 +350,12 @@ export const sinkListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(item
       const nestedBefore = !!lastBefore && lastBefore.type === parent.type
       const nestedItem = nestedBefore ? lastBefore.content.content[lastBefore.childCount - 1] : undefined
       // SAFETY: the nested item's type is a node type of this schema.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       const inner = Fragment.from(nestedItem ? (nestedItem.type as NodeType<any, any>).createUnsafe() : null)
       // SAFETY: the item's type is a node type of this schema.
       const slice = new Slice(
         Fragment.from(
+          // oxlint-disable-next-line typescript/no-unsafe-type-assertion
           (nodeBefore.type as NodeType<any, any>).createUnsafe(
             null,
             Fragment.from(parent.type.createUnsafe(null, inner))

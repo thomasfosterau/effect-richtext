@@ -271,6 +271,7 @@ const foldInto = (target: Transaction<any>, tr: Transaction<any>): void => {
   if (tr.storedMarksSet) target.setStoredMarks(tr.storedMarksOrNull)
   if (tr.scrolledIntoView) target.scrollIntoView()
   // SAFETY: `meta` is the transaction's private record of metadata.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   const meta = (tr as any).meta as Record<string, unknown>
   Rec.toEntries(meta).forEach(([key, value]) => target.setMeta(key, value))
 }
@@ -284,6 +285,7 @@ const isPlainObject = (u: unknown): u is Attrs => {
 
 const dieOnStateFailure = <A, E, R>(effect: Effect.Effect<A, E, R>): Effect.Effect<A, Exclude<E, StateFailure>, R> =>
   // SAFETY: dying on every `StateFailure` removes them from the error channel.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   Effect.catchIf(effect, isStateFailure as any, (e) => Effect.die(e)) as any
 
 // -----------------------------------------------------------------------------
@@ -294,8 +296,7 @@ const dieOnStateFailure = <A, E, R>(effect: Effect.Effect<A, E, R>): Effect.Effe
  * @since 0.1.0
  * @category symbols
  */
-// SAFETY: `Symbol.for` is typed `symbol`; its registered key makes this one unique.
-export const EditorTypeId: unique symbol = Symbol.for("effect-richtext/extensions/Editor") as never
+export const EditorTypeId: unique symbol = Symbol.for("effect-richtext/extensions/Editor")
 
 /**
  * @since 0.1.0
@@ -336,13 +337,16 @@ export class Editor<T extends ExtensionTypes> {
     this.creators = creators
     const nodes = Rec.map(schema.nodes, (_type, name) => this.nodeBuilder(name))
     // SAFETY: a builder for each of the schema's node types.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     this.nodes = nodes as any
     const marks = Rec.map(
       schema.marks,
       // SAFETY: `name` is one of the schema's mark types; `markUnsafe` checks the attributes.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       (_type, name) => (attrs?: Attrs | null) => schema.markUnsafe(name as any, attrs as any)
     )
     // SAFETY: a constructor for each of the schema's mark types.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     this.marks = marks as any
     const commands = Rec.map(
       creators,
@@ -351,6 +355,7 @@ export class Editor<T extends ExtensionTypes> {
           Effect.suspend(() => this.runCommand(creator(...args), true))
     )
     // SAFETY: a runner for each of the extension's command creators.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     this.commands = commands as any
   }
 
@@ -410,6 +415,7 @@ export class Editor<T extends ExtensionTypes> {
    */
   dispatch(tr: Transaction<SchemaOf<T>>): Effect.Effect<void, T["E"], T["R"]> {
     // SAFETY: the state's plugins are the extension's, with its errors and requirements.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return Effect.suspend(() => {
       if (Option.isSome(this._view)) return dieOnStateFailure(this._view.value.tryDispatch(tr))
       return dieOnStateFailure(
@@ -449,6 +455,7 @@ export class Editor<T extends ExtensionTypes> {
           Effect.suspend(() => this.runCommand(creator(...args), false))
     )
     // SAFETY: a checker for each of the extension's command creators.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return result as any
   }
 
@@ -489,6 +496,7 @@ export class Editor<T extends ExtensionTypes> {
       return results.every(Boolean)
     })
     // SAFETY: the chain queues each of the extension's commands.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return chain as any
   }
 
@@ -538,6 +546,7 @@ export class Editor<T extends ExtensionTypes> {
       }
       args.forEach(add)
       // SAFETY: `createCheckedUnsafe` checks the attributes and content at runtime.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       return type.createCheckedUnsafe(attrs as any, children as any)
     }
   }
@@ -548,10 +557,12 @@ const parseContent = <Sc extends DocSchema<any, any>>(schema: Sc, content: Edito
     // Nodes from another schema (say, another editor's) are converted
     // through their JSON representation.
     // SAFETY: a node decoded by `schema` belongs to it.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return content.type.schema === schema ? content : (schema.nodeFromJSONUnsafe(content.toJSON()) as Node<Sc>)
   }
   if (Predicate.isString(content)) return fromHTMLUnsafe(schema, content)
   // SAFETY: a node decoded by `schema` belongs to it.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   return schema.nodeFromJSONUnsafe(content) as Node<Sc>
 }
 
@@ -573,6 +584,7 @@ export const createEditor = <T extends ExtensionTypes>(
   options: EditorOptions<SchemaOf<T>> = {}
 ): Effect.Effect<Editor<T>, CreateEditorError | T["E"], T["R"]> =>
   // SAFETY: the plugins are the extension's, with its errors and requirements.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   Effect.gen(function* () {
     const flat = flatten(extension)
     // SAFETY: built from the extension's node and mark specs.
@@ -591,6 +603,7 @@ export const createEditor = <T extends ExtensionTypes>(
     }
     const state = yield* EditorState.create(config)
     // SAFETY: created with the extension's plugins.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return new Editor<T>(schema, state as any, flat.commands)
   }) as any
 

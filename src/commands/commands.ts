@@ -163,6 +163,7 @@ function pathToLastTextblock(node: Node<any>): Option.Option<Array<Node<any>>> {
 
 function isDeletingStep(step: unknown): step is ReplaceStep<any> {
   // SAFETY: callers pass the step of a deletion, a `ReplaceStep`.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   const s = step as ReplaceStep<any>
   return s.slice.size < s.to - s.from
 }

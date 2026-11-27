@@ -18,7 +18,7 @@ import {
   selectionCollapsed
 } from "./dom.ts"
 import type { EditorView } from "./view.ts"
-import type { NodeViewDesc, ViewDesc } from "./viewdesc.ts"
+import { NodeViewDesc, type ViewDesc } from "./viewdesc.ts"
 
 type AnyView = EditorView<any, any, any>
 
@@ -276,11 +276,8 @@ export function syncNodeSelection(view: AnyView, sel: Selection<any>): void {
     const desc = view.docView.descAt(sel.from)
     if (desc != view.lastSelectedViewDesc) {
       clearNodeSelection(view)
-      if (desc) {
-        // SAFETY: the desc at a node selection's start is the selected node's desc.
-        const selected = desc as NodeViewDesc
-        selected.selectNode()
-      }
+      // The desc at a node selection's start is the selected node's desc.
+      if (desc instanceof NodeViewDesc) desc.selectNode()
       view.lastSelectedViewDesc = desc
     }
   } else {
@@ -291,11 +288,8 @@ export function syncNodeSelection(view: AnyView, sel: Selection<any>): void {
 // Clear all DOM statefulness of the last node selection.
 function clearNodeSelection(view: AnyView) {
   if (view.lastSelectedViewDesc) {
-    if (view.lastSelectedViewDesc.parent) {
-      // SAFETY: `lastSelectedViewDesc` is only set by `syncNodeSelection`, to a node desc.
-      const selected = view.lastSelectedViewDesc as NodeViewDesc
-      selected.deselectNode()
-    }
+    const selected = view.lastSelectedViewDesc
+    if (selected.parent && selected instanceof NodeViewDesc) selected.deselectNode()
     view.lastSelectedViewDesc = undefined
   }
 }

@@ -64,6 +64,7 @@ export function tempEditor(inProps: TempEditorProps = {}): EditorView<any> {
   })
   // SAFETY: the fixtures' plugins declare no failures the view could surface, so
   // the state's error channel is narrowed to the view's default (`never`).
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   const props: DirectEditorProps<any> = { ...rest, state: state as EditorState<any> }
   return (tempView = EditorView.makeUnsafe(space, props))
 }

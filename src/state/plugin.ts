@@ -188,6 +188,7 @@ function bindProps(
     if (Predicate.isFunction(val)) target[prop] = val.bind(self)
     else if (prop === "handleDOMEvents") {
       // SAFETY: `handleDOMEvents` is an object of event handlers.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       target[prop] = bindProps(val as { readonly [prop: string]: unknown }, self, {})
     } else target[prop] = val
   })
@@ -206,8 +207,7 @@ function createKey(name: string): string {
  * @since 0.1.0
  * @category symbols
  */
-// SAFETY: `Symbol.for` is typed `symbol`; its registered key makes this one unique.
-export const PluginTypeId: unique symbol = Symbol.for("effect-richtext/state/Plugin") as never
+export const PluginTypeId: unique symbol = Symbol.for("effect-richtext/state/Plugin")
 
 /**
  * @since 0.1.0
@@ -274,6 +274,7 @@ export class Plugin<PState = any, Sc extends AnySchema = AnySchema, E = never, R
   ) {
     if (spec.props) {
       // SAFETY: props are a plain object of handlers.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       bindProps(spec.props as { readonly [prop: string]: unknown }, this, this.props as Record<string, unknown>)
     }
     this.key = spec.key ? spec.key.key : createKey("plugin")
@@ -320,6 +321,7 @@ export type PluginRequirements<P extends ReadonlyArray<AnyPlugin>> = P[number] e
 /** @internal */
 export const getField = <A>(state: EditorState<any, any, any>, key: string): Option.Option<A> =>
   // SAFETY: callers name the type of the field stored under `key`.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   Object.prototype.hasOwnProperty.call(state.slots, key) ? Option.some(state.slots[key] as A) : Option.none()
 
 /**

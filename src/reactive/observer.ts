@@ -25,8 +25,7 @@ const isDOMNode = (target: EventTarget): target is globalThis.Node => "nodeType"
  * @since 0.1.0
  * @category symbols
  */
-// SAFETY: `Symbol.for` is typed `symbol`; its registered key makes this one unique.
-export const EditorObserverTypeId: unique symbol = Symbol.for("effect-richtext/reactive/EditorObserver") as never
+export const EditorObserverTypeId: unique symbol = Symbol.for("effect-richtext/reactive/EditorObserver")
 
 /**
  * @since 0.1.0

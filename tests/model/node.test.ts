@@ -243,6 +243,7 @@ describe("Node", () => {
       // `validate: "string"` spec, so the message differs from ProseMirror's.
       ist.throws(
         // SAFETY: deliberately ill-typed, to check the runtime error.
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion
         () => schema.nodes.image.createUnsafe({ src: true as any }).checkUnsafe(),
         /Invalid value for attribute src on node of type image: true/
       )
@@ -277,6 +278,7 @@ describe("Node", () => {
 
         // Attributes are validated on creation (prosemirror-model 1.25.12).
         // SAFETY: deliberately ill-typed, to check the runtime error.
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion
         const attrErr = yield* Effect.flip(schema.nodes.image.create({ src: true as any }))
         assert.strictEqual(attrErr._tag, "AttributeError")
 
@@ -412,6 +414,7 @@ describe("Node", () => {
     it.effect("fails with an AttributeError for missing required attributes", () =>
       Effect.gen(function* () {
         // SAFETY: deliberately ill-typed, to check the runtime error.
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion
         const err = yield* Effect.flip(customSchema.nodes.contact.create({ name: "x" } as any))
         assert.strictEqual(err._tag, "AttributeError")
         assert.match(err.message, /No value supplied for attribute email/)
@@ -421,9 +424,11 @@ describe("Node", () => {
     it.effect("createChecked fails with a ContentError for invalid content", () =>
       Effect.gen(function* () {
         // SAFETY: deliberately ill-typed, to check the runtime error.
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion
         const err = yield* Effect.flip(schema.nodes.doc.createChecked(null, [schema.textUnsafe("x") as any]))
         assert.strictEqual(err._tag, "ContentError")
         // SAFETY: deliberately ill-typed, to check the runtime error.
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion
         ist.throws(() => schema.nodeUnsafe("doc", null, [schema.textUnsafe("x") as any]), /Invalid content/)
       })
     )
@@ -433,6 +438,7 @@ describe("Node", () => {
         const filled = yield* schema.nodes.doc.createAndFill()
         ist(filled, doc(p()), eq)
         // SAFETY: deliberately ill-typed, to check the runtime error.
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion
         const err = yield* Effect.flip(schema.nodes.paragraph.createAndFill(null, [p() as any]))
         assert.strictEqual(err._tag, "ContentError")
       })

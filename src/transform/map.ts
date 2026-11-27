@@ -274,6 +274,7 @@ export class Mapping implements Mappable {
     public to = maps ? maps.length : 0
   ) {
     // SAFETY: a mapping given its maps owns them only when `mirror` is also absent, and copies them before writing.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     this._maps = (maps as Array<StepMap>) || []
     this.ownData = !(maps || mirror)
   }

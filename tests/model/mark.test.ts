@@ -205,6 +205,7 @@ describe("Mark", () => {
     it.effect("fails for unknown mark types", () =>
       Effect.gen(function* () {
         // SAFETY: deliberately ill-typed, to check the runtime error.
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion
         const err = yield* Effect.flip(schema.mark("nope" as "em"))
         assert.strictEqual(err._tag, "AttributeError")
       })

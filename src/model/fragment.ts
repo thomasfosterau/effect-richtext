@@ -157,6 +157,7 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     if (last.isTextNode() && last.sameMarkup(first)) {
       const joinedText: Node<Sc> = last.withText(last.textContent + first.textContent)
       // SAFETY: the joined node keeps `last`'s type, one of `N`.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       content[content.length - 1] = joinedText as Node<Sc, N>
       rest = other.content.slice(1)
     }
@@ -356,6 +357,7 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
         if (!joined) joined = array.slice(0, i)
         const joinedText: Node<Sc> = node.withText(joined[joined.length - 1].textContent + node.textContent)
         // SAFETY: the joined node keeps `node`'s type, one of `N`.
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion
         joined[joined.length - 1] = joinedText as Node<Sc, N>
       } else if (joined) {
         joined.push(node)
@@ -377,6 +379,7 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     if (nodes instanceof Fragment) return nodes
     if (Array.isArray(nodes)) return this.fromArray(nodes)
     // SAFETY: not empty, a fragment or an array, so a node; `attrs` checks it at runtime.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const node = nodes as Node<Sc, N>
     if (node.attrs) return new Fragment([node], node.nodeSize)
     throw new PositionError({ message: "Can not convert " + nodes + " to a Fragment" })

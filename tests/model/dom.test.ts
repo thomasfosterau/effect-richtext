@@ -241,8 +241,7 @@ describe("DOMParser", () => {
           }
         }
       })
-      // SAFETY: the tests call each builder as the node or mark builder it is.
-      const b = builders(commentSchema) as any
+      const b = builders(commentSchema)
       test(
         b.doc(b.paragraph("one"), b.comment(b.paragraph("two"), b.paragraph(b.strong("three"))), b.paragraph("four")),
         '<p>one</p><div class="comment"><p>two</p><p><strong>three</strong></p></div><p>four</p>'
@@ -300,8 +299,7 @@ describe("DOMParser", () => {
           }
         }
       })
-      // SAFETY: the tests call each builder as the node or mark builder it is.
-      const b = builders(markSchema) as any
+      const b = builders(markSchema)
       test(
         b.doc(b.paragraph(b.test("a", b.image({ src: "x" }), "b"))),
         '<p><test>a</test><test><img src="x"></test><test>b</test></p>'
@@ -323,8 +321,7 @@ describe("DOMParser", () => {
         }
       })
 
-      // SAFETY: the tests call each builder as the node or mark builder it is.
-      const b = builders(xmlnsSchema) as any
+      const b = builders(xmlnsSchema)
       const d = b.doc(b.svg())
       // The original compares against the `innerHTML` of
       // '<svg xmlns="http://www.w3.org/2000/svg"><use xmlns:ns1="http://www.w3.org/1999/xlink" ns1:href="#svg-id"/></svg>'
@@ -1065,6 +1062,7 @@ describe("DOMSerializer", () => {
 
     it("renderSpecUnsafe throws for invalid arrays", () => {
       // SAFETY: deliberately ill-typed, to check the runtime error.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       ist.throws(() => DOMSerializer.renderSpecUnsafe(document, [1] as any), /Invalid array/)
     })
 

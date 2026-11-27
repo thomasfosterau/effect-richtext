@@ -34,10 +34,11 @@ export const domIndex = function (node: DOMNode): number {
 
 /** @internal */
 export const parentNode = function (node: DOMNode): DOMNode | null {
-  // SAFETY: only slottable nodes define `assignedSlot`; on other nodes it reads `undefined`.
-  const parent = (node as HTMLSlotElement).assignedSlot || node.parentNode
-  // SAFETY: a fragment holding the editor's DOM is its shadow root.
-  return parent && parent.nodeType == 11 ? (parent as ShadowRoot).host : parent
+  // Elements and text nodes are the slottable ones.
+  const slot = isElt(node) || isText(node) ? node.assignedSlot : null
+  const parent = slot || node.parentNode
+  if (!parent || parent.nodeType != 11) return parent
+  return isShadowRoot(parent) ? parent.host : null
 }
 
 /**
@@ -122,6 +123,22 @@ export function isDOMNode(target: EventTarget): target is DOMNode {
 }
 
 /** @internal */
+export function isDocument(node: DOMNode): node is Document {
+  return node.nodeType == 9
+}
+
+// `EditorView.root` gives a shadow root `getSelection` when it lacks one.
+/** @internal */
+export function selectionOf(root: Document | ShadowRoot) {
+  return "getSelection" in root ? root.getSelection() : null
+}
+
+/** @internal */
+export function isShadowRoot(node: DOMNode): node is ShadowRoot {
+  return node.nodeType == 11 && "host" in node
+}
+
+/** @internal */
 export function isText(node: DOMNode): node is Text {
   return node.nodeType == 3
 }
@@ -184,13 +201,10 @@ export const selectionCollapsed = function (domSel: DOMSelectionRange): boolean 
 
 /** @internal */
 export function keyEvent(keyCode: number, key: string): KeyboardEvent {
-  // A plain event, so these are writable.
-  const event: Event & { keyCode?: number; key?: string; code?: string } = document.createEvent("Event")
-  event.initEvent("keydown", true, true)
-  event.keyCode = keyCode
-  event.key = event.code = key
-  // SAFETY: key handlers read only `keyCode`, `key` and `code`, which are set above.
-  return event as KeyboardEvent
+  const event = new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key, code: key, keyCode })
+  // Not every engine takes `keyCode` from the init dictionary.
+  if (event.keyCode !== keyCode) Object.defineProperty(event, "keyCode", { value: keyCode })
+  return event
 }
 
 /** @internal */

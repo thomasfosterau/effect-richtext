@@ -63,8 +63,8 @@ const orderedListRule = wrappingInputRule(
   /^(\d+)\.\s$/,
   nodes.ordered_list,
   (match) => ({ order: +match[1] }),
-  // SAFETY: the rule only joins ordered lists, which have an `order` attribute.
-  (match, node) => node.childCount + (node.attrs as { order: number }).order === +match[1]
+  // The rule only joins ordered lists, which have an `order` attribute.
+  (match, node) => "order" in node.attrs && node.childCount + node.attrs.order === +match[1]
 )
 const bulletListRule = wrappingInputRule(/^\s*([-+*])\s$/, nodes.bullet_list)
 const headingRule = textblockTypeInputRule(/^(#{1,6})\s$/, nodes.heading, (match) => ({ level: match[1].length }))
@@ -266,6 +266,7 @@ describe("inputRules", () => {
     ist(Option.isNone(Option.flatten(plugin.getState(view.state))))
     type(view, "--")
     // SAFETY: an input-rules plugin's state is the rule it last applied.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const applied = getSome(Option.flatten(plugin.getState(view.state))) as AppliedInputRule
     ist(applied.text, "-")
     ist(applied.from, 3)

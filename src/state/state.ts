@@ -238,6 +238,7 @@ const resume = <E, R>(run: Run<E, R>): Effect.Effect<unknown, E | StateError, R>
 // be run more than once.
 const runSteps = <A, E, R>(make: () => Steps<A>): Effect.Effect<A, E | StateError, R> =>
   // SAFETY: the root generator is `make()`, so the run's result is its `A`.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   Effect.suspend(() => resume(new Run<E, R>(make()))) as Effect.Effect<A, E | StateError, R>
 
 // Run an algorithm synchronously. From the first hook that returns an
@@ -257,6 +258,7 @@ const runStepsUnsafe = <A>(steps: Steps<A>): A => {
         })
       )
   // SAFETY: the root generator is `steps`, so the run's result is its `A`.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   return value as A
 }
 
@@ -287,8 +289,7 @@ export const runSyncUnsafe = <A, E>(effect: Effect.Effect<A, E>): A => {
  * @since 0.1.0
  * @category symbols
  */
-// SAFETY: `Symbol.for` is typed `symbol`; its registered key makes this one unique.
-export const EditorStateTypeId: unique symbol = Symbol.for("effect-richtext/state/EditorState") as never
+export const EditorStateTypeId: unique symbol = Symbol.for("effect-richtext/state/EditorState")
 
 /**
  * @since 0.1.0
