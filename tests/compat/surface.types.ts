@@ -95,7 +95,7 @@ type _transformReplaceAroundStep = Expect<
   Equals<Missing<PmTransform.ReplaceAroundStep, transform.ReplaceAroundStep>, never>
 >
 type _transformReplaceStepStatic = Expect<
-  Equals<Missing<typeof PmTransform.ReplaceStep, typeof transform.ReplaceStep>, "MAP_BIAS">
+  Equals<Missing<typeof PmTransform.ReplaceStep, typeof transform.ReplaceStep>, never>
 >
 type _transformReplaceStep = Expect<Equals<Missing<PmTransform.ReplaceStep, transform.ReplaceStep>, never>>
 type _transformStepStatic = Expect<Equals<Missing<typeof PmTransform.Step, typeof transform.Step>, never>>

@@ -423,6 +423,20 @@ export class ReplaceStep extends CoreStep {
   static override fromJSON(schema: Schema, json: any): ReplaceStep {
     return wrap(guard(() => T.Step.fromJSONUnsafe(schema[CORE], { ...json, stepType: "replace" })))
   }
+
+  /**
+   * By default, an inserting step mapped over an insertion at that same
+   * position moves after the inserted content. Set this to -1 to keep
+   * such a step before the insertion instead, as collaborative editors
+   * do so that redone insertions land where expected.
+   */
+  static get MAP_BIAS(): -1 | 1 {
+    return T.ReplaceStep.MAP_BIAS
+  }
+
+  static set MAP_BIAS(bias: -1 | 1) {
+    T.ReplaceStep.MAP_BIAS = bias
+  }
 }
 
 /**
