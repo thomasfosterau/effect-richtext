@@ -5,16 +5,16 @@ catalogMode: strict
 catalog:
   "@changesets/changelog-github": ^1.0.1
   "@changesets/cli": ^3.0.3
-  "@effect/docgen": ^4.1.5
+  "@effect/docgen": ^4.1.6
   "@effect/language-service": ^0.87.5
   # For tests/bench/run.ts's child processes. Same version as `effect`.
-  "@effect/platform-node": 4.1.5
+  "@effect/platform-node": 4.1.6
   # `effect-tsgo patch` (in `prepare`) supports only the TypeScript, oxlint and
   # tsrs versions in the `components` table of
   # node_modules/@effect/tsgo/dist/effect-tsgo.cjs, and fails `pnpm install`
   # on any other: move it with `@typescript/native` and `vite-plus`.
   "@effect/tsgo": 0.73.4
-  "@effect/vitest": 4.1.5
+  "@effect/vitest": 4.1.6
   "@enfect/oxlint": 0.10.0
   # Consumers of the prosemirror-* packages, for the conformance suite
   # (tests/conformance), which aliases those packages to the compat facade.
@@ -29,7 +29,7 @@ catalog:
   # Both peer on the exact `vitest` version.
   "@vitest/browser-playwright": 5.1.1
   "@vitest/coverage-istanbul": 5.1.1
-  effect: 4.1.5
+  effect: 4.1.6
   fallow: 3.48.0
   happy-dom: ^21.0.4
   markdown-it: ^15.0.3
