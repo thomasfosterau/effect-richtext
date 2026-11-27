@@ -4,6 +4,7 @@
  *
  * @since 0.1.0
  */
+import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import {
@@ -64,17 +65,25 @@ export const liftTarget = <Sc extends AnySchema>(range: NodeRange<Sc>): Option.O
 export function liftTargetOrNull(range: NodeRange<any>): number | null {
   const parent = range.parent
   const content = parent.content.cutByIndex(range.startIndex, range.endIndex)
-  for (let depth = range.depth, contentBefore = 0, contentAfter = 0; ; --depth) {
+  // Walk outwards; once content is left before (or after) the range at
+  // some level, the outer levels keep a node on that side. -1 when no
+  // level fits.
+  const search = (depth: number, contentBefore: number, contentAfter: number): number => {
     const node = range.$from.node(depth)
     const index = range.$from.index(depth) + contentBefore,
       endIndex = range.$to.indexAfter(depth) - contentAfter
     if (depth < range.depth && node.canReplace(index, endIndex, content)) return depth
-    if (depth === 0 || node.type.spec.isolating || !canCut(node, index, endIndex)) break
-    if (index) contentBefore = 1
-    if (endIndex < node.childCount) contentAfter = 1
+    if (depth === 0 || node.type.spec.isolating || !canCut(node, index, endIndex)) return -1
+    return search(depth - 1, index ? 1 : contentBefore, endIndex < node.childCount ? 1 : contentAfter)
   }
-  return null
+  const target = search(range.depth, 0, 0)
+  return target < 0 ? null : target
 }
+
+// The depths from `from` down to just above `to`, deepest first.
+/** @internal */
+export const depthsAbove = (from: number, to: number): ReadonlyArray<number> =>
+  Array.from({ length: Math.max(0, from - to) }, (_, i) => from - i)
 
 /** @internal */
 export function lift(tr: Transform<any>, range: NodeRange<any>, target: number): void {
@@ -86,27 +95,29 @@ export function lift(tr: Transform<any>, range: NodeRange<any>, target: number):
     end = gapEnd
 
   let before: Fragment<any> = Fragment.empty,
-    openStart = 0
-  for (let d = depth, splitting = false; d > target; d--) {
-    if (splitting || $from.index(d) > 0) {
-      splitting = true
+    openStart = 0,
+    splitBefore = false
+  depthsAbove(depth, target).forEach((d) => {
+    if (splitBefore || $from.index(d) > 0) {
+      splitBefore = true
       before = Fragment.from($from.node(d).copy(before))
       openStart++
     } else {
       start--
     }
-  }
+  })
   let after: Fragment<any> = Fragment.empty,
-    openEnd = 0
-  for (let d = depth, splitting = false; d > target; d--) {
-    if (splitting || $to.afterUnsafe(d + 1) < $to.end(d)) {
-      splitting = true
+    openEnd = 0,
+    splitAfter = false
+  depthsAbove(depth, target).forEach((d) => {
+    if (splitAfter || $to.afterUnsafe(d + 1) < $to.end(d)) {
+      splitAfter = true
       after = Fragment.from($to.node(d).copy(after))
       openEnd++
     } else {
       end++
     }
-  }
+  })
 
   tr.stepUnsafe(
     new ReplaceAroundStep(
@@ -169,28 +180,26 @@ function findWrappingInside(range: NodeRange<any>, type: NodeType<any, any>) {
   const inside = type.contentMatch.findWrappingOrNull(inner.type)
   if (!inside) return null
   const lastType = inside.length ? inside[inside.length - 1] : type
-  let innerMatch: ContentMatch | null = lastType.contentMatch
-  for (let i = startIndex; innerMatch && i < endIndex; i++) {
-    innerMatch = innerMatch.matchTypeOrNull(parent.content.content[i].type)
-  }
+  const innerMatch = parent.content.content
+    .slice(startIndex, endIndex)
+    .reduce<ContentMatch | null>((match, node) => match && match.matchTypeOrNull(node.type), lastType.contentMatch)
   if (!innerMatch || !innerMatch.validEnd) return null
   return inside
 }
 
 /** @internal */
 export function wrap(tr: Transform<any>, range: NodeRange<any>, wrappers: ReadonlyArray<AnyWrapper>): void {
-  let content: Fragment<any> = Fragment.empty
-  for (let i = wrappers.length - 1; i >= 0; i--) {
-    if (content.size) {
-      const match = wrappers[i].type.contentMatch.matchFragmentOrNull(content)
+  const content = wrappers.reduceRight<Fragment<any>>((inner, wrapper) => {
+    if (inner.size) {
+      const match = wrapper.type.contentMatch.matchFragmentOrNull(inner)
       if (!match || !match.validEnd) {
         throw new TransformError({
           message: "Wrapper type given to Transform.wrap does not form valid content of its parent wrapper"
         })
       }
     }
-    content = Fragment.from(wrappers[i].type.createUnsafe(wrappers[i].attrs, content))
-  }
+    return Fragment.from(wrapper.type.createUnsafe(wrapper.attrs, inner))
+  }, Fragment.empty)
 
   const start = range.start,
     end = range.end
@@ -253,12 +262,10 @@ function replaceNewlines(tr: Transform<any>, node: Node<any>, pos: number, mapFr
   const linebreak: NodeType<any, any> = replacement.value
   node.forEach((child, offset) => {
     if (child.isTextNode()) {
-      let m: RegExpExecArray | null
-      const newline = /\r?\n|\r/g
-      while ((m = newline.exec(child.text))) {
+      Array.from(child.text.matchAll(/\r?\n|\r/g)).forEach((m) => {
         const start = tr.mapping.slice(mapFrom).map(pos + 1 + offset + m.index)
         tr.replaceWithUnsafe(start, start + 1, linebreak.createUnsafe())
-      }
+      })
     }
   })
 }
@@ -337,16 +344,18 @@ export function canSplit<Sc extends AnySchema>(
     !innerType.type.validContent($pos.parent.content.cutByIndex($pos.index(), $pos.parent.childCount))
   )
     return false
-  for (let d = $pos.depth - 1, i = depth - 2; d > base; d--, i--) {
+  const splittable = depthsAbove($pos.depth - 1, base).every((d) => {
     const node = $pos.node(d),
-      index = $pos.index(d)
+      index = $pos.index(d),
+      i = d - base - 1
     if (node.type.spec.isolating) return false
-    let rest: Fragment<any> = node.content.cutByIndex(index, node.childCount)
+    const cut: Fragment<any> = node.content.cutByIndex(index, node.childCount)
     const overrideChild = types && types[i + 1]
-    if (overrideChild) rest = rest.replaceChild(0, overrideChild.type.createUnsafe(overrideChild.attrs))
+    const rest = overrideChild ? cut.replaceChild(0, overrideChild.type.createUnsafe(overrideChild.attrs)) : cut
     const after = (types && types[i]) || node
-    if (!node.canReplace(index + 1, node.childCount) || !after.type.validContent(rest)) return false
-  }
+    return node.canReplace(index + 1, node.childCount) && after.type.validContent(rest)
+  })
+  if (!splittable) return false
   const index = $pos.indexAfter(base)
   const baseType = types && types[0]
   return $pos.node(base).canReplaceWith(index, index, baseType ? baseType.type : $pos.node(base + 1).type)
@@ -362,11 +371,12 @@ export function split(
   const $pos = tr.doc.resolveUnsafe(pos)
   let before: Fragment<any> = Fragment.empty,
     after: Fragment<any> = Fragment.empty
-  for (let d = $pos.depth, e = $pos.depth - depth, i = depth - 1; d > e; d--, i--) {
+  const base = $pos.depth - depth
+  depthsAbove($pos.depth, base).forEach((d) => {
     before = Fragment.from($pos.node(d).copy(before))
-    const typeAfter = typesAfter && typesAfter[i]
+    const typeAfter = typesAfter && typesAfter[d - base - 1]
     after = Fragment.from(typeAfter ? typeAfter.type.createUnsafe(typeAfter.attrs, after) : $pos.node(d).copy(after))
-  }
+  })
   tr.stepUnsafe(new ReplaceStep(pos, pos, new Slice(before.append(after), depth, depth), true))
 }
 
@@ -386,18 +396,14 @@ export function canJoin<Sc extends AnySchema>(doc: Node<Sc>, pos: number): boole
 
 function canAppendWithSubstitutedLinebreaks(a: Node<any>, b: Node<any>): boolean {
   if (!b.content.size) a.type.compatibleContent(b.type)
-  let match: ContentMatch | null = a.contentMatchAtUnsafe(a.childCount)
   const linebreakReplacement = Option.getOrNull(a.type.schema.linebreakReplacement)
   const textType = a.type.schema.nodes.text
-  for (let i = 0; i < b.childCount; i++) {
-    const child = b.content.content[i]
+  const end = b.content.content.reduce<ContentMatch | null>((match, child) => {
     const type = child.type === linebreakReplacement ? textType : child.type
-    if (!type) return false
-    match = match.matchTypeOrNull(type)
-    if (!match) return false
-    if (!a.type.allowsMarks(child.marks)) return false
-  }
-  return match.validEnd
+    if (!match || !type || !a.type.allowsMarks(child.marks)) return null
+    return match.matchTypeOrNull(type)
+  }, a.contentMatchAtUnsafe(a.childCount))
+  return end ? end.validEnd : false
 }
 
 function joinable(a: Node<any> | null | undefined, b: Node<any> | null | undefined): boolean {
@@ -414,7 +420,7 @@ function joinable(a: Node<any> | null | undefined, b: Node<any> | null | undefin
  */
 export function joinPoint<Sc extends AnySchema>(doc: Node<Sc>, pos: number, dir = -1): Option.Option<number> {
   const $pos = doc.resolveUnsafe(pos)
-  for (let d = $pos.depth; ; d--) {
+  const search = (d: number, at: number): Option.Option<number> => {
     let before: Node<any> | null | undefined, after: Node<any> | null | undefined
     let index = $pos.index(d)
     if (d === $pos.depth) {
@@ -429,11 +435,11 @@ export function joinPoint<Sc extends AnySchema>(doc: Node<Sc>, pos: number, dir 
       after = $pos.node(d + 1)
     }
     if (before && !before.isTextblock && joinable(before, after) && $pos.node(d).canReplace(index, index + 1))
-      return Option.some(pos)
-    if (d === 0) break
-    pos = dir < 0 ? $pos.beforeUnsafe(d) : $pos.afterUnsafe(d)
+      return Option.some(at)
+    if (d === 0) return Option.none()
+    return search(d - 1, dir < 0 ? $pos.beforeUnsafe(d) : $pos.afterUnsafe(d))
   }
-  return Option.none()
+  return search($pos.depth, pos)
 }
 
 /** @internal */
@@ -491,19 +497,24 @@ export function insertPointOrNull(doc: Node<any>, pos: number, nodeType: NodeTyp
   const $pos = doc.resolveUnsafe(pos)
   if ($pos.parent.canReplaceWith($pos.index(), $pos.index(), nodeType)) return pos
 
+  // Look in the ancestors that `pos` is at the start (or end) of,
+  // innermost first, stopping at one that it isn't at the edge of.
+  let fits = false
   if ($pos.parentOffset === 0) {
-    for (let d = $pos.depth - 1; d >= 0; d--) {
+    const found = Arr.findFirst(depthsAbove($pos.depth - 1, -1), (d) => {
       const index = $pos.index(d)
-      if ($pos.node(d).canReplaceWith(index, index, nodeType)) return $pos.beforeUnsafe(d + 1)
-      if (index > 0) return null
-    }
+      fits = $pos.node(d).canReplaceWith(index, index, nodeType)
+      return fits || index > 0
+    })
+    if (Option.isSome(found)) return fits ? $pos.beforeUnsafe(found.value + 1) : null
   }
   if ($pos.parentOffset === $pos.parent.content.size) {
-    for (let d = $pos.depth - 1; d >= 0; d--) {
+    const found = Arr.findFirst(depthsAbove($pos.depth - 1, -1), (d) => {
       const index = $pos.indexAfter(d)
-      if ($pos.node(d).canReplaceWith(index, index, nodeType)) return $pos.afterUnsafe(d + 1)
-      if (index < $pos.node(d).childCount) return null
-    }
+      fits = $pos.node(d).canReplaceWith(index, index, nodeType)
+      return fits || index < $pos.node(d).childCount
+    })
+    if (Option.isSome(found)) return fits ? $pos.afterUnsafe(found.value + 1) : null
   }
   return null
 }
@@ -520,24 +531,30 @@ export function insertPointOrNull(doc: Node<any>, pos: number, nodeType: NodeTyp
 export function dropPoint<Sc extends AnySchema>(doc: Node<Sc>, pos: number, slice: Slice<Sc>): Option.Option<number> {
   const $pos = doc.resolveUnsafe(pos)
   if (!slice.content.size) return Option.some(pos)
-  let content: Fragment<any> = slice.content
-  for (let i = 0; i < slice.openStart; i++) content = content.content[0].content
-  for (let pass = 1; pass <= (slice.openStart === 0 && slice.size ? 2 : 1); pass++) {
-    for (let d = $pos.depth; d >= 0; d--) {
+  // The content inside the slice's open start.
+  const content = Array.from({ length: slice.openStart }).reduce<Fragment<any>>(
+    (inner) => inner.content[0].content,
+    slice.content
+  )
+  // First look for a place the content fits as is, then (for a closed
+  // slice) for one where it fits once wrapped.
+  const passes = slice.openStart === 0 && slice.size ? [1, 2] : [1]
+  return Arr.findFirst(passes, (pass) =>
+    Arr.findFirst(depthsAbove($pos.depth, -1), (d) => {
       const bias = d === $pos.depth ? 0 : $pos.pos <= ($pos.start(d + 1) + $pos.end(d + 1)) / 2 ? -1 : 1
       const insertPos = $pos.index(d) + (bias > 0 ? 1 : 0)
       const parent = $pos.node(d)
-      let fits: boolean | null = false
-      if (pass === 1) {
-        fits = parent.canReplace(insertPos, insertPos, content)
-      } else {
-        const wrapping = parent.contentMatchAtUnsafe(insertPos).findWrappingOrNull(content.content[0].type)
-        fits = wrapping && parent.canReplaceWith(insertPos, insertPos, wrapping[0])
-      }
-      if (fits) {
-        return Option.some(bias === 0 ? $pos.pos : bias < 0 ? $pos.beforeUnsafe(d + 1) : $pos.afterUnsafe(d + 1))
-      }
-    }
-  }
-  return Option.none()
+      const fits =
+        pass === 1 ? parent.canReplace(insertPos, insertPos, content) : fitsWrapped(parent, insertPos, content)
+      return fits
+        ? Option.some(bias === 0 ? $pos.pos : bias < 0 ? $pos.beforeUnsafe(d + 1) : $pos.afterUnsafe(d + 1))
+        : Option.none()
+    })
+  )
+}
+
+// Whether `content` can be inserted at `index` in `parent` inside some wrapping.
+function fitsWrapped(parent: Node<any>, index: number, content: Fragment<any>): boolean {
+  const wrapping = parent.contentMatchAtUnsafe(index).findWrappingOrNull(content.content[0].type)
+  return wrapping !== null && parent.canReplaceWith(index, index, wrapping[0])
 }

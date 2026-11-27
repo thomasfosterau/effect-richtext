@@ -230,19 +230,18 @@ Step.jsonID("replaceAround", ReplaceAroundStep)
 
 function contentBetween(doc: Node<any>, from: number, to: number): boolean {
   const $from = doc.resolveUnsafe(from)
-  let dist = to - from,
-    depth = $from.depth
-  while (dist > 0 && depth > 0 && $from.indexAfter(depth) === $from.node(depth).childCount) {
-    depth--
-    dist--
-  }
-  if (dist > 0) {
-    let next: Node<any> | undefined = $from.node(depth).content.content[$from.indexAfter(depth)]
-    while (dist > 0) {
-      if (!next || next.isLeaf) return true
-      next = next.content.content[0]
-      dist--
-    }
-  }
-  return false
+  // Climb out of the nodes that end at `from`, a token at a time, then
+  // look into the node after.
+  const climb = (depth: number, dist: number): boolean =>
+    dist > 0 && depth > 0 && $from.indexAfter(depth) === $from.node(depth).childCount
+      ? climb(depth - 1, dist - 1)
+      : contentWithin($from.node(depth).content.content[$from.indexAfter(depth)], dist)
+  return climb($from.depth, to - from)
+}
+
+// Whether entering `dist` opening tokens from before `next` reaches
+// content: a leaf, or the end of a node.
+function contentWithin(next: Node<any> | undefined, dist: number): boolean {
+  if (dist <= 0) return false
+  return !next || next.isLeaf || contentWithin(next.content.content[0], dist - 1)
 }

@@ -3,6 +3,7 @@
  *
  * @internal
  */
+import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
 import { type ContentMatch, Fragment, type Mark, MarkType, type NodeType, Slice } from "../Model.ts"
 import { TransformError } from "./errors.ts"
@@ -42,13 +43,7 @@ export function removeMark(
     step++
     let toRemove: ReadonlyArray<Mark<any>> | null = null
     if (mark instanceof MarkType) {
-      let set = node.marks,
-        found: Mark<any> | undefined
-      const list: Array<Mark<any>> = []
-      while ((found = mark.findInSet(set))) {
-        list.push(found)
-        set = found.removeFromSet(set)
-      }
+      const list = node.marks.filter((m) => m.type === mark)
       if (list.length) toRemove = list
     } else if (mark) {
       if (mark.isInSet(node.marks)) toRemove = [mark]
@@ -57,20 +52,16 @@ export function removeMark(
     }
     if (toRemove && toRemove.length) {
       const end = Math.min(pos + node.nodeSize, to)
-      for (let i = 0; i < toRemove.length; i++) {
-        const style = toRemove[i]
-        let found: (typeof matched)[number] | undefined
-        for (let j = 0; j < matched.length; j++) {
-          const m = matched[j]
-          if (m.step === step - 1 && style.eq(m.style)) found = m
-        }
+      toRemove.forEach((style) => {
+        // Extend the range of the same mark on the previous inline node.
+        const found = matched.find((m) => m.step === step - 1 && style.eq(m.style))
         if (found) {
           found.to = end
           found.step = step
         } else {
           matched.push({ style, from: Math.max(pos, from), to: end, step })
         }
-      }
+      })
     }
   })
   matched.forEach((m) => tr.stepUnsafe(new RemoveMarkStep(m.from, m.to, m.style)))
@@ -88,41 +79,37 @@ export function clearIncompatible(
   if (!node) throw new TransformError({ message: "No node at position " + pos })
   const replSteps: Array<Step<any>> = []
   let cur = pos + 1
-  for (let i = 0; i < node.childCount; i++) {
-    const child = node.content.content[i],
-      end = cur + child.nodeSize
+  node.content.content.forEach((child) => {
+    const end = cur + child.nodeSize
     const allowed = match.matchTypeOrNull(child.type)
     if (!allowed) {
       replSteps.push(new ReplaceStep(cur, end, Slice.empty))
     } else {
       match = allowed
-      for (let j = 0; j < child.marks.length; j++) {
-        if (!parentType.allowsMarkType(child.marks[j].type)) {
-          tr.stepUnsafe(new RemoveMarkStep(cur, end, child.marks[j]))
-        }
-      }
+      child.marks.forEach((mark) => {
+        if (!parentType.allowsMarkType(mark.type)) tr.stepUnsafe(new RemoveMarkStep(cur, end, mark))
+      })
 
-      if (clearNewlines && child.isTextNode() && parentType.whitespace !== "pre") {
-        let m: RegExpExecArray | null, slice: Slice<any> | undefined
-        const newline = /\r?\n|\r/g
-        while ((m = newline.exec(child.text))) {
-          if (!slice) {
-            slice = new Slice(
-              Fragment.from(parentType.schema.textUnsafe(" ", parentType.allowedMarks(child.marks))),
-              0,
-              0
-            )
-          }
-          replSteps.push(new ReplaceStep(cur + m.index, cur + m.index + m[0].length, slice))
+      if (clearNewlines && child.isTextNode() && parentType.whitespace !== "pre" && /[\r\n]/.test(child.text)) {
+        const newlines = Array.from(child.text.matchAll(/\r?\n|\r/g))
+        if (Arr.isArrayNonEmpty(newlines)) {
+          const slice = new Slice(
+            Fragment.from(parentType.schema.textUnsafe(" ", parentType.allowedMarks(child.marks))),
+            0,
+            0
+          )
+          newlines.forEach((m) => {
+            replSteps.push(new ReplaceStep(cur + m.index, cur + m.index + m[0].length, slice))
+          })
         }
       }
     }
     cur = end
-  }
+  })
   if (!match.validEnd) {
     const fill = match.fillBeforeOrNull(Fragment.empty, true)
     if (!fill) throw new TransformError({ message: "Can't complete the content of " + node.type.name })
     tr.replaceUnsafe(cur, cur, new Slice(fill, 0, 0))
   }
-  for (let i = replSteps.length - 1; i >= 0; i--) tr.stepUnsafe(replSteps[i])
+  Arr.reverse(replSteps).forEach((step) => tr.stepUnsafe(step))
 }

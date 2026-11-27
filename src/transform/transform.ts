@@ -165,8 +165,7 @@ export class Transform<Sc extends AnySchema = AnySchema> {
   changedRange(): Option.Option<{ readonly from: number; readonly to: number }> {
     let from = 1e9,
       to = -1e9
-    for (let i = 0; i < this.mapping.maps.length; i++) {
-      const map = this.mapping.maps[i]
+    this.mapping.maps.forEach((map, i) => {
       if (i) {
         from = map.map(from, 1)
         to = map.map(to, -1)
@@ -175,7 +174,7 @@ export class Transform<Sc extends AnySchema = AnySchema> {
         from = Math.min(from, fromB)
         to = Math.max(to, toB)
       })
-    }
+    })
     return from === 1e9 ? Option.none() : Option.some({ from, to })
   }
 
@@ -455,14 +454,9 @@ export class Transform<Sc extends AnySchema = AnySchema> {
     if (mark instanceof Mark) {
       if (mark.isInSet(node.marks)) this.stepUnsafe(new RemoveNodeMarkStep(pos, mark))
     } else {
-      let set = node.marks,
-        found: Mark<Sc> | undefined
-      const steps: Array<Step<Sc>> = []
-      while ((found = mark.findInSet(set))) {
-        steps.push(new RemoveNodeMarkStep(pos, found))
-        set = found.removeFromSet(set)
-      }
-      for (let i = steps.length - 1; i >= 0; i--) this.stepUnsafe(steps[i])
+      Arr.reverse(node.marks.filter((m) => m.type === mark)).forEach((m) => {
+        this.stepUnsafe(new RemoveNodeMarkStep(pos, m))
+      })
     }
     return this
   }
