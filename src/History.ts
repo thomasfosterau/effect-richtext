@@ -60,14 +60,17 @@ export class Branch {
   popEvent(state: EditorState<any, any, any>, preserveItems: boolean): Option.Option<PopResult> {
     if (this.eventCount === 0) return Option.none()
 
+    // The index of the last item that starts an event.
     let end = this.items.length
-    for (; ; end--) {
-      const next = this.items.get(end - 1)
-      if (next.selection) {
-        --end
-        break
-      }
-    }
+    this.items.forEach(
+      (item, i) => {
+        if (!item.selection) return true
+        end = i
+        return false
+      },
+      this.items.length,
+      0
+    )
 
     let remap: Mapping | undefined,
       mapFrom = 0
@@ -138,8 +141,8 @@ export class Branch {
       lastItem =
         preserveItems || !oldItems.length ? Option.none<Item>() : Option.some(oldItems.get(oldItems.length - 1))
 
-    for (let i = 0; i < transform.steps.length; i++) {
-      const step = transform.steps[i].invert(transform.docs[i])
+    transform.steps.forEach((transformStep, i) => {
+      const step = transformStep.invert(transform.docs[i])
       let item = new Item(transform.mapping.maps[i], step, Option.getOrUndefined(selection))
       const merged = Option.flatMap(lastItem, (last) => last.merge(item))
       if (Option.isSome(merged)) {
@@ -153,7 +156,7 @@ export class Branch {
         selection = Option.none()
       }
       if (!preserveItems) lastItem = Option.some(item)
-    }
+    })
     const overflow = eventCount - histOptions.depth
     if (overflow > DEPTH_OVERFLOW) {
       oldItems = cutOffEvents(oldItems, overflow)

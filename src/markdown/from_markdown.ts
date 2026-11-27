@@ -333,7 +333,8 @@ export class MarkdownParser<Sc extends AnySchema = AnySchema> {
     const state = new MarkdownParseState(this.schema, this.tokenHandlers)
     state.parseTokens(this.tokenizer.parse(text, markdownEnv))
     let doc = state.closeNode()
-    while (state.stack.length) doc = state.closeNode()
+    // Close every node still open.
+    state.stack.slice().forEach(() => (doc = state.closeNode()))
     const result = doc || this.schema.topNodeType.createAndFillOrNull()
     if (!result) throw new MarkdownError({ message: "Can't create an empty document for the schema" })
     // SAFETY: built from this parser's schema, `Sc`.

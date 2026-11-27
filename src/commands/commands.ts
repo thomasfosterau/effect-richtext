@@ -115,35 +115,50 @@ const atBlockEnd = (state: EditorState<any, any, any>, view: EditorViewLike): Op
   )
 
 function findCutBefore($pos: ResolvedPos<any>): Option.Option<ResolvedPos<any>> {
-  if (!$pos.parent.type.spec.isolating) {
-    for (let i = $pos.depth - 1; i >= 0; i--) {
-      if ($pos.index(i) > 0) return Option.some($pos.doc.resolveUnsafe($pos.beforeUnsafe(i + 1)))
-      if ($pos.node(i).type.spec.isolating) break
-    }
-  }
-  return Option.none()
+  return $pos.parent.type.spec.isolating ? Option.none() : cutFrom($pos, $pos.depth - 1, -1)
 }
 
 function findCutAfter($pos: ResolvedPos<any>): Option.Option<ResolvedPos<any>> {
-  if (!$pos.parent.type.spec.isolating) {
-    for (let i = $pos.depth - 1; i >= 0; i--) {
-      const parent = $pos.node(i)
-      if ($pos.index(i) + 1 < parent.childCount) return Option.some($pos.doc.resolveUnsafe($pos.afterUnsafe(i + 1)))
-      if (parent.type.spec.isolating) break
-    }
+  return $pos.parent.type.spec.isolating ? Option.none() : cutFrom($pos, $pos.depth - 1, 1)
+}
+
+// The nearest position at `depth` or above with a sibling on `side`, without crossing an isolating node.
+function cutFrom($pos: ResolvedPos<any>, depth: number, side: number): Option.Option<ResolvedPos<any>> {
+  if (depth < 0) return Option.none()
+  const parent = $pos.node(depth)
+  if (side < 0 ? $pos.index(depth) > 0 : $pos.index(depth) + 1 < parent.childCount) {
+    return Option.some($pos.doc.resolveUnsafe(side < 0 ? $pos.beforeUnsafe(depth + 1) : $pos.afterUnsafe(depth + 1)))
   }
-  return Option.none()
+  return parent.type.spec.isolating ? Option.none() : cutFrom($pos, depth - 1, side)
 }
 
 function textblockAt(node: Node<any>, side: "start" | "end", only = false): boolean {
-  let scan = node
-  for (;;) {
-    if (scan.isTextblock) return true
-    if (only && scan.childCount !== 1) return false
-    const next = side === "start" ? firstChildOf(scan) : lastChildOf(scan)
-    if (Option.isNone(next)) return false
-    scan = next.value
-  }
+  if (node.isTextblock) return true
+  if (only && node.childCount !== 1) return false
+  const next = side === "start" ? firstChildOf(node) : lastChildOf(node)
+  return Option.isSome(next) && textblockAt(next.value, side, only)
+}
+
+// The textblock reached by descending into `node` along its `side` edge, with the number of levels descended.
+function textblockInside(
+  node: Node<any>,
+  side: "start" | "end",
+  stopAtIsolating: boolean
+): Option.Option<readonly [Node<any>, number]> {
+  if (node.isTextblock) return Option.some([node, 0])
+  if (stopAtIsolating && node.type.spec.isolating) return Option.none()
+  return Option.map(
+    Option.flatMap(side === "start" ? firstChildOf(node) : lastChildOf(node), (child) =>
+      textblockInside(child, side, stopAtIsolating)
+    ),
+    ([textblock, depth]) => [textblock, depth + 1] as const
+  )
+}
+
+// `node` and its last descendants down to a textblock.
+function pathToLastTextblock(node: Node<any>): Option.Option<Array<Node<any>>> {
+  if (node.isTextblock) return Option.some([node])
+  return Option.map(Option.flatMap(lastChildOf(node), pathToLastTextblock), (path) => [node, ...path])
 }
 
 function isDeletingStep(step: unknown): step is ReplaceStep<any> {
@@ -160,24 +175,14 @@ const defaultBlockAt = (match: ContentMatch): Option.Option<NodeType<any, any>> 
 function joinTextblocksAround(state: EditorState<any, any, any>, $cut: ResolvedPos<any>, dispatching: boolean) {
   const before = $cut.nodeBeforeOrNull
   if (!before) return false
-  let beforeText = before,
-    beforePos = $cut.pos - 1
-  for (; !beforeText.isTextblock; beforePos--) {
-    if (beforeText.type.spec.isolating) return false
-    const child = lastChildOf(beforeText)
-    if (Option.isNone(child)) return false
-    beforeText = child.value
-  }
+  const beforeText = textblockInside(before, "end", true)
+  if (Option.isNone(beforeText)) return false
+  const beforePos = $cut.pos - 1 - beforeText.value[1]
   const after = $cut.nodeAfterOrNull
   if (!after) return false
-  let afterText = after,
-    afterPos = $cut.pos + 1
-  for (; !afterText.isTextblock; afterPos++) {
-    if (afterText.type.spec.isolating) return false
-    const child = firstChildOf(afterText)
-    if (Option.isNone(child)) return false
-    afterText = child.value
-  }
+  const afterText = textblockInside(after, "start", true)
+  if (Option.isNone(afterText)) return false
+  const afterPos = $cut.pos + 1 + afterText.value[1]
   const step = replaceStepOrNull(state.doc, beforePos, afterPos, Slice.empty)
   if (
     !(step instanceof ReplaceStep || step instanceof ReplaceAroundStep) ||
@@ -251,22 +256,13 @@ function deleteBarrier(
   }
 
   if (canDelAfter && textblockAt(after, "start", true) && textblockAt(before, "end")) {
-    let at = before
-    const wrap: Array<Node<any>> = []
-    for (;;) {
-      wrap.push(at)
-      if (at.isTextblock) break
-      const child = lastChildOf(at)
-      if (Option.isNone(child)) return false
-      at = child.value
-    }
-    let afterText = after,
-      afterDepth = 1
-    for (; !afterText.isTextblock; afterDepth++) {
-      const child = firstChildOf(afterText)
-      if (Option.isNone(child)) return false
-      afterText = child.value
-    }
+    const path = pathToLastTextblock(before)
+    const inside = textblockInside(after, "start", false)
+    if (Option.isNone(path) || Option.isNone(inside)) return false
+    const wrap = path.value,
+      at = wrap[wrap.length - 1]
+    const afterText = inside.value[0],
+      afterDepth = inside.value[1] + 1
     if (at.canReplace(at.childCount, at.childCount, afterText.content)) {
       return done(dispatching, () => {
         const end = wrap.reduceRight(
@@ -345,21 +341,25 @@ export const joinBackward: Command = syncCommand((state, dispatching, view) => {
   // If the node below has no content and the node above is
   // selectable, delete the node below and select the one above.
   if ($cursor.parent.content.size === 0 && (textblockAt(before, "end") || NodeSelection.isSelectable(before))) {
-    for (let depth = $cursor.depth; ; depth--) {
+    // Delete the innermost of the empty node and its only-child ancestors that can be deleted.
+    const deletion = (depth: number): Option.Option<ReplaceStep<any>> => {
       const delStep = replaceStepOrNull(state.doc, $cursor.beforeUnsafe(depth), $cursor.afterUnsafe(depth))
-      if (delStep && isDeletingStep(delStep)) {
-        return done(dispatching, () => {
-          const tr = state.tr.stepUnsafe(delStep)
-          tr.setSelectionUnsafe(
-            textblockAt(before, "end")
-              ? Selection.findFromOrNull(tr.doc.resolveUnsafe(tr.mapping.map($cut.pos, -1)), -1) ||
-                  Selection.near(tr.doc.resolveUnsafe(tr.mapping.map($cut.pos, -1)), -1)
-              : NodeSelection.createUnsafe(tr.doc, $cut.pos - before.nodeSize)
-          )
-          return tr.scrollIntoView()
-        })
-      }
-      if (depth === 1 || $cursor.node(depth - 1).childCount > 1) break
+      if (delStep && isDeletingStep(delStep)) return Option.some(delStep)
+      return depth === 1 || $cursor.node(depth - 1).childCount > 1 ? Option.none() : deletion(depth - 1)
+    }
+    const found = deletion($cursor.depth)
+    if (Option.isSome(found)) {
+      const delStep = found.value
+      return done(dispatching, () => {
+        const tr = state.tr.stepUnsafe(delStep)
+        tr.setSelectionUnsafe(
+          textblockAt(before, "end")
+            ? Selection.findFromOrNull(tr.doc.resolveUnsafe(tr.mapping.map($cut.pos, -1)), -1) ||
+                Selection.near(tr.doc.resolveUnsafe(tr.mapping.map($cut.pos, -1)), -1)
+            : NodeSelection.createUnsafe(tr.doc, $cut.pos - before.nodeSize)
+        )
+        return tr.scrollIntoView()
+      })
     }
   }
 
@@ -701,26 +701,23 @@ export const splitBlockAs = <Sc extends AnySchema = AnySchema>(splitNode?: Split
     if (!sel.empty && (sel instanceof TextSelection || sel instanceof AllSelection)) tr.deleteSelection()
     const { $from } = tr.selection,
       mapFrom = tr.steps.length
-    const types: Array<NodeTypeWithAttrs<any> | null> = []
-    let splitDepth = 0,
-      deflt: NodeType<any, any> | null = null,
-      atEnd = false,
-      atStart = false
-    for (let d = $from.depth; ; d--) {
-      const node = $from.node(d)
-      if (node.isBlock) {
-        atEnd = $from.end(d) === $from.pos + ($from.depth - d)
-        atStart = $from.start(d) === $from.pos - ($from.depth - d)
-        deflt = Option.getOrNull(defaultBlockAt($from.node(d - 1).contentMatchAtUnsafe($from.indexAfter(d - 1))))
-        const splitType = splitNode && splitNode($from.parent, atEnd, $from)
-        types.unshift(splitType || (atEnd && deflt ? { type: deflt } : null))
-        splitDepth = d
-        break
-      } else {
-        if (d === 1) return false
-        types.unshift(null)
-      }
-    }
+    // The innermost block around the cursor (giving up below depth 1).
+    const block = Arr.findFirst(
+      Arr.makeBy(Math.max(1, $from.depth), (k) => $from.depth - k),
+      (d) => $from.node(d).isBlock
+    )
+    if (Option.isNone(block)) return false
+    const splitDepth = block.value
+    const atEnd = $from.end(splitDepth) === $from.pos + ($from.depth - splitDepth),
+      atStart = $from.start(splitDepth) === $from.pos - ($from.depth - splitDepth)
+    const deflt = Option.getOrNull(
+      defaultBlockAt($from.node(splitDepth - 1).contentMatchAtUnsafe($from.indexAfter(splitDepth - 1)))
+    )
+    const splitType = splitNode && splitNode($from.parent, atEnd, $from)
+    const types: Array<NodeTypeWithAttrs<any> | null> = [
+      splitType || (atEnd && deflt ? { type: deflt } : null),
+      ...Array.from({ length: $from.depth - splitDepth }, () => null)
+    ]
 
     const splitPos = $from.pos
     let can = canSplit(tr.doc, splitPos, types.length, types)
@@ -788,11 +785,12 @@ function selectTextblockSide(side: number): Command {
   return syncCommand((state, dispatching) => {
     const sel = state.selection,
       $pos = side < 0 ? sel.$from : sel.$to
-    let depth = $pos.depth
-    while ($pos.node(depth).isInline) {
-      if (!depth) return false
-      depth--
-    }
+    const found = Arr.findFirst(
+      Arr.makeBy($pos.depth + 1, (k) => $pos.depth - k),
+      (d) => !$pos.node(d).isInline
+    )
+    if (Option.isNone(found)) return false
+    const depth = found.value
     if (!$pos.node(depth).isTextblock) return false
     return done(dispatching, () =>
       state.tr.setSelectionUnsafe(TextSelection.createUnsafe(state.doc, side < 0 ? $pos.start(depth) : $pos.end(depth)))

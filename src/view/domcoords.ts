@@ -5,7 +5,6 @@
  * @internal
  */
 import * as Arr from "effect/Array"
-import * as Function from "effect/Function"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import type { EditorState } from "../State.ts"
@@ -127,9 +126,9 @@ export function storeScrollPos(view: AnyView): ScrollPos {
     startY = Math.max(0, rect.top)
   const x = (rect.left + rect.right) / 2
   // Probe every 5 pixels down the middle of the editor.
-  const probes = Arr.makeBy(
-    Math.max(0, Math.ceil((Math.min(innerHeight, rect.bottom) - startY - 1) / 5)),
-    (k) => startY + 1 + k * 5
+  const probes = Array.from(
+    { length: Math.max(0, Math.ceil((Math.min(innerHeight, rect.bottom) - startY - 1) / 5)) },
+    (_, k) => startY + 1 + k * 5
   )
   const ref: ScrollPos["ref"] = Arr.findFirst(probes, (y) => {
     const dom = view.root.elementFromPoint(x, y)
@@ -263,14 +262,17 @@ function childRects(child: ChildNode): ReadonlyArray<DOMRect> {
 
 function findOffsetInText(node: Text, coords: { top: number; left: number }): DOMOffset {
   const range = document.createRange()
-  const offset = Arr.findFirst(Arr.makeBy(node.data.length, Function.identity), (i) => {
-    range.setEnd(node, i + 1)
-    range.setStart(node, i)
-    const rect = singleRect(range, 1)
-    return rect.top != rect.bottom && inRect(coords, rect)
-      ? Option.some(i + (coords.left >= (rect.left + rect.right) / 2 ? 1 : 0))
-      : Option.none()
-  })
+  const offset = Arr.findFirst(
+    Array.from({ length: node.data.length }, (_, i) => i),
+    (i) => {
+      range.setEnd(node, i + 1)
+      range.setStart(node, i)
+      const rect = singleRect(range, 1)
+      return rect.top != rect.bottom && inRect(coords, rect)
+        ? Option.some(i + (coords.left >= (rect.left + rect.right) / 2 ? 1 : 0))
+        : Option.none()
+    }
+  )
   range.detach()
   return { node, offset: Option.getOrElse(offset, () => 0) }
 }

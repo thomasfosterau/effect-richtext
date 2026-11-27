@@ -126,18 +126,17 @@ function flatten<Sc extends AnySchema>(
   let pos = 0
   let tag: Record<string, number> = noTag
 
-  for (let i = 0; i < children.length; i++) {
-    const child = children[i]
+  children.forEach((child) => {
     if (Predicate.isString(child)) {
       let at = 0,
         out = ""
-      for (const m of child.matchAll(/<(\w+)>/g)) {
+      Array.from(child.matchAll(/<(\w+)>/g)).forEach((m) => {
         out += child.slice(at, m.index)
         pos += m.index - at
         at = m.index + m[0].length
         if (tag === noTag) tag = Object.create(null)
         tag[m[1]] = pos
-      }
+      })
       out += child.slice(at)
       pos += child.length - at
       if (out) result.push(f(schema.textUnsafe(out)))
@@ -145,26 +144,26 @@ function flatten<Sc extends AnySchema>(
       const childTag = child.tag ?? noTag
       if (childTag !== noTag) {
         if (tag === noTag) tag = Object.create(null)
-        for (const id in childTag) tag[id] = childTag[id] + pos
+        Rec.toEntries(childTag).forEach(([id, at]) => (tag[id] = at + pos))
       }
-      for (let j = 0; j < child.flat.length; j++) {
-        const node = f(child.flat[j])
+      child.flat.forEach((flat) => {
+        const node = f(flat)
         pos += node.nodeSize
         result.push(node)
-      }
+      })
     } else {
       // SAFETY: the builders that can be passed uncalled are leaf builders, which `isFlat` caught.
       const node0 = child as Node<Sc>
       const childTag = tagsOf(node0)
       if (childTag !== noTag) {
         if (tag === noTag) tag = Object.create(null)
-        for (const id in childTag) tag[id] = childTag[id] + (node0.isText ? 0 : 1) + pos
+        Rec.toEntries(childTag).forEach(([id, at]) => (tag[id] = at + (node0.isText ? 0 : 1) + pos))
       }
       const node = f(node0)
       pos += node.nodeSize
       result.push(node)
     }
-  }
+  })
   return { nodes: result, tag }
 }
 

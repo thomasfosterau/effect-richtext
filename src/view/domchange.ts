@@ -49,7 +49,7 @@ function parseBetween(view: AnyView, from_: number, to_: number, addedNodes: Rea
   // the deleted content with a random BR node
   if (browser.chrome && view.input.lastKeyCode === 8) {
     // Scan back over empty nodes; stop at the first one with content.
-    const stop = Arr.makeBy(toOffset - fromOffset, (k) => toOffset - k).find((off) => {
+    const stop = Array.from({ length: toOffset - fromOffset }, (_, k) => toOffset - k).find((off) => {
       const desc = parent.childNodes[off - 1].pmViewDesc
       return !desc || desc.size
     })

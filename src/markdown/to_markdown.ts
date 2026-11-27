@@ -475,10 +475,12 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
       // Try to reorder 'mixable' marks, such as em and strong, which
       // in Markdown may be opened and closed in different order, so
       // that order of the marks for the token matches the order in
-      // active.
+      // active. This reorders `marks` while scanning it, so it stays a plain loop.
+      // oxlint-disable-next-line effect/imperative-loops
       outer: for (let i = 0; i < len; i++) {
         const mark = marks[i]
         if (!this.getMark(mark.type.name).mixable) break
+        // oxlint-disable-next-line effect/imperative-loops
         for (let j = 0; j < active.length; j++) {
           const other = active[j]
           if (!this.getMark(other.type.name).mixable) break
@@ -502,8 +504,9 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
       }
 
       // Find the prefix of the mark set that didn't change
-      let keep = 0
-      while (keep < Math.min(active.length, len) && marks[keep].eq(active[keep])) ++keep
+      const shared = Math.min(active.length, len)
+      const changed = marks.slice(0, shared).findIndex((mark, k) => !mark.eq(active[k]))
+      const keep = changed < 0 ? shared : changed
 
       let leading = trailing
       trailing = ""
@@ -545,7 +548,10 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
 
       // Close the marks that need to be closed
       if (node || index == parent.childCount) {
-        for (const mark of active.splice(keep).reverse()) this.text(this.markString(mark, false, parent, index), false)
+        active
+          .splice(keep)
+          .reverse()
+          .forEach((mark) => this.text(this.markString(mark, false, parent, index), false))
       }
 
       // Output any previously expelled trailing whitespace outside the marks
@@ -553,12 +559,11 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
 
       // Open the marks that need to be opened
       if (node) {
-        while (active.length < len) {
-          const add = marks[active.length]
+        marks.slice(active.length, len).forEach((add) => {
           active.push(add)
           this.text(this.markString(add, true, parent, index), false)
           this.atBlockStart = false
-        }
+        })
 
         // Render the node. Special case code marks, since their content
         // may not be escaped.
@@ -658,13 +663,11 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
 
   /** @internal */
   isMarkAhead(parent: Node<Sc, any>, index: number, marks: ReadonlyArray<Mark<Sc, any>>): boolean {
-    for (; ; index++) {
-      if (index >= parent.childCount) return false
-      const next = parent.childUnsafe(index)
-      if (next.type.name != this.options.hardBreakNodeName) {
-        return next.marks.length >= marks.length && Mark.sameSet(next.marks.slice(0, marks.length), marks)
-      }
-      index++
+    if (index >= parent.childCount) return false
+    const next = parent.childUnsafe(index)
+    if (next.type.name != this.options.hardBreakNodeName) {
+      return next.marks.length >= marks.length && Mark.sameSet(next.marks.slice(0, marks.length), marks)
     }
+    return this.isMarkAhead(parent, index + 2, marks)
   }
 }
