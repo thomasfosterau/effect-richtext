@@ -51,8 +51,7 @@ describe("EditorView", () => {
   it("can update with a state using a different schema", () => {
     const testSchema = DocSchema.makeUnsafe({ nodes: schema.spec.nodes })
     const view = tempEditor({ doc: doc(p(strong("foo"))) })
-    // SAFETY: `testSchema` has a `doc` node type.
-    view.updateState(EditorState.createUnsafe({ doc: (testSchema.nodes as any).doc.createAndFillOrNull() }))
+    view.updateState(EditorState.createUnsafe({ doc: testSchema.nodes.doc.createAndFillOrNull() ?? undefined }))
     ist(!view.dom.querySelector("strong"))
   })
 

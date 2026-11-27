@@ -497,6 +497,7 @@ export class ContentMatch {
     const i = this.wrapCache.findIndex((entry, k) => k % 2 === 0 && entry === target)
     if (i >= 0) {
       // SAFETY: the cache alternates targets and their wrappings.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       return this.wrapCache[i + 1] as ReadonlyArray<NodeType> | null
     }
     const computed = this.computeWrapping(target)

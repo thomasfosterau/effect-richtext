@@ -33,6 +33,7 @@ const keyDown = (view: EditorView<any, any, any>, key: string, keyCode: number) 
 }
 
 // SAFETY: `listeners` is the view's private list of update listeners.
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion
 const listenerCount = (view: EditorView<any, any, any>): number => (view as any).listeners.length
 
 describe("EditorView.subscribe", () => {

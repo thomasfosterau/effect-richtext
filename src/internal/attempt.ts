@@ -17,6 +17,7 @@ export const attempt = <A, E extends W, W = E>(f: () => A, isExpected: (u: unkno
     Result.match(Result.try(f), {
       onSuccess: Effect.succeed,
       // SAFETY: `f` throws only the `E` subset of `W` (see above).
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       onFailure: (e) => (isExpected(e) ? Effect.fail(e as E) : Effect.die(e))
     })
   )

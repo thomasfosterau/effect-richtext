@@ -543,6 +543,7 @@ export class DecorationSet implements DecorationSource {
     })
 
     // SAFETY: with `childIndex` 0 no child took spans, so `decorations` holds no nulls.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const moved = moveSpans(childIndex ? withoutNulls(decorations) : (decorations as Array<Decoration>), -offset)
     const cur = new FragmentCursor(doc.content)
     const local = moved.filter((deco) => deco.type.valid(doc, deco, cur))
@@ -727,11 +728,13 @@ export class DecorationGroup implements DecorationSource {
 // A decoration set's `children` holds `[from, to, set]` triples.
 function posAt(children: ReadonlyArray<number | DecorationSet>, i: number): number {
   // SAFETY: `i` is the first or second index of a triple, which holds a position.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   return children[i] as number
 }
 
 function setAt(children: ReadonlyArray<number | DecorationSet>, i: number): DecorationSet {
   // SAFETY: `i` is the third index of a triple, which holds a child set.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   return children[i] as DecorationSet
 }
 
@@ -830,6 +833,7 @@ function mapChildren(
     )
     const built = buildTree(decorations, node, 0, options)
     // SAFETY: `newLocal` is only sorted (into a new array) from here on.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     newLocal = built.local as Array<Decoration>
     // Drop the touched children, then merge in the rebuilt ones by position.
     const kept = Arr.chunksOf(children, 3).filter((triple) => posAt(triple, 1) >= 0)
@@ -920,6 +924,7 @@ function buildTree(
     }
   })
   // SAFETY: without `hasNulls` no child took spans, so `spans` holds no nulls.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   const sorted = Arr.sort(moveSpans(hasNulls ? withoutNulls(spans) : (spans as Array<Decoration>), -offset), byPos)
   const cur = sorted.length ? new FragmentCursor(node.content) : undefined
   const locals = sorted.filter((deco) => {
@@ -943,6 +948,7 @@ const byPos: Order.Order<Decoration> = (a, b) =>
 // no partially overlapping spans are found (the common case).
 function removeOverlap(spans: ReadonlyArray<Decoration>): Array<Decoration> {
   // SAFETY: copy-on-write: replaced by a `slice()` before it is mutated.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   let working: Array<Decoration> = spans as Array<Decoration>
   // Plain loops: splitting a span inserts into the array being scanned.
   // oxlint-disable-next-line effect/imperative-loops
@@ -991,6 +997,7 @@ export function viewDecorations(view: EditorView<any, any, any>): DecorationSour
   const found: Array<DecorationSource> = []
   view.someProp("decorations", (f) => {
     // SAFETY: decoration props only read the state, so its requirement and error types don't matter.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const result = f(view.state as EditorState<any>)
     if (result && result != empty) found.push(result)
   })

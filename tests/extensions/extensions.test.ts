@@ -153,8 +153,10 @@ describe("Editor", () => {
     )
     ist(nodes.heading("x").attrs.level, 1)
     // SAFETY: deliberately ill-typed, to check the runtime errors.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     ist.throws(() => (nodes.doc as any)("text"), "Invalid content")
     // SAFETY: deliberately ill-typed, to check the runtime errors.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     ist.throws(() => (marks.link as any)(), "No value supplied")
   })
 
@@ -163,8 +165,8 @@ describe("Editor", () => {
       const ext = defineBasicExtension()
       const fromHTML = yield* createEditor(ext, { doc: "<h2>Hi</h2><p>there</p>" })
       ist(fromHTML.state.doc.toString(), `doc(heading("Hi"), paragraph("there"))`)
-      // SAFETY: the first child is a heading.
-      ist((fromHTML.state.doc.childUnsafe(0).attrs as any).level, 2)
+      const attrs = fromHTML.state.doc.childUnsafe(0).attrs
+      ist("level" in attrs && attrs.level, 2)
       const fromJSON = yield* createEditor(ext, { doc: fromHTML.getDocJSON() })
       assert.deepStrictEqual(fromJSON.getDocJSON(), fromHTML.getDocJSON())
       const fromNode = yield* createEditor(ext, {
@@ -189,8 +191,8 @@ describe("Editor", () => {
       ist(editor.state.doc.toString(), `doc(paragraph(strong("hello"), "!"))`)
       ist(yield* editor.commands.setBlockType("heading", { level: 3 }))
       ist(editor.state.doc.toString(), `doc(heading(strong("hello"), "!"))`)
-      // SAFETY: the first child is a heading.
-      ist((editor.state.doc.childUnsafe(0).attrs as any).level, 3)
+      const attrs = editor.state.doc.childUnsafe(0).attrs
+      ist("level" in attrs && attrs.level, 3)
       ist(yield* editor.commands.wrapIn("blockquote"))
       ist(editor.state.doc.toString(), `doc(blockquote(heading(strong("hello"), "!")))`)
       ist(yield* editor.commands.lift())
@@ -201,8 +203,10 @@ describe("Editor", () => {
       ist(editor.state.selection.to, editor.state.doc.content.size)
       // Commands referring to types the schema lacks don't apply.
       // SAFETY: deliberately ill-typed, to check the runtime fallback.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       ist(!(yield* editor.commands.toggleMark("underline" as never)))
       // SAFETY: deliberately ill-typed, to check the runtime fallback.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       ist(!(yield* editor.commands.setBlockType("table" as never)))
     })
   )

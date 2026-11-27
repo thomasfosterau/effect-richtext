@@ -59,6 +59,7 @@ const runWith = <E, R>(
         Effect.sync(() => {
           current = current.applyUnsafe(tr)
         }),
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       view as any
     )
     return { handled, state: current }
@@ -182,6 +183,7 @@ describe("commands with a view", () => {
     apply(
       doc(p("hi"), p("<a>there")),
       // SAFETY: deliberately a view without `endOfTextblock`, to check the fallback.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       (state, dispatch) => joinBackward(state, dispatch, {} as any),
       doc(p("hithere"))
     ))

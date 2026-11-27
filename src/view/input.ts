@@ -32,6 +32,7 @@ const editHandlers: Handlers = {}
 // The handler for events of type `type`.
 const handlerFor = (map: Handlers, type: string) =>
   // SAFETY: each handler is stored under its event's type, so it receives that type's events.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   (map as Partial<Readonly<Record<string, (view: AnyView, event: Event) => void>>>)[type]
 const isPassiveEvent = (event: string): boolean => event === "touchstart" || event === "touchmove"
 
@@ -402,14 +403,20 @@ handlers.mousedown = (view, event) => {
   }
 }
 
+// Checked by shape, since events from another window's realm fail `instanceof`.
+const isMouseEvent = (event: Event): event is MouseEvent => "clientX" in event && "button" in event
+
 // A pointer interaction in progress: listens for mouse moves and the
 // release on the view's root until done.
 abstract class MouseDown {
   mightDrag: { node: Node<any, any>; pos: number; addAttr: boolean; setUneditable: boolean } | null = null
-  // SAFETY: these listen for `mouseup` and `mousemove`, which are mouse events.
-  private readonly onUp = (event: Event) => this.up(event as MouseEvent)
-  // SAFETY: as above.
-  private readonly onMove = (event: Event) => this.move(event as MouseEvent)
+  // These listen for `mouseup` and `mousemove`, which are mouse events.
+  private readonly onUp = (event: Event) => {
+    if (isMouseEvent(event)) this.up(event)
+  }
+  private readonly onMove = (event: Event) => {
+    if (isMouseEvent(event)) this.move(event)
+  }
 
   constructor(readonly view: AnyView) {
     view.root.addEventListener("mouseup", this.onUp)

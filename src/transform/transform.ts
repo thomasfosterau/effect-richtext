@@ -131,6 +131,7 @@ export class Transform<Sc extends AnySchema = AnySchema> {
    */
   step(step: Step<Sc>): Effect.Effect<this, StepError> {
     // SAFETY: `stepUnsafe` throws only step errors.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return attempt(() => this.stepUnsafe(step), isTransformOrModelError as (u: unknown) => u is StepError)
   }
 
@@ -194,6 +195,7 @@ export class Transform<Sc extends AnySchema = AnySchema> {
         return this
       },
       // SAFETY: callers name the errors `f` throws as `E`.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       isTransformOrModelError as (u: unknown) => u is E
     )
   }

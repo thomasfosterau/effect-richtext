@@ -46,7 +46,10 @@ import {
   type DOMNode,
   type DOMSelection,
   type DOMSelectionRange,
-  isElt
+  isDocument,
+  isElt,
+  isShadowRoot,
+  selectionOf
 } from "./dom.ts"
 import { readDOMChange } from "./domchange.ts"
 import {
@@ -567,8 +570,7 @@ export interface ClipboardSerialization<Sc extends AnySchema = AnySchema> {
  * @since 0.1.0
  * @category symbols
  */
-// SAFETY: `Symbol.for` is typed `symbol`; its registered key makes this one unique.
-export const EditorViewTypeId: unique symbol = Symbol.for("effect-richtext/view/EditorView") as never
+export const EditorViewTypeId: unique symbol = Symbol.for("effect-richtext/view/EditorView")
 
 /**
  * @since 0.1.0
@@ -727,6 +729,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     context?: Context.Context<any>
   ): EditorView<any, any, any> {
     // SAFETY: without a context the props' handlers require nothing, which the overloads ensure.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return new EditorView<any, any, any>(place, props, context ?? (Context.empty() as Context.Context<any>))
   }
 
@@ -1002,6 +1005,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     const read = (props: EditorProps<Sc, R, E>) => {
       const prop = props && props[propName]
       // SAFETY: without `f`, the second overload returns the prop itself.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       return prop != null && (f ? f(prop) : (prop as Result))
     }
     let value = read(this._props)
@@ -1050,7 +1054,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
       return false
     }
     // SAFETY: a view runs only handlers from its own props and plugins, which require at most `R`.
-    const exit = this.runEffect(result as Effect.Effect<boolean, unknown, R>)
+    const exit = this.runEffect(result)
     if (exit === undefined) return true
     return Exit.isSuccess(exit) ? exit.value : false
   }
@@ -1134,8 +1138,7 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
           const doc = search.ownerDocument
           Object.getPrototypeOf(search).getSelection = () => (doc ? doc.getSelection() : null)
         }
-        // SAFETY: node type 9 is a document, and a fragment with a `host` is a shadow root.
-        return (this._root = search as Document | ShadowRoot)
+        if (isDocument(search) || isShadowRoot(search)) return (this._root = search)
       }
     }
     return cached || document
@@ -1387,8 +1390,8 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
 
   /** @internal */
   domSelection(): DOMSelection | null {
-    // SAFETY: `root` gives a shadow root `getSelection` when it lacks one.
-    return (this.root as Document).getSelection()
+    // `root` gives a shadow root `getSelection` when it lacks one.
+    return selectionOf(this.root)
   }
 }
 
@@ -1400,7 +1403,8 @@ function computeDocDeco(view: EditorView<any, any, any>) {
   view.someProp("attributes", (prop) => {
     // SAFETY: attribute props only read the state, so its requirement and error types don't matter.
     const value: { readonly [name: string]: string } | null | undefined = Predicate.isFunction(prop)
-      ? prop(view.state as EditorState<any>)
+      ? // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+        prop(view.state as EditorState<any>)
       : prop
     if (value) {
       Rec.keys(value).forEach((attr) => {
@@ -1436,6 +1440,7 @@ function updateCursorWrapper(view: EditorView<any, any, any>) {
 
 function getEditable(view: EditorView<any, any, any>) {
   // SAFETY: `editable` props only read the state, so its requirement and error types don't matter.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   return !view.someProp("editable", (value) => !value(view.state as EditorState<any>))
 }
 
@@ -1483,6 +1488,7 @@ function copyProps<T extends object>(from: Partial<T>, into: Types.Mutable<Parti
 
 function withState<P extends { readonly state: unknown }>(props: P, state: P["state"]): Types.Mutable<P> {
   // SAFETY: filled with every property of `props` before it is returned.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   const copy = {} as Types.Mutable<P>
   copyProps(props, copy)
   copy.state = state

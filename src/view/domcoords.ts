@@ -10,6 +10,7 @@ import * as Predicate from "effect/Predicate"
 import type { EditorState } from "../State.ts"
 import * as browser from "./browser.ts"
 import { ancestors, caretFromPoint, type DOMNode, isElt, isText, nodeSize, parentNode, textRange } from "./dom.ts"
+import { ViewError } from "./errors.ts"
 import type { EditorView } from "./view.ts"
 
 type AnyView = EditorView<any, any, any>
@@ -140,11 +141,10 @@ export function storeScrollPos(view: AnyView): ScrollPos {
 }
 
 function scrollStack(dom: DOMNode): Array<{ dom: HTMLElement; top: number; left: number }> {
-  return (dom == dom.ownerDocument ? [dom] : ancestors(dom)).map((cur) => {
-    // SAFETY: the editor's ancestors are elements up to the document, whose `scrollTop` and `scrollLeft` read as 0 when unset.
-    const elt = cur as HTMLElement
-    return { dom: elt, top: elt.scrollTop, left: elt.scrollLeft }
-  })
+  // Only elements scroll; the document and shadow roots have no scroll offsets of their own.
+  return (dom == dom.ownerDocument ? [] : ancestors(dom))
+    .filter(isElt)
+    .map((elt) => ({ dom: elt, top: elt.scrollTop, left: elt.scrollLeft }))
 }
 
 // Reset the scroll position of the editor's parent nodes to that what
@@ -512,8 +512,9 @@ export function coordsAtPos(view: AnyView, pos: number, side: number): Rect {
       const after = node.childNodes[offset]
       if (isElt(after)) return flattenH(after.getBoundingClientRect(), true)
     }
-    // SAFETY: outside a text node, `domFromPos` returns a position in an element.
-    return flattenH((node as HTMLElement).getBoundingClientRect(), side >= 0)
+    // Outside a text node, `domFromPos` returns a position in an element.
+    if (!isElt(node)) throw new ViewError({ message: "Expected an element at position " + pos })
+    return flattenH(node.getBoundingClientRect(), side >= 0)
   }
 
   // Inline, not in text node (this is not Bidi-safe)
@@ -540,8 +541,9 @@ export function coordsAtPos(view: AnyView, pos: number, side: number): Rect {
     if (target) return flattenV(singleRect(target, -1), true)
   }
   // All else failed, just try to get a rectangle for the target node
-  // SAFETY: text nodes were handled above, so `node` is an element.
-  return flattenV(singleRect(node as HTMLElement, -side), side >= 0)
+  // Text nodes were handled above, so `node` is an element.
+  if (!isElt(node)) throw new ViewError({ message: "Expected an element at position " + pos })
+  return flattenV(singleRect(node, -side), side >= 0)
 }
 
 function skipIgnoredForCoords(node: ChildNode | null): ChildNode | null {

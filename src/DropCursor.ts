@@ -80,11 +80,15 @@ interface Rect {
 
 // Whether the node at the drop position opts out of the cursor through its
 // spec's `disableDropCursor`.
+// Checked by shape, since events from another window's realm fail `instanceof`.
+const isDragEvent = (event: Event): event is DragEvent => "dataTransfer" in event
+
 const isDisabledAt = (view: EditorView<any, any, any>, pos: PosAtCoords, event: DragEvent): boolean => {
   const node = pos.inside >= 0 ? view.state.doc.nodeAtOrNull(pos.inside) : null
   const disable = node?.type.spec.disableDropCursor
   if (!Predicate.isFunction(disable)) return Boolean(disable)
   // SAFETY: node specs declare `disableDropCursor` as a `DisableDropCursor`.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   return (disable as Extract<DisableDropCursor, Function>)(view, pos, event)
 }
 
@@ -106,9 +110,9 @@ class DropCursorView implements PluginView {
     this.class = Option.fromNullishOr(options.class)
 
     this.handlers = events.map((name) => {
+      // Each of `events` dispatches a `DragEvent`.
       const handler = (e: Event) => {
-        // SAFETY: each of `events` dispatches a `DragEvent`.
-        this[name](e as DragEvent)
+        if (isDragEvent(e)) this[name](e)
       }
       editorView.dom.addEventListener(name, handler)
       return { name, handler }

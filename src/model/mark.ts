@@ -130,6 +130,7 @@ export class Mark<Sc extends AnySchema = AnySchema, out M extends MarkNames<Sc> 
   static setFrom<Mk extends Mark<any, any>>(marks?: Mk | ReadonlyArray<Mk> | null): ReadonlyArray<Mk> {
     if (!marks || (Array.isArray(marks) && Arr.isReadonlyArrayEmpty(marks))) {
       // SAFETY: the empty set holds no mark of any other type.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       return Mark.none as ReadonlyArray<Mk>
     }
     if (marks instanceof Mark) return [marks]

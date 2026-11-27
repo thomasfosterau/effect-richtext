@@ -17,22 +17,22 @@ import {
   type MarkNames,
   type Node,
   type NodeNames,
-  type TagParseRule,
-  type TextNode
+  type TagParseRule
 } from "../Model.ts"
 import { TextSelection } from "../State.ts"
 import * as browser from "./browser.ts"
 import type { Decoration, DecorationSource, NodeType, WidgetType } from "./decoration.ts"
-import { domIndex, type DOMNode, isElt, isEquivalentPosition } from "./dom.ts"
+import { domIndex, type DOMNode, isElt, isEquivalentPosition, selectionOf } from "./dom.ts"
 import { ViewError } from "./errors.ts"
 import type { EditorView } from "./view.ts"
 
 type AnyView = EditorView<any, any, any>
 
-// SAFETY: only called on text nodes.
-const textOf = (node: Node<any, any>): string => (node as TextNode<any>).text
+// Only called on text nodes.
+const textOf = (node: Node<any, any>): string => (node.isTextNode() ? node.text : "")
 
 // SAFETY: only called on widget decorations, whose type is a `WidgetType`.
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion
 const widgetType = (widget: Decoration): WidgetType => widget.type as WidgetType
 
 /**
@@ -621,8 +621,7 @@ export class ViewDesc {
 
     let anchorDOM = this.domFromPos(anchor, anchor ? -1 : 1)
     let headDOM = head == anchor ? anchorDOM : this.domFromPos(head, head ? -1 : 1)
-    // SAFETY: `EditorView.root` gives a shadow root `getSelection` when it lacks one.
-    const domSel = (view.root as Document).getSelection()
+    const domSel = selectionOf(view.root)
     if (!domSel) return
     const selRange = view.domSelectionRange()
 
@@ -880,6 +879,7 @@ class MarkViewDesc extends ViewDesc {
     const custom = view.nodeViews[mark.type.name]
     let spec: { dom: DOMNode; contentDOM?: HTMLElement | null | undefined } =
       // SAFETY: a node view registered under a mark's name is a mark view constructor.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       custom && (custom as MarkViewConstructor<any, any>)(mark, view, inline)
     if (!spec || !spec.dom) {
       const toDOM = mark.type.spec.toDOM
@@ -887,6 +887,7 @@ class MarkViewDesc extends ViewDesc {
       spec = DOMSerializer.renderSpecUnsafe(document, toDOM(mark, inline), null, mark.attrs)
     }
     // SAFETY: as in ProseMirror, a mark view renders to an element, and `spec` is a `MarkView` or a rendered spec.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return new MarkViewDesc(parent, mark, spec.dom, spec.contentDOM || (spec.dom as HTMLElement), spec as MarkView)
   }
 
@@ -972,6 +973,7 @@ export class NodeViewDesc extends ViewDesc {
     const spec: NodeView<any> | undefined =
       custom &&
       // SAFETY: a node view registered under a node's name is a node view constructor.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       (custom as NodeViewConstructor<any, any>)(
         node,
         view,
@@ -1015,8 +1017,10 @@ export class NodeViewDesc extends ViewDesc {
         node,
         outerDeco,
         innerDeco,
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion
         dom as HTMLElement,
         contentDOM || null,
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion
         nodeDOM as HTMLElement,
         spec,
         view,
@@ -1522,6 +1526,7 @@ function computeOuterDeco(outerDeco: ReadonlyArray<Decoration>, node: Node<any, 
 
   outerDeco.forEach((deco) => {
     // SAFETY: outer decorations are node decorations, whose type is a `NodeType`.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const attrs = (deco.type as NodeType).attrs
     if (!attrs) return
     if (attrs.nodeName) {
@@ -1674,6 +1679,7 @@ class ViewTreeUpdater {
     while (
       keep < maxKeep &&
       // SAFETY: `stack` alternates descs (even indices) and child indices (odd).
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       (keep == depth - 1 ? this.top : (this.stack[(keep + 1) << 1] as ViewDesc)).matchesMark(marks[keep]) &&
       marks[keep].type.spec.spanning !== false
     ) {
@@ -1685,8 +1691,10 @@ class ViewTreeUpdater {
       this.destroyRest()
       this.top.dirty = NOT_DIRTY
       // SAFETY: `stack` holds (desc, index) pairs, pushed desc first.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       this.index = this.stack.pop() as number
       // SAFETY: as above.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       this.top = this.stack.pop() as ViewDesc
       depth--
     }
@@ -1781,6 +1789,7 @@ class ViewTreeUpdater {
     view: AnyView
   ) {
     // SAFETY: callers pass the index of a node desc found by `findNodeMatch`.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const child = this.top.children[index] as NodeViewDesc
     if (child.dirty == NODE_DIRTY && child.dom == child.contentDOM) child.dirty = CONTENT_DIRTY
     if (!child.update(node, outerDeco, innerDeco, view)) return false
@@ -2185,6 +2194,7 @@ function replaceNodes(nodes: ReadonlyArray<ViewDesc>, from: number, to: number, 
     } else {
       if (start < from) {
         // SAFETY: only composition text, inside mark and text descs, is replaced, so only those are cut.
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion
         result.push((child as MarkViewDesc | TextViewDesc).slice(0, from - start, view))
       }
       if (replacement) {
@@ -2193,6 +2203,7 @@ function replaceNodes(nodes: ReadonlyArray<ViewDesc>, from: number, to: number, 
       }
       if (end > to) {
         // SAFETY: as above.
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion
         result.push((child as MarkViewDesc | TextViewDesc).slice(to - start, child.size, view))
       }
     }

@@ -98,6 +98,7 @@ export const tagsOf = (node: Node<any, any>): Tags => tags.get(node) ?? noTag
 const withTag = <A extends Node<any, any>>(node: A, tag: Tags): A & { readonly tag: Tags } => {
   if (tag !== noTag) tags.set(node, tag)
   // SAFETY: every node reads `tag` through the getter defined on `Node.prototype` below.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   return node as A & { readonly tag: Tags }
 }
 
@@ -153,6 +154,7 @@ function flatten<Sc extends AnySchema>(
       })
     } else {
       // SAFETY: the builders that can be passed uncalled are leaf builders, which `isFlat` caught.
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       const node0 = child as Node<Sc>
       const childTag = tagsOf(node0)
       if (childTag !== noTag) {
@@ -172,6 +174,7 @@ function takeAttrs(attrs: Attrs | null, args: Array<unknown>): Attrs | null {
   if (!args.length || (a0 && (Predicate.isString(a0) || a0 instanceof Node || isFlat(a0)))) return attrs
   args.shift()
   // SAFETY: a first argument that isn't a child holds the attributes.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   const given = a0 as Attrs
   if (!attrs) return given
   if (!given) return attrs
@@ -185,6 +188,7 @@ function block<Sc extends AnySchema, N extends NodeNames<Sc>>(
   const result = function (...args: Array<any>) {
     const myAttrs = takeAttrs(attrs, args)
     // SAFETY: `takeAttrs` removed the attributes, leaving the children.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const { nodes, tag } = flatten(type.schema, args as Array<ChildSpec<Sc>>, (n) => n)
     return withTag(type.createUnsafe(myAttrs, nodes), tag)
   }
@@ -201,6 +205,7 @@ function mark<Sc extends AnySchema>(type: MarkType<Sc>, attrs: Attrs | null): Ma
   return function (...args: Array<any>) {
     const m = type.createUnsafe(takeAttrs(attrs, args) ?? undefined)
     // SAFETY: `takeAttrs` removed the attributes, leaving the children.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const { nodes, tag } = flatten(type.schema, args as Array<ChildSpec<Sc>>, (n) => {
       const newMarks = m.addToSet(n.marks)
       return newMarks.length > n.marks.length ? n.mark(newMarks) : n
@@ -270,6 +275,7 @@ export function builders<Sc extends AnySchema, const Extra extends Record<string
     })
   }
   // SAFETY: holds `schema`, a builder for each node and mark type, and one for each of `names`.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   return result as Builders<Sc, Extra>
 }
 

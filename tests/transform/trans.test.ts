@@ -806,12 +806,11 @@ describe("Transform", () => {
         body: { content: Content.parse("block+") }
       }
     })
-    // SAFETY: the tests call each builder as the node or mark builder it is.
     const hb = builders(hbSchema, {
       p: { nodeType: "paragraph" },
       b: { nodeType: "body" },
       h: { nodeType: "heading", level: 1 }
-    }) as any
+    })
 
     it("can unwrap a paragraph when replacing into a strict schema", () => {
       const tr = new Transform(hb.doc(hb.h("Head"), hb.b(hb.p("Content"))))

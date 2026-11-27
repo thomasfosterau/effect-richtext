@@ -113,6 +113,7 @@ export class DOMObserver {
         const event: Event & { readonly prevValue?: string } = e
         if (!e.target || !isDOMNode(e.target)) return
         // SAFETY: the observer reads only `type`, `target` and `oldValue` from a queued record.
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion
         this.queue.push({
           target: e.target,
           type: "characterData",
@@ -408,17 +409,19 @@ function rangeToSelectionRange(view: AnyView, range: StaticRange) {
 }
 
 interface SafariSelection {
-  readonly getComposedRanges?: (...roots: ReadonlyArray<Document | ShadowRoot>) => ReadonlyArray<StaticRange>
+  readonly getComposedRanges: (...roots: ReadonlyArray<Document | ShadowRoot>) => ReadonlyArray<StaticRange>
 }
+
+const hasComposedRanges = (selection: DOMSelection): selection is DOMSelection & SafariSelection =>
+  "getComposedRanges" in selection
 
 // Used to work around a Safari Selection/shadow DOM bug
 // Based on https://github.com/codemirror/dev/issues/414 fix
 /** @internal */
 export function safariShadowSelectionRange(view: AnyView, selection: DOMSelection): DOMSelectionRange | null {
-  // SAFETY: Safari's version takes the shadow roots as arguments.
-  const composed = selection as SafariSelection
-  if (composed.getComposedRanges) {
-    const range = composed.getComposedRanges(view.root)[0]
+  // Safari's version takes the shadow roots as arguments.
+  if (hasComposedRanges(selection)) {
+    const range = selection.getComposedRanges(view.root)[0]
     if (range) return rangeToSelectionRange(view, range)
   }
 
