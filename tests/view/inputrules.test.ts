@@ -49,11 +49,11 @@ class Boom extends Schema.TaggedError<Boom, { readonly brand: unique symbol }>()
 // Simulate typing: run the `handleTextInput` handlers like the view does
 // for each typed character, inserting the text when none handles it.
 function type(view: EditorView<any, any, any>, text: string) {
-  for (const ch of text) {
+  Array.from(text).forEach((ch) => {
     const { from, to } = view.state.selection
     const deflt = () => view.state.tr.insertTextUnsafe(ch, from, to)
     if (!view.someHandler("handleTextInput", (f) => f(view, from, to, ch, deflt))) view.dispatchUnsafe(deflt())
-  }
+  })
 }
 
 const nodes = schema.nodes

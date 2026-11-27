@@ -189,9 +189,9 @@ describe("commands with a view", () => {
 
 describe("base keymaps", () => {
   it("binds the standard keys", () => {
-    for (const key of ["Enter", "Mod-Enter", "Backspace", "Mod-Backspace", "Shift-Backspace", "Delete", "Mod-Delete"]) {
+    ;["Enter", "Mod-Enter", "Backspace", "Mod-Backspace", "Shift-Backspace", "Delete", "Mod-Delete"].forEach((key) =>
       ist(Predicate.isFunction(pcBaseKeymap[key]))
-    }
+    )
     ist(macBaseKeymap["Ctrl-h"], pcBaseKeymap["Backspace"])
     ist(macBaseKeymap["Mod-a"], pcBaseKeymap["Mod-a"])
     ist(baseKeymap === pcBaseKeymap || baseKeymap === macBaseKeymap)
