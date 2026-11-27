@@ -575,12 +575,15 @@ export class EditorView {
     const apply = (p: NonNullable<EditorProps[PropName]>): Result => (f ? f(p) : (p as Result))
     if (prop != null && (value = apply(prop))) return value
     const direct = this._props.plugins || []
+    // Prop lookups run many times per keystroke, so these stay plain loops.
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0; i < direct.length; i++) {
       const pluginProp = direct[i].props[propName]
       if (pluginProp != null && (value = apply(pluginProp))) return value
     }
     const plugins = this.state.plugins
     if (plugins) {
+      // oxlint-disable-next-line effect/imperative-loops
       for (let i = 0; i < plugins.length; i++) {
         const pluginProp = plugins[i].props[propName]
         if (pluginProp != null && (value = apply(pluginProp))) return value
@@ -739,6 +742,7 @@ export class EditorView {
 
 // Copies every enumerable property of `from`, inherited ones included, as ProseMirror does.
 function copyProps<T extends object>(from: T, into: Partial<T> = {}): T {
+  // oxlint-disable-next-line effect/imperative-loops
   for (const name in from) into[name] = from[name]
   // SAFETY: `into` now holds every property of `from`.
   return into as T

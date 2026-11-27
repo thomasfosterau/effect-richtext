@@ -8,6 +8,7 @@
  * @since 0.1.0
  */
 import * as Predicate from "effect/Predicate"
+import * as Rec from "effect/Record"
 import * as C from "../Commands.ts"
 import type * as S from "../State.ts"
 import { CORE, wrap } from "./internal/core.ts"
@@ -296,14 +297,13 @@ export function autoJoin(
  */
 export function chainCommands(...commands: ReadonlyArray<Command>): Command {
   return function (state, dispatch, view) {
-    for (let i = 0; i < commands.length; i++) if (commands[i](state, dispatch, view)) return true
-    return false
+    return commands.some((command) => command(state, dispatch, view))
   }
 }
 
 const fromCoreKeymap = (map: { readonly [key: string]: S.Command }): { [key: string]: Command } => {
   const result: { [key: string]: Command } = {}
-  for (const key in map) result[key] = fromCoreCommand(map[key])
+  Rec.toEntries(map).forEach(([key, command]) => (result[key] = fromCoreCommand(command)))
   return result
 }
 

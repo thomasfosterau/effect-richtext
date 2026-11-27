@@ -15,6 +15,7 @@
  */
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
+import * as Rec from "effect/Record"
 import * as M from "../Model.ts"
 import {
   adopt,
@@ -969,7 +970,7 @@ export class ContentMatch {
   /** @internal */
   static parse(string: string, nodeTypes: { readonly [name: string]: NodeType }): ContentMatch {
     const types: Record<string, M.NodeType> = {}
-    for (const name in nodeTypes) types[name] = nodeTypes[name][CORE]
+    Rec.toEntries(nodeTypes).forEach(([name, type]) => (types[name] = type[CORE]))
     return wrap(guard(() => M.ContentMatch.compile(string, types, "")))
   }
 
@@ -1497,6 +1498,7 @@ export class Schema<Nodes extends string = any, Marks extends string = any> {
   /** Construct a schema from a schema specification. */
   constructor(spec: SchemaSpec<Nodes, Marks>) {
     const instanceSpec: any = {}
+    // oxlint-disable-next-line effect/imperative-loops
     for (const prop in spec) {
       // SAFETY: `prop` is one of `spec`'s own or inherited keys; ProseMirror copies them all.
       instanceSpec[prop] = (spec as any)[prop]
@@ -1569,9 +1571,9 @@ export class Schema<Nodes extends string = any, Marks extends string = any> {
 
 function initSchema(schema: Schema, core: M.DocSchema, spec: any) {
   const nodes: Record<string, NodeType> = Object.create(null)
-  for (const name in core.nodes) nodes[name] = wrap(core.nodes[name])
+  Rec.toEntries<string, M.NodeType>(core.nodes).forEach(([name, type]) => (nodes[name] = wrap(type)))
   const marks: Record<string, MarkType> = Object.create(null)
-  for (const name in core.marks) marks[name] = wrap(core.marks[name])
+  Rec.toEntries<string, M.MarkType>(core.marks).forEach(([name, type]) => (marks[name] = wrap(type)))
   schema.spec = spec
   schema.nodes = nodes
   schema.marks = marks
@@ -1586,8 +1588,8 @@ registerWrapper(M.DocSchema, (core: M.DocSchema) => {
   const schema = adopt(Schema.prototype, core)
   const nodes: Record<string, NodeSpec> = {},
     marks: Record<string, MarkSpec> = {}
-  for (const name in core.spec.nodes) nodes[name] = originalSpec(core.spec.nodes[name])
-  for (const name in core.spec.marks) marks[name] = originalSpec(core.spec.marks[name])
+  Rec.toEntries(core.spec.nodes).forEach(([name, spec]) => (nodes[name] = originalSpec(spec)))
+  Rec.toEntries(core.spec.marks ?? {}).forEach(([name, spec]) => (marks[name] = originalSpec(spec)))
   initSchema(schema, core, {
     ...core.spec,
     nodes: OrderedMap.from(nodes),
@@ -1749,11 +1751,14 @@ export class DOMSerializer {
     // SAFETY: as in ProseMirror, missing mark serializers are skipped where `marks` is read.
     this.marks = marks as DOMSerializer["marks"]
     const coreNodes: Record<string, M.NodeSerializer> = {}
+    // ProseMirror's for-in copies inherited properties too, so this keeps it.
+    // oxlint-disable-next-line effect/imperative-loops
     for (const name in nodes) {
       const f = nodes[name]
       if (f) coreNodes[name] = (node) => f(wrap(node))
     }
     const coreMarks: Record<string, M.MarkSerializer | null | undefined> = {}
+    // oxlint-disable-next-line effect/imperative-loops
     for (const name in marks) {
       const f = marks[name]
       coreMarks[name] = f ? (mark, inline) => f(wrap(mark), inline) : f
@@ -1820,22 +1825,21 @@ export class DOMSerializer {
 
 function gatherToDOM(obj: { readonly [node: string]: NodeType | MarkType }) {
   const result: { [node: string]: any } = {}
-  for (const name in obj) {
-    const toDOM = obj[name].spec.toDOM
+  Rec.toEntries(obj).forEach(([name, type]) => {
+    const toDOM = type.spec.toDOM
     if (toDOM) result[name] = toDOM
-  }
+  })
   return result
 }
 
 registerWrapper(M.DOMSerializer, (core: M.DOMSerializer) => {
   const serializer = adopt(DOMSerializer.prototype, core)
   const nodes: Record<string, (node: Node) => DOMOutputSpec> = {}
-  for (const name in core.nodes) nodes[name] = (node) => core.nodes[name](node[CORE])
+  Rec.toEntries(core.nodes).forEach(([name, f]) => (nodes[name] = (node) => f(node[CORE])))
   const marks: Record<string, (mark: Mark, inline: boolean) => DOMOutputSpec> = {}
-  for (const name in core.marks) {
-    const f = core.marks[name]
+  Rec.toEntries(core.marks).forEach(([name, f]) => {
     if (f) marks[name] = (mark, inline) => f(mark[CORE], inline)
-  }
+  })
   return Object.assign(serializer, { nodes, marks })
 })
 

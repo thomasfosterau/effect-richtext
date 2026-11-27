@@ -15,6 +15,7 @@
  */
 import * as Effect from "effect/Effect"
 import * as Predicate from "effect/Predicate"
+import * as Rec from "effect/Record"
 import { runSync, unwrap, unwrapArray, wrap, wrapArray } from "./core.ts"
 
 /** A translation cache. @internal */
@@ -70,6 +71,8 @@ export const viewObjectToCore = (view: any): any =>
 
 const translateViews = (views: Record<string, any>, cache: PropsCache | undefined): any => {
   const result: Record<string, any> = {}
+  // ProseMirror's for-in copies inherited properties too, so this keeps it.
+  // oxlint-disable-next-line effect/imperative-loops
   for (const name in views) {
     const ctor = views[name]
     result[name] =
@@ -95,6 +98,8 @@ export const propsToCore = (
   cache?: PropsCache,
   target: Record<string, any> = {}
 ): any => {
+  // ProseMirror's for-in copies inherited properties too, so this keeps it.
+  // oxlint-disable-next-line effect/imperative-loops
   for (const name in props) {
     const value = props[name]
     if (name === "handleDOMEvents" && value) {
@@ -130,13 +135,12 @@ export const propsToCore = (
 /** Translate core props into ProseMirror-style props. @internal */
 export const propsFromCore = (props: Record<string, any>, self: unknown): any => {
   const target: Record<string, any> = {}
-  for (const name in props) {
-    const value = props[name]
+  Rec.toEntries(props).forEach(([name, value]) => {
     if (name === "handleDOMEvents" && value) target[name] = propsFromCore(value, self)
     else if (name === "nodeViews" || name === "markViews") target[name] = value
     else if (name === "plugins" && Array.isArray(value)) target[name] = wrapArray(value)
     else if (Predicate.isFunction(value)) target[name] = fromCoreFunction(value, self)
     else target[name] = wrap(value)
-  }
+  })
   return target
 }

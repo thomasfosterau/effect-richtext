@@ -22,6 +22,8 @@ export class OrderedMap<T = any> {
 
   /** @internal */
   find(key: string): number {
+    // Steps over the alternating keys and values, so these stay plain loops.
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0; i < this.content.length; i += 2) if (this.content[i] === key) return i
     return -1
   }
@@ -91,6 +93,7 @@ export class OrderedMap<T = any> {
 
   /** Call the given function for each key/value pair in the map, in order. */
   forEach(f: (key: string, value: T) => void): void {
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0; i < this.content.length; i += 2) f(keyAt(this.content, i), this.valueAt(i + 1))
   }
 
@@ -147,6 +150,8 @@ export class OrderedMap<T = any> {
     if (map instanceof OrderedMap) return map
     const content: Array<string | T> = []
     if (map) {
+      // ProseMirror's for-in copies inherited properties too, so this keeps it.
+      // oxlint-disable-next-line effect/imperative-loops
       for (const prop in map) content.push(prop, map[prop])
     }
     return new OrderedMap(content)

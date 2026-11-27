@@ -68,7 +68,10 @@ export const listItem: NodeSpec = {
 
 function add(obj: { [prop: string]: any }, props: { [prop: string]: any }) {
   const copy: { [prop: string]: any } = {}
+  // ProseMirror's for-in copies inherited properties too, so this keeps it.
+  // oxlint-disable-next-line effect/imperative-loops
   for (const prop in obj) copy[prop] = obj[prop]
+  // oxlint-disable-next-line effect/imperative-loops
   for (const prop in props) copy[prop] = props[prop]
   return copy
 }

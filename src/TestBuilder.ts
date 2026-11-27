@@ -128,17 +128,17 @@ function flatten<Sc extends AnySchema>(
 
   children.forEach((child) => {
     if (Predicate.isString(child)) {
-      let at = 0,
-        out = ""
-      Array.from(child.matchAll(/<(\w+)>/g)).forEach((m) => {
-        out += child.slice(at, m.index)
-        pos += m.index - at
-        at = m.index + m[0].length
+      // Splitting on the tags alternates text with tag names.
+      let out = ""
+      child.split(/<(\w+)>/).forEach((part, k) => {
+        if (k % 2 === 0) {
+          out += part
+          return
+        }
         if (tag === noTag) tag = Object.create(null)
-        tag[m[1]] = pos
+        tag[part] = pos + out.length
       })
-      out += child.slice(at)
-      pos += child.length - at
+      pos += out.length
       if (out) result.push(f(schema.textUnsafe(out)))
     } else if (isFlat(child)) {
       const childTag = child.tag ?? noTag
