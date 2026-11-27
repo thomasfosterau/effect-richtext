@@ -83,17 +83,17 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
    */
   nodesBetween(from: number, to: number, f: NodeVisitor<Sc>, nodeStart = 0, parent?: Node<Sc>): void {
     const parentOption: Option.Option<Node<Sc>> = parent ? Option.some(parent) : Option.none()
-    let pos = 0
-    this.content.some((child, i) => {
-      if (pos >= to) return true
-      const end = pos + child.nodeSize
+    // Visits every node of a document walk, so it stays a plain loop.
+    // oxlint-disable-next-line effect/imperative-loops
+    for (let i = 0, pos = 0; pos < to; i++) {
+      const child = this.content[i],
+        end = pos + child.nodeSize
       if (end > from && f(child, nodeStart + pos, parentOption, i) !== false && child.content.size) {
         const start = pos + 1
         child.nodesBetween(Math.max(0, from - start), Math.min(child.content.size, to - start), f, nodeStart + start)
       }
       pos = end
-      return false
-    })
+    }
   }
 
   /**
@@ -265,11 +265,13 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
 
   /** Call `f` for every child node, passing the node, its offset into this parent node, and its index. */
   forEach(f: (node: Node<Sc, N>, offset: number, index: number) => void): void {
-    let p = 0
-    this.content.forEach((child, i) => {
+    // The child iteration every traversal goes through stays a plain loop.
+    // oxlint-disable-next-line effect/imperative-loops
+    for (let i = 0, p = 0; i < this.content.length; i++) {
+      const child = this.content[i]
       f(child, p, i)
       p += child.nodeSize
-    })
+    }
   }
 
   /** Find the first position at which this fragment and another fragment differ, if any. */
@@ -304,15 +306,17 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     if (pos > this.size || pos < 0) {
       throw new PositionError({ message: `Position ${pos} outside of fragment (${this.toString()})` })
     }
-    let curPos = 0
-    const index = this.content.findIndex((cur) => {
-      const end = curPos + cur.nodeSize
-      if (end >= pos) return true
+    // Runs for every level of every position resolved, so it stays a plain loop.
+    // oxlint-disable-next-line effect/imperative-loops
+    for (let i = 0, curPos = 0; ; i++) {
+      const cur = this.content[i],
+        end = curPos + cur.nodeSize
+      if (end >= pos) {
+        if (end === pos) return retIndex(i + 1, end)
+        return retIndex(i, curPos)
+      }
       curPos = end
-      return false
-    })
-    const end = curPos + this.content[index].nodeSize
-    return end === pos ? retIndex(index + 1, end) : retIndex(index, curPos)
+    }
   }
 
   /** Return a debugging string that describes this fragment. */

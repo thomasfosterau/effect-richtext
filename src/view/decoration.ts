@@ -591,18 +591,26 @@ export class DecorationSet implements DecorationSource {
     if (this == empty) return this
     if (node.isLeaf) return DecorationSet.empty
 
-    let local: Array<Decoration> | undefined
-    const at = this.children.findIndex((_, i) => i % 3 === 0 && posAt(this.children, i) >= offset)
-    const child = at >= 0 && this.children[at] == offset ? setAt(this.children, at + 2) : undefined
+    // Runs for every node on each render, so these stay plain loops.
+    let child: DecorationSet | undefined, local: Array<Decoration> | undefined
+    // oxlint-disable-next-line effect/imperative-loops
+    for (let i = 0; i < this.children.length; i += 3) {
+      if (posAt(this.children, i) >= offset) {
+        if (this.children[i] == offset) child = setAt(this.children, i + 2)
+        break
+      }
+    }
     const start = offset + 1,
       end = start + node.content.size
-    this.local.forEach((dec) => {
+    // oxlint-disable-next-line effect/imperative-loops
+    for (let i = 0; i < this.local.length; i++) {
+      const dec = this.local[i]
       if (dec.from < end && dec.to > start && dec.type instanceof InlineType) {
         const from = Math.max(start, dec.from) - start,
           to = Math.min(end, dec.to) - start
         if (from < to) (local || (local = [])).push(dec.copy(from, to))
       }
-    })
+    }
     if (local) {
       const localSet = new DecorationSet(Arr.sort(local, byPos), none)
       return child ? new DecorationGroup([localSet, child]) : localSet
@@ -913,9 +921,9 @@ function buildTree(
   })
   // SAFETY: without `hasNulls` no child took spans, so `spans` holds no nulls.
   const sorted = Arr.sort(moveSpans(hasNulls ? withoutNulls(spans) : (spans as Array<Decoration>), -offset), byPos)
-  const cur = new FragmentCursor(node.content)
+  const cur = sorted.length ? new FragmentCursor(node.content) : undefined
   const locals = sorted.filter((deco) => {
-    if (deco.type.valid(node, deco, cur)) return true
+    if (!cur || deco.type.valid(node, deco, cur)) return true
     if (options.onRemove) options.onRemove(deco.spec)
     return false
   })

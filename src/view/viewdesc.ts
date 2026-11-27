@@ -6,7 +6,9 @@
  */
 import * as Predicate from "effect/Predicate"
 import * as Arr from "effect/Array"
+import * as Option from "effect/Option"
 import * as Order from "effect/Order"
+import * as Rec from "effect/Record"
 import {
   type AnySchema,
   DOMSerializer,
@@ -300,6 +302,8 @@ export class ViewDesc {
   // The size of the content represented by this desc.
   get size(): number {
     let size = 0
+    // Scans the children with a running offset, which callbacks make slower.
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0; i < this.children.length; i++) size += this.children[i].size
     return size
   }
@@ -313,12 +317,12 @@ export class ViewDesc {
   destroy(): void {
     this.parent = undefined
     if (this.dom.pmViewDesc == this) this.dom.pmViewDesc = undefined
-    for (let i = 0; i < this.children.length; i++) {
-      this.children[i].destroy()
-    }
+    this.children.forEach((child) => child.destroy())
   }
 
   posBeforeChild(child: ViewDesc): number {
+    // Scans the children with a running offset, which callbacks make slower.
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0, pos = this.posAtStart; ; i++) {
       const cur = this.children[i]
       if (cur == child) return pos
@@ -328,12 +332,18 @@ export class ViewDesc {
 
   // The ancestor of `dom` that is a direct child of the content DOM.
   private childOfContent(dom: DOMNode): DOMNode {
-    while (dom.parentNode != this.contentDOM) {
-      const up = dom.parentNode
-      if (!up) throw new ViewError({ message: "DOM position outside the view desc's content" })
-      dom = up
-    }
-    return dom
+    const up = dom.parentNode
+    if (up == this.contentDOM) return dom
+    if (!up) throw new ViewError({ message: "DOM position outside the view desc's content" })
+    return this.childOfContent(up)
+  }
+
+  // The desc of `dom` or its nearest sibling in direction `dir` that is a child of this one.
+  private ownDescFrom(dom: ChildNode, dir: number): Option.Option<ViewDesc> {
+    const desc = dom.pmViewDesc
+    if (desc && desc.parent == this) return Option.some(desc)
+    const next = dir < 0 ? dom.previousSibling : dom.nextSibling
+    return next ? this.ownDescFrom(next, dir) : Option.none()
   }
 
   get posBefore(): number {
@@ -358,27 +368,17 @@ export class ViewDesc {
     // it to figure out a position.
     if (this.contentDOM && this.contentDOM.contains(dom.nodeType == 1 ? dom : dom.parentNode)) {
       if (bias < 0) {
-        let domBefore, desc: ViewDesc | undefined
-        if (dom == this.contentDOM) {
-          domBefore = dom.childNodes[offset - 1]
-        } else {
-          dom = this.childOfContent(dom)
-          domBefore = dom.previousSibling
-        }
-        while (domBefore && !((desc = domBefore.pmViewDesc) && desc.parent == this)) {
-          domBefore = domBefore.previousSibling
-        }
-        return domBefore && desc ? this.posBeforeChild(desc) + desc.size : this.posAtStart
+        const domBefore = dom == this.contentDOM ? dom.childNodes[offset - 1] : this.childOfContent(dom).previousSibling
+        return Option.match(domBefore ? this.ownDescFrom(domBefore, -1) : Option.none(), {
+          onNone: () => this.posAtStart,
+          onSome: (desc) => this.posBeforeChild(desc) + desc.size
+        })
       } else {
-        let domAfter, desc: ViewDesc | undefined
-        if (dom == this.contentDOM) {
-          domAfter = dom.childNodes[offset]
-        } else {
-          dom = this.childOfContent(dom)
-          domAfter = dom.nextSibling
-        }
-        while (domAfter && !((desc = domAfter.pmViewDesc) && desc.parent == this)) domAfter = domAfter.nextSibling
-        return domAfter && desc ? this.posBeforeChild(desc) : this.posAtEnd
+        const domAfter = dom == this.contentDOM ? dom.childNodes[offset] : this.childOfContent(dom).nextSibling
+        return Option.match(domAfter ? this.ownDescFrom(domAfter, 1) : Option.none(), {
+          onNone: () => this.posAtEnd,
+          onSome: (desc) => this.posBeforeChild(desc)
+        })
       }
     }
     // Otherwise, use various heuristics, falling back on the bias
@@ -397,30 +397,8 @@ export class ViewDesc {
         atEnd = !(rel & 4)
       }
     } else if (this.dom.firstChild) {
-      if (offset == 0) {
-        for (let search = dom; ;) {
-          if (search == this.dom) {
-            atEnd = false
-            break
-          }
-          if (search.previousSibling) break
-          const up = search.parentNode
-          if (!up) break
-          search = up
-        }
-      }
-      if (atEnd == null && offset == dom.childNodes.length) {
-        for (let search = dom; ;) {
-          if (search == this.dom) {
-            atEnd = true
-            break
-          }
-          if (search.nextSibling) break
-          const up = search.parentNode
-          if (!up) break
-          search = up
-        }
-      }
+      if (offset == 0 && reachesAlongEdge(dom, this.dom, -1)) atEnd = false
+      if (atEnd == null && offset == dom.childNodes.length && reachesAlongEdge(dom, this.dom, 1)) atEnd = true
     }
     return (atEnd == null ? bias > 0 : atEnd) ? this.posAtEnd : this.posAtStart
   }
@@ -430,48 +408,61 @@ export class ViewDesc {
   nearestDesc(dom: DOMNode): ViewDesc | undefined
   nearestDesc(dom: DOMNode, onlyNodes: true): NodeViewDesc | undefined
   nearestDesc(dom: DOMNode, onlyNodes: boolean = false): ViewDesc | undefined {
-    for (let first = true, cur: DOMNode | null = dom; cur; cur = cur.parentNode) {
-      const desc = this.getDesc(cur)
-      let nodeDOM
-      if (desc && (!onlyNodes || desc.node)) {
-        // If dom is outside of this desc's nodeDOM, don't count it.
-        if (
-          first &&
-          desc instanceof NodeViewDesc &&
-          (nodeDOM = desc.nodeDOM) &&
-          !(nodeDOM.nodeType == 1 ? nodeDOM.contains(dom.nodeType == 1 ? dom : dom.parentNode) : nodeDOM == dom)
-        ) {
-          first = false
-        } else {
-          return desc
-        }
+    return Option.getOrUndefined(this.nearestDescFrom(dom, dom, onlyNodes, true))
+  }
+
+  private nearestDescFrom(cur: DOMNode, dom: DOMNode, onlyNodes: boolean, first: boolean): Option.Option<ViewDesc> {
+    const desc = this.getDesc(cur)
+    let nodeDOM,
+      stillFirst = first
+    if (desc && (!onlyNodes || desc.node)) {
+      // If dom is outside of this desc's nodeDOM, don't count it.
+      if (
+        first &&
+        desc instanceof NodeViewDesc &&
+        (nodeDOM = desc.nodeDOM) &&
+        !(nodeDOM.nodeType == 1 ? nodeDOM.contains(dom.nodeType == 1 ? dom : dom.parentNode) : nodeDOM == dom)
+      ) {
+        stillFirst = false
+      } else {
+        return Option.some(desc)
       }
     }
-    return undefined
+    const up = cur.parentNode
+    return up ? this.nearestDescFrom(up, dom, onlyNodes, stillFirst) : Option.none()
   }
 
   getDesc(dom: DOMNode): ViewDesc | undefined {
     const desc = dom.pmViewDesc
-    for (let cur: ViewDesc | undefined = desc; cur; cur = cur.parent) if (cur == this) return desc
-    return undefined
+    return desc && this.isAncestorOf(desc) ? desc : undefined
+  }
+
+  // Whether this desc is `desc` or one of its ancestors.
+  private isAncestorOf(desc: ViewDesc): boolean {
+    return desc == this || (!!desc.parent && this.isAncestorOf(desc.parent))
   }
 
   posFromDOM(dom: DOMNode, offset: number, bias: number): number {
-    for (let scan: DOMNode | null = dom; scan; scan = scan.parentNode) {
+    const from = (scan: DOMNode): number => {
       const desc = this.getDesc(scan)
       if (desc) return desc.localPosFromDOM(dom, offset, bias)
+      return scan.parentNode ? from(scan.parentNode) : -1
     }
-    return -1
+    return from(dom)
   }
 
   // Find the desc for the node after the given pos, if any. (When a
   // parent node overrode rendering, there might not be one.)
   descAt(pos: number): ViewDesc | undefined {
+    // Scans the children with a running offset, which callbacks make slower.
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0, offset = 0; i < this.children.length; i++) {
       let child = this.children[i]
       const end = offset + child.size
       if (offset == pos && end != offset) {
+        // oxlint-disable-next-line effect/imperative-loops
         while (!child.border && child.children.length) {
+          // oxlint-disable-next-line effect/imperative-loops
           for (let j = 0; j < child.children.length; j++) {
             const inner = child.children[j]
             if (inner.size) {
@@ -493,6 +484,8 @@ export class ViewDesc {
     // First find the position in the child array
     let i = 0,
       offset = 0
+    // Scans the children with a running offset, which callbacks make slower.
+    // oxlint-disable-next-line effect/imperative-loops
     for (let curPos = 0; i < this.children.length; i++) {
       const child = this.children[i],
         end = curPos + child.size
@@ -506,11 +499,13 @@ export class ViewDesc {
     if (offset) return this.children[i].domFromPos(offset - this.children[i].border, side)
     // Go back if there were any zero-length widgets with side >= 0 before this point
     // (or buffer hack nodes)
+    // oxlint-disable-next-line effect/imperative-loops
     while (i > 0 && skippableBefore(this.children, i)) i--
     // Scan towards the first useable node
     if (side <= 0) {
       let prev,
         enter = true
+      // oxlint-disable-next-line effect/imperative-loops
       for (; ; i--, enter = false) {
         prev = i ? this.children[i - 1] : null
         if (!prev || prev.dom.parentNode == this.contentDOM) break
@@ -520,6 +515,7 @@ export class ViewDesc {
     } else {
       let next,
         enter = true
+      // oxlint-disable-next-line effect/imperative-loops
       for (; ; i++, enter = false) {
         next = i < this.children.length ? this.children[i] : null
         if (!next || next.dom.parentNode == this.contentDOM) break
@@ -540,6 +536,8 @@ export class ViewDesc {
 
     let fromOffset = -1,
       toOffset = -1
+    // Scans the children with a running offset, which callbacks make slower.
+    // oxlint-disable-next-line effect/imperative-loops
     for (let offset = base, i = 0; ; i++) {
       const child = this.children[i],
         end = offset + child.size
@@ -557,6 +555,7 @@ export class ViewDesc {
         }
 
         from = offset
+        // oxlint-disable-next-line effect/imperative-loops
         for (let j = i; j > 0; j--) {
           const prev = this.children[j - 1]
           if (prev.size && prev.dom.parentNode == this.contentDOM && !prev.emptyChildAt(1)) {
@@ -569,6 +568,7 @@ export class ViewDesc {
       }
       if (fromOffset > -1 && (end > to || i == this.children.length - 1)) {
         to = end
+        // oxlint-disable-next-line effect/imperative-loops
         for (let j = i + 1; j < this.children.length; j++) {
           const next = this.children[j]
           if (next.size && next.dom.parentNode == this.contentDOM && !next.emptyChildAt(-1)) {
@@ -608,6 +608,8 @@ export class ViewDesc {
     // If the selection falls entirely in a child, give it to that child
     const from = Math.min(anchor, head),
       to = Math.max(anchor, head)
+    // Scans the children with a running offset, which callbacks make slower.
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0, offset = 0; i < this.children.length; i++) {
       const child = this.children[i],
         end = offset + child.size
@@ -635,15 +637,9 @@ export class ViewDesc {
         const text = node.nodeValue ?? ""
         brKludge = !!(offset && text[offset - 1] == "\n")
         if (brKludge && offset == text.length) {
-          for (let scan: DOMNode | null = node, after; scan; scan = scan.parentNode) {
-            if ((after = scan.nextSibling)) {
-              if (after.nodeName == "BR" && after.parentNode) {
-                anchorDOM = headDOM = { node: after.parentNode, offset: domIndex(after) + 1 }
-              }
-              break
-            }
-            const desc = scan.pmViewDesc
-            if (desc && desc.node && desc.node.isBlock) break
+          const after = Option.getOrUndefined(siblingAfterInBlock(node))
+          if (after && after.nodeName == "BR" && after.parentNode) {
+            anchorDOM = headDOM = { node: after.parentNode, offset: domIndex(after) + 1 }
           }
         }
       } else {
@@ -713,6 +709,8 @@ export class ViewDesc {
   // Remove a subtree of the element tree that has been touched
   // by a DOM change, so that the next update will redraw it.
   markDirty(from: number, to: number): void {
+    // Scans the children with a running offset, which callbacks make slower.
+    // oxlint-disable-next-line effect/imperative-loops
     for (let offset = 0, i = 0; i < this.children.length; i++) {
       const child = this.children[i],
         end = offset + child.size
@@ -738,11 +736,7 @@ export class ViewDesc {
   }
 
   markParentsDirty(): void {
-    let level = 1
-    for (let node = this.parent; node; node = node.parent, level++) {
-      const dirty = level == 1 ? CONTENT_DIRTY : CHILD_DIRTY
-      if (node.dirty < dirty) node.dirty = dirty
-    }
+    if (this.parent) markDirtyUp(this.parent, CONTENT_DIRTY)
   }
 
   get domAtom(): boolean {
@@ -909,8 +903,7 @@ class MarkViewDesc extends ViewDesc {
     super.markDirty(from, to)
     // Move dirty info to nearest node view
     if (this.dirty != NOT_DIRTY) {
-      let parent = this.parent
-      while (parent && !parent.node) parent = parent.parent
+      const parent = this.parent ? Option.getOrUndefined(withNodeDesc(this.parent)) : undefined
       if (parent && parent.dirty < this.dirty) parent.dirty = this.dirty
       this.dirty = NOT_DIRTY
     }
@@ -923,7 +916,7 @@ class MarkViewDesc extends ViewDesc {
     const size = this.size
     if (to < size) nodes = replaceNodes(nodes, to, size, view)
     if (from > 0) nodes = replaceNodes(nodes, 0, from, view)
-    for (let i = 0; i < nodes.length; i++) nodes[i].parent = copy
+    nodes.forEach((child) => (child.parent = copy))
     copy.children = nodes
     return copy
   }
@@ -1053,14 +1046,11 @@ export class NodeViewDesc extends ViewDesc {
       // Chrome likes to randomly recreate parent nodes when
       // backspacing things. When that happens, this tries to find the
       // new parent.
-      for (let i = this.children.length - 1; i >= 0; i--) {
-        const child = this.children[i]
+      const moved = Arr.findLast(this.children, (child) => {
         const parent = child.dom.parentElement
-        if (parent && this.dom.contains(parent)) {
-          rule.contentElement = parent
-          break
-        }
-      }
+        return parent && this.dom.contains(parent) ? Option.some(parent) : Option.none()
+      })
+      if (Option.isSome(moved)) rule.contentElement = moved.value
       if (!rule.contentElement) {
         // Chrome/WebKit may also swap the content DOM for a completely
         // new element (prosemirror-view 1.42.2).
@@ -1193,15 +1183,17 @@ export class NodeViewDesc extends ViewDesc {
     if (this.getDesc(node)) return
 
     // Create a composition view for the orphaned nodes
-    let topNode: DOMNode = node
-    for (;;) {
-      const parent = topNode.parentNode
-      if (!parent || parent == this.contentDOM) break
-      while (topNode.previousSibling) parent.removeChild(topNode.previousSibling)
-      while (topNode.nextSibling) parent.removeChild(topNode.nextSibling)
-      if (topNode.pmViewDesc) topNode.pmViewDesc = undefined
-      topNode = parent
+    // Strip the siblings of `node` and of each ancestor below the content DOM.
+    const isolate = (dom: DOMNode): DOMNode => {
+      const parent = dom.parentNode
+      if (!parent || parent == this.contentDOM) return dom
+      Array.from(parent.childNodes).forEach((sibling) => {
+        if (sibling != dom) parent.removeChild(sibling)
+      })
+      if (dom.pmViewDesc) dom.pmViewDesc = undefined
+      return isolate(parent)
     }
+    const topNode = isolate(node)
     const desc = new CompositionViewDesc(this, topNode, node, text)
     view.input.compositionNodes.push(desc)
 
@@ -1305,9 +1297,9 @@ class TextViewDesc extends NodeViewDesc {
   }
 
   override parseRule() {
-    let skip = this.nodeDOM.parentNode
-    while (skip && skip != this.dom && !isDecoWrapper(skip)) skip = skip.parentNode
-    return { skip: skip || true }
+    const parent = this.nodeDOM.parentNode
+    const skip = parent ? wrapperFrom(parent, this.dom) : Option.none()
+    return { skip: Option.getOrElse(skip, (): true => true) }
   }
 
   override update(
@@ -1331,8 +1323,8 @@ class TextViewDesc extends NodeViewDesc {
   inParent() {
     if (!this.parent) return false
     const parentDOM = this.parent.contentDOM
-    for (let n: DOMNode | null = this.nodeDOM; n; n = n.parentNode) if (n == parentDOM) return true
-    return false
+    const within = (dom: DOMNode): boolean => dom == parentDOM || (!!dom.parentNode && within(dom.parentNode))
+    return within(this.nodeDOM)
   }
 
   override domFromPos(pos: number) {
@@ -1470,10 +1462,13 @@ class CustomNodeViewDesc extends NodeViewDesc {
 function renderDescs(parentDOM: HTMLElement, descs: ReadonlyArray<ViewDesc>, view: AnyView) {
   let dom = parentDOM.firstChild,
     written = false
+  // Runs for each child on every render, so it stays a plain loop.
+  // oxlint-disable-next-line effect/imperative-loops
   for (let i = 0; i < descs.length; i++) {
     const desc = descs[i],
       childDOM = desc.dom
     if (childDOM.parentNode == parentDOM) {
+      // oxlint-disable-next-line effect/imperative-loops
       while (dom && childDOM != dom) {
         dom = rm(dom)
         written = true
@@ -1489,6 +1484,7 @@ function renderDescs(parentDOM: HTMLElement, descs: ReadonlyArray<ViewDesc>, vie
       dom = pos ? pos.nextSibling : parentDOM.firstChild
     }
   }
+  // oxlint-disable-next-line effect/imperative-loops
   while (dom) {
     dom = rm(dom)
     written = true
@@ -1524,25 +1520,24 @@ function computeOuterDeco(outerDeco: ReadonlyArray<Decoration>, node: Node<any, 
   let top = needsWrap ? noDeco[0] : outerDecoLevel()
   const result = [top]
 
-  for (let i = 0; i < outerDeco.length; i++) {
+  outerDeco.forEach((deco) => {
     // SAFETY: outer decorations are node decorations, whose type is a `NodeType`.
-    const attrs = (outerDeco[i].type as NodeType).attrs
-    if (!attrs) continue
+    const attrs = (deco.type as NodeType).attrs
+    if (!attrs) return
     if (attrs.nodeName) {
       result.push((top = outerDecoLevel(attrs.nodeName)))
     }
 
-    for (const name in attrs) {
-      const val = attrs[name]
-      if (val == null) continue
+    Rec.toEntries(attrs).forEach(([name, val]) => {
+      if (val == null) return
       if (needsWrap && result.length == 1) {
         result.push((top = outerDecoLevel(node.isInline ? "span" : "div")))
       }
       if (name == "class") top.class = (top.class ? top.class + " " : "") + val
       else if (name == "style") top.style = (top.style ? top.style + ";" : "") + val
       else if (name != "nodeName") top[name] = val
-    }
-  }
+    })
+  })
 
   return result
 }
@@ -1556,10 +1551,9 @@ function patchOuterDeco(
   // Shortcut for trivial case
   if (prevComputed == noDeco && curComputed == noDeco) return nodeDOM
 
-  let curDOM = nodeDOM
-  for (let i = 0; i < curComputed.length; i++) {
-    const deco = curComputed[i]
-    let prev = prevComputed[i]
+  return curComputed.reduce((dom, deco, i) => {
+    let prev = prevComputed[i],
+      curDOM = dom
     if (i) {
       let parent: DOMNode | null
       if (
@@ -1574,40 +1568,35 @@ function patchOuterDeco(
         const wrapper: HTMLElement & DecoWrapper = document.createElement(deco.nodeName)
         wrapper.pmIsDeco = true
         wrapper.appendChild(curDOM)
-        parent = wrapper
         prev = noDeco[0]
-        curDOM = parent
+        curDOM = wrapper
       }
     }
     if (isElt(curDOM)) patchAttributes(curDOM, prev || noDeco[0], deco)
-  }
-  return curDOM
+    return curDOM
+  }, nodeDOM)
 }
 
 function patchAttributes(dom: HTMLElement, prev: { [name: string]: string }, cur: { [name: string]: string }) {
-  for (const name in prev) {
+  Rec.keys(prev).forEach((name) => {
     if (name != "class" && name != "style" && name != "nodeName" && !(name in cur)) {
       dom.removeAttribute(name)
     }
-  }
-  for (const name in cur) {
+  })
+  Rec.keys(cur).forEach((name) => {
     if (name != "class" && name != "style" && name != "nodeName" && cur[name] != prev[name]) {
       dom.setAttribute(name, cur[name])
     }
-  }
+  })
   if (prev.class != cur.class) {
     const prevList = prev.class ? prev.class.split(" ").filter(Boolean) : []
     const curList = cur.class ? cur.class.split(" ").filter(Boolean) : []
-    for (let i = 0; i < prevList.length; i++) {
-      if (curList.indexOf(prevList[i]) == -1) {
-        dom.classList.remove(prevList[i])
-      }
-    }
-    for (let i = 0; i < curList.length; i++) {
-      if (prevList.indexOf(curList[i]) == -1) {
-        dom.classList.add(curList[i])
-      }
-    }
+    prevList.forEach((name) => {
+      if (curList.indexOf(name) == -1) dom.classList.remove(name)
+    })
+    curList.forEach((name) => {
+      if (prevList.indexOf(name) == -1) dom.classList.add(name)
+    })
     if (dom.classList.item(0) === null) {
       dom.removeAttribute("class")
     }
@@ -1615,10 +1604,7 @@ function patchAttributes(dom: HTMLElement, prev: { [name: string]: string }, cur
   if (prev.style != cur.style) {
     if (prev.style) {
       const prop = /\s*([\w\-\xa1-￿]+)\s*:(?:"(?:\\.|[^"])*"|'(?:\\.|[^'])*'|\(.*?\)|[^;])*/g
-      let m
-      while ((m = prop.exec(prev.style))) {
-        dom.style.removeProperty(m[1])
-      }
+      Array.from(prev.style.matchAll(prop)).forEach((m) => dom.style.removeProperty(m[1]))
     }
     if (cur.style) {
       dom.style.cssText += cur.style
@@ -1631,9 +1617,7 @@ function applyOuterDeco(dom: DOMNode, deco: ReadonlyArray<Decoration>, node: Nod
 }
 
 function sameOuterDeco(a: ReadonlyArray<Decoration>, b: ReadonlyArray<Decoration>) {
-  if (a.length != b.length) return false
-  for (let i = 0; i < a.length; i++) if (!a[i].type.eq(b[i].type)) return false
-  return true
+  return a.length == b.length && a.every((deco, i) => deco.type.eq(b[i].type))
 }
 
 // Remove a DOM node and return its next sibling.
@@ -1670,8 +1654,7 @@ class ViewTreeUpdater {
   // `this.top`.
   destroyBetween(start: number, end: number) {
     if (start == end) return
-    for (let i = start; i < end; i++) this.top.children[i].destroy()
-    this.top.children.splice(start, end - start)
+    this.top.children.splice(start, end - start).forEach((child) => child.destroy())
     this.changed = true
   }
 
@@ -1686,6 +1669,8 @@ class ViewTreeUpdater {
     let keep = 0,
       depth = this.stack.length >> 1
     const maxKeep = Math.min(depth, marks.length)
+    // Runs for each child on every render, so it stays a plain loop.
+    // oxlint-disable-next-line effect/imperative-loops
     while (
       keep < maxKeep &&
       // SAFETY: `stack` alternates descs (even indices) and child indices (odd).
@@ -1695,6 +1680,7 @@ class ViewTreeUpdater {
       keep++
     }
 
+    // oxlint-disable-next-line effect/imperative-loops
     while (keep < depth) {
       this.destroyRest()
       this.top.dirty = NOT_DIRTY
@@ -1704,11 +1690,13 @@ class ViewTreeUpdater {
       this.top = this.stack.pop() as ViewDesc
       depth--
     }
+    // oxlint-disable-next-line effect/imperative-loops
     while (depth < marks.length) {
       this.stack.push(this.top, this.index + 1)
       let found = -1,
         scanTo = this.top.children.length
       if (parentIndex < this.preMatch.index) scanTo = Math.min(this.index + 3, scanTo)
+      // oxlint-disable-next-line effect/imperative-loops
       for (let i = this.index; i < scanTo; i++) {
         const next = this.top.children[i]
         if (next.matchesMark(marks[depth]) && !this.isLocked(next.dom)) {
@@ -1769,6 +1757,8 @@ class ViewTreeUpdater {
     ) {
       found = this.top.children.indexOf(targetDesc, this.index)
     } else {
+      // Runs for each child on every render, so it stays a plain loop.
+      // oxlint-disable-next-line effect/imperative-loops
       for (let i = this.index, e = Math.min(this.top.children.length, i + 5); i < e; i++) {
         const child = this.top.children[i]
         if (child.matchesNode(node, outerDeco, innerDeco) && !this.preMatch.matched.has(child)) {
@@ -1799,21 +1789,12 @@ class ViewTreeUpdater {
     return true
   }
 
-  findIndexWithChild(domNode: DOMNode) {
-    for (;;) {
-      const parent = domNode.parentNode
-      if (!parent) return -1
-      if (parent == this.top.contentDOM) {
-        const desc = domNode.pmViewDesc
-        if (desc) {
-          for (let i = this.index; i < this.top.children.length; i++) {
-            if (this.top.children[i] == desc) return i
-          }
-        }
-        return -1
-      }
-      domNode = parent
-    }
+  findIndexWithChild(domNode: DOMNode): number {
+    const parent = domNode.parentNode
+    if (!parent) return -1
+    if (parent != this.top.contentDOM) return this.findIndexWithChild(parent)
+    const desc = domNode.pmViewDesc
+    return desc ? this.top.children.indexOf(desc, this.index) : -1
   }
 
   // Try to update the next node, if any, to the given data. Checks
@@ -1826,6 +1807,8 @@ class ViewTreeUpdater {
     index: number,
     pos: number
   ): boolean {
+    // Runs for each child on every render, so it stays a plain loop.
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = this.index; i < this.top.children.length; i++) {
       const next = this.top.children[i]
       if (next instanceof NodeViewDesc) {
@@ -1893,7 +1876,7 @@ class ViewTreeUpdater {
     if (wrapper.contentDOM) {
       wrapper.children = next.children
       next.children = []
-      for (const ch of wrapper.children) ch.parent = wrapper
+      wrapper.children.forEach((ch) => (ch.parent = wrapper))
     }
     next.destroy()
     return wrapper
@@ -1931,12 +1914,8 @@ class ViewTreeUpdater {
   // Make sure a textblock looks and behaves correctly in
   // contentEditable.
   addTextblockHacks() {
-    let lastChild = this.top.children[this.index - 1],
-      parent = this.top
-    while (lastChild instanceof MarkViewDesc) {
-      parent = lastChild
-      lastChild = parent.children[parent.children.length - 1]
-    }
+    const [parent, last] = lastInMarks(this.top, Arr.get(this.top.children, this.index - 1))
+    const lastChild = Option.getOrUndefined(last)
 
     if (
       !lastChild || // Empty textblock
@@ -2002,8 +1981,11 @@ function preMatch(frag: Fragment<any, any>, parentDesc: ViewDesc): PreMatch {
   let fI = frag.childCount
   const matched = new WeakMap<ViewDesc, number>(),
     matches: Array<ViewDesc> = []
+  // Runs for each child on every render, so it stays a plain loop.
+  // oxlint-disable-next-line effect/imperative-loops
   outer: while (fI > 0) {
     let desc: ViewDesc
+    // oxlint-disable-next-line effect/imperative-loops
     for (;;) {
       if (descI) {
         const next = curDesc.children[descI - 1]
@@ -2055,6 +2037,8 @@ function iterDeco(
   let offset = 0
   // Simple, cheap variant for when there are no local decorations
   if (Arr.isReadonlyArrayEmpty(locals)) {
+    // Runs for each child on every render, so it stays a plain loop.
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0; i < parent.childCount; i++) {
       const child = parent.content.content[i]
       onNode(child, locals, deco.forChild(offset, child), i)
@@ -2066,8 +2050,10 @@ function iterDeco(
   let decoIndex = 0,
     restNode: Node<any, any> | null = null
   const active: Array<Decoration> = []
+  // oxlint-disable-next-line effect/imperative-loops
   for (let parentIndex = 0; ;) {
     let widget: Decoration | undefined, widgets: Array<Decoration> | undefined
+    // oxlint-disable-next-line effect/imperative-loops
     while (decoIndex < locals.length && locals[decoIndex].to == offset) {
       const next = locals[decoIndex++]
       if (next.widget) {
@@ -2078,6 +2064,7 @@ function iterDeco(
     if (widget) {
       if (widgets) {
         const sorted = Arr.sort(widgets, bySide)
+        // oxlint-disable-next-line effect/imperative-loops
         for (let i = 0; i < sorted.length; i++) onWidget(sorted[i], parentIndex, !!restNode)
       } else {
         onWidget(widget, parentIndex, !!restNode)
@@ -2096,7 +2083,9 @@ function iterDeco(
       break
     }
 
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0; i < active.length; i++) if (active[i].to <= offset) active.splice(i--, 1)
+    // oxlint-disable-next-line effect/imperative-loops
     while (decoIndex < locals.length && locals[decoIndex].from <= offset && locals[decoIndex].to > offset) {
       active.push(locals[decoIndex++])
     }
@@ -2105,6 +2094,7 @@ function iterDeco(
     if (child.isText) {
       let cutAt = end
       if (decoIndex < locals.length && locals[decoIndex].from < cutAt) cutAt = locals[decoIndex].from
+      // oxlint-disable-next-line effect/imperative-loops
       for (let i = 0; i < active.length; i++) if (active[i].to < cutAt) cutAt = active[i].to
       if (cutAt < end) {
         restNode = child.cut(cutAt - offset)
@@ -2113,6 +2103,7 @@ function iterDeco(
         index = -1
       }
     } else {
+      // oxlint-disable-next-line effect/imperative-loops
       while (decoIndex < locals.length && locals[decoIndex].to < end) decoIndex++
     }
 
@@ -2134,37 +2125,48 @@ function iosHacks(dom: HTMLElement) {
 }
 
 // Find a piece of text in an inline fragment, overlapping from-to
-function findTextInFragment(frag: Fragment<any, any>, text: string, from: number, to: number) {
-  for (let i = 0, pos = 0; i < frag.childCount && pos <= to;) {
-    const child = frag.content[i++],
-      childStart = pos
-    pos += child.nodeSize
-    if (!child.isText) continue
-    let str = textOf(child)
-    while (i < frag.childCount) {
-      const next = frag.content[i++]
-      pos += next.nodeSize
-      if (!next.isText) break
-      str += textOf(next)
+function findTextInFragment(frag: Fragment<any, any>, text: string, from: number, to: number): number {
+  return findTextFrom(frag, text, from, to, 0, 0)
+}
+
+function findTextFrom(
+  frag: Fragment<any, any>,
+  text: string,
+  from: number,
+  to: number,
+  i: number,
+  start: number
+): number {
+  if (i >= frag.childCount || start > to) return -1
+  const child = frag.content[i],
+    childStart = start
+  if (!child.isText) return findTextFrom(frag, text, from, to, i + 1, start + child.nodeSize)
+  // Join the run of text nodes starting at `child`, stepping past the node that ends it.
+  const [next, pos, str] = textRun(frag, i + 1, start + child.nodeSize, textOf(child))
+  if (pos >= from) {
+    if (pos >= to && str.slice(to - text.length - childStart, to - childStart) == text) {
+      return to - text.length
     }
-    if (pos >= from) {
-      if (pos >= to && str.slice(to - text.length - childStart, to - childStart) == text) {
-        return to - text.length
-      }
-      const found = childStart < to ? str.lastIndexOf(text, to - childStart - 1) : -1
-      if (found >= 0 && found + text.length + childStart >= from) {
-        return childStart + found
-      }
-      if (
-        from == to &&
-        str.length >= to + text.length - childStart &&
-        str.slice(to - childStart, to - childStart + text.length) == text
-      ) {
-        return to
-      }
+    const found = childStart < to ? str.lastIndexOf(text, to - childStart - 1) : -1
+    if (found >= 0 && found + text.length + childStart >= from) {
+      return childStart + found
+    }
+    if (
+      from == to &&
+      str.length >= to + text.length - childStart &&
+      str.slice(to - childStart, to - childStart + text.length) == text
+    ) {
+      return to
     }
   }
-  return -1
+  return findTextFrom(frag, text, from, to, next, pos)
+}
+
+function textRun(frag: Fragment<any, any>, i: number, pos: number, str: string): readonly [number, number, string] {
+  if (i >= frag.childCount) return [i, pos, str]
+  const next = frag.content[i]
+  const end = pos + next.nodeSize
+  return next.isText ? textRun(frag, i + 1, end, str + textOf(next)) : [i + 1, end, str]
 }
 
 // Replace range from-to in an array of view descs with replacement
@@ -2173,10 +2175,10 @@ function findTextInFragment(frag: Fragment<any, any>, text: string, from: number
 // right shape in one go, rather than messing with them after
 // creation, but is necessary in the composition hack.
 function replaceNodes(nodes: ReadonlyArray<ViewDesc>, from: number, to: number, view: AnyView, replacement?: ViewDesc) {
-  const result = []
-  for (let i = 0, off = 0; i < nodes.length; i++) {
-    const child = nodes[i],
-      start = off,
+  const result: Array<ViewDesc> = []
+  let off = 0
+  nodes.forEach((child) => {
+    const start = off,
       end = (off += child.size)
     if (start >= to || end <= from) {
       result.push(child)
@@ -2194,6 +2196,45 @@ function replaceNodes(nodes: ReadonlyArray<ViewDesc>, from: number, to: number, 
         result.push((child as MarkViewDesc | TextViewDesc).slice(to - start, child.size, view))
       }
     }
-  }
+  })
   return result
+}
+
+// Whether `node` reaches `top` by climbing through nodes with no sibling on `side`.
+function reachesAlongEdge(node: DOMNode, top: DOMNode, side: number): boolean {
+  if (node == top) return true
+  if (side < 0 ? node.previousSibling : node.nextSibling) return false
+  return !!node.parentNode && reachesAlongEdge(node.parentNode, top, side)
+}
+
+// The next sibling of `node` or of its nearest ancestor that has one, inside its block.
+function siblingAfterInBlock(node: DOMNode): Option.Option<ChildNode> {
+  if (node.nextSibling) return Option.some(node.nextSibling)
+  const desc = node.pmViewDesc
+  if (desc && desc.node && desc.node.isBlock) return Option.none()
+  return node.parentNode ? siblingAfterInBlock(node.parentNode) : Option.none()
+}
+
+function markDirtyUp(desc: ViewDesc, dirty: number): void {
+  if (desc.dirty < dirty) desc.dirty = dirty
+  if (desc.parent) markDirtyUp(desc.parent, CHILD_DIRTY)
+}
+
+// The nearest of `desc` and its ancestors that describes a node.
+function withNodeDesc(desc: ViewDesc): Option.Option<ViewDesc> {
+  if (desc.node) return Option.some(desc)
+  return desc.parent ? withNodeDesc(desc.parent) : Option.none()
+}
+
+// The nearest of `node` and its ancestors that is `stop` or a decoration wrapper.
+function wrapperFrom(node: ParentNode, stop: DOMNode): Option.Option<ParentNode> {
+  if (node == stop || isDecoWrapper(node)) return Option.some(node)
+  return node.parentNode ? wrapperFrom(node.parentNode, stop) : Option.none()
+}
+
+// Descend through trailing mark descs to the desc they end with, and its parent.
+function lastInMarks(parent: ViewDesc, child: Option.Option<ViewDesc>): readonly [ViewDesc, Option.Option<ViewDesc>] {
+  return Option.isSome(child) && child.value instanceof MarkViewDesc
+    ? lastInMarks(child.value, Arr.last(child.value.children))
+    : [parent, child]
 }
