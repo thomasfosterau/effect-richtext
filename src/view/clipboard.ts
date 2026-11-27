@@ -4,6 +4,7 @@
  *
  * @internal
  */
+import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import { DOMParser, DOMSerializer, Fragment, type Node, type NodeType, type ResolvedPos, Slice } from "../Model.ts"
@@ -22,32 +23,36 @@ export function serializeForClipboard(view: AnyView, slice: Slice<any>): Clipboa
   })
 
   const context: Array<unknown> = []
-  let { content, openEnd, openStart } = slice
-  while (openStart > 1 && openEnd > 1 && content.childCount == 1 && content.content[0].childCount == 1) {
-    openStart--
-    openEnd--
+  // Move single open parents into the context, outermost first.
+  const unwrap = (inner: Slice<any>): Slice<any> => {
+    const { content, openEnd, openStart } = inner
+    if (!(openStart > 1 && openEnd > 1 && content.childCount == 1 && content.content[0].childCount == 1)) return inner
     const node = content.content[0]
     context.push(node.type.name, node.attrs != node.type.defaultAttrs ? node.attrs : null)
-    content = node.content
+    return unwrap(new Slice(node.content, openStart - 1, openEnd - 1))
   }
+  const { content, openEnd, openStart } = unwrap(slice)
 
   const serializer = view.someProp("clipboardSerializer") || DOMSerializer.fromSchema(view.state.schema)
   const doc = detachedDoc(),
     wrap = doc.createElement("div")
   wrap.appendChild(serializer.serializeFragment(content, { document: doc }))
 
-  let firstChild = wrap.firstChild,
-    needsWrap,
-    wrappers = 0
-  while (firstChild && firstChild.nodeType == 1 && (needsWrap = wrapFor(wrapMap, firstChild.nodeName.toLowerCase()))) {
-    for (let i = needsWrap.length - 1; i >= 0; i--) {
-      const wrapper = doc.createElement(needsWrap[i])
-      while (wrap.firstChild) wrapper.appendChild(wrap.firstChild)
+  // Wrap content that needs a parent to parse (table rows and the like),
+  // returning how many wrappers were added.
+  const addWrappers = (added: number): number => {
+    const first = wrap.firstChild
+    const needsWrap = first && first.nodeType == 1 ? wrapFor(wrapMap, first.nodeName.toLowerCase()) : undefined
+    if (!needsWrap) return added
+    Arr.reverse(needsWrap).forEach((name) => {
+      const wrapper = doc.createElement(name)
+      wrapper.append(...Array.from(wrap.childNodes))
       wrap.appendChild(wrapper)
-      wrappers++
-    }
-    firstChild = wrap.firstChild
+    })
+    return addWrappers(added + needsWrap.length)
   }
+  const wrappers = addWrappers(0),
+    firstChild = wrap.firstChild
 
   if (firstChild && isElt(firstChild)) {
     firstChild.setAttribute(
@@ -116,12 +121,7 @@ export function parseFromClipboard(
 
   const contextNode = dom && dom.querySelector("[data-pm-slice]")
   const sliceData = contextNode && /^(\d+) (\d+)(?: -(\d+))? (.*)/.exec(contextNode.getAttribute("data-pm-slice") || "")
-  if (dom && sliceData && sliceData[3]) {
-    for (let i = +sliceData[3]; i > 0; i--) {
-      if (!dom.firstElementChild || !isElt(dom.firstElementChild)) break
-      dom = dom.firstElementChild
-    }
-  }
+  if (dom && sliceData && sliceData[3]) dom = intoFirstElement(dom, +sliceData[3])
 
   if (!slice) {
     if (!dom) return null
@@ -143,22 +143,8 @@ export function parseFromClipboard(
     // HTML wasn't created by ProseMirror. Make sure top-level siblings are coherent
     slice = Slice.maxOpen(normalizeSiblings(slice.content, $context), true)
     if (slice.openStart || slice.openEnd) {
-      let openStart = 0,
-        openEnd = 0
-      for (
-        let node = slice.content.content[0];
-        openStart < slice.openStart && !node.type.spec.isolating;
-        openStart++, node = node.content.content[0]
-      ) {
-        // empty
-      }
-      for (
-        let node = slice.content.content[slice.content.childCount - 1];
-        openEnd < slice.openEnd && !node.type.spec.isolating;
-        openEnd++, node = node.content.content[node.childCount - 1]
-      ) {
-        // empty
-      }
+      const openStart = openBelowIsolating(slice.content, slice.openStart, false),
+        openEnd = openBelowIsolating(slice.content, slice.openEnd, true)
       slice = closeSlice(slice, openStart, openEnd)
     }
   }
@@ -181,9 +167,22 @@ const inlineParents =
 // This addresses the problem that Transform.replace expects a
 // coherent slice, and will fail to place a set of siblings that don't
 // fit anywhere in the schema.
+// Descend `n` levels into first child elements, stopping at a non-element.
+function intoFirstElement(dom: HTMLElement, n: number): HTMLElement {
+  const first = dom.firstElementChild
+  return n > 0 && first && isElt(first) ? intoFirstElement(first, n - 1) : dom
+}
+
+// How many levels, up to `limit`, a fragment's first (last) edge can stay
+// open before an isolating node.
+function openBelowIsolating(fragment: Fragment<any, any>, limit: number, last: boolean): number {
+  const node = fragment.content[last ? fragment.childCount - 1 : 0]
+  return limit <= 0 || node.type.spec.isolating ? 0 : 1 + openBelowIsolating(node.content, limit - 1, last)
+}
+
 function normalizeSiblings(fragment: Fragment<any, any>, $context: ResolvedPos<any>) {
   if (fragment.childCount < 2) return fragment
-  for (let d = $context.depth; d >= 0; d--) {
+  const normalized = Arr.findFirst(Arr.reverse(Arr.range(0, $context.depth)), (d) => {
     const parent = $context.node(d)
     let match = parent.contentMatchAtUnsafe($context.index(d))
     let lastWrap: ReadonlyArray<NodeType<any, any>> | undefined,
@@ -218,16 +217,13 @@ function normalizeSiblings(fragment: Fragment<any, any>, $context: ResolvedPos<a
         lastWrap = wrap
       }
     })
-    if (result) return Fragment.from(result)
-  }
-  return fragment
+    return result ? Option.some(Fragment.from(result)) : Option.none()
+  })
+  return Option.getOrElse(normalized, () => fragment)
 }
 
 function withWrappers(node: Node<any, any>, wrap: ReadonlyArray<NodeType<any, any>>, from = 0) {
-  for (let i = wrap.length - 1; i >= from; i--) {
-    node = wrap[i].createUnsafe(null, Fragment.from(node))
-  }
-  return node
+  return wrap.slice(from).reduceRight((inner, type) => type.createUnsafe(null, Fragment.from(inner)), node)
 }
 
 // Used to group adjacent nodes wrapped in similar parents by
@@ -367,9 +363,7 @@ function readHTML(html: string) {
         .join("")
   }
   elt.innerHTML = maybeWrapTrusted(html)
-  if (wrap) {
-    for (let i = 0; i < wrap.length; i++) elt = elt.querySelector<HTMLElement>(wrap[i]) || elt
-  }
+  if (wrap) elt = wrap.reduce((inner, selector) => inner.querySelector<HTMLElement>(selector) || inner, elt)
   // Inline styles defined in the pasted content, so that parse rules
   // pick them up (prosemirror-view 1.42.0).
   const root = elt
@@ -392,12 +386,11 @@ function readHTML(html: string) {
 // Apple-converted-space on Safari) back to regular spaces.
 function restoreReplacedSpaces(dom: HTMLElement) {
   const nodes = dom.querySelectorAll(browser.chrome ? "span:not([class]):not([style])" : "span.Apple-converted-space")
-  for (let i = 0; i < nodes.length; i++) {
-    const node = nodes[i]
+  nodes.forEach((node) => {
     if (node.childNodes.length == 1 && node.textContent == " " && node.parentNode) {
       node.parentNode.replaceChild(dom.ownerDocument.createTextNode(" "), node)
     }
-  }
+  })
 }
 
 function addContext(slice: Slice<any>, context: string) {
@@ -405,20 +398,20 @@ function addContext(slice: Slice<any>, context: string) {
   const schema = slice.content.content[0].type.schema
   const array = Option.getOrUndefined(parseJson(context))
   if (!Array.isArray(array)) return slice
-  let { content, openEnd, openStart } = slice
-  for (let i = array.length - 2; i >= 0; i -= 2) {
-    const type = schema.nodes[array[i]]
-    if (!type || type.hasRequiredAttrs()) break
+  // Wrap in the context's nodes, innermost (last) first.
+  const wrapIn = (i: number, inner: Slice<any>): Slice<any> => {
+    const type = i >= 0 ? schema.nodes[array[i]] : undefined
+    if (!type || type.hasRequiredAttrs()) return inner
     // Context attributes come from the pasted HTML: stop wrapping at the
     // first node whose attributes the schema rejects (prosemirror-view
     // 1.42.3, an XSS fix).
+    let content: Fragment<any>
     try {
-      content = Fragment.from(type.createUnsafe(array[i + 1], content))
+      content = Fragment.from(type.createUnsafe(array[i + 1], inner.content))
     } catch {
-      break
+      return inner
     }
-    openStart++
-    openEnd++
+    return wrapIn(i - 2, new Slice(content, inner.openStart + 1, inner.openEnd + 1))
   }
-  return new Slice(content, openStart, openEnd)
+  return wrapIn(array.length - 2, slice)
 }

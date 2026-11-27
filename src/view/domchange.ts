@@ -48,14 +48,14 @@ function parseBetween(view: AnyView, from_: number, to_: number, addedNodes: Rea
   // Work around issue in Chrome where backspacing sometimes replaces
   // the deleted content with a random BR node
   if (browser.chrome && view.input.lastKeyCode === 8) {
-    for (let off = toOffset; off > fromOffset; off--) {
-      const node = parent.childNodes[off - 1],
-        desc = node.pmViewDesc
-      if (node.nodeName == "BR" && !desc) {
-        toOffset = off
-        break
-      }
-      if (!desc || desc.size) break
+    // Scan back over empty nodes; stop at the first one with content.
+    const stop = Arr.makeBy(toOffset - fromOffset, (k) => toOffset - k).find((off) => {
+      const desc = parent.childNodes[off - 1].pmViewDesc
+      return !desc || desc.size
+    })
+    if (stop !== undefined) {
+      const node = parent.childNodes[stop - 1]
+      if (node.nodeName == "BR" && !node.pmViewDesc) toOffset = stop
     }
   }
   const startDoc = view.state.doc
@@ -395,13 +395,9 @@ function isMarkChange(
 ): { mark: Mark<any, any>; type: string } | null | undefined {
   const curMarks = cur.content[0].marks,
     prevMarks = prev.content[0].marks
-  let added = curMarks,
-    removed = prevMarks,
-    type,
-    mark: Mark<any, any> | undefined,
-    update
-  for (let i = 0; i < prevMarks.length; i++) added = prevMarks[i].removeFromSet(added)
-  for (let i = 0; i < curMarks.length; i++) removed = curMarks[i].removeFromSet(removed)
+  const added = prevMarks.reduce((set, m) => m.removeFromSet(set), curMarks),
+    removed = curMarks.reduce((set, m) => m.removeFromSet(set), prevMarks)
+  let type, mark: Mark<any, any> | undefined, update
   if (added.length == 1 && Arr.isReadonlyArrayEmpty(removed)) {
     const addedMark = added[0]
     mark = addedMark
@@ -415,9 +411,7 @@ function isMarkChange(
   } else {
     return null
   }
-  const updated = []
-  for (let i = 0; i < prev.childCount; i++) updated.push(update(prev.content[i]))
-  if (Fragment.from(updated).eq(cur)) return { mark, type }
+  if (Fragment.from(prev.content.map(update)).eq(cur)) return { mark, type }
   return undefined
 }
 
@@ -478,21 +472,21 @@ function looksLikeEnter(content: Node<any, any>, from: number, to: number): bool
 }
 
 function skipClosingAndOpening($pos: ResolvedPos<any>, fromEnd: boolean, mayOpen: boolean) {
-  let depth = $pos.depth,
-    end = fromEnd ? $pos.end() : $pos.pos
-  while (depth > 0 && (fromEnd || $pos.indexAfter(depth) == $pos.node(depth).childCount)) {
-    depth--
-    end++
-    fromEnd = false
-  }
-  if (mayOpen) {
-    let next = $pos.node(depth).content.content[$pos.indexAfter(depth)]
-    while (next && !next.isLeaf) {
-      next = next.content.content[0]
-      end++
-    }
-  }
-  return end
+  const depth = closedDepth($pos, $pos.depth, fromEnd)
+  const end = (fromEnd ? $pos.end() : $pos.pos) + $pos.depth - depth
+  return mayOpen ? end + openDepth($pos.node(depth).content.content[$pos.indexAfter(depth)]) : end
+}
+
+// The depth reached by leaving every node that `$pos` is at the end of.
+function closedDepth($pos: ResolvedPos<any>, depth: number, fromEnd: boolean): number {
+  return depth > 0 && (fromEnd || $pos.indexAfter(depth) == $pos.node(depth).childCount)
+    ? closedDepth($pos, depth - 1, false)
+    : depth
+}
+
+// The number of nodes opened by entering `node` and its first descendants.
+function openDepth(node: Node<any, any>): number {
+  return node && !node.isLeaf ? 1 + openDepth(node.content.content[0]) : 0
 }
 
 function findDiff(

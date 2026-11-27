@@ -4,11 +4,13 @@
  *
  * @internal
  */
+import * as Arr from "effect/Array"
+import * as Function from "effect/Function"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import type { EditorState } from "../State.ts"
 import * as browser from "./browser.ts"
-import { caretFromPoint, type DOMNode, isElt, isText, nodeSize, parentNode, textRange } from "./dom.ts"
+import { ancestors, caretFromPoint, type DOMNode, isElt, isText, nodeSize, parentNode, textRange } from "./dom.ts"
 import type { EditorView } from "./view.ts"
 
 type AnyView = EditorView<any, any, any>
@@ -58,20 +60,18 @@ function clientRect(node: HTMLElement): Rect {
 }
 
 /** @internal */
-export function scrollRectIntoView(view: AnyView, rect: Rect, startDOM: DOMNode): void {
+export function scrollRectIntoView(view: AnyView, startRect: Rect, startDOM: DOMNode): void {
   // Skip empty rects with all sides at 0, for example when the element
   // has no CSS box (display: none) (prosemirror-view 1.42.1).
-  if (!nonZero(rect) && rect.left == 0) return
+  if (!nonZero(startRect) && startRect.left == 0) return
 
   const scrollThreshold = view.someProp("scrollThreshold") || 0,
     scrollMargin = view.someProp("scrollMargin") || 5
   const doc = view.dom.ownerDocument
-  for (let parent: DOMNode | null = startDOM || view.dom; ;) {
-    if (!parent) break
-    if (!isElt(parent)) {
-      parent = parentNode(parent)
-      continue
-    }
+  // Scroll each scrollable ancestor in turn, stopping at a fixed or sticky one.
+  const scrollFrom = (parent: DOMNode | null, rect: Rect): void => {
+    if (!parent) return
+    if (!isElt(parent)) return scrollFrom(parentNode(parent), rect)
     const elt: HTMLElement = parent
     const atTop = elt == doc.body
     const bounding = atTop ? windowRect(doc) : clientRect(elt)
@@ -90,6 +90,7 @@ export function scrollRectIntoView(view: AnyView, rect: Rect, startDOM: DOMNode)
     } else if (rect.right > bounding.right - getSide(scrollThreshold, "right")) {
       moveX = rect.right - bounding.right + getSide(scrollMargin, "right")
     }
+    let next = rect
     if (moveX || moveY) {
       if (atTop) {
         doc.defaultView?.scrollBy(moveX, moveY)
@@ -100,13 +101,14 @@ export function scrollRectIntoView(view: AnyView, rect: Rect, startDOM: DOMNode)
         if (moveX) elt.scrollLeft += moveX
         const dX = elt.scrollLeft - startX,
           dY = elt.scrollTop - startY
-        rect = { left: rect.left - dX, top: rect.top - dY, right: rect.right - dX, bottom: rect.bottom - dY }
+        next = { left: rect.left - dX, top: rect.top - dY, right: rect.right - dX, bottom: rect.bottom - dY }
       }
     }
     const pos: string = atTop ? "fixed" : getComputedStyle(elt).position
-    if (/^(fixed|sticky)$/.test(pos)) break
-    parent = pos == "absolute" ? elt.offsetParent : parentNode(elt)
+    if (/^(fixed|sticky)$/.test(pos)) return
+    scrollFrom(pos == "absolute" ? elt.offsetParent : parentNode(elt), next)
   }
+  scrollFrom(startDOM || view.dom, startRect)
 }
 
 /** @internal */
@@ -123,28 +125,27 @@ export type ScrollPos = {
 export function storeScrollPos(view: AnyView): ScrollPos {
   const rect = view.dom.getBoundingClientRect(),
     startY = Math.max(0, rect.top)
-  let ref: ScrollPos["ref"] = Option.none()
-  for (let x = (rect.left + rect.right) / 2, y = startY + 1; y < Math.min(innerHeight, rect.bottom); y += 5) {
+  const x = (rect.left + rect.right) / 2
+  // Probe every 5 pixels down the middle of the editor.
+  const probes = Arr.makeBy(
+    Math.max(0, Math.ceil((Math.min(innerHeight, rect.bottom) - startY - 1) / 5)),
+    (k) => startY + 1 + k * 5
+  )
+  const ref: ScrollPos["ref"] = Arr.findFirst(probes, (y) => {
     const dom = view.root.elementFromPoint(x, y)
-    if (!dom || dom == view.dom || !view.dom.contains(dom)) continue
+    if (!dom || dom == view.dom || !view.dom.contains(dom)) return Option.none()
     const localRect = dom.getBoundingClientRect()
-    if (localRect.top >= startY - 20) {
-      ref = Option.some({ dom, top: localRect.top })
-      break
-    }
-  }
+    return localRect.top >= startY - 20 ? Option.some({ dom, top: localRect.top }) : Option.none()
+  })
   return { ref, stack: scrollStack(view.dom) }
 }
 
 function scrollStack(dom: DOMNode): Array<{ dom: HTMLElement; top: number; left: number }> {
-  const stack = [],
-    doc = dom.ownerDocument
-  for (let cur: DOMNode | null = dom; cur; cur = parentNode(cur)) {
+  return (dom == dom.ownerDocument ? [dom] : ancestors(dom)).map((cur) => {
     // SAFETY: the editor's ancestors are elements up to the document, whose `scrollTop` and `scrollLeft` read as 0 when unset.
-    stack.push({ dom: cur as HTMLElement, top: (cur as HTMLElement).scrollTop, left: (cur as HTMLElement).scrollLeft })
-    if (dom == doc) break
-  }
-  return stack
+    const elt = cur as HTMLElement
+    return { dom: elt, top: elt.scrollTop, left: elt.scrollLeft }
+  })
 }
 
 // Reset the scroll position of the editor's parent nodes to that what
@@ -162,11 +163,10 @@ export function resetScrollPos({ ref, stack }: ScrollPos): void {
 }
 
 function restoreScrollStack(stack: Array<{ dom: HTMLElement; top: number; left: number }>, dTop: number) {
-  for (let i = 0; i < stack.length; i++) {
-    const { dom, left, top } = stack[i]
+  stack.forEach(({ dom, left, top }) => {
     if (dom.scrollTop != top + dTop) dom.scrollTop = top + dTop
     if (dom.scrollLeft != left) dom.scrollLeft = left
-  }
+  })
 }
 
 let preventScrollSupported: false | null | { preventScroll: boolean } = null
@@ -209,14 +209,8 @@ function findOffsetInNode(node: Element, coords: { top: number; left: number }):
   let rowBot = coords.top,
     rowTop = coords.top
   let firstBelow: DOMNode | undefined, coordsBelow: { left: number; top: number } | undefined
-  for (let child = node.firstChild, childIndex = 0; child; child = child.nextSibling, childIndex++) {
-    let rects
-    if (isElt(child)) rects = child.getClientRects()
-    else if (isText(child)) rects = textRange(child).getClientRects()
-    else continue
-
-    for (let i = 0; i < rects.length; i++) {
-      const rect = rects[i]
+  Array.from(node.childNodes).forEach((child, childIndex) => {
+    childRects(child).forEach((rect) => {
       if (rect.top <= rowBot && rect.bottom >= rowTop) {
         rowBot = Math.max(rect.bottom, rowBot)
         rowTop = Math.min(rect.top, rowTop)
@@ -235,7 +229,7 @@ function findOffsetInNode(node: Element, coords: { top: number; left: number }):
           if (child.nodeType == 1 && dx) {
             offset = childIndex + (coords.left >= (rect.left + rect.right) / 2 ? 1 : 0)
           }
-          continue
+          return
         }
       } else if (rect.top > coords.top && !firstBelow && rect.left <= coords.left && rect.right >= coords.left) {
         firstBelow = child
@@ -248,8 +242,8 @@ function findOffsetInNode(node: Element, coords: { top: number; left: number }):
       ) {
         offset = childIndex + 1
       }
-    }
-  }
+    })
+  })
   if (!closest && firstBelow) {
     closest = firstBelow
     coordsClosest = coordsBelow
@@ -261,22 +255,24 @@ function findOffsetInNode(node: Element, coords: { top: number; left: number }):
   return findOffsetInNode(closest, coordsClosest)
 }
 
-function findOffsetInText(node: Text, coords: { top: number; left: number }) {
-  const len = node.data.length
+// The client rectangles of an element or text node.
+function childRects(child: ChildNode): ReadonlyArray<DOMRect> {
+  if (isElt(child)) return Array.from(child.getClientRects())
+  return isText(child) ? Array.from(textRange(child).getClientRects()) : []
+}
+
+function findOffsetInText(node: Text, coords: { top: number; left: number }): DOMOffset {
   const range = document.createRange()
-  let result: { node: DOMNode; offset: number } | undefined
-  for (let i = 0; i < len; i++) {
+  const offset = Arr.findFirst(Arr.makeBy(node.data.length, Function.identity), (i) => {
     range.setEnd(node, i + 1)
     range.setStart(node, i)
     const rect = singleRect(range, 1)
-    if (rect.top == rect.bottom) continue
-    if (inRect(coords, rect)) {
-      result = { node, offset: i + (coords.left >= (rect.left + rect.right) / 2 ? 1 : 0) }
-      break
-    }
-  }
+    return rect.top != rect.bottom && inRect(coords, rect)
+      ? Option.some(i + (coords.left >= (rect.left + rect.right) / 2 ? 1 : 0))
+      : Option.none()
+  })
   range.detach()
-  return result || { node, offset: 0 }
+  return { node, offset: Option.getOrElse(offset, () => 0) }
 }
 
 function inRect(coords: { top: number; left: number }, rect: Rect) {
@@ -312,11 +308,13 @@ function posFromCaret(view: AnyView, node: DOMNode, offset: number, coords: { to
   // fall outside of. If so, we take the position before/after that
   // block. If not, we call `posFromDOM` on the raw node/offset.
   let outsideBlock = -1
-  for (let cur = node, sawBlock = false; ;) {
-    if (cur == view.dom) break
+  const atEnd = () => Option.some(outsideBlock > -1 ? outsideBlock : view.docView.posFromDOM(node, offset, -1))
+  const climb = (cur: DOMNode, sawBlock: boolean): Option.Option<number> => {
+    if (cur == view.dom) return atEnd()
     const desc = view.docView.nearestDesc(cur, true)
-    let rect
-    if (!desc) return null
+    let rect,
+      saw = sawBlock
+    if (!desc) return Option.none()
     if (
       isElt(desc.dom) &&
       ((desc.node.isBlock && desc.parent) || !desc.contentDOM) &&
@@ -325,48 +323,40 @@ function posFromCaret(view: AnyView, node: DOMNode, offset: number, coords: { to
     ) {
       if (desc.node.isBlock && desc.parent && !/^T(R|BODY|HEAD|FOOT)$/.test(desc.dom.nodeName)) {
         // Only apply the horizontal test to the innermost block. Vertical for any parent.
-        if ((!sawBlock && rect.left > coords.left) || rect.top > coords.top) outsideBlock = desc.posBefore
-        else if ((!sawBlock && rect.right < coords.left) || rect.bottom < coords.top) outsideBlock = desc.posAfter
-        sawBlock = true
+        if ((!saw && rect.left > coords.left) || rect.top > coords.top) outsideBlock = desc.posBefore
+        else if ((!saw && rect.right < coords.left) || rect.bottom < coords.top) outsideBlock = desc.posAfter
+        saw = true
       }
       if (!desc.contentDOM && outsideBlock < 0 && !desc.node.isText) {
         // If we are inside a leaf, return the side of the leaf closer to the coords
         const before = desc.node.isBlock
           ? coords.top < (rect.top + rect.bottom) / 2
           : coords.left < (rect.left + rect.right) / 2
-        return before ? desc.posBefore : desc.posAfter
+        return Option.some(before ? desc.posBefore : desc.posAfter)
       }
     }
     const up = desc.dom.parentNode
-    if (!up) break
-    cur = up
+    return up ? climb(up, saw) : atEnd()
   }
-  return outsideBlock > -1 ? outsideBlock : view.docView.posFromDOM(node, offset, -1)
+  return climb(node, false)
 }
 
 function elementFromPoint(element: Element, coords: { top: number; left: number }, box: Rect): Element {
   const len = element.childNodes.length
-  if (len && box.top < box.bottom) {
-    for (
-      let startI = Math.max(
-          0,
-          Math.min(len - 1, Math.floor((len * (coords.top - box.top)) / (box.bottom - box.top)) - 2)
-        ),
-        i = startI;
-      ;
-    ) {
-      const child = element.childNodes[i]
-      if (isElt(child)) {
-        const rects = child.getClientRects()
-        for (let j = 0; j < rects.length; j++) {
-          const rect = rects[j]
-          if (inRect(coords, rect)) return elementFromPoint(child, coords, rect)
-        }
-      }
-      if ((i = (i + 1) % len) == startI) break
-    }
-  }
-  return element
+  if (!len || box.top >= box.bottom) return element
+  // Start near the child the point is proportionally at, and wrap around.
+  const startI = Math.max(0, Math.min(len - 1, Math.floor((len * (coords.top - box.top)) / (box.bottom - box.top)) - 2))
+  const found = Arr.findFirst(
+    Arr.makeBy(len, (k) => element.childNodes[(startI + k) % len]),
+    (child) =>
+      isElt(child)
+        ? Option.map(
+            Arr.findFirst(Array.from(child.getClientRects()), (rect) => inRect(coords, rect)),
+            (rect) => elementFromPoint(child, coords, rect)
+          )
+        : Option.none()
+  )
+  return Option.getOrElse(found, () => element)
 }
 
 // Given an x,y position on the editor, get the position in the document.
@@ -391,9 +381,7 @@ export function posAtCoords(
   }
   // Safari's caretRangeFromPoint returns nonsense when on a draggable element
   if (browser.safari) {
-    for (let p: DOMNode | null = elt; node && p; p = parentNode(p)) {
-      if (isElt(p) && p.draggable) node = undefined
-    }
+    if (ancestors(elt).some((p) => isElt(p) && p.draggable)) node = undefined
   }
   elt = targetKludge(elt, coords)
   if (node) {
@@ -442,7 +430,7 @@ export function posAtCoords(
     // 'round up' positions that would be more accurately placed
     // before the BR node.
     else if (offset == 0 || node.nodeType != 1 || node.childNodes[offset - 1].nodeName != "BR") {
-      pos = posFromCaret(view, node, offset, coords)
+      pos = Option.getOrUndefined(posFromCaret(view, node, offset, coords))
     }
   }
   if (pos == null) pos = posFromElement(view, elt, coords)
@@ -539,8 +527,7 @@ export function coordsAtPos(view: AnyView, pos: number, side: number): Rect {
     if (target) return flattenV(singleRect(target, 1), false)
   }
   if (atom == null && offset < nodeSize(node)) {
-    let after: ChildNode | null = node.childNodes[offset]
-    while (after && after.pmViewDesc && after.pmViewDesc.ignoreForCoords) after = after.nextSibling
+    const after = skipIgnoredForCoords(node.childNodes[offset])
     const target = !after
       ? null
       : isText(after)
@@ -553,6 +540,10 @@ export function coordsAtPos(view: AnyView, pos: number, side: number): Rect {
   // All else failed, just try to get a rectangle for the target node
   // SAFETY: text nodes were handled above, so `node` is an element.
   return flattenV(singleRect(node as HTMLElement, -side), side >= 0)
+}
+
+function skipIgnoredForCoords(node: ChildNode | null): ChildNode | null {
+  return node && node.pmViewDesc && node.pmViewDesc.ignoreForCoords ? skipIgnoredForCoords(node.nextSibling) : node
 }
 
 function flattenV(rect: DOMRect, left: boolean): Rect {
@@ -586,37 +577,25 @@ function endOfTextblockVertical(view: AnyView, state: EditorState<any, any, any>
   const sel = state.selection
   const $pos = dir == "up" ? sel.$from : sel.$to
   return withFlushedState(view, state, () => {
-    let { node: dom } = view.docView.domFromPos($pos.pos, dir == "up" ? -1 : 1)
-    for (;;) {
+    // The DOM of the innermost block around the position.
+    const blockDOM = (dom: DOMNode): DOMNode => {
       const nearest = view.docView.nearestDesc(dom, true)
-      if (!nearest) break
-      if (nearest.node.isBlock) {
-        dom = nearest.contentDOM || nearest.dom
-        break
-      }
+      if (!nearest) return dom
+      if (nearest.node.isBlock) return nearest.contentDOM || nearest.dom
       const up = nearest.dom.parentNode
-      if (!up) break
-      dom = up
+      return up ? blockDOM(up) : dom
     }
+    const dom = blockDOM(view.docView.domFromPos($pos.pos, dir == "up" ? -1 : 1).node)
     const coords = coordsAtPos(view, $pos.pos, 1)
-    for (let child = dom.firstChild; child; child = child.nextSibling) {
-      let boxes
-      if (isElt(child)) boxes = child.getClientRects()
-      else if (isText(child)) boxes = textRange(child, 0, child.data.length).getClientRects()
-      else continue
-      for (let i = 0; i < boxes.length; i++) {
-        const box = boxes[i]
-        if (
+    return !Array.from(dom.childNodes).some((child) =>
+      childRects(child).some(
+        (box) =>
           box.bottom > box.top + 1 &&
           (dir == "up"
             ? coords.top - box.top > (box.bottom - coords.top) * 2
             : box.bottom - coords.bottom > (coords.bottom - box.top) * 2)
-        ) {
-          return false
-        }
-      }
-    }
-    return true
+      )
+    )
   })
 }
 

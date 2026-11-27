@@ -77,7 +77,7 @@ export function selectionFromDOM(view: AnyView, origin: string | null = null): S
     selection: Selection<any> | undefined
   if (selectionCollapsed(domSel)) {
     anchor = head
-    while (nearestDesc && !nearestDesc.node) nearestDesc = nearestDesc.parent
+    nearestDesc = nearestDesc && Option.getOrUndefined(withNode(nearestDesc))
     const nearestDescNode = nearestDesc?.node
     if (
       nearestDesc &&
@@ -97,11 +97,10 @@ export function selectionFromDOM(view: AnyView, origin: string | null = null): S
     if (win && domSel instanceof win.Selection && domSel.rangeCount > 1) {
       let min = head,
         max = head
-      for (let i = 0; i < domSel.rangeCount; i++) {
-        const range = domSel.getRangeAt(i)
+      Array.from({ length: domSel.rangeCount }, (_, i) => domSel.getRangeAt(i)).forEach((range) => {
         min = Math.min(min, view.docView.posFromDOM(range.startContainer, range.startOffset, 1))
         max = Math.max(max, view.docView.posFromDOM(range.endContainer, range.endOffset, -1))
-      }
+      })
       if (min < 0) return null
       ;[anchor, head] = max == view.state.selection.anchor ? [max, min] : [min, max]
       $head = doc.resolveUnsafe(head)
@@ -118,6 +117,12 @@ export function selectionFromDOM(view: AnyView, origin: string | null = null): S
     selection = selectionBetween(view, $anchor, $head, bias)
   }
   return selection
+}
+
+// The nearest of `desc` and its ancestors that describes a node.
+function withNode(desc: ViewDesc): Option.Option<ViewDesc> {
+  if (desc.node) return Option.some(desc)
+  return desc.parent ? withNode(desc.parent) : Option.none()
 }
 
 function editorOwnsSelection(view: AnyView) {

@@ -436,26 +436,28 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
       result.splice(i < 0 ? result.length : i, 0, rule)
     }
 
-    Rec.toEntries<string, MarkType>(schema.marks).forEach(([name, type]) => {
-      const rules: ReadonlyArray<ParseRule> | undefined = type.spec.parseDOM
-      if (rules) {
-        rules.forEach((r) => {
-          const rule: Types.Mutable<ParseRule> = { ...r }
-          if (!(rule.mark || rule.ignore || ("clearMark" in rule && rule.clearMark))) rule.mark = name
-          insert(rule)
-        })
-      }
-    })
-    Rec.toEntries<string, NodeType>(schema.nodes).forEach(([name, type]) => {
-      const rules: ReadonlyArray<TagParseRule> | undefined = type.spec.parseDOM
-      if (rules) {
-        rules.forEach((r) => {
-          const rule: Types.Mutable<TagParseRule> = { ...r }
-          if (!(rule.node || rule.ignore || rule.mark)) rule.node = name
-          insert(rule)
-        })
-      }
-    })
+    // Insert copies of a spec's rules, letting `complete` fill in their target.
+    function insertAll<Rule extends ParseRule>(
+      rules: ReadonlyArray<Rule> = [],
+      complete: (rule: Types.Mutable<Rule>) => void
+    ) {
+      rules.forEach((r) => {
+        const rule: Rule = { ...r }
+        complete(rule)
+        insert(rule)
+      })
+    }
+
+    Rec.toEntries<string, MarkType>(schema.marks).forEach(([name, type]) =>
+      insertAll<ParseRule>(type.spec.parseDOM, (rule) => {
+        if (!(rule.mark || rule.ignore || ("clearMark" in rule && rule.clearMark))) rule.mark = name
+      })
+    )
+    Rec.toEntries<string, NodeType>(schema.nodes).forEach(([name, type]) =>
+      insertAll<TagParseRule>(type.spec.parseDOM, (rule) => {
+        if (!(rule.node || rule.ignore || rule.mark)) rule.node = name
+      })
+    )
     return result
   }
 
