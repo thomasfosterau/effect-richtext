@@ -8,6 +8,7 @@
  * @since 0.1.0
  */
 import * as Predicate from "effect/Predicate"
+import * as Rec from "effect/Record"
 import { type Attrs, type MarkType, Node, type NodeType, Schema } from "./model.ts"
 import { schema as bSchema } from "./schema-basic.ts"
 import { addListNodes } from "./schema-list.ts"
@@ -33,24 +34,21 @@ function flatten(
   children: Array<ChildSpec>,
   f: (node: Node) => Node
 ): { nodes: Array<Node>; tag: Tags } {
-  const result = []
+  const result: Array<Node> = []
   let pos = 0,
     tag = noTag
 
-  for (let i = 0; i < children.length; i++) {
-    const child = children[i]
+  children.forEach((child) => {
     if (Predicate.isString(child)) {
-      const re = /<(\w+)>/g
-      let m,
-        at = 0,
+      let at = 0,
         out = ""
-      while ((m = re.exec(child))) {
+      Array.from(child.matchAll(/<(\w+)>/g)).forEach((m) => {
         out += child.slice(at, m.index)
         pos += m.index - at
         at = m.index + m[0].length
         if (tag == noTag) tag = Object.create(null)
         tag[m[1]] = pos
-      }
+      })
       out += child.slice(at)
       pos += child.length - at
       if (out) result.push(f(schema.text(out)))
@@ -58,23 +56,23 @@ function flatten(
       const childTag = tagOf(child)
       if (childTag != noTag) {
         if (tag == noTag) tag = Object.create(null)
-        for (const key in childTag) {
-          tag[key] = childTag[key] + ("flat" in child || child.isText ? 0 : 1) + pos
-        }
+        Rec.toEntries(childTag).forEach(([key, at]) => {
+          tag[key] = at + ("flat" in child || child.isText ? 0 : 1) + pos
+        })
       }
       if ("flat" in child) {
-        for (let j = 0; j < child.flat.length; j++) {
-          const node = f(child.flat[j])
+        child.flat.forEach((flat) => {
+          const node = f(flat)
           pos += node.nodeSize
           result.push(node)
-        }
+        })
       } else {
         const node = f(child)
         pos += node.nodeSize
         result.push(node)
       }
     }
-  }
+  })
   return { nodes: result, tag }
 }
 
@@ -164,10 +162,12 @@ export function builders<Nodes extends string = any, Marks extends string = any>
   names?: { [name: string]: Attrs }
 ): Builders<Schema<Nodes, Marks>> {
   const result: { [name: string]: unknown } = { schema }
-  for (const name in schema.nodes) result[name] = block(schema.nodes[name], {})
-  for (const name in schema.marks) result[name] = mark(schema.marks[name], {})
+  Rec.toEntries(schema.nodes).forEach(([name, type]) => (result[name] = block(type, {})))
+  Rec.toEntries(schema.marks).forEach(([name, type]) => (result[name] = mark(type, {})))
 
   if (names) {
+    // ProseMirror's for-in copies inherited properties too, so this keeps it.
+    // oxlint-disable-next-line effect/imperative-loops
     for (const name in names) {
       const value = names[name],
         typeName = value.nodeType || value.markType || name

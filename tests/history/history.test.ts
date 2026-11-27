@@ -32,6 +32,11 @@ function mkState(doc?: Node<any>, config?: any): State {
 function type(state: State, text: string): State {
   return state.applyUnsafe(state.tr.insertTextUnsafe(text))
 }
+// Runs `cmd` `times` times.
+function repeat(state: State, cmd: HistoryCommand, times: number): State {
+  return Array.from({ length: times }).reduce<State>((s) => command(s, cmd), state)
+}
+
 function command(state: State, command: HistoryCommand): State {
   Effect.runSync(command(state, (tr) => Effect.sync(() => (state = state.applyUnsafe(tr)))))
   return state
@@ -207,11 +212,11 @@ describe("history", () => {
     state = state.applyUnsafe(state.tr.splitUnsafe(1))
     state = state.applyUnsafe(state.tr.setSelectionUnsafe(TextSelection.createUnsafe(state.doc, 1)))
     state = type(state, "top")
-    for (let i = 0; i < 6; i++) {
+    Arr.makeBy(6, (i) => i).forEach((i) => {
       const re = i % 2
-      for (let j = 0; j < 4; j++) state = command(state, re ? redo : undo)
+      state = repeat(state, re ? redo : undo, 4)
       ist(state.doc, re ? doc(p("top"), p("zero one two three")) : doc(p()), eq)
-    }
+    })
   })
 
   it("supports non-tracked changes next to tracked changes", () => {
@@ -236,13 +241,13 @@ describe("history", () => {
     state = state.applyUnsafe(state.tr.setSelectionUnsafe(TextSelection.createUnsafe(state.doc, 1)))
     state = type(state, "top")
     state = state.applyUnsafe(state.tr.insertTextUnsafe("yyy", 1).setMeta("addToHistory", false))
-    for (let i = 0; i < 3; i++) {
+    Arr.makeBy(3, (i) => i).forEach((i) => {
       if (i == 2) compress(state)
-      for (let j = 0; j < 4; j++) state = command(state, undo)
+      state = repeat(state, undo, 4)
       ist(state.doc, doc(p("yyyxxx")), eq)
-      for (let j = 0; j < 4; j++) state = command(state, redo)
+      state = repeat(state, redo, 4)
       ist(state.doc, doc(p("yyytop"), p("zero one twoxxx three")), eq)
-    }
+    })
   })
 
   it("restores selection on undo", () => {
@@ -308,11 +313,11 @@ describe("history", () => {
 
   it("truncates history", () => {
     let state = mkState(undefined, { depth: 2 })
-    for (let i = 1; i < 40; ++i) {
+    Arr.range(1, 39).forEach((i) => {
       state = type(state, "a")
       state = state.applyUnsafe(closeHistory(state.tr))
       ist(undoDepth(state), ((i - 2) % 21) + 2)
-    }
+    })
   })
 
   it("supports transactions with multiple steps", () => {

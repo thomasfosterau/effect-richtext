@@ -17,6 +17,7 @@
  * @since 0.1.0
  */
 // Ported from prosemirror-inputrules (MIT, Marijn Haverbeke and others)
+import * as Arr from "effect/Array"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
@@ -344,33 +345,37 @@ function run(
   return tryRules({ view, state, $from, from, to, text, textBefore, rules, plugin, deflt, sync: true }, 0)
 }
 
+// Whether a rule may run where the cursor is, given the code marks and
+// code blocks it opts into.
+function ruleAppliesAt(rule: InputRule<any, any, any>, $from: ResolvedPos<any>): boolean {
+  if (!rule.inCodeMark && hasCodeMark($from.marks())) return false
+  return $from.parent.type.spec.code ? Boolean(rule.inCode) : rule.inCode !== "only"
+}
+
+// Whether inline content between two positions has a code mark.
+function hasCodeMarkBetween(doc: Node<any>, from: number, to: number): boolean {
+  let hasMark = false
+  doc.nodesBetween(from, to, (node) => {
+    if (node.isInline && hasCodeMark(node.marks)) hasMark = true
+  })
+  return hasMark
+}
+
+// Try the rules from index `start` on, in order, until one handles the input.
 function tryRules(cx: RunContext, start: number): HandlerResult<any, any> {
   const { $from, rules, state, text, textBefore } = cx
-  for (let i = start; i < rules.length; i++) {
-    const rule = rules[i]
-    if (!rule.inCodeMark && hasCodeMark($from.marks())) continue
-    if ($from.parent.type.spec.code) {
-      if (!rule.inCode) continue
-    } else if (rule.inCode === "only") {
-      continue
-    }
-    const match = rule.match.exec(textBefore)
-    if (!match || match[0].length < text.length) continue
-    const startPos = cx.from - (match[0].length - text.length)
-    if (!rule.inCodeMark) {
-      let hasMark = false
-      state.doc.nodesBetween(startPos, $from.pos, (node) => {
-        if (node.isInline && hasCodeMark(node.marks)) hasMark = true
-      })
-      if (hasMark) continue
-    }
-    const result = rule.handler(state, match, startPos, cx.to)
-    if (Effect.isEffect(result)) return runEffectRule(cx, rule, result, i + 1)
-    const tr = Option.isOption(result) ? Option.getOrNull(result) : result
-    if (!tr) continue
-    return applyRule(cx, rule, tr)
-  }
-  return false
+  if (start >= rules.length) return false
+  const rule = rules[start]
+  const next = () => tryRules(cx, start + 1)
+  if (!ruleAppliesAt(rule, $from)) return next()
+  const match = rule.match.exec(textBefore)
+  if (!match || match[0].length < text.length) return next()
+  const startPos = cx.from - (match[0].length - text.length)
+  if (!rule.inCodeMark && hasCodeMarkBetween(state.doc, startPos, $from.pos)) return next()
+  const result = rule.handler(state, match, startPos, cx.to)
+  if (Effect.isEffect(result)) return runEffectRule(cx, rule, result, start + 1)
+  const tr = Option.isOption(result) ? Option.getOrNull(result) : result
+  return tr ? applyRule(cx, rule, tr) : next()
 }
 
 function applyRule(cx: RunContext, rule: InputRule<any, any, any>, tr: Transaction<any>): Effect.Effect<boolean> {
@@ -435,26 +440,25 @@ export type InputRuleCommand = <Sc extends AnySchema>(
  */
 export const undoInputRule: InputRuleCommand = (state, dispatch) =>
   Effect.suspend(() => {
-    const plugins = state.plugins
-    for (let i = 0; i < plugins.length; i++) {
-      const plugin = plugins[i]
-      if (!plugin.spec.isInputRules) continue
-      // SAFETY: an input-rules plugin's state is its undoable rule, if any.
-      const undoable = Option.getOrNull(Option.flatten(plugin.getState(state) as Option.Option<InputRulesState>))
-      if (!undoable) continue
-      if (!dispatch) return Effect.succeed(true)
-      const tr = state.tr,
-        toUndo = undoable.transform
-      for (let j = toUndo.steps.length - 1; j >= 0; j--) tr.stepUnsafe(toUndo.steps[j].invert(toUndo.docs[j]))
-      if (undoable.text) {
-        const marks = tr.doc.resolveUnsafe(undoable.from).marks()
-        tr.replaceWithUnsafe(undoable.from, undoable.to, state.schema.textUnsafe(undoable.text, marks))
-      } else {
-        tr.deleteUnsafe(undoable.from, undoable.to)
-      }
-      return Effect.as(dispatch(tr), true)
+    const found = Arr.findFirst(state.plugins, (plugin) =>
+      plugin.spec.isInputRules
+        ? // SAFETY: an input-rules plugin's state is its undoable rule, if any.
+          Option.flatten(plugin.getState(state) as Option.Option<InputRulesState>)
+        : Option.none()
+    )
+    if (Option.isNone(found)) return Effect.succeed(false)
+    if (!dispatch) return Effect.succeed(true)
+    const undoable = found.value
+    const tr = state.tr,
+      toUndo = undoable.transform
+    Arr.reverse(toUndo.steps.map((step, i) => step.invert(toUndo.docs[i]))).forEach((step) => tr.stepUnsafe(step))
+    if (undoable.text) {
+      const marks = tr.doc.resolveUnsafe(undoable.from).marks()
+      tr.replaceWithUnsafe(undoable.from, undoable.to, state.schema.textUnsafe(undoable.text, marks))
+    } else {
+      tr.deleteUnsafe(undoable.from, undoable.to)
     }
-    return Effect.succeed(false)
+    return Effect.as(dispatch(tr), true)
   })
 
 // -----------------------------------------------------------------------------

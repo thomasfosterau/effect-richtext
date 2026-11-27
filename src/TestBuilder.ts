@@ -12,6 +12,7 @@
  */
 import type { NoKeys } from "./internal/types.ts"
 import * as Predicate from "effect/Predicate"
+import * as Rec from "effect/Record"
 import * as Result from "effect/Result"
 import {
   type AnySchema,
@@ -125,45 +126,44 @@ function flatten<Sc extends AnySchema>(
   let pos = 0
   let tag: Record<string, number> = noTag
 
-  for (let i = 0; i < children.length; i++) {
-    const child = children[i]
+  children.forEach((child) => {
     if (Predicate.isString(child)) {
-      let at = 0,
-        out = ""
-      for (const m of child.matchAll(/<(\w+)>/g)) {
-        out += child.slice(at, m.index)
-        pos += m.index - at
-        at = m.index + m[0].length
+      // Splitting on the tags alternates text with tag names.
+      let out = ""
+      child.split(/<(\w+)>/).forEach((part, k) => {
+        if (k % 2 === 0) {
+          out += part
+          return
+        }
         if (tag === noTag) tag = Object.create(null)
-        tag[m[1]] = pos
-      }
-      out += child.slice(at)
-      pos += child.length - at
+        tag[part] = pos + out.length
+      })
+      pos += out.length
       if (out) result.push(f(schema.textUnsafe(out)))
     } else if (isFlat(child)) {
       const childTag = child.tag ?? noTag
       if (childTag !== noTag) {
         if (tag === noTag) tag = Object.create(null)
-        for (const id in childTag) tag[id] = childTag[id] + pos
+        Rec.toEntries(childTag).forEach(([id, at]) => (tag[id] = at + pos))
       }
-      for (let j = 0; j < child.flat.length; j++) {
-        const node = f(child.flat[j])
+      child.flat.forEach((flat) => {
+        const node = f(flat)
         pos += node.nodeSize
         result.push(node)
-      }
+      })
     } else {
       // SAFETY: the builders that can be passed uncalled are leaf builders, which `isFlat` caught.
       const node0 = child as Node<Sc>
       const childTag = tagsOf(node0)
       if (childTag !== noTag) {
         if (tag === noTag) tag = Object.create(null)
-        for (const id in childTag) tag[id] = childTag[id] + (node0.isText ? 0 : 1) + pos
+        Rec.toEntries(childTag).forEach(([id, at]) => (tag[id] = at + (node0.isText ? 0 : 1) + pos))
       }
       const node = f(node0)
       pos += node.nodeSize
       result.push(node)
     }
-  }
+  })
   return { nodes: result, tag }
 }
 
@@ -252,11 +252,11 @@ export function builders<Sc extends AnySchema, const Extra extends Record<string
 ): Builders<Sc, Extra> {
   const result: Record<string, unknown> = {}
   result.schema = schema
-  for (const name in schema.nodes) result[name] = block(schema.nodes[name], {})
-  for (const name in schema.marks) result[name] = mark(schema.marks[name], {})
+  Rec.toEntries(schema.nodes).forEach(([name, type]) => (result[name] = block(type, {})))
+  Rec.toEntries(schema.marks).forEach(([name, type]) => (result[name] = mark(type, {})))
   if (names) {
-    for (const name in names) {
-      const { nodeType: nodeTypeName, markType: markTypeName, ...value } = names[name]
+    Rec.toEntries(names).forEach(([name, spec]) => {
+      const { nodeType: nodeTypeName, markType: markTypeName, ...value } = spec
       const typeName =
         Predicate.isString(nodeTypeName) && nodeTypeName
           ? nodeTypeName
@@ -267,7 +267,7 @@ export function builders<Sc extends AnySchema, const Extra extends Record<string
         markType = schema.marks[typeName]
       if (nodeType) result[name] = block(nodeType, value)
       else if (markType) result[name] = mark(markType, value)
-    }
+    })
   }
   // SAFETY: holds `schema`, a builder for each node and mark type, and one for each of `names`.
   return result as Builders<Sc, Extra>

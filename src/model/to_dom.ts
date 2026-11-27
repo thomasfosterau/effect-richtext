@@ -6,6 +6,7 @@
 import type * as Effect from "effect/Effect"
 import * as Predicate from "effect/Predicate"
 import * as Option from "effect/Option"
+import * as Rec from "effect/Record"
 import { attempt } from "../internal/attempt.ts"
 import { DOMSpecError } from "./errors.ts"
 import type { Fragment } from "./fragment.ts"
@@ -132,31 +133,31 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
     const active: Array<[Mark<any, any>, globalThis.Node]> = []
     fragment.forEach((node) => {
       if (active.length || node.marks.length) {
+        // Count the open mark wrappers that this node's marks continue,
+        // skipping marks that have no serializer.
         let keep = 0,
           rendered = 0
-        while (keep < active.length && rendered < node.marks.length) {
-          const next = node.marks[rendered]
-          if (!this.marks[next.type.name]) {
-            rendered++
-            continue
+        node.marks.some((next) => {
+          if (keep === active.length) return true
+          if (this.marks[next.type.name]) {
+            if (!next.eq(active[keep][0]) || next.type.spec.spanning === false) return true
+            keep++
           }
-          if (!next.eq(active[keep][0]) || next.type.spec.spanning === false) break
-          keep++
           rendered++
-        }
+          return false
+        })
         if (keep < active.length) {
           top = active[keep][1]
           active.length = keep
         }
-        while (rendered < node.marks.length) {
-          const add = node.marks[rendered++]
+        node.marks.slice(rendered).forEach((add) => {
           const markDOM = this.serializeMarkOrNull(add, node.isInline, options)
           if (markDOM) {
             active.push([add, top])
             top.appendChild(markDOM.dom)
             top = markDOM.contentDOM || markDOM.dom
           }
-        }
+        })
       }
       top.appendChild(this.serializeNodeInner(node, options))
     })
@@ -187,15 +188,15 @@ export class DOMSerializer<Sc extends AnySchema = AnySchema> {
    * Throws a `DOMSpecError` (as a defect) for invalid output specs.
    */
   serializeNode(node: Node<Sc, any>, options: SerializeOptions = {}): globalThis.Node {
-    let dom = this.serializeNodeInner(node, options)
-    for (let i = node.marks.length - 1; i >= 0; i--) {
-      const wrap = this.serializeMarkOrNull(node.marks[i], node.isInline, options)
-      if (wrap) {
+    return node.marks.reduceRight<globalThis.Node>(
+      (dom, mark) => {
+        const wrap = this.serializeMarkOrNull(mark, node.isInline, options)
+        if (!wrap) return dom
         ;(wrap.contentDOM || wrap.dom).appendChild(dom)
-        dom = wrap.dom
-      }
-    }
-    return dom
+        return wrap.dom
+      },
+      this.serializeNodeInner(node, options)
+    )
   }
 
   /**
@@ -278,11 +279,11 @@ const isDOMSpecError = (u: unknown): u is DOMSpecError => u instanceof DOMSpecEr
 
 function gatherToDOM(obj: { readonly [name: string]: NodeType<any, any> | MarkType<any, any> }) {
   const result: { [name: string]: (value: any, inline: boolean) => DOMOutputSpec } = {}
-  for (const name in obj) {
+  Rec.toEntries(obj).forEach(([name, type]) => {
     // SAFETY: node and mark specs' `toDOM` share this shape; `inline` is ignored by node serializers.
-    const toDOM = obj[name].spec.toDOM as ((value: any, inline: boolean) => DOMOutputSpec) | undefined
+    const toDOM = type.spec.toDOM as ((value: any, inline: boolean) => DOMOutputSpec) | undefined
     if (toDOM) result[name] = toDOM
-  }
+  })
   return result
 }
 
@@ -307,10 +308,10 @@ function suspiciousAttributesInner(attrs: Attrs): ReadonlyArray<unknown> | null 
           if (!result) result = []
           result.push(value)
         } else {
-          for (let i = 0; i < value.length; i++) scan(value[i])
+          value.forEach(scan)
         }
       } else {
-        for (const prop in value) scan(value[prop])
+        Rec.values(value).forEach(scan)
       }
     }
   }
@@ -364,22 +365,23 @@ function renderSpecInner(
   // Checked on `spec[1]` so that `attrs` keeps its `any` values.
   if (Predicate.isObjectOrArray(spec[1]) && attrs.nodeType == null && !Array.isArray(attrs)) {
     start = 2
-    for (const name in attrs) {
-      if (attrs[name] != null) {
+    Rec.toEntries<string, any>(attrs).forEach(([name, value]) => {
+      if (value != null) {
         const sep = name.indexOf(" ")
-        if (sep > 0) dom.setAttributeNS(name.slice(0, sep), name.slice(sep + 1), attrs[name])
-        else if (name == "style" && dom.style) dom.style.cssText = attrs[name]
-        else dom.setAttribute(name, attrs[name])
+        if (sep > 0) dom.setAttributeNS(name.slice(0, sep), name.slice(sep + 1), value)
+        else if (name == "style" && dom.style) dom.style.cssText = value
+        else dom.setAttribute(name, value)
       }
-    }
+    })
   }
-  for (let i = start; i < spec.length; i++) {
-    const child: DOMOutputSpec | 0 = spec[i]
+  // A content hole must be the only child, so it ends the walk.
+  let hole = false
+  spec.slice(start).forEach((child: DOMOutputSpec | 0, k) => {
     if (child === 0) {
-      if (i < spec.length - 1 || i > start) {
+      if (start + k < spec.length - 1 || k > 0) {
         throw new DOMSpecError({ message: "Content hole must be the only child of its parent node" })
       }
-      return { dom, contentDOM: dom }
+      hole = true
     } else if (Predicate.isString(child)) {
       dom.appendChild(doc.createTextNode(child))
     } else {
@@ -390,6 +392,6 @@ function renderSpecInner(
         contentDOM = innerContent
       }
     }
-  }
-  return { dom, contentDOM }
+  })
+  return hole ? { dom, contentDOM: dom } : { dom, contentDOM }
 }

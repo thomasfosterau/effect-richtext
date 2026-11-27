@@ -4,6 +4,7 @@
  *
  * @internal
  */
+import * as Option from "effect/Option"
 import type { ViewDesc } from "./viewdesc.ts"
 
 declare global {
@@ -27,9 +28,8 @@ export type DOMSelectionRange = {
 
 /** @internal */
 export const domIndex = function (node: DOMNode): number {
-  let index = 0
-  for (let sibling = node.previousSibling; sibling; sibling = sibling.previousSibling) index++
-  return index
+  const parent = node.parentNode
+  return parent ? Array.prototype.indexOf.call(parent.childNodes, node) : 0
 }
 
 /** @internal */
@@ -38,6 +38,16 @@ export const parentNode = function (node: DOMNode): DOMNode | null {
   const parent = (node as HTMLSlotElement).assignedSlot || node.parentNode
   // SAFETY: a fragment holding the editor's DOM is its shadow root.
   return parent && parent.nodeType == 11 ? (parent as ShadowRoot).host : parent
+}
+
+/**
+ * `node` and its ancestors (crossing shadow roots), innermost first.
+ *
+ * @internal
+ */
+export function ancestors(node: DOMNode): Array<DOMNode> {
+  const parent = parentNode(node)
+  return parent ? [node, ...ancestors(parent)] : [node]
 }
 
 let reusedRange: Range | null = null
@@ -74,34 +84,26 @@ export const isEquivalentPosition = function (
 const atomElements = /^(img|br|input|textarea|hr)$/i
 
 function scanFor(node: DOMNode, off: number, targetNode: DOMNode, targetOff: number, dir: number): boolean {
-  for (;;) {
-    if (node == targetNode && off == targetOff) return true
-    if (off == (dir < 0 ? 0 : nodeSize(node))) {
-      const parent = node.parentNode
-      if (
-        !parent ||
-        parent.nodeType != 1 ||
-        hasBlockDesc(node) ||
-        atomElements.test(node.nodeName) ||
-        (isElt(node) && node.contentEditable == "false")
-      ) {
-        return false
-      }
-      off = domIndex(node) + (dir < 0 ? 0 : 1)
-      node = parent
-    } else if (node.nodeType == 1) {
-      const child = node.childNodes[off + (dir < 0 ? -1 : 0)]
-      if (isElt(child) && child.contentEditable == "false") {
-        if (child.pmViewDesc?.ignoreForSelection) off += dir
-        else return false
-      } else {
-        node = child
-        off = dir < 0 ? nodeSize(node) : 0
-      }
-    } else {
+  if (node == targetNode && off == targetOff) return true
+  if (off == (dir < 0 ? 0 : nodeSize(node))) {
+    const parent = node.parentNode
+    if (
+      !parent ||
+      parent.nodeType != 1 ||
+      hasBlockDesc(node) ||
+      atomElements.test(node.nodeName) ||
+      (isElt(node) && node.contentEditable == "false")
+    ) {
       return false
     }
+    return scanFor(parent, domIndex(node) + (dir < 0 ? 0 : 1), targetNode, targetOff, dir)
   }
+  if (node.nodeType != 1) return false
+  const child = node.childNodes[off + (dir < 0 ? -1 : 0)]
+  if (isElt(child) && child.contentEditable == "false") {
+    return !!child.pmViewDesc?.ignoreForSelection && scanFor(node, off + dir, targetNode, targetOff, dir)
+  }
+  return scanFor(child, dir < 0 ? nodeSize(child) : 0, targetNode, targetOff, dir)
 }
 
 /** @internal */
@@ -126,56 +128,46 @@ export function isText(node: DOMNode): node is Text {
 
 /** @internal */
 export function textNodeBefore(node: DOMNode, offset: number): Text | null {
-  for (;;) {
-    if (isText(node) && offset) return node
-    if (isElt(node) && offset > 0) {
-      if (node.contentEditable == "false") return null
-      node = node.childNodes[offset - 1]
-      offset = nodeSize(node)
-    } else if (node.parentNode && !hasBlockDesc(node)) {
-      offset = domIndex(node)
-      node = node.parentNode
-    } else {
-      return null
-    }
+  if (isText(node) && offset) return node
+  if (isElt(node) && offset > 0) {
+    if (node.contentEditable == "false") return null
+    const child = node.childNodes[offset - 1]
+    return textNodeBefore(child, nodeSize(child))
   }
+  if (node.parentNode && !hasBlockDesc(node)) return textNodeBefore(node.parentNode, domIndex(node))
+  return null
 }
 
 /** @internal */
 export function textNodeAfter(node: DOMNode, offset: number): Text | null {
-  for (;;) {
-    if (isText(node) && offset < node.data.length) return node
-    if (isElt(node) && offset < node.childNodes.length) {
-      if (node.contentEditable == "false") return null
-      node = node.childNodes[offset]
-      offset = 0
-    } else if (node.parentNode && !hasBlockDesc(node)) {
-      offset = domIndex(node) + 1
-      node = node.parentNode
-    } else {
-      return null
-    }
+  if (isText(node) && offset < node.data.length) return node
+  if (isElt(node) && offset < node.childNodes.length) {
+    if (node.contentEditable == "false") return null
+    return textNodeAfter(node.childNodes[offset], 0)
   }
+  if (node.parentNode && !hasBlockDesc(node)) return textNodeAfter(node.parentNode, domIndex(node) + 1)
+  return null
 }
 
 /** @internal */
 export function isOnEdge(node: DOMNode, offset: number, parent: DOMNode): boolean {
-  for (let atStart = offset == 0, atEnd = offset == nodeSize(node); atStart || atEnd;) {
-    if (node == parent) return true
-    const index = domIndex(node)
-    const up = node.parentNode
-    if (!up) return false
-    node = up
-    atStart = atStart && index == 0
-    atEnd = atEnd && index == nodeSize(node)
-  }
-  return false
+  return onEdgeOf(node, offset == 0, offset == nodeSize(node), parent)
+}
+
+// Whether `node` is `parent`, or the start (end) of an ancestor chain up
+// to it, keeping whichever of `atStart` and `atEnd` still holds.
+function onEdgeOf(node: DOMNode, atStart: boolean, atEnd: boolean, parent: DOMNode): boolean {
+  if (!atStart && !atEnd) return false
+  if (node == parent) return true
+  const index = domIndex(node)
+  const up = node.parentNode
+  if (!up) return false
+  return onEdgeOf(up, atStart && index == 0, atEnd && index == nodeSize(up), parent)
 }
 
 /** @internal */
 export function hasBlockDesc(dom: DOMNode): boolean {
-  let desc: ViewDesc | undefined
-  for (let cur: DOMNode | null = dom; cur; cur = cur.parentNode) if ((desc = cur.pmViewDesc)) break
+  const desc = Option.getOrUndefined(closestDesc(dom))
   return !!desc && !!desc.node && desc.node.isBlock && (desc.dom == dom || desc.contentDOM == dom)
 }
 
@@ -203,9 +195,20 @@ export function keyEvent(keyCode: number, key: string): KeyboardEvent {
 
 /** @internal */
 export function deepActiveElement(doc: Document): Element | null {
-  let elt = doc.activeElement
-  while (elt && elt.shadowRoot) elt = elt.shadowRoot.activeElement
-  return elt
+  const elt = doc.activeElement
+  return elt && activeIn(elt)
+}
+
+function activeIn(elt: Element): Element | null {
+  if (!elt.shadowRoot) return elt
+  const inner = elt.shadowRoot.activeElement
+  return inner && activeIn(inner)
+}
+
+// The view description of `dom` or its nearest ancestor that has one.
+function closestDesc(dom: DOMNode): Option.Option<ViewDesc> {
+  if (dom.pmViewDesc) return Option.some(dom.pmViewDesc)
+  return dom.parentNode ? closestDesc(dom.parentNode) : Option.none()
 }
 
 /** @internal */

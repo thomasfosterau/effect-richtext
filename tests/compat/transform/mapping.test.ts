@@ -2,17 +2,17 @@
 // Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
 // ../../utils/ist.ts, mocha describe/it -> @effect/vitest; type-only imports
 // marked as such) and dprint formatting.
+import * as Rec from "effect/Record"
 import { describe, it } from "@effect/vitest"
 import { Mapping, StepMap } from "@thomasfosterau/effect-richtext/compat/transform"
 import ist from "../../utils/ist.ts"
 
 function testMapping(mapping: Mapping, ...cases: [number, number, number?, boolean?][]) {
   const inverted = mapping.invert()
-  for (let i = 0; i < cases.length; i++) {
-    const [from, to, bias = 1, lossy] = cases[i]
+  cases.forEach(([from, to, bias = 1, lossy]) => {
     ist(mapping.map(from, bias), to)
     if (!lossy) ist(inverted.map(to, bias), from)
-  }
+  })
 }
 
 function testDel(mapping: Mapping, pos: number, side: number, flags: string) {
@@ -29,7 +29,7 @@ function mk(...args: (number[] | { [from: number]: number })[]) {
   const mapping = new Mapping()
   args.forEach((arg) => {
     if (Array.isArray(arg)) mapping.appendMap(new StepMap(arg))
-    else for (const from in arg) mapping.setMirror(+from, arg[from])
+    else Rec.toEntries(arg).forEach(([from, to]) => mapping.setMirror(+from, to))
   })
   return mapping
 }

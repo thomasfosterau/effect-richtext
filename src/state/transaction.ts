@@ -6,6 +6,7 @@
 import type * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
+import * as Rec from "effect/Record"
 import { attempt } from "../internal/attempt.ts"
 import { type AnySchema, Mark, type MarkType, type Node, type Slice } from "../Model.ts"
 import { isTransformOrModelError, type ReplaceFailure, type Step, Transform } from "../Transform.ts"
@@ -269,8 +270,7 @@ export class Transaction<Sc extends AnySchema = AnySchema> extends Transform<Sc>
    * can thus safely be extended.
    */
   get isGeneric(): boolean {
-    for (const _ in this.meta) return false
-    return true
+    return Rec.isEmptyRecord(this.meta)
   }
 
   /**

@@ -51,6 +51,8 @@ export const wrap = (x: any): any => {
   const known = facades.get(x)
   if (known) return known
   if (CORE in x) return x
+  // Every facade access comes through here, so the prototype walk stays a plain loop.
+  // oxlint-disable-next-line effect/imperative-loops
   for (let proto = Object.getPrototypeOf(x); proto; proto = Object.getPrototypeOf(proto)) {
     const f = factories.get(proto)
     if (f) {
@@ -82,11 +84,13 @@ export const callBase = (core: any, method: string, args: ArrayLike<unknown> = [
 
 /** Read a core getter, bypassing the overrides that delegate to a facade. @internal */
 export const getBase = (core: any, prop: string): any => {
-  for (let proto = core[BASE]; proto; proto = Object.getPrototypeOf(proto)) {
+  const read = (proto: any): any => {
+    if (!proto) return core[prop]
     const desc = Object.getOwnPropertyDescriptor(proto, prop)
-    if (desc) return desc.get ? desc.get.call(core) : desc.value
+    if (!desc) return read(Object.getPrototypeOf(proto))
+    return desc.get ? desc.get.call(core) : desc.value
   }
-  return core[prop]
+  return read(core[BASE])
 }
 
 /** Whether a value is a facade. @internal */
@@ -120,10 +124,7 @@ export const setEmptyCoreArray = (core: ReadonlyArray<any>): void => {
 export const unwrapArray = (arr: ReadonlyArray<any>): ReadonlyArray<any> => {
   const found = arrayCores.get(arr)
   if (found) return found
-  for (let i = 0; i < arr.length; i++) {
-    if (isFacade(arr[i])) return arr.map(unwrap)
-  }
-  return arr
+  return arr.some(isFacade) ? arr.map(unwrap) : arr
 }
 
 /** @internal */

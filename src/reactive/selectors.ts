@@ -4,7 +4,9 @@
  * @since 0.1.0
  */
 import * as Option from "effect/Option"
+import * as Arr from "effect/Array"
 import * as Predicate from "effect/Predicate"
+import * as Rec from "effect/Record"
 import { type AnySchema, AttributeError, type Attrs, ContentError, type MarkType, type NodeType } from "../Model.ts"
 import { type EditorState, NodeSelection } from "../State.ts"
 
@@ -22,8 +24,7 @@ const nodeTypeOf = (state: EditorState<any, any, any>, type: NodeType<any, any> 
 
 const attrsMatch = (attrs: Attrs, expected: Attrs | undefined): boolean => {
   if (!expected) return true
-  for (const name in expected) if (attrs[name] !== expected[name]) return false
-  return true
+  return Rec.toEntries(expected).every(([name, value]) => attrs[name] === value)
 }
 
 /**
@@ -41,10 +42,7 @@ export const isMarkActive = <Sc extends AnySchema>(
   const markType = markTypeOf(state, type)
   const { empty, $from, ranges } = state.selection
   if (empty) return markType.findInSet(state.storedMarksOrNull || $from.marks()) !== undefined
-  for (const range of ranges) {
-    if (state.doc.rangeHasMark(range.$from.pos, range.$to.pos, markType)) return true
-  }
-  return false
+  return ranges.some((range) => state.doc.rangeHasMark(range.$from.pos, range.$to.pos, markType))
 }
 
 /**
@@ -66,9 +64,8 @@ export const isNodeActive = <Sc extends AnySchema>(
     return attrsMatch(selection.node.attrs, attrs)
   }
   const { $from, to } = selection
-  for (let d = $from.depth; d >= 0; d--) {
+  return Arr.range(0, $from.depth).some((d) => {
     const node = $from.node(d)
-    if (node.type === nodeType && to <= $from.end(d) && attrsMatch(node.attrs, attrs)) return true
-  }
-  return false
+    return node.type === nodeType && to <= $from.end(d) && attrsMatch(node.attrs, attrs)
+  })
 }

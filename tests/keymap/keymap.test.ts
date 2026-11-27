@@ -18,9 +18,7 @@ type Handler = (view: KeymapView, event: KeyboardEvent) => Effect.Effect<boolean
 
 function dispatch(map: Plugin<any, any, any>, key: string, props?: { [name: string]: any }): boolean {
   const event: any = {}
-  if (props) {
-    for (const prop in props) event[prop] = props[prop]
-  }
+  if (props) Object.assign(event, props)
   event.key = key
   // SAFETY: a keymap's key handler, whose bindings here never fail.
   return Effect.runSync((map.props.handleKeyDown as Handler)(fakeView, event))

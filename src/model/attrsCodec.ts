@@ -1,3 +1,4 @@
+import * as Rec from "effect/Record"
 import * as S from "effect/Schema"
 import type { Attribute } from "./schema.ts"
 
@@ -37,6 +38,8 @@ type Attrs = { readonly [name: string]: unknown }
 // failure.
 const mapAttrs = (defs: { readonly [name: string]: AttrDef }, attrs: Attrs, decode: boolean): Attrs => {
   let out: Record<string, unknown> | undefined
+  // Runs for every node and mark in JSON input and output, so it stays a plain loop.
+  // oxlint-disable-next-line effect/imperative-loops
   for (const name in attrs) {
     const def = defs[name]
     if (!def?.schema || (def.identityCodec && (!decode || (def.is !== undefined && def.is(attrs[name]))))) continue
@@ -68,10 +71,7 @@ export const writeAttrsJSON = (
   type: { readonly identityAttrs: boolean; readonly attrs: { readonly [name: string]: AttrDef } },
   attrs: Attrs
 ): void => {
-  for (const _ in attrs) {
-    json.attrs = type.identityAttrs ? attrs : encodeAttrs(type.attrs, attrs)
-    return
-  }
+  if (!Rec.isEmptyRecord(attrs)) json.attrs = type.identityAttrs ? attrs : encodeAttrs(type.attrs, attrs)
 }
 
 /**

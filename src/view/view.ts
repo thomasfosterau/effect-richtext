@@ -4,7 +4,9 @@
  *
  * @since 0.1.0
  */
+import * as Arr from "effect/Array"
 import * as Predicate from "effect/Predicate"
+import * as Rec from "effect/Record"
 import * as Cause from "effect/Cause"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
@@ -893,14 +895,13 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
   }
 
   private notifyListeners(update: ViewUpdate<Sc, R, E>) {
-    const listeners = this.listeners
-    for (let i = 0; i < listeners.length; i++) {
+    this.listeners.forEach((listener) => {
       try {
-        listeners[i](update)
+        listener(update)
       } catch (e) {
         this.reportError(Cause.die(e))
       }
-    }
+    })
   }
 
   /**
@@ -943,27 +944,18 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
   }
 
   private destroyPluginViews() {
-    let view
-    while ((view = this.pluginViews.pop())) if (view.destroy) view.destroy()
+    Arr.reverse(this.pluginViews.splice(0)).forEach((view) => view.destroy?.())
   }
 
   private updatePluginViews(prevState?: EditorState<Sc, R, E>) {
     if (!prevState || prevState.plugins != this.state.plugins || this.directPlugins != this.prevDirectPlugins) {
       this.prevDirectPlugins = this.directPlugins
       this.destroyPluginViews()
-      for (let i = 0; i < this.directPlugins.length; i++) {
-        const plugin = this.directPlugins[i]
+      ;[...this.directPlugins, ...this.state.plugins].forEach((plugin) => {
         if (plugin.spec.view) this.pluginViews.push(plugin.spec.view(this))
-      }
-      for (let i = 0; i < this.state.plugins.length; i++) {
-        const plugin = this.state.plugins[i]
-        if (plugin.spec.view) this.pluginViews.push(plugin.spec.view(this))
-      }
+      })
     } else {
-      for (let i = 0; i < this.pluginViews.length; i++) {
-        const pluginView = this.pluginViews[i]
-        if (pluginView.update) pluginView.update(this, prevState)
-      }
+      this.pluginViews.forEach((pluginView) => pluginView.update?.(this, prevState))
     }
   }
 
@@ -1014,11 +1006,14 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     }
     let value = read(this._props)
     if (value) return value
+    // Prop lookups run many times per keystroke, so these stay plain loops.
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0; i < this.directPlugins.length; i++) {
       if ((value = read(this.directPlugins[i].props))) return value
     }
     const plugins = this.state.plugins
     if (plugins) {
+      // oxlint-disable-next-line effect/imperative-loops
       for (let i = 0; i < plugins.length; i++) {
         if ((value = read(plugins[i].props))) return value
       }
@@ -1103,14 +1098,14 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
     if (browser.ie) {
       // If activeElement is within this.dom, and there are no other elements
       // setting `contenteditable` to false in between, treat it as focused.
-      let node = this.root.activeElement
+      const node = this.root.activeElement
       if (node == this.dom) return true
       if (!node || !this.dom.contains(node)) return false
-      while (node && this.dom != node && this.dom.contains(node)) {
-        if (isElt(node) && node.contentEditable == "false") return false
-        node = node.parentElement
-      }
-      return true
+      const editableUp = (elt: Element): boolean =>
+        this.dom == elt ||
+        !this.dom.contains(elt) ||
+        (!(isElt(elt) && elt.contentEditable == "false") && (!elt.parentElement || editableUp(elt.parentElement)))
+      return editableUp(node)
     }
     return this.root.activeElement == this.dom
   }
@@ -1131,15 +1126,16 @@ export class EditorView<Sc extends AnySchema = AnySchema, R = never, E = never> 
   get root(): Document | ShadowRoot {
     const cached = this._root
     if (cached == null) {
-      for (let search = this.dom.parentNode; search; search = search.parentNode) {
-        if (search.nodeType == 9 || (search.nodeType == 11 && Predicate.hasProperty(search, "host") && search.host)) {
-          if (!Predicate.hasProperty(search, "getSelection") || !search.getSelection) {
-            const doc = search.ownerDocument
-            Object.getPrototypeOf(search).getSelection = () => (doc ? doc.getSelection() : null)
-          }
-          // SAFETY: node type 9 is a document, and a fragment with a `host` is a shadow root.
-          return (this._root = search as Document | ShadowRoot)
+      const search = (this.dom.parentNode ? parentChain(this.dom.parentNode) : []).find(
+        (node) => node.nodeType == 9 || (node.nodeType == 11 && Predicate.hasProperty(node, "host") && node.host)
+      )
+      if (search) {
+        if (!Predicate.hasProperty(search, "getSelection") || !search.getSelection) {
+          const doc = search.ownerDocument
+          Object.getPrototypeOf(search).getSelection = () => (doc ? doc.getSelection() : null)
         }
+        // SAFETY: node type 9 is a document, and a fragment with a `host` is a shadow root.
+        return (this._root = search as Document | ShadowRoot)
       }
     }
     return cached || document
@@ -1407,7 +1403,7 @@ function computeDocDeco(view: EditorView<any, any, any>) {
       ? prop(view.state as EditorState<any>)
       : prop
     if (value) {
-      for (const attr in value) {
+      Rec.keys(value).forEach((attr) => {
         if (attr == "class") {
           attrs.class += " " + value[attr]
         } else if (attr == "style") {
@@ -1415,7 +1411,7 @@ function computeDocDeco(view: EditorView<any, any, any>) {
         } else if (!attrs[attr] && attr != "contenteditable" && attr != "nodeName") {
           attrs[attr] = value[attr]
         }
-      }
+      })
     }
   })
   if (!attrs.translate) attrs.translate = "no"
@@ -1451,11 +1447,11 @@ function selectionContextChanged(sel1: Selection<any>, sel2: Selection<any>) {
 function buildNodeViews(view: EditorView<any, any, any>) {
   const result: NodeViewSet = Object.create(null)
   function add(obj: { readonly [name: string]: any }) {
-    for (const prop in obj) {
+    Rec.keys(obj).forEach((prop) => {
       if (!Object.prototype.hasOwnProperty.call(result, prop)) {
         result[prop] = obj[prop]
       }
-    }
+    })
   }
   view.someProp("nodeViews", add)
   view.someProp("markViews", add)
@@ -1463,14 +1459,13 @@ function buildNodeViews(view: EditorView<any, any, any>) {
 }
 
 function changedNodeViews(a: NodeViewSet, b: NodeViewSet) {
-  let nA = 0,
-    nB = 0
-  for (const prop in a) {
-    if (a[prop] != b[prop]) return true
-    nA++
-  }
-  for (const _ in b) nB++
-  return nA != nB
+  const props = Rec.keys(a)
+  return props.some((prop) => a[prop] != b[prop]) || props.length != Rec.keys(b).length
+}
+
+// `node` and its parents, innermost first.
+function parentChain(node: ParentNode): Array<ParentNode> {
+  return node.parentNode ? [node, ...parentChain(node.parentNode)] : [node]
 }
 
 function checkStateComponent(plugin: Plugin<any, any, any, any>) {
@@ -1482,6 +1477,7 @@ function checkStateComponent(plugin: Plugin<any, any, any, any>) {
 // Copies every enumerable property, inherited ones included, as
 // ProseMirror does.
 function copyProps<T extends object>(from: Partial<T>, into: Types.Mutable<Partial<T>>): void {
+  // oxlint-disable-next-line effect/imperative-loops
   for (const name in from) into[name] = from[name]
 }
 

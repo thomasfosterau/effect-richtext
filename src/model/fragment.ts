@@ -69,10 +69,13 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     readonly content: ReadonlyArray<Node<Sc, N>>,
     size?: number
   ) {
-    this.size = size || 0
-    if (size == null) {
-      for (let i = 0; i < content.length; i++) this.size += content[i].nodeSize
+    if (size === undefined) {
+      size = 0
+      // Every new fragment runs this, so it stays a plain loop.
+      // oxlint-disable-next-line effect/imperative-loops
+      for (let i = 0; i < content.length; i++) size += content[i].nodeSize
     }
+    this.size = size
   }
 
   [Symbol.iterator](): Iterator<Node<Sc, N>> {
@@ -86,6 +89,8 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
    */
   nodesBetween(from: number, to: number, f: NodeVisitor<Sc>, nodeStart = 0, parent?: Node<Sc>): void {
     const parentOption: Option.Option<Node<Sc>> = parent ? Option.some(parent) : Option.none()
+    // Visits every node of a document walk, so it stays a plain loop.
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0, pos = 0; pos < to; i++) {
       const child = this.content[i],
         end = pos + child.nodeSize
@@ -148,15 +153,14 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     const last = this.content[this.content.length - 1],
       first = other.content[0]
     const content: Array<Node<Sc, N | N2>> = this.content.slice()
-    let i = 0
+    let rest: ReadonlyArray<Node<Sc, N2>> = other.content
     if (last.isTextNode() && last.sameMarkup(first)) {
       const joinedText: Node<Sc> = last.withText(last.textContent + first.textContent)
       // SAFETY: the joined node keeps `last`'s type, one of `N`.
       content[content.length - 1] = joinedText as Node<Sc, N>
-      i = 1
+      rest = other.content.slice(1)
     }
-    for (; i < other.content.length; i++) content.push(other.content[i])
-    return new Fragment(content, this.size + other.size)
+    return new Fragment(content.concat(rest), this.size + other.size)
   }
 
   /** Cut out the sub-fragment between the two given positions. */
@@ -165,6 +169,8 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     const result: Array<Node<Sc, N>> = []
     let size = 0
     if (to > from) {
+      // Every replace cuts fragments, so this stays a plain loop.
+      // oxlint-disable-next-line effect/imperative-loops
       for (let i = 0, pos = 0; pos < to; i++) {
         let child = this.content[i]
         const end = pos + child.nodeSize
@@ -217,8 +223,7 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   /** Compare this fragment to another one. */
   eq(other: Fragment<any, any>): boolean {
     if (this.content.length !== other.content.length) return false
-    for (let i = 0; i < this.content.length; i++) if (!this.content[i].eq(other.content[i])) return false
-    return true
+    return this.content.every((child, i) => child.eq(other.content[i]))
   }
 
   /** @internal */
@@ -265,6 +270,8 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
 
   /** Call `f` for every child node, passing the node, its offset into this parent node, and its index. */
   forEach(f: (node: Node<Sc, N>, offset: number, index: number) => void): void {
+    // The child iteration every traversal goes through stays a plain loop.
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0, p = 0; i < this.content.length; i++) {
       const child = this.content[i]
       f(child, p, i)
@@ -304,6 +311,8 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     if (pos > this.size || pos < 0) {
       throw new PositionError({ message: `Position ${pos} outside of fragment (${this.toString()})` })
     }
+    // Runs for every level of every position resolved, so it stays a plain loop.
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0, curPos = 0; ; i++) {
       const cur = this.content[i],
         end = curPos + cur.nodeSize
@@ -338,6 +347,8 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     if (!array.length) return Fragment.empty
     let joined: Array<Node<Sc, N>> | undefined
     let size = 0
+    // Builds every fragment made from an array, so it stays a plain loop.
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0; i < array.length; i++) {
       const node = array[i]
       size += node.nodeSize

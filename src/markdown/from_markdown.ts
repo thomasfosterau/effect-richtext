@@ -5,8 +5,10 @@
  */
 // Ported from prosemirror-markdown (MIT, Marijn Haverbeke and others)
 import type * as Effect from "effect/Effect"
+import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
+import * as Rec from "effect/Record"
 import MarkdownIt, { type Env, type MarkdownIt as Tokenizer, type Token } from "markdown-it"
 import { attempt } from "../internal/attempt.ts"
 import { showJson } from "../internal/json.ts"
@@ -109,14 +111,13 @@ export class MarkdownParseState<Sc extends AnySchema = AnySchema> {
 
   /** Run the token handlers for the given tokens. Throws a `MarkdownError` for unsupported tokens. */
   parseTokens(toks: Array<Token>): void {
-    for (let i = 0; i < toks.length; i++) {
-      const tok = toks[i]
+    toks.forEach((tok, i) => {
       const handler = this.tokenHandlers[tok.type]
       if (!handler) {
         throw new MarkdownError({ message: "Token type `" + tok.type + "` not supported by Markdown parser" })
       }
       handler(this, tok, toks, i)
-    }
+    })
   }
 
   /**
@@ -220,8 +221,7 @@ function makeTokenHandlers<Sc extends AnySchema>(
   tokens: { readonly [token: string]: ParseSpec<Sc> }
 ): Record<string, TokenHandler<Sc>> {
   const handlers: Record<string, TokenHandler<Sc>> = Object.create(null)
-  for (const type in tokens) {
-    const spec = tokens[type]
+  Rec.toEntries(tokens).forEach(([type, spec]) => {
     if (spec.block) {
       // SAFETY: a node type of `schema`, which is `Sc`.
       const nodeType = schema.nodeType(spec.block) as NodeType<Sc, any>
@@ -264,7 +264,7 @@ function makeTokenHandlers<Sc extends AnySchema>(
     } else {
       throw new MarkdownError({ message: "Unrecognized parsing spec " + showJson(spec) })
     }
-  }
+  })
 
   handlers.text = (state, tok) => state.addText(tok.content)
   handlers.inline = (state, tok) => state.parseTokens(tok.children ?? [])
@@ -333,7 +333,8 @@ export class MarkdownParser<Sc extends AnySchema = AnySchema> {
     const state = new MarkdownParseState(this.schema, this.tokenHandlers)
     state.parseTokens(this.tokenizer.parse(text, markdownEnv))
     let doc = state.closeNode()
-    while (state.stack.length) doc = state.closeNode()
+    // Close every node still open.
+    state.stack.slice().forEach(() => (doc = state.closeNode()))
     const result = doc || this.schema.topNodeType.createAndFillOrNull()
     if (!result) throw new MarkdownError({ message: "Can't create an empty document for the schema" })
     // SAFETY: built from this parser's schema, `Sc`.
@@ -341,12 +342,11 @@ export class MarkdownParser<Sc extends AnySchema = AnySchema> {
   }
 }
 
-function listIsTight(tokens: ReadonlyArray<Token>, i: number): boolean {
-  while (++i < tokens.length) {
-    if (tokens[i].type != "list_item_open") return tokens[i].hidden
-  }
-  return false
-}
+const listIsTight = (tokens: ReadonlyArray<Token>, i: number): boolean =>
+  Option.exists(
+    Arr.findFirst(tokens.slice(i + 1), (token) => token.type != "list_item_open"),
+    (token) => token.hidden
+  )
 
 const attrString = (value: string | number | null): string | null => (value == null ? null : String(value))
 

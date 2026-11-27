@@ -125,25 +125,18 @@ export class Slice<Sc extends AnySchema = AnySchema> implements Equal.Equal {
    * value on both side of the fragment.
    */
   static maxOpen<Sc extends AnySchema>(fragment: Fragment<Sc>, openIsolating = true): Slice<Sc> {
-    let openStart = 0,
-      openEnd = 0
-    for (let n = fragment.content[0]; n && !n.isLeaf; n = n.content.content[0]) {
-      if (!openIsolating && n.type.spec.isolating) break
-      openStart++
-    }
-    for (
-      let n = fragment.content[fragment.content.length - 1];
-      n && !n.isLeaf;
-      n = n.content.content[n.content.content.length - 1]
-    ) {
-      if (!openIsolating && n.type.spec.isolating) break
-      openEnd++
-    }
-    return new Slice(fragment, openStart, openEnd)
+    return new Slice(fragment, openDepth(fragment, false, openIsolating), openDepth(fragment, true, openIsolating))
   }
 
   /** The empty slice. */
   static readonly empty: Slice<any> = new Slice(Fragment.empty, 0, 0)
+}
+
+// How many nodes deep the first (or last) edge of a fragment can be opened.
+function openDepth(fragment: Fragment<any, any>, last: boolean, openIsolating: boolean): number {
+  const n = fragment.content[last ? fragment.content.length - 1 : 0]
+  if (!n || n.isLeaf || (!openIsolating && n.type.spec.isolating)) return 0
+  return 1 + openDepth(n.content, last, openIsolating)
 }
 
 function removeRange<Sc extends AnySchema>(content: Fragment<Sc>, from: number, to: number): Fragment<Sc> {
@@ -269,7 +262,7 @@ function addRange<Sc extends AnySchema>(
       startIndex++
     }
   }
-  for (let i = startIndex; i < endIndex; i++) addNode(node.content.content[i], target)
+  node.content.content.slice(startIndex, endIndex).forEach((child) => addNode(child, target))
   const textBefore = $end && $end.depth === depth && $end.textOffset ? $end.nodeBeforeOrNull : null
   if (textBefore) addNode(textBefore, target)
 }
@@ -327,8 +320,10 @@ function replaceTwoWay<Sc extends AnySchema>(
 function prepareSliceForReplace<Sc extends AnySchema>(slice: Slice<Sc>, $along: ResolvedPos<Sc>) {
   const extra = $along.depth - slice.openStart,
     parent = $along.node(extra)
-  let node = parent.copy(slice.content)
-  for (let i = extra - 1; i >= 0; i--) node = $along.node(i).copy(Fragment.from(node))
+  const node = Array.from({ length: extra }, (_, i) => i).reduceRight(
+    (inner, i) => $along.node(i).copy(Fragment.from(inner)),
+    parent.copy(slice.content)
+  )
   return {
     start: node.resolveNoCache(slice.openStart + extra),
     end: node.resolveNoCache(node.content.size - slice.openEnd - extra)

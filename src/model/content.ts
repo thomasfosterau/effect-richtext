@@ -257,28 +257,35 @@ class TokenStream {
 }
 
 function parseExpr(stream: TokenStream): ExprAST {
-  const exprs: Array<ExprAST> = []
-  do exprs.push(parseExprSeq(stream))
-  while (stream.eat("|"))
+  const exprs = parseChoices(stream)
   return exprs.length === 1 ? exprs[0] : { _tag: "Choice", exprs }
 }
 
+function parseChoices(stream: TokenStream): Array<ExprAST> {
+  const first = parseExprSeq(stream)
+  return stream.eat("|") ? [first, ...parseChoices(stream)] : [first]
+}
+
 function parseExprSeq(stream: TokenStream): ExprAST {
-  const exprs: Array<ExprAST> = []
-  do exprs.push(parseExprSubscript(stream))
-  while (stream.next !== undefined && stream.next !== ")" && stream.next !== "|")
+  const exprs = parseSeqItems(stream)
   return exprs.length === 1 ? exprs[0] : { _tag: "Seq", exprs }
 }
 
+function parseSeqItems(stream: TokenStream): Array<ExprAST> {
+  const first = parseExprSubscript(stream)
+  const ended = stream.next === undefined || stream.next === ")" || stream.next === "|"
+  return ended ? [first] : [first, ...parseSeqItems(stream)]
+}
+
 function parseExprSubscript(stream: TokenStream): ExprAST {
-  let expr = parseExprAtom(stream)
-  for (;;) {
-    if (stream.eat("+")) expr = { _tag: "Plus", expr }
-    else if (stream.eat("*")) expr = { _tag: "Star", expr }
-    else if (stream.eat("?")) expr = { _tag: "Opt", expr }
-    else if (stream.eat("{")) expr = parseExprRange(stream, expr)
-    else break
-  }
+  return parseSuffixes(stream, parseExprAtom(stream))
+}
+
+function parseSuffixes(stream: TokenStream, expr: ExprAST): ExprAST {
+  if (stream.eat("+")) return parseSuffixes(stream, { _tag: "Plus", expr })
+  if (stream.eat("*")) return parseSuffixes(stream, { _tag: "Star", expr })
+  if (stream.eat("?")) return parseSuffixes(stream, { _tag: "Opt", expr })
+  if (stream.eat("{")) return parseSuffixes(stream, parseExprRange(stream, expr))
   return expr
 }
 
@@ -401,6 +408,10 @@ export class ContentMatch {
 
   /** @internal */
   matchTypeOrNull(type: NodeType): ContentMatch | null {
+    // Plain loops here and in `matchFragmentOrNull`: content checks run
+    // them for every node, and callbacks cost the block-moves benchmark
+    // a fifth of its speed.
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0; i < this.next.length; i++) {
       if (this.next[i].type === type) return this.next[i].next
     }
@@ -416,6 +427,7 @@ export class ContentMatch {
   matchFragmentOrNull(frag: Fragment, start = 0, end = frag.childCount): ContentMatch | null {
     if (start >= end) return this
     let cur = this.matchTypeOrNull(frag.content[start].type)
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = start + 1; cur && i < end; i++) cur = cur.matchTypeOrNull(frag.content[i].type)
     return cur
   }
@@ -432,21 +444,13 @@ export class ContentMatch {
 
   /** @internal */
   get defaultTypeOrNull(): NodeType | null {
-    for (let i = 0; i < this.next.length; i++) {
-      const { type } = this.next[i]
-      if (!(type.isText || type.hasRequiredAttrs())) return type
-    }
-    return null
+    const edge = this.next.find(({ type }) => !(type.isText || type.hasRequiredAttrs()))
+    return edge ? edge.type : null
   }
 
   /** @internal */
   compatible(other: ContentMatch): boolean {
-    for (let i = 0; i < this.next.length; i++) {
-      for (let j = 0; j < other.next.length; j++) {
-        if (this.next[i].type === other.next[j].type) return true
-      }
-    }
-    return false
+    return this.next.some((a) => other.next.some((b) => a.type === b.type))
   }
 
   /**
@@ -464,22 +468,18 @@ export class ContentMatch {
   /** @internal */
   fillBeforeOrNull(after: Fragment, toEnd = false, startIndex = 0): Fragment | null {
     const seen: Array<ContentMatch> = [this]
-    function search(match: ContentMatch, types: ReadonlyArray<NodeType>): Fragment | null {
+    function search(match: ContentMatch, types: ReadonlyArray<NodeType>): Option.Option<Fragment> {
       const finished = match.matchFragmentOrNull(after, startIndex)
       if (finished && (!toEnd || finished.validEnd)) {
-        return createAndFillAll(types)
+        return Option.fromNullishOr(createAndFillAll(types))
       }
-      for (let i = 0; i < match.next.length; i++) {
-        const { next, type } = match.next[i]
-        if (!(type.isText || type.hasRequiredAttrs()) && seen.indexOf(next) === -1) {
-          seen.push(next)
-          const found = search(next, types.concat(type))
-          if (found) return found
-        }
-      }
-      return null
+      return Arr.findFirst(match.next, ({ next, type }) => {
+        if (type.isText || type.hasRequiredAttrs() || seen.indexOf(next) !== -1) return Option.none()
+        seen.push(next)
+        return search(next, types.concat(type))
+      })
     }
-    return search(this, [])
+    return Option.getOrNull(search(this, []))
   }
 
   /**
@@ -494,11 +494,10 @@ export class ContentMatch {
 
   /** @internal */
   findWrappingOrNull(target: NodeType): ReadonlyArray<NodeType> | null {
-    for (let i = 0; i < this.wrapCache.length; i += 2) {
-      if (this.wrapCache[i] === target) {
-        // SAFETY: the cache alternates targets and their wrappings.
-        return this.wrapCache[i + 1] as ReadonlyArray<NodeType> | null
-      }
+    const i = this.wrapCache.findIndex((entry, k) => k % 2 === 0 && entry === target)
+    if (i >= 0) {
+      // SAFETY: the cache alternates targets and their wrappings.
+      return this.wrapCache[i + 1] as ReadonlyArray<NodeType> | null
     }
     const computed = this.computeWrapping(target)
     this.wrapCache.push(target, computed)
@@ -509,19 +508,21 @@ export class ContentMatch {
   computeWrapping(target: NodeType): ReadonlyArray<NodeType> | null {
     const seen: Record<string, boolean> = Object.create(null)
     const active: Array<WrapStep> = [{ match: this, type: null, via: null }]
-    for (let head = 0; head < active.length; head++) {
+    // A breadth-first search, which appends to `active` as it goes.
+    const visit = (head: number): Option.Option<ReadonlyArray<NodeType>> => {
+      if (head === active.length) return Option.none()
       const current = active[head]
       const match = current.match
-      if (match.matchTypeOrNull(target)) return wrapPath(current, [])
-      for (let i = 0; i < match.next.length; i++) {
-        const { next, type } = match.next[i]
+      if (match.matchTypeOrNull(target)) return Option.some(wrapPath(current, []))
+      match.next.forEach(({ next, type }) => {
         if (!type.isLeaf && !type.hasRequiredAttrs() && !(type.name in seen) && (!current.type || next.validEnd)) {
           active.push({ match: type.contentMatch, type, via: current })
           seen[type.name] = true
         }
-      }
+      })
+      return visit(head + 1)
     }
-    return null
+    return Option.getOrNull(visit(0))
   }
 
   /** The number of outgoing edges this node has in the content automaton. */
@@ -539,18 +540,15 @@ export class ContentMatch {
     const seen: Array<ContentMatch> = []
     function scan(m: ContentMatch) {
       seen.push(m)
-      for (let i = 0; i < m.next.length; i++) {
-        if (seen.indexOf(m.next[i].next) === -1) scan(m.next[i].next)
-      }
+      m.next.forEach(({ next }) => {
+        if (seen.indexOf(next) === -1) scan(next)
+      })
     }
     scan(this)
     return seen
       .map((m, i) => {
-        let out = i + (m.validEnd ? "*" : " ") + " "
-        for (let j = 0; j < m.next.length; j++) {
-          out += (j ? ", " : "") + m.next[j].type.name + "->" + seen.indexOf(m.next[j].next)
-        }
-        return out
+        const edges = m.next.map(({ next, type }) => type.name + "->" + seen.indexOf(next))
+        return i + (m.validEnd ? "*" : " ") + " " + edges.join(", ")
       })
       .join("\n")
   }
@@ -576,10 +574,7 @@ function resolveName(ctx: ResolveContext, name: string): ReadonlyArray<NodeType>
   const types = ctx.nodeTypes
   const type = types[name]
   if (type) return [type]
-  const result: Array<NodeType> = []
-  for (const t of Rec.values(types)) {
-    if (t && t.isInGroup(name)) result.push(t)
-  }
+  const result = Rec.values(types).filter((t): t is NodeType => t !== undefined && t.isInGroup(name))
   if (Arr.isArrayEmpty(result)) fail(ctx, "No node type or group '" + name + "' found")
   return result
 }
@@ -644,12 +639,11 @@ function nfa(root: Expr): Array<Array<Edge>> {
         choice: (x) => x.exprs.reduce<Array<Edge>>((out, e) => out.concat(compile(e, from)), []),
         seq: (x) => {
           if (Arr.isReadonlyArrayEmpty(x.exprs)) return [edge(from)]
+          // Each expression starts from a fresh node that the previous one's edges lead to.
+          const last = x.exprs.length - 1
           let cur = from
-          for (let i = 0; ; i++) {
-            const next = compile(x.exprs[i], cur)
-            if (i === x.exprs.length - 1) return next
-            connect(next, (cur = node()))
-          }
+          x.exprs.slice(0, last).forEach((e) => connect(compile(e, cur), (cur = node())))
+          return compile(x.exprs[last], cur)
         },
         star: (x) => {
           const loop = node()
@@ -666,20 +660,20 @@ function nfa(root: Expr): Array<Array<Edge>> {
         opt: (x) => [edge(from)].concat(compile(x.expr, from)),
         range: (x) => {
           let cur = from
-          for (let i = 0; i < x.min; i++) {
+          times(x.min, () => {
             const next = node()
             connect(compile(x.expr, cur), next)
             cur = next
-          }
+          })
           if (x.max === -1) {
             connect(compile(x.expr, cur), cur)
           } else {
-            for (let i = x.min; i < x.max; i++) {
+            times(x.max - x.min, () => {
               const next = node()
               edge(cur, next)
               connect(compile(x.expr, cur), next)
               cur = next
-            }
+            })
           }
           return [edge(cur)]
         },
@@ -691,18 +685,21 @@ function nfa(root: Expr): Array<Array<Edge>> {
 
 const descending: Order.Order<number> = Order.flip(Order.Number)
 
+// Run `f` `n` times.
+const times = (n: number, f: () => void): void => Array.from({ length: n }).forEach(f)
+
 // Get the set of nodes reachable by null edges from `node`. Omit
 // nodes with only a single null-out-edge, since they may lead to
 // needless duplicated nodes.
 // A default node of each of `types`, or null when one can't be created.
 function createAndFillAll(types: ReadonlyArray<NodeType>) {
   const nodes: Array<Node> = []
-  for (const type of types) {
-    const filled = type.createAndFillOrNull()
-    if (!filled) return null
-    nodes.push(filled)
-  }
-  return Fragment.fromArray(nodes)
+  const filled = types.every((type) => {
+    const node = type.createAndFillOrNull()
+    if (node) nodes.push(node)
+    return node !== null
+  })
+  return filled ? Fragment.fromArray(nodes) : null
 }
 
 function nullFrom(graph: Array<Array<Edge>>, node: number): ReadonlyArray<number> {
@@ -715,10 +712,9 @@ function nullFrom(graph: Array<Array<Edge>>, node: number): ReadonlyArray<number
     const only = edges.length === 1 ? edges[0] : undefined
     if (only && !only.term && only.to !== undefined) return scan(only.to)
     result.push(n)
-    for (let i = 0; i < edges.length; i++) {
-      const { term, to } = edges[i]
+    edges.forEach(({ term, to }) => {
       if (!term && to !== undefined && result.indexOf(to) === -1) scan(to)
-    }
+    })
   }
 }
 
@@ -734,8 +730,7 @@ function dfa(graph: Array<Array<Edge>>): ContentMatch {
     states.forEach((node) => {
       graph[node].forEach(({ term, to }) => {
         if (!term || to === undefined) return
-        let set: Array<number> | undefined
-        for (let i = 0; i < out.length; i++) if (out[i][0] === term) set = out[i][1]
+        let set = out.find((entry) => entry[0] === term)?.[1]
         nullFrom(graph, to).forEach((n) => {
           if (!set) out.push([term, (set = [])])
           if (set.indexOf(n) === -1) set.push(n)
@@ -743,34 +738,34 @@ function dfa(graph: Array<Array<Edge>>): ContentMatch {
       })
     })
     const state = (labeled[states.join(",")] = new ContentMatch(states.indexOf(graph.length - 1) > -1))
-    for (let i = 0; i < out.length; i++) {
-      const targets = Arr.sort(out[i][1], descending)
-      state.next.push({ type: out[i][0], next: labeled[targets.join(",")] || explore(targets) })
-    }
+    out.forEach(([type, set]) => {
+      const targets = Arr.sort(set, descending)
+      state.next.push({ type, next: labeled[targets.join(",")] || explore(targets) })
+    })
     return state
   }
 }
 
 function checkForDeadEnds(match: ContentMatch, source: string) {
-  for (let i = 0, work = [match]; i < work.length; i++) {
+  const work = [match]
+  // Visits every state reachable from `match`, appending to `work` as it goes.
+  const check = (i: number): void => {
+    if (i === work.length) return
     const state = work[i]
-    let dead = !state.validEnd
-    const nodes: Array<string> = []
-    for (let j = 0; j < state.next.length; j++) {
-      const { next, type } = state.next[j]
-      nodes.push(type.name)
-      if (dead && !(type.isText || type.hasRequiredAttrs())) dead = false
+    state.next.forEach(({ next }) => {
       if (work.indexOf(next) === -1) work.push(next)
-    }
-    if (dead) {
+    })
+    if (!state.validEnd && state.next.every(({ type }) => type.isText || type.hasRequiredAttrs())) {
       throw new SchemaDefinitionError({
         message:
           "Only non-generatable nodes (" +
-          nodes.join(", ") +
+          state.next.map(({ type }) => type.name).join(", ") +
           ") in a required position (see https://prosemirror.net/docs/guide/#generatable) (in content expression '" +
           source +
           "')"
       })
     }
+    check(i + 1)
   }
+  check(0)
 }

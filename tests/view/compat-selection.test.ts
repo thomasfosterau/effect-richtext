@@ -38,7 +38,7 @@ function allPositions(doc: PMNode) {
   const found: number[] = []
   function scan(node: PMNode, start: number) {
     if (node.isTextblock) {
-      for (let i = 0; i <= node.content.size; i++) found.push(start + i)
+      found.push(...Array.from({ length: node.content.size + 1 }, (_, i) => start + i))
     } else {
       node.forEach((child, offset) => scan(child, start + offset + 1))
     }
@@ -56,22 +56,27 @@ function setDOMSel(node: Node, offset: number) {
   sel.addRange(range)
 }
 
+// A DOM position: a node and an offset into it.
+interface Caret {
+  readonly node: globalThis.Node
+  readonly offset: number
+}
+
 function getSel() {
   const sel = present(window.getSelection())
-  let node = sel.focusNode,
-    offset = sel.focusOffset
-  while (node && node.nodeType != 3) {
+  // Descends to the text node next to the focus.
+  const descend = (node: globalThis.Node, offset: number): Caret => {
+    if (node.nodeType == 3) return { node, offset }
     const after = offset < node.childNodes.length && node.childNodes[offset]
     const before = offset > 0 && node.childNodes[offset - 1]
-    if (after) {
-      node = after
-      offset = 0
-    } else if (before) {
-      node = before
-      offset = node.nodeType == 3 ? present(node.nodeValue).length : node.childNodes.length
-    } else break
+    if (after) return descend(after, 0)
+    if (before) {
+      return descend(before, before.nodeType == 3 ? present(before.nodeValue).length : before.childNodes.length)
+    }
+    return { node, offset }
   }
-  return { node: node, offset: offset }
+  const focus = sel.focusNode
+  return focus ? descend(focus, sel.focusOffset) : { node: focus, offset: sel.focusOffset }
 }
 
 function setSel(view: EditorView, sel: number | Selection) {
@@ -164,10 +169,8 @@ describe("EditorView", () => {
   })
 
   it("returns proper coordinates in code blocks", () => {
-    const view = tempEditor({ doc: doc(code_block("a\nb\n")) }),
-      p = []
-    for (let i = 1; i <= 5; i++) p.push(view.coordsAtPos(i))
-    const [p0, p1, p2, p3, p4] = p
+    const view = tempEditor({ doc: doc(code_block("a\nb\n")) })
+    const [p0, p1, p2, p3, p4] = Array.from({ length: 5 }, (_, i) => view.coordsAtPos(i + 1))
     ist(p0.top, p1.top)
     ist(p0.left, p1.left, "<")
     ist(p2.top, p1.top, ">")
@@ -285,14 +288,13 @@ describe("EditorView", () => {
   it("returns correct screen coordinates for wrapped lines", () => {
     const view = tempEditor({})
     const top = view.coordsAtPos(1)
-    let pos = 1,
-      end = top
-    for (let i = 0; i < 100; i++) {
+    // Types until the text wraps, for at most 100 rounds.
+    const wrap = (pos: number, rounds: number): { pos: number; end: typeof top } => {
       view.dispatch(view.state.tr.insertText("a bc de fg h"))
-      pos += 12
-      end = view.coordsAtPos(pos)
-      if (end.bottom > top.bottom + 4) break
+      const end = view.coordsAtPos(pos + 12)
+      return end.bottom > top.bottom + 4 || rounds === 1 ? { pos: pos + 12, end } : wrap(pos + 12, rounds - 1)
     }
+    const { pos, end } = wrap(1, 100)
     ist(present(view.posAtCoords({ left: end.left + 50, top: end.top + 5 })).pos, pos)
   })
 

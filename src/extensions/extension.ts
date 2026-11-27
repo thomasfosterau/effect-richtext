@@ -511,10 +511,6 @@ export interface Flattened {
   readonly commands: Record<string, CommandCreator>
 }
 
-const mergeInto = <S extends NodeSpec | MarkSpec>(specs: Record<string, Option.Option<S>>, name: string, over: S) => {
-  specs[name] = Option.some(mergeSpec(specs[name] ?? Option.none(), over))
-}
-
 const mergeSpec = <S extends NodeSpec | MarkSpec>(prev: Option.Option<S>, over: S): S => {
   if (Option.isNone(prev)) return over
   const base = prev.value
@@ -522,6 +518,38 @@ const mergeSpec = <S extends NodeSpec | MarkSpec>(prev: Option.Option<S>, over: 
   const merged = { ...base, ...over }
   return attrs ? { ...merged, attrs } : merged
 }
+
+type Specs<A> = Readonly<Record<string, A>>
+
+// Every name the records declare, in first-seen order.
+const namesOf = <A>(records: ReadonlyArray<Specs<A>>): Array<string> => Arr.dedupe(Arr.flatMap(records, Rec.keys))
+
+// Each name's spec, merged from the last record to the first so the
+// first (highest-priority) record wins.
+const mergeSpecs = <S extends NodeSpec | MarkSpec>(records: ReadonlyArray<Specs<S>>): Record<string, S> => {
+  const lowestFirst = Arr.reverse(records)
+  return Rec.getSomes(
+    Rec.fromEntries(
+      Arr.map(namesOf(records), (name) => [
+        name,
+        Arr.reduce(lowestFirst, Option.none<S>(), (prev, record) =>
+          Option.match(Rec.get(record, name), {
+            onNone: () => prev,
+            onSome: (over) => Option.some(mergeSpec(prev, over))
+          })
+        )
+      ])
+    )
+  )
+}
+
+// Each name's value from the first record that has it.
+const firstOf = <A>(records: ReadonlyArray<Specs<A>>): Record<string, A> =>
+  Rec.getSomes(
+    Rec.fromEntries(
+      Arr.map(namesOf(records), (name) => [name, Arr.findFirst(records, (record) => Rec.get(record, name))])
+    )
+  )
 
 interface Facet {
   readonly spec: ExtensionSpec
@@ -549,31 +577,18 @@ export const flatten = (extension: AnyExtension): Flattened => {
     seen.add(ext)
     const priority = ext.priority ?? inherited
     if (ext.spec) collected.push({ spec: ext.spec, priority })
-    for (const child of ext.children) visit(child, priority)
+    ext.children.forEach((child) => visit(child, priority))
   }
   visit(extension, Priority.default)
   // `Arr.sort` is stable, so equal priorities keep declaration order.
   const facets = Arr.sort(collected, byPriorityDesc)
 
-  const nodes: Record<string, Option.Option<NodeSpec>> = {}
-  const marks: Record<string, Option.Option<MarkSpec>> = {}
-  const plugins: Array<PluginInput> = []
-  const commands: Record<string, CommandCreator> = {}
-  // Iterate from lowest to highest priority when merging specs, so the
-  // higher-priority spec wins, but keep the key order of the sorted
-  // (highest first) facets.
-  for (const { spec } of facets) {
-    for (const name in spec.nodes) if (!(name in nodes)) nodes[name] = Option.none()
-    for (const name in spec.marks) if (!(name in marks)) marks[name] = Option.none()
-    if (spec.plugins) plugins.push(...spec.plugins)
-    for (const [name, command] of Rec.toEntries(spec.commands ?? {})) if (!(name in commands)) commands[name] = command
+  return {
+    nodes: mergeSpecs(Arr.map(facets, ({ spec }) => spec.nodes ?? {})),
+    marks: mergeSpecs(Arr.map(facets, ({ spec }) => spec.marks ?? {})),
+    plugins: Arr.flatMap(facets, ({ spec }) => spec.plugins ?? []),
+    commands: firstOf(Arr.map(facets, ({ spec }) => spec.commands ?? {}))
   }
-  for (let i = facets.length - 1; i >= 0; i--) {
-    const spec = facets[i].spec
-    for (const name in spec.nodes) mergeInto(nodes, name, spec.nodes[name])
-    for (const name in spec.marks) mergeInto(marks, name, spec.marks[name])
-  }
-  return { nodes: Rec.getSomes(nodes), marks: Rec.getSomes(marks), plugins, commands }
 }
 
 /**
@@ -581,11 +596,5 @@ export const flatten = (extension: AnyExtension): Flattened => {
  *
  * @internal
  */
-export const resolvePlugins = (inputs: ReadonlyArray<PluginInput>, schema: AnySchema): Array<AnyPlugin> => {
-  const result: Array<AnyPlugin> = []
-  const add = (input: AnyPlugin | ReadonlyArray<AnyPlugin>) => {
-    result.push(...Arr.ensure(input))
-  }
-  for (const input of inputs) add(Predicate.isFunction(input) ? input(schema) : input)
-  return result
-}
+export const resolvePlugins = (inputs: ReadonlyArray<PluginInput>, schema: AnySchema): Array<AnyPlugin> =>
+  Arr.flatMap(inputs, (input) => Arr.ensure(Predicate.isFunction(input) ? input(schema) : input))

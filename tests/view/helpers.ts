@@ -1,4 +1,6 @@
 // Ported from prosemirror-view/test/view.ts (MIT, Marijn Haverbeke and others)
+import * as Arr from "effect/Array"
+import * as Option from "effect/Option"
 import { assert } from "@effect/vitest"
 import type { Node as PMNode } from "@thomasfosterau/effect-richtext/Model"
 import {
@@ -70,10 +72,8 @@ export function findTextNode(node: Node, text: string): Text | undefined {
   if (node.nodeType == 3) {
     if (node.nodeValue == text) return instanceOf(Text, node)
   } else if (node.nodeType == 1) {
-    for (let ch = node.firstChild; ch; ch = ch.nextSibling) {
-      const found = findTextNode(ch, text)
-      if (found) return found
-    }
+    const found = Arr.findFirst(Array.from(node.childNodes), (ch) => Option.fromUndefinedOr(findTextNode(ch, text)))
+    return Option.getOrUndefined(found)
   }
   return undefined
 }

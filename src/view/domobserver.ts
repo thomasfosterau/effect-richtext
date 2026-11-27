@@ -4,6 +4,7 @@
  *
  * @internal
  */
+import * as Option from "effect/Option"
 import { Selection } from "../State.ts"
 import * as browser from "./browser.ts"
 import {
@@ -14,8 +15,8 @@ import {
   isDOMNode,
   isElt,
   isEquivalentPosition,
+  ancestors,
   isText,
-  parentNode,
   selectionCollapsed
 } from "./dom.ts"
 import { hasFocusAndSelection, selectionFromDOM, selectionToDOM } from "./selection.ts"
@@ -78,7 +79,7 @@ export class DOMObserver {
     this.observer =
       window.MutationObserver &&
       new window.MutationObserver((mutations) => {
-        for (let i = 0; i < mutations.length; i++) this.queue.push(mutations[i])
+        mutations.forEach((m) => this.queue.push(m))
         if (
           browser.ie &&
           browser.ie_version <= 11 &&
@@ -154,7 +155,7 @@ export class DOMObserver {
     if (this.observer) {
       const take = this.observer.takeRecords()
       if (take.length) {
-        for (let i = 0; i < take.length; i++) this.queue.push(take[i])
+        take.forEach((m) => this.queue.push(m))
         window.setTimeout(() => this.flush(), 20)
       }
       this.observer.disconnect()
@@ -202,15 +203,8 @@ export class DOMObserver {
 
   ignoreSelectionChange(sel: DOMSelectionRange) {
     if (!sel.focusNode) return true
-    const ancestors: WeakSet<DOMNode> = new WeakSet()
-    let container: DOMNode | undefined
-    for (let scan: DOMNode | null = sel.focusNode; scan; scan = parentNode(scan)) ancestors.add(scan)
-    for (let scan = sel.anchorNode; scan; scan = parentNode(scan)) {
-      if (ancestors.has(scan)) {
-        container = scan
-        break
-      }
-    }
+    const aroundFocus: WeakSet<DOMNode> = new WeakSet(ancestors(sel.focusNode))
+    const container = (sel.anchorNode ? ancestors(sel.anchorNode) : []).find((scan) => aroundFocus.has(scan))
     const desc = container && this.view.docView.nearestDesc(container)
     if (
       container &&
@@ -228,7 +222,7 @@ export class DOMObserver {
 
   pendingRecords() {
     if (this.observer) {
-      for (const mut of this.observer.takeRecords()) this.queue.push(mut)
+      this.observer.takeRecords().forEach((mut) => this.queue.push(mut))
     }
     return this.queue
   }
@@ -252,14 +246,14 @@ export class DOMObserver {
       typeOver = false
     const added: Array<DOMNode> = []
     if (view.editable) {
-      for (let i = 0; i < mutations.length; i++) {
-        const result = this.registerMutation(mutations[i], added)
+      mutations.forEach((mut) => {
+        const result = this.registerMutation(mut, added)
         if (result) {
           from = from < 0 ? result.from : Math.min(result.from, from)
           to = to < 0 ? result.to : Math.max(result.to, to)
           if (result.typeOver) typeOver = true
         }
-      }
+      })
     }
 
     if (
@@ -272,18 +266,7 @@ export class DOMObserver {
     ) {
       // Browsers sometimes insert a bogus break node if you
       // backspace out the last bit of text before an inline-flex node
-      for (const node of added) {
-        if (node.nodeName == "BR" && node.parentNode) {
-          let after = node.nextSibling
-          while (after && isElt(after)) {
-            if (after.contentEditable == "false") {
-              node.parentNode.removeChild(node)
-              break
-            }
-            after = after.firstChild
-          }
-        }
-      }
+      added.filter(isBogusBreak).forEach((node) => node.parentNode?.removeChild(node))
     } else if (browser.gecko && added.length) {
       const brs = added.filter(isElt).filter((n) => n.nodeName == "BR")
       if (brs.length == 2) {
@@ -293,12 +276,11 @@ export class DOMObserver {
         else a.remove()
       } else {
         const { focusNode } = this.currentSelection
-        for (const br of brs) {
+        const focusBlock = focusNode && blockParent(view, focusNode)
+        brs.forEach((br) => {
           const parent = br.parentNode
-          if (parent && parent.nodeName == "LI" && (!focusNode || blockParent(view, focusNode) != parent)) {
-            br.remove()
-          }
-        }
+          if (parent && parent.nodeName == "LI" && focusBlock != parent) br.remove()
+        })
       }
     }
 
@@ -351,11 +333,10 @@ export class DOMObserver {
     if (!desc || desc.ignoreMutation(mut)) return null
 
     if (mut.type == "childList") {
-      for (let i = 0; i < mut.addedNodes.length; i++) {
-        const node = mut.addedNodes[i]
+      mut.addedNodes.forEach((node) => {
         added.push(node)
         if (isText(node)) this.lastChangedTextNode = node
-      }
+      })
       if (desc.contentDOM && desc.contentDOM != desc.dom && !desc.contentDOM.contains(mut.target)) {
         return { from: desc.posBefore, to: desc.posAfter }
       }
@@ -364,13 +345,11 @@ export class DOMObserver {
       if (browser.ie && browser.ie_version <= 11 && mut.addedNodes.length) {
         // IE11 gives us incorrect next/prev siblings for some
         // insertions, so if there are added nodes, recompute those
-        for (let i = 0; i < mut.addedNodes.length; i++) {
-          const { nextSibling, previousSibling } = mut.addedNodes[i]
-          if (!previousSibling || Array.prototype.indexOf.call(mut.addedNodes, previousSibling) < 0) {
-            prev = previousSibling
-          }
-          if (!nextSibling || Array.prototype.indexOf.call(mut.addedNodes, nextSibling) < 0) next = nextSibling
-        }
+        mut.addedNodes.forEach(({ nextSibling, previousSibling }) => {
+          // A missing sibling isn't among the added nodes either.
+          if (Array.prototype.indexOf.call(mut.addedNodes, previousSibling) < 0) prev = previousSibling
+          if (Array.prototype.indexOf.call(mut.addedNodes, nextSibling) < 0) next = nextSibling
+        })
       }
       const fromOffset = prev && prev.parentNode == mut.target ? domIndex(prev) + 1 : 0
       const from = desc.localPosFromDOM(mut.target, fromOffset, -1)
@@ -463,11 +442,35 @@ export function safariShadowSelectionRange(view: AnyView, selection: DOMSelectio
 }
 
 function blockParent(view: AnyView, node: DOMNode): DOMNode | null {
-  for (let p = node.parentNode; p && p != view.dom; p = p.parentNode) {
-    const desc = view.docView.nearestDesc(p, true)
-    if (desc && desc.node.isBlock) return p
-  }
-  return null
+  const p = node.parentNode
+  if (!p || p == view.dom) return null
+  const desc = view.docView.nearestDesc(p, true)
+  return desc && desc.node.isBlock ? p : blockParent(view, p)
+}
+
+// Whether `node` or one of its first descendants is an uneditable element.
+// A break the browser inserted in front of an uneditable node.
+function isBogusBreak(node: DOMNode): boolean {
+  return node.nodeName == "BR" && !!node.nextSibling && uneditableAhead(node.nextSibling)
+}
+
+function uneditableAhead(node: ChildNode): boolean {
+  return isElt(node) && (node.contentEditable == "false" || (!!node.firstChild && uneditableAhead(node.firstChild)))
+}
+
+function nextCellFrom(node: ChildNode): Option.Option<ChildNode> {
+  if (node.nodeName == "TD" || node.nodeName == "TH") return Option.some(node)
+  return node.nextSibling ? nextCellFrom(node.nextSibling) : Option.none()
+}
+
+// The innermost editable first descendant of `parent` that may hold text.
+function innermostFirst(parent: ChildNode): ChildNode {
+  const first = parent.firstChild
+  return first && mayHoldText(first) ? innermostFirst(first) : parent
+}
+
+function mayHoldText(node: ChildNode): boolean {
+  return isElt(node) && node.contentEditable != "false" && !/^(BR|IMG)$/.test(node.nodeName)
 }
 
 // Kludge for a Safari bug where, on ending a composition in an
@@ -475,22 +478,16 @@ function blockParent(view: AnyView, node: DOMNode): DOMNode | null {
 // into the table row around that cell, greatly confusing everything.
 function fixUpBadSafariComposition(view: AnyView, addedNodes: ReadonlyArray<DOMNode>) {
   const { focusNode, focusOffset } = view.domSelectionRange()
-  for (const node of addedNodes) {
-    if (node.parentNode?.nodeName == "TR") {
-      let nextCell = node.nextSibling
-      while (nextCell && nextCell.nodeName != "TD" && nextCell.nodeName != "TH") nextCell = nextCell.nextSibling
-      if (nextCell) {
-        let parent = nextCell
-        for (;;) {
-          const first = parent.firstChild
-          if (!first || !isElt(first) || first.contentEditable == "false" || /^(BR|IMG)$/.test(first.nodeName)) break
-          parent = first
+  addedNodes
+    .filter((node) => node.parentNode?.nodeName == "TR")
+    .forEach((node) =>
+      Option.match(Option.flatMap(Option.fromNullOr(node.nextSibling), nextCellFrom), {
+        onNone: () => node.parentNode?.removeChild(node),
+        onSome: (nextCell) => {
+          const parent = innermostFirst(nextCell)
+          parent.insertBefore(node, parent.firstChild)
+          if (focusNode == node) view.domSelection()?.collapse(node, focusOffset)
         }
-        parent.insertBefore(node, parent.firstChild)
-        if (focusNode == node) view.domSelection()?.collapse(node, focusOffset)
-      } else {
-        node.parentNode.removeChild(node)
-      }
-    }
-  }
+      })
+    )
 }

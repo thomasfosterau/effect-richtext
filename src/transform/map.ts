@@ -3,6 +3,7 @@
  *
  * @since 0.1.0
  */
+import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
 import * as S from "effect/Schema"
 
@@ -131,6 +132,8 @@ export class StepMap implements Mappable {
     let diff = 0
     const index = recoverIndex(value)
     if (!this.inverted) {
+      // Step maps hold ranges in flat triples, so these walks stay plain loops.
+      // oxlint-disable-next-line effect/imperative-loops
       for (let i = 0; i < index; i++) diff += this.ranges[i * 3 + 2] - this.ranges[i * 3 + 1]
     }
     return this.ranges[index * 3] + diff + recoverOffset(value)
@@ -152,6 +155,9 @@ export class StepMap implements Mappable {
     let diff = 0
     const oldIndex = this.inverted ? 2 : 1,
       newIndex = this.inverted ? 1 : 2
+    // A plain loop: every position mapping runs it for every step map,
+    // and a callback made the find-and-replace benchmark four times slower.
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0; i < this.ranges.length; i += 3) {
       const start = this.ranges[i] - (this.inverted ? diff : 0)
       if (start > pos) break
@@ -182,6 +188,7 @@ export class StepMap implements Mappable {
     const index = recoverIndex(recover)
     const oldIndex = this.inverted ? 2 : 1,
       newIndex = this.inverted ? 1 : 2
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0; i < this.ranges.length; i += 3) {
       const start = this.ranges[i] - (this.inverted ? diff : 0)
       if (start > pos) break
@@ -197,6 +204,7 @@ export class StepMap implements Mappable {
   forEach(f: (oldStart: number, oldEnd: number, newStart: number, newEnd: number) => void): void {
     const oldIndex = this.inverted ? 2 : 1,
       newIndex = this.inverted ? 1 : 2
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0, diff = 0; i < this.ranges.length; i += 3) {
       const start = this.ranges[i],
         oldStart = start - (this.inverted ? diff : 0),
@@ -297,10 +305,11 @@ export class Mapping implements Mappable {
 
   /** Add all the step maps in a given mapping to this one (preserving mirroring information). */
   appendMapping(mapping: Mapping): void {
-    for (let i = 0, startSize = this._maps.length; i < mapping._maps.length; i++) {
+    const startSize = this._maps.length
+    mapping._maps.forEach((map, i) => {
       const mirr = mapping.getMirrorOrUndefined(i)
-      this.appendMap(mapping._maps[i], mirr != null && mirr < i ? startSize + mirr : undefined)
-    }
+      this.appendMap(map, mirr != null && mirr < i ? startSize + mirr : undefined)
+    })
   }
 
   /**
@@ -314,12 +323,8 @@ export class Mapping implements Mappable {
 
   /** @internal */
   getMirrorOrUndefined(n: number): number | undefined {
-    if (this.mirror) {
-      for (let i = 0; i < this.mirror.length; i++) {
-        if (this.mirror[i] === n) return this.mirror[i + (i % 2 ? -1 : 1)]
-      }
-    }
-    return undefined
+    const i = this.mirror ? this.mirror.indexOf(n) : -1
+    return this.mirror && i >= 0 ? this.mirror[i + (i % 2 ? -1 : 1)] : undefined
   }
 
   /** Record that the maps at offsets `n` and `m` mirror each other. */
@@ -330,10 +335,13 @@ export class Mapping implements Mappable {
 
   /** Append the inverse of the given mapping to this one. */
   appendMappingInverted(mapping: Mapping): void {
-    for (let i = mapping.maps.length - 1, totalSize = this._maps.length + mapping._maps.length; i >= 0; i--) {
-      const mirr = mapping.getMirrorOrUndefined(i)
-      this.appendMap(mapping._maps[i].invert(), mirr != null && mirr > i ? totalSize - mirr - 1 : undefined)
-    }
+    const totalSize = this._maps.length + mapping._maps.length
+    const last = mapping._maps.length - 1
+    Arr.reverse(mapping._maps).forEach((map, k) => {
+      const i = last - k,
+        mirr = mapping.getMirrorOrUndefined(i)
+      this.appendMap(map.invert(), mirr != null && mirr > i ? totalSize - mirr - 1 : undefined)
+    })
   }
 
   /** Create an inverted version of this mapping. */
@@ -346,6 +354,10 @@ export class Mapping implements Mappable {
   /** Map a position through this mapping. */
   map(pos: number, assoc = 1): number {
     if (this.mirror) return this._map(pos, assoc, true)
+    // Plain loops here and in `_map`: a mapping is often a short slice of
+    // a long one, and callbacks over the whole array made the
+    // find-and-replace benchmark four times slower.
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = this.from; i < this.to; i++) pos = this._maps[i].map(pos, assoc)
     return pos
   }
@@ -361,12 +373,14 @@ export class Mapping implements Mappable {
   _map(pos: number, assoc: number, simple: false): MapResult
   _map(pos: number, assoc: number, simple: boolean): number | MapResult {
     let delInfo = 0
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = this.from; i < this.to; i++) {
       const map = this._maps[i],
         result = map.mapResult(pos, assoc)
       if (result.recover != null) {
         const corr = this.getMirrorOrUndefined(i)
         if (corr != null && corr > i && corr < this.to) {
+          // A mirrored pair cancels out: skip to its other half.
           i = corr
           pos = this._maps[corr].recover(result.recover)
           continue

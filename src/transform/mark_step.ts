@@ -15,13 +15,10 @@ function mapFragment<Sc extends AnySchema>(
   f: (child: Node<Sc>, parent: Node<Sc>, i: number) => Node<Sc>,
   parent: Node<Sc>
 ): Fragment<Sc> {
-  const mapped: Array<Node<Sc>> = []
-  for (let i = 0; i < fragment.childCount; i++) {
-    let child = fragment.content[i]
-    if (child.content.size) child = child.copy(mapFragment(child.content, f, child))
-    if (child.isInline) child = f(child, parent, i)
-    mapped.push(child)
-  }
+  const mapped = fragment.content.map((node, i) => {
+    const child = node.content.size ? node.copy(mapFragment(node.content, f, node)) : node
+    return child.isInline ? f(child, parent, i) : child
+  })
   return Fragment.fromArray(mapped)
 }
 
@@ -222,10 +219,9 @@ export class AddNodeMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> 
     if (node) {
       const newSet = this.mark.addToSet(node.marks)
       if (newSet.length === node.marks.length) {
-        for (let i = 0; i < node.marks.length; i++) {
-          if (!node.marks[i].isInSet(newSet)) return new AddNodeMarkStep(this.pos, node.marks[i])
-        }
-        return new AddNodeMarkStep(this.pos, this.mark)
+        // The mark replaced an excluded one: adding that back undoes this step.
+        const replaced = node.marks.find((mark) => !mark.isInSet(newSet))
+        return new AddNodeMarkStep(this.pos, replaced ?? this.mark)
       }
     }
     return new RemoveNodeMarkStep(this.pos, this.mark)

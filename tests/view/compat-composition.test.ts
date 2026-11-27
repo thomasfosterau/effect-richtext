@@ -2,6 +2,7 @@
 // Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
 // ../utils/ist.ts, ./view.js -> ./compat-view.ts, mocha describe/it ->
 // @effect/vitest; type-only imports marked as such) and dprint formatting
+import * as Arr from "effect/Array"
 import { describe, it } from "@effect/vitest"
 import type { EditorState } from "@thomasfosterau/effect-richtext/compat/state"
 import { Plugin } from "@thomasfosterau/effect-richtext/compat/state"
@@ -24,9 +25,9 @@ function edit(node: Text, text = "", from = node.data.length, to = from) {
 }
 
 function hasCompositionNode(_pm: EditorView) {
-  let { focusNode } = present(document.getSelection())
-  while (focusNode && !focusNode.pmViewDesc) focusNode = focusNode.parentNode
-  return focusNode?.pmViewDesc?.constructor.name == "CompositionViewDesc"
+  const withDesc = (node: globalThis.Node | null): globalThis.Node | null =>
+    !node || node.pmViewDesc ? node : withDesc(node.parentNode)
+  return withDesc(present(document.getSelection()).focusNode)?.pmViewDesc?.constructor.name == "CompositionViewDesc"
 }
 
 function compose(pm: EditorView, start: () => Text, update: ((node: Text) => void)[], options: any = {}) {
@@ -34,7 +35,8 @@ function compose(pm: EditorView, start: () => Text, update: ((node: Text) => voi
   ist(pm.composing)
   const sel = present(document.getSelection())
   const node = start()
-  for (let i = -1; i < update.length; i++) {
+  // -1 checks the state before the first update.
+  Arr.range(-1, update.length - 1).forEach((i) => {
     if (i >= 0) update[i](node)
     const { focusNode, focusOffset } = sel
     flush(pm)
@@ -47,7 +49,7 @@ function compose(pm: EditorView, start: () => Text, update: ((node: Text) => voi
       ist(sel.focusOffset, focusOffset)
       if (options.node) ist(hasCompositionNode(pm))
     }
-  }
+  })
   event(pm, "compositionend")
   if (options.end) {
     options.end(node)
@@ -63,9 +65,9 @@ function wordDeco(state: EditorState) {
     deco: Decoration[] = []
   state.doc.descendants((node, pos) => {
     if (node.isText && node.text) {
-      for (let m; (m = re.exec(node.text));) {
+      Array.from(node.text.matchAll(re)).forEach((m) => {
         deco.push(Decoration.inline(pos + m.index, pos + m.index + m[0].length, { class: "word" }))
-      }
+      })
     }
   })
   return DecorationSet.create(state.doc, deco)

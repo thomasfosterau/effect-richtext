@@ -52,10 +52,10 @@ export function findTextNode(node: Node, text: string): Text | undefined {
   if (node.nodeType == 3) {
     if (node.nodeValue == text) return instanceOf(Text, node)
   } else if (node.nodeType == 1) {
-    for (let ch = node.firstChild; ch; ch = ch.nextSibling) {
-      const found = findTextNode(ch, text)
-      if (found) return found
-    }
+    return Array.from(node.childNodes).reduce<Text | undefined>(
+      (found, ch) => found ?? findTextNode(ch, text),
+      undefined
+    )
   }
   return undefined
 }

@@ -2,6 +2,7 @@
 // Changes: imports only (ProseMirror packages -> @thomasfosterau/effect-richtext/compat/*, ist ->
 // ../../utils/ist.ts, mocha describe/it -> @effect/vitest; type-only imports
 // marked as such) and dprint formatting.
+import * as Arr from "effect/Array"
 import * as Predicate from "effect/Predicate"
 import { describe, it } from "@effect/vitest"
 import { blockquote, doc, em, p } from "@thomasfosterau/effect-richtext/compat/test-builder"
@@ -33,11 +34,11 @@ describe("Node", () => {
         [_doc, 12, _blk.node, null]
       ]
 
-      for (let pos = 0; pos <= testDoc.content.size; pos++) {
+      Arr.range(0, testDoc.content.size).forEach((pos) => {
         const $pos = testDoc.resolve(pos),
           exp = expected[pos]
         ist($pos.depth, exp.length - 4)
-        for (let i = 0; i < exp.length - 3; i++) {
+        Array.from({ length: exp.length - 3 }, (_, i) => i).forEach((i) => {
           ist($pos.node(i).eq(exp[i].node))
           ist($pos.start(i), exp[i].start)
           ist($pos.end(i), exp[i].end)
@@ -45,7 +46,7 @@ describe("Node", () => {
             ist($pos.before(i), exp[i].start - 1)
             ist($pos.after(i), exp[i].end + 1)
           }
-        }
+        })
         ist($pos.parentOffset, exp[exp.length - 3])
         const before = $pos.nodeBefore,
           eBefore = exp[exp.length - 2]
@@ -53,7 +54,7 @@ describe("Node", () => {
         const after = $pos.nodeAfter,
           eAfter = exp[exp.length - 1]
         ist(Predicate.isString(eAfter) ? present(after).textContent : after, eAfter)
-      }
+      })
     })
 
     it("has a working posAtIndex method", () => {

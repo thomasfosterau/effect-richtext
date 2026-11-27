@@ -700,7 +700,10 @@ const identityAttrs = (attrs: Record<string, Attribute>): boolean =>
 function initAttrs(typeName: string, attrs?: AttributeDefinitions) {
   const result: Record<string, Attribute> = Object.create(null)
   if (attrs) {
-    for (const name in attrs) result[name] = new Attribute(typeName, name, attrs[name])
+    const defs: Readonly<Record<string, AttributeDefinition>> = attrs
+    Rec.toEntries(defs).forEach(([name, def]) => {
+      result[name] = new Attribute(typeName, name, def)
+    })
   }
   return result
 }
@@ -711,12 +714,11 @@ function initAttrs(typeName: string, attrs?: AttributeDefinitions) {
 // attributes.
 function defaultAttrs(attrs: Record<string, Attribute>): Option.Option<Attrs> {
   const defaults = Object.create(null)
-  for (const attrName in attrs) {
-    const attr = attrs[attrName]
-    if (!attr.hasDefault) return Option.none()
-    defaults[attrName] = attr.default
-  }
-  return Option.some(defaults)
+  const complete = Rec.toEntries(attrs).every(([name, attr]) => {
+    defaults[name] = attr.default
+    return attr.hasDefault
+  })
+  return complete ? Option.some(defaults) : Option.none()
 }
 
 /** @internal */
@@ -730,6 +732,8 @@ export function computeAttrs(
   decoded = false
 ): Attrs {
   const built = Object.create(null)
+  // Every node and mark created runs this, so it stays a plain loop.
+  // oxlint-disable-next-line effect/imperative-loops
   for (const name in attrs) {
     const attr = attrs[name]
     let given = value && value[name]
@@ -754,20 +758,19 @@ export function computeAttrs(
 
 /** @internal */
 export function checkAttrs(attrs: Record<string, Attribute>, values: Attrs, type: string, typeName: string): void {
-  for (const name in values) {
+  Rec.keys(values).forEach((name) => {
     if (!(name in attrs)) {
       throw new AttributeError({ message: `Unsupported attribute ${name} for ${type} of type ${typeName}` })
     }
-  }
-  for (const name in attrs) {
-    const attr = attrs[name]
+  })
+  Rec.toEntries(attrs).forEach(([name, attr]) => {
     if (attr.validate) attr.validate(values[name])
     if (attr.is && !attr.is(values[name])) {
       throw new AttributeError({
         message: `Invalid value for attribute ${name} on ${type} of type ${typeName}: ${showJson(values[name])}`
       })
     }
-  }
+  })
 }
 
 // -----------------------------------------------------------------------------
@@ -851,8 +854,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
 
   /** Tells you whether this node type has any required attributes. */
   hasRequiredAttrs(): boolean {
-    for (const n in this.attrs) if (this.attrs[n].isRequired) return true
-    return false
+    return Rec.some(this.attrs, (attr) => attr.isRequired)
   }
 
   /** Indicates whether this node allows some of the same content as the given node type. */
@@ -1033,6 +1035,10 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   validContent(content: Fragment<any, any>): boolean {
     const result = this.contentMatch.matchFragmentOrNull(content)
     if (!result || !result.validEnd) return false
+    // Plain loops here and in `allowsMarks`: every replace checks its
+    // content, and callbacks cost the block-moves benchmark a fifth of
+    // its speed.
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0; i < content.childCount; i++) {
       if (!this.allowsMarks(content.content[i].marks)) return false
     }
@@ -1061,6 +1067,7 @@ export class NodeType<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   /** Test whether the given set of marks are allowed in this node. */
   allowsMarks(marks: ReadonlyArray<Mark<any>>): boolean {
     if (this.markSet === null) return true
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0; i < marks.length; i++) if (!this.allowsMarkType(marks[i].type)) return false
     return true
   }
@@ -1160,13 +1167,8 @@ export class MarkType<Sc extends AnySchema = AnySchema, out M extends MarkNames<
    * without it is returned. Otherwise, the input set is returned.
    */
   removeFromSet<Mk extends Mark<any>>(set: ReadonlyArray<Mk>): ReadonlyArray<Mk> {
-    for (let i = 0; i < set.length; i++) {
-      if (set[i].type === this) {
-        set = set.slice(0, i).concat(set.slice(i + 1))
-        i--
-      }
-    }
-    return set
+    const kept = set.filter((mark) => mark.type !== this)
+    return kept.length === set.length ? set : kept
   }
 
   /** Find a mark of this type in the given set. */
@@ -1176,13 +1178,8 @@ export class MarkType<Sc extends AnySchema = AnySchema, out M extends MarkNames<
 
   /** @internal */
   findInSet(set: ReadonlyArray<Mark<any>>): Mark<Sc, M> | undefined {
-    for (let i = 0; i < set.length; i++) {
-      if (set[i].type === this) {
-        // SAFETY: a mark of this type is a `Mark<Sc, M>`.
-        return set[i] as Mark<Sc, M>
-      }
-    }
-    return undefined
+    // SAFETY: a mark of this type is a `Mark<Sc, M>`.
+    return set.find((mark) => mark.type === this) as Mark<Sc, M> | undefined
   }
 
   /** @internal */
@@ -1276,29 +1273,30 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
     // SAFETY: a spec without marks declares none, so `M` is empty.
     this.spec = { ...spec, nodes: spec.nodes, marks: (spec.marks ?? {}) as M }
     const nodes: Record<string, NodeType<any, any>> = Object.create(null)
-    for (const name in this.spec.nodes) nodes[name] = new NodeType<AnySchema, string>(name, this, this.spec.nodes[name])
+    Rec.toEntries(this.spec.nodes).forEach(([name, nodeSpec]) => {
+      nodes[name] = new NodeType<AnySchema, string>(name, this, nodeSpec)
+    })
     const topType = this.spec.topNode || "doc"
     const topNodeType = nodes[topType]
     if (!topNodeType) {
       throw new SchemaDefinitionError({ message: "Schema is missing its top node type ('" + topType + "')" })
     }
     if (!nodes.text) throw new SchemaDefinitionError({ message: "Every schema needs a 'text' type" })
-    for (const _ in nodes.text.attrs) {
+    if (!Rec.isEmptyRecord(nodes.text.attrs)) {
       throw new SchemaDefinitionError({ message: "The text node type should not have attributes" })
     }
     const marks: Record<string, MarkType<any, any>> = Object.create(null)
-    let rank = 0
-    for (const name in this.spec.marks)
-      marks[name] = new MarkType<AnySchema, string>(name, rank++, this, this.spec.marks[name])
+    Rec.toEntries(this.spec.marks).forEach(([name, markSpec], rank) => {
+      marks[name] = new MarkType<AnySchema, string>(name, rank, this, markSpec)
+    })
     // SAFETY: built with one type per name in the spec.
     this.nodes = nodes as DocSchema<N, M>["nodes"]
     // SAFETY: as above.
     this.marks = marks as DocSchema<N, M>["marks"]
 
     let linebreak = Option.none<NodeType<any, any>>()
-    for (const prop in nodes) {
+    Rec.toEntries(nodes).forEach(([prop, type]) => {
       if (prop in marks) throw new SchemaDefinitionError({ message: prop + " can not be both a node and a mark" })
-      const type = nodes[prop]
       const markExpr = type.spec.marks
       type.contentMatch = ContentMatch.compile(type.spec.content, nodes, prop)
       type.inlineContent = type.contentMatch.inlineContent
@@ -1317,12 +1315,11 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
             : markExpr === "" || !type.inlineContent
               ? []
               : null
-    }
-    for (const prop in marks) {
-      const type = marks[prop]
+    })
+    Rec.values(marks).forEach((type) => {
       const excl = type.spec.excludes
       type.excluded = excl == null ? [type] : excl === "" ? [] : gatherMarks(this, excl.split(" "))
-    }
+    })
     this.linebreakReplacement = linebreak
     this.topNodeType = topNodeType
   }
@@ -1489,24 +1486,17 @@ export class DocSchema<N extends NodeSpecs = NodeSpecs, M extends MarkSpecs = Ma
 }
 
 function gatherMarks(schema: DocSchema<any, any>, marks: ReadonlyArray<string>) {
-  const found: Array<MarkType<any, any>> = []
-  for (let i = 0; i < marks.length; i++) {
-    const name = marks[i]
-    const mark = schema.marks[name]
-    let ok = mark
-    if (mark) {
-      found.push(mark)
-    } else {
-      for (const prop in schema.marks) {
-        const candidate = schema.marks[prop]
-        if (name === "_" || (candidate.spec.group && candidate.spec.group.split(" ").indexOf(name) > -1)) {
-          found.push((ok = candidate))
-        }
-      }
-    }
-    if (!ok) throw new SchemaDefinitionError({ message: "Unknown mark type: '" + marks[i] + "'" })
-  }
-  return found
+  return marks.flatMap((name): ReadonlyArray<MarkType<any, any>> => {
+    const mark: MarkType<any, any> | undefined = schema.marks[name]
+    if (mark) return [mark]
+    const all: ReadonlyArray<MarkType<any, any>> = Rec.values(schema.marks)
+    const inGroup = all.filter(
+      (candidate) =>
+        name === "_" || (candidate.spec.group !== undefined && candidate.spec.group.split(" ").indexOf(name) > -1)
+    )
+    if (Arr.isArrayEmpty(inGroup)) throw new SchemaDefinitionError({ message: "Unknown mark type: '" + name + "'" })
+    return inGroup
+  })
 }
 
 /**

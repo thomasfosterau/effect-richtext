@@ -9,6 +9,7 @@
 import * as Arr from "effect/Array"
 import * as Effect from "effect/Effect"
 import * as Predicate from "effect/Predicate"
+import * as Rec from "effect/Record"
 import * as Schema from "effect/Schema"
 import { base, keyName } from "w3c-keyname"
 import type { AnySchema } from "../Model.ts"
@@ -79,6 +80,20 @@ export type KeydownHandler<E = never, R = never> = (
   event: KeyboardEvent
 ) => Effect.Effect<boolean, E, R>
 
+type Modifier = "Alt" | "Ctrl" | "Meta" | "Shift"
+
+function modifierOf(mod: string): Modifier {
+  if (/^(cmd|meta|m)$/i.test(mod)) return "Meta"
+  if (/^a(lt)?$/i.test(mod)) return "Alt"
+  if (/^(c|ctrl|control)$/i.test(mod)) return "Ctrl"
+  if (/^s(hift)?$/i.test(mod)) return "Shift"
+  if (/^mod$/i.test(mod)) return mac ? "Meta" : "Ctrl"
+  throw new KeymapError({ message: "Unrecognized modifier name: " + mod })
+}
+
+// The order in which `normalizeKeyName` prefixes modifiers, innermost first.
+const modifierOrder: ReadonlyArray<Modifier> = ["Alt", "Ctrl", "Meta", "Shift"]
+
 /**
  * Normalize a key name (such as `"Mod-Shift-a"`) into the canonical
  * form used for lookups (`"Shift-Ctrl-a"` on non-Mac platforms).
@@ -89,28 +104,12 @@ export type KeydownHandler<E = never, R = never> = (
  */
 export function normalizeKeyName(name: string): string {
   const parts = name.split(/-(?!$)/)
-  let result = parts[parts.length - 1]
-  if (result === "Space") result = " "
-  let alt = false,
-    ctrl = false,
-    shift = false,
-    meta = false
-  for (let i = 0; i < parts.length - 1; i++) {
-    const mod = parts[i]
-    if (/^(cmd|meta|m)$/i.test(mod)) meta = true
-    else if (/^a(lt)?$/i.test(mod)) alt = true
-    else if (/^(c|ctrl|control)$/i.test(mod)) ctrl = true
-    else if (/^s(hift)?$/i.test(mod)) shift = true
-    else if (/^mod$/i.test(mod)) {
-      if (mac) meta = true
-      else ctrl = true
-    } else throw new KeymapError({ message: "Unrecognized modifier name: " + mod })
-  }
-  if (alt) result = "Alt-" + result
-  if (ctrl) result = "Ctrl-" + result
-  if (meta) result = "Meta-" + result
-  if (shift) result = "Shift-" + result
-  return result
+  const key = parts[parts.length - 1]
+  const mods = parts.slice(0, -1).map(modifierOf)
+  return modifierOrder.reduce(
+    (result, mod) => (Arr.contains(mods, mod) ? mod + "-" + result : result),
+    key === "Space" ? " " : key
+  )
 }
 
 /**
@@ -121,13 +120,13 @@ export function normalizeKeyName(name: string): string {
  */
 export function normalizeBindings<A>(map: { readonly [key: string]: A }): Record<string, A> {
   const copy: Record<string, A> = Object.create(null)
-  for (const prop in map) {
+  Rec.toEntries(map).forEach(([prop, binding]) => {
     const norm = normalizeKeyName(prop)
     if (Object.prototype.hasOwnProperty.call(copy, norm)) {
       throw new KeymapError({ message: "Multiple bindings for key " + norm + " in a single keymap" })
     }
-    copy[norm] = map[prop]
-  }
+    copy[norm] = binding
+  })
   return copy
 }
 

@@ -107,11 +107,14 @@ export class GapCursor<Sc extends AnySchema = AnySchema> extends Selection<Sc> {
     dir: number,
     mustMove = false
   ): ResolvedPos<Sc> | null {
+    // Skips any number of unselectable atoms, restarting from each, so these stay plain loops.
+    // oxlint-disable-next-line effect/imperative-loops
     search: for (;;) {
       if (!mustMove && GapCursor.valid($pos)) return $pos
       let pos = $pos.pos,
         next: Node<any> | null = null
       // Scan up from this position
+      // oxlint-disable-next-line effect/imperative-loops
       for (let d = $pos.depth; ; d--) {
         const parent = $pos.node(d)
         if (dir > 0 ? $pos.indexAfter(d) < parent.childCount : $pos.index(d) > 0) {
@@ -126,6 +129,7 @@ export class GapCursor<Sc extends AnySchema = AnySchema> extends Selection<Sc> {
       }
 
       // And then down into the next node
+      // oxlint-disable-next-line effect/imperative-loops
       for (;;) {
         const inside: Node<any> | undefined =
           dir > 0 ? next.content.content[0] : next.content.content[next.childCount - 1]
@@ -167,39 +171,29 @@ function needsGap(type: NodeType<any, any>): boolean {
   return type.isAtom || !!type.spec.isolating || !!type.spec.createGapCursor
 }
 
-function closedBefore($pos: ResolvedPos<any>): boolean {
-  for (let d = $pos.depth; d >= 0; d--) {
-    const index = $pos.index(d),
-      parent = $pos.node(d)
-    // At the start of this parent, look at next one
-    if (index === 0) {
-      if (parent.type.spec.isolating) return true
-      continue
-    }
-    // See if the node before (or its first ancestor) is closed
-    for (let before = child(parent, index - 1); ; before = child(before, before.childCount - 1)) {
-      if ((before.childCount === 0 && !before.inlineContent) || needsGap(before.type)) return true
-      if (before.inlineContent) return false
-    }
-  }
+function closedBefore($pos: ResolvedPos<any>, d = $pos.depth): boolean {
   // Hit start of document
-  return true
+  if (d < 0) return true
+  const index = $pos.index(d),
+    parent = $pos.node(d)
+  // At the start of this parent, look at next one
+  if (index === 0) return !!parent.type.spec.isolating || closedBefore($pos, d - 1)
+  // See if the node before (or its first ancestor) is closed
+  return closedAlong(child(parent, index - 1), (node) => child(node, node.childCount - 1))
 }
 
-function closedAfter($pos: ResolvedPos<any>): boolean {
-  for (let d = $pos.depth; d >= 0; d--) {
-    const index = $pos.indexAfter(d),
-      parent = $pos.node(d)
-    if (index === parent.childCount) {
-      if (parent.type.spec.isolating) return true
-      continue
-    }
-    for (let after = child(parent, index); ; after = child(after, 0)) {
-      if ((after.childCount === 0 && !after.inlineContent) || needsGap(after.type)) return true
-      if (after.inlineContent) return false
-    }
-  }
-  return true
+function closedAfter($pos: ResolvedPos<any>, d = $pos.depth): boolean {
+  if (d < 0) return true
+  const index = $pos.indexAfter(d),
+    parent = $pos.node(d)
+  if (index === parent.childCount) return !!parent.type.spec.isolating || closedAfter($pos, d - 1)
+  return closedAlong(child(parent, index), (node) => child(node, 0))
+}
+
+// Whether `node`, or the descendant reached by following `next` until one decides, is closed.
+function closedAlong(node: Node<any>, next: (node: Node<any>) => Node<any>): boolean {
+  if ((node.childCount === 0 && !node.inlineContent) || needsGap(node.type)) return true
+  return !node.inlineContent && closedAlong(next(node), next)
 }
 
 /**
@@ -281,8 +275,10 @@ function beforeinput(view: EditorView<any, any, any>, event: InputEvent): boolea
   const insert = $from.parent.contentMatchAtUnsafe($from.index()).findWrappingOrNull(view.state.schema.nodes.text)
   if (!insert) return false
 
-  let frag: Fragment<any> = Fragment.empty
-  for (let i = insert.length - 1; i >= 0; i--) frag = Fragment.from(insert[i].createAndFillOrNull(null, frag))
+  const frag = insert.reduceRight(
+    (inner: Fragment<any>, type) => Fragment.from(type.createAndFillOrNull(null, inner)),
+    Fragment.empty
+  )
   const tr = view.state.tr.replaceUnsafe($from.pos, $from.pos, new Slice(frag, 0, 0))
   tr.setSelectionUnsafe(TextSelection.near(tr.doc.resolveUnsafe($from.pos + 1)))
   // Dispatch (synchronously, when possible), but let the event through.

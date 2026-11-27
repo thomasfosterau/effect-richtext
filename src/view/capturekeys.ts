@@ -99,54 +99,46 @@ function skipIgnoredNodesBefore(view: AnyView) {
   const sel = view.domSelectionRange()
   const focus = sel.focusNode
   if (!focus) return
-  let node: DOMNode = focus,
-    offset = sel.focusOffset
-  let moveNode,
-    moveOffset: number | undefined,
-    force = false
+  let move: Option.Option<DOMPoint> = Option.none()
   // Gecko will do odd things when the selection is directly in front
   // of a non-editable node, so in that case, move it into the next
   // node if possible.
-  if (browser.gecko && node.nodeType == 1 && offset < nodeLen(node) && isIgnorable(node.childNodes[offset], -1)) {
-    force = true
-  }
-  for (;;) {
-    if (offset > 0) {
-      if (node.nodeType != 1) {
-        break
-      } else {
-        const before = node.childNodes[offset - 1]
-        if (isIgnorable(before, -1)) {
-          moveNode = node
-          moveOffset = --offset
-        } else if (before.nodeType == 3) {
-          node = before
-          offset = (before.nodeValue ?? "").length
-        } else break
-      }
-    } else if (isBlockNode(node)) {
-      break
-    } else {
-      let prev = node.previousSibling
-      while (prev && isIgnorable(prev, -1)) {
-        moveNode = node.parentNode
-        moveOffset = domIndex(prev)
-        prev = prev.previousSibling
-      }
-      if (!prev) {
-        const up = node.parentNode
-        if (!up) break
-        node = up
-        if (node == view.dom) break
-        offset = 0
-      } else {
-        node = prev
-        offset = nodeLen(node)
-      }
+  const force =
+    browser.gecko &&
+    focus.nodeType == 1 &&
+    sel.focusOffset < nodeLen(focus) &&
+    isIgnorable(focus.childNodes[sel.focusOffset], -1)
+  // Walk backwards over ignorable nodes, noting the last place to move
+  // the cursor to, and return where the walk stopped.
+  const walk = (node: DOMNode, offset: number): DOMPoint => {
+    if (offset <= 0) return walkOut(node, offset)
+    if (node.nodeType != 1) return [node, offset]
+    const before = node.childNodes[offset - 1]
+    if (isIgnorable(before, -1)) {
+      move = Option.some(point(node, offset - 1))
+      return walk(node, offset - 1)
     }
+    return before.nodeType == 3 ? walk(before, nodeLen(before)) : [node, offset]
   }
+  // At the start of `node`: skip the ignorable nodes before it, or leave it.
+  const walkOut = (node: DOMNode, offset: number): DOMPoint => {
+    if (isBlockNode(node)) return [node, offset]
+    const skip = (prev: Option.Option<ChildNode>): Option.Option<ChildNode> => {
+      if (Option.isNone(prev) || !isIgnorable(prev.value, -1)) return prev
+      move = Option.map(Option.fromNullOr(node.parentNode), (parent) => point(parent, domIndex(prev.value)))
+      return skip(Option.fromNullOr(prev.value.previousSibling))
+    }
+    const prev = skip(Option.fromNullOr(node.previousSibling))
+    return Option.isSome(prev) ? walk(prev.value, nodeLen(prev.value)) : climb(node, offset)
+  }
+  const climb = (node: DOMNode, offset: number): DOMPoint => {
+    const up = node.parentNode
+    if (!up) return [node, offset]
+    return up == view.dom ? [up, offset] : walk(up, 0)
+  }
+  const [node, offset] = walk(focus, sel.focusOffset)
   if (force) setSelFocus(view, node, offset)
-  else if (moveNode && moveOffset !== undefined) setSelFocus(view, moveNode, moveOffset)
+  else if (Option.isSome(move)) setSelFocus(view, ...move.value)
 }
 
 // Make sure the cursor isn't directly before one or more ignored
@@ -155,42 +147,34 @@ function skipIgnoredNodesAfter(view: AnyView) {
   const sel = view.domSelectionRange()
   const focus = sel.focusNode
   if (!focus) return
-  let node: DOMNode = focus,
-    offset = sel.focusOffset
-  let len = nodeLen(node)
-  let moveNode, moveOffset: number | undefined
-  for (;;) {
+  let move: Option.Option<DOMPoint> = Option.none()
+  // Walk forwards over ignorable nodes, noting the last place to move
+  // the cursor to.
+  const walk = (node: DOMNode, offset: number, len: number): void => {
     if (offset < len) {
-      if (node.nodeType != 1) break
-      const after = node.childNodes[offset]
-      if (isIgnorable(after, 1)) {
-        moveNode = node
-        moveOffset = ++offset
-      } else break
-    } else if (isBlockNode(node)) {
-      break
-    } else {
-      let next = node.nextSibling
-      while (next && isIgnorable(next, 1)) {
-        moveNode = next.parentNode
-        moveOffset = domIndex(next) + 1
-        next = next.nextSibling
-      }
-      if (!next) {
-        const up = node.parentNode
-        if (!up) break
-        node = up
-        if (node == view.dom) break
-        offset = len = 0
-      } else {
-        node = next
-        offset = 0
-        len = nodeLen(node)
-      }
+      if (node.nodeType != 1) return
+      if (!isIgnorable(node.childNodes[offset], 1)) return
+      move = Option.some(point(node, offset + 1))
+      return walk(node, offset + 1, len)
     }
+    if (isBlockNode(node)) return
+    const skip = (next: Option.Option<ChildNode>): Option.Option<ChildNode> => {
+      if (Option.isNone(next) || !isIgnorable(next.value, 1)) return next
+      move = Option.map(Option.fromNullOr(next.value.parentNode), (parent) => point(parent, domIndex(next.value) + 1))
+      return skip(Option.fromNullOr(next.value.nextSibling))
+    }
+    const next = skip(Option.fromNullOr(node.nextSibling))
+    if (Option.isSome(next)) return walk(next.value, 0, nodeLen(next.value))
+    const up = node.parentNode
+    if (up && up != view.dom) walk(up, 0, 0)
   }
-  if (moveNode && moveOffset !== undefined) setSelFocus(view, moveNode, moveOffset)
+  walk(focus, sel.focusOffset, nodeLen(focus))
+  if (Option.isSome(move)) setSelFocus(view, ...move.value)
 }
+
+type DOMPoint = readonly [node: DOMNode, offset: number]
+
+const point = (node: DOMNode, offset: number): DOMPoint => [node, offset]
 
 function isBlockNode(dom: DOMNode) {
   const desc = dom.pmViewDesc
@@ -198,33 +182,31 @@ function isBlockNode(dom: DOMNode) {
 }
 
 function textNodeAfter(node: DOMNode | null, offset: number): Text | undefined {
-  while (node && offset == node.childNodes.length && !hasBlockDesc(node)) {
-    offset = domIndex(node) + 1
-    node = node.parentNode
+  // Climb out of the nodes that `offset` is at the end of, then descend.
+  if (node && offset == node.childNodes.length && !hasBlockDesc(node)) {
+    return textNodeAfter(node.parentNode, domIndex(node) + 1)
   }
-  while (node && offset < node.childNodes.length) {
-    const next = node.childNodes[offset]
-    if (isText(next)) return next
-    if (isElt(next) && next.contentEditable == "false") break
-    node = next
-    offset = 0
-  }
-  return undefined
+  return node ? Option.getOrUndefined(firstTextAfter(node, offset)) : undefined
+}
+
+function firstTextAfter(node: DOMNode, offset: number): Option.Option<Text> {
+  if (offset >= node.childNodes.length) return Option.none()
+  const next = node.childNodes[offset]
+  if (isText(next)) return Option.some(next)
+  return isElt(next) && next.contentEditable == "false" ? Option.none() : firstTextAfter(next, 0)
 }
 
 function textNodeBefore(node: DOMNode | null, offset: number): Text | undefined {
-  while (node && !offset && !hasBlockDesc(node)) {
-    offset = domIndex(node)
-    node = node.parentNode
-  }
-  while (node && offset) {
-    const next = node.childNodes[offset - 1]
-    if (isText(next)) return next
-    if (isElt(next) && next.contentEditable == "false") break
-    node = next
-    offset = node.childNodes.length
-  }
-  return undefined
+  // Climb out of the nodes that `offset` is at the start of, then descend.
+  if (node && !offset && !hasBlockDesc(node)) return textNodeBefore(node.parentNode, domIndex(node))
+  return node ? Option.getOrUndefined(lastTextBefore(node, offset)) : undefined
+}
+
+function lastTextBefore(node: DOMNode, offset: number): Option.Option<Text> {
+  if (!offset) return Option.none()
+  const next = node.childNodes[offset - 1]
+  if (isText(next)) return Option.some(next)
+  return isElt(next) && next.contentEditable == "false" ? Option.none() : lastTextBefore(next, next.childNodes.length)
 }
 
 function setSelFocus(view: AnyView, node: DOMNode, offset: number) {

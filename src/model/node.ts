@@ -316,14 +316,10 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
   /** @internal */
   nodeAtOrNull(pos: number): Node<Sc> | null {
     if (pos < 0 || pos > this.content.size) return null
-    for (let content = this.content; ;) {
-      const { index, offset } = content.findIndex(pos)
-      const node: Node<Sc> | undefined = content.content[index]
-      if (!node) return null
-      if (offset === pos || node.isText) return node
-      pos -= offset + 1
-      content = node.content
-    }
+    const { index, offset } = this.content.findIndex(pos)
+    const node: Node<Sc> | undefined = this.content.content[index]
+    if (!node) return null
+    return offset === pos || node.isText ? node : node.nodeAtOrNull(pos - offset - 1)
   }
 
   /**
@@ -456,8 +452,7 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
     const one = this.contentMatchAtUnsafe(from).matchFragmentOrNull(replacement, start, end)
     const two = one && one.matchFragmentOrNull(this.content, to)
     if (!two || !two.validEnd) return false
-    for (let i = start; i < end; i++) if (!this.type.allowsMarks(replacement.content[i].marks)) return false
-    return true
+    return replacement.content.every((node, i) => i < start || i >= end || this.type.allowsMarks(node.marks))
   }
 
   /**
@@ -495,12 +490,10 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
   checkUnsafe(): void {
     this.type.checkContent(this.content)
     this.type.checkAttrs(this.attrs)
-    let copy: ReadonlyArray<Mark<Sc>> = Mark.none
-    for (let i = 0; i < this.marks.length; i++) {
-      const mark = this.marks[i]
+    const copy = this.marks.reduce<ReadonlyArray<Mark<Sc>>>((set, mark) => {
       mark.type.checkAttrs(mark.attrs)
-      copy = mark.addToSet(copy)
-    }
+      return mark.addToSet(set)
+    }, Mark.none)
     if (!Mark.sameSet(copy, this.marks)) {
       throw new ContentError({
         message: `Invalid collection of marks for node ${this.type.name}: ${this.marks.map((m) => m.type.name).join(",")}`
@@ -583,6 +576,5 @@ export class TextNode<Sc extends AnySchema = AnySchema> extends Node<Sc, "text" 
 }
 
 function wrapMarks(marks: ReadonlyArray<Mark<any, any>>, str: string) {
-  for (let i = marks.length - 1; i >= 0; i--) str = marks[i].type.name + "(" + str + ")"
-  return str
+  return marks.reduceRight((inner, mark) => mark.type.name + "(" + inner + ")", str)
 }

@@ -10,6 +10,7 @@ import * as Exit from "effect/Exit"
 import * as Option from "effect/Option"
 import * as Result from "effect/Result"
 import * as Predicate from "effect/Predicate"
+import * as Rec from "effect/Record"
 import type * as Types from "effect/Types"
 import type { AnySchema, Mark, MarkJSON, ModelError, Node, NodeJSON } from "../Model.ts"
 import { type SelectionError, StateError } from "./errors.ts"
@@ -193,6 +194,8 @@ class Run<E, R> {
   // Run until the root algorithm returns, or a step yields an Effect.
   // Throws what a step throws.
   advance(): IteratorResult<Effect.Effect<unknown, E, R>, unknown> {
+    // The trampoline that drives every step; a plain loop keeps the stack flat.
+    // oxlint-disable-next-line effect/imperative-loops
     for (;;) {
       const step = (this.nested[this.nested.length - 1] ?? this.root).next(this.input)
       if (step.done) {
@@ -261,6 +264,8 @@ function* createSteps<Sc extends AnySchema, R, E>(config: EditorStateConfig<Sc>)
   const schema = config.doc ? config.doc.type.schema : config.schema
   if (!schema) throw new StateError({ message: "Either `doc` or `schema` must be provided" })
   const instance = new EditorState<Sc, R, E>(new Configuration(schema, config.plugins, config.clock))
+  // Yields inside the loop, which a callback can't.
+  // oxlint-disable-next-line effect/imperative-loops
   for (const field of instance.config.fields) {
     instance.slots[field.name] = yield field.init.call(field.self, config, instance)
   }
@@ -453,14 +458,13 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
     const result: Types.Mutable<EditorStateJSON> = { doc: this.doc.toJSON(), selection: this.selection.toJSON() }
     if (this.storedMarksOrNull) result.storedMarks = this.storedMarksOrNull.map((m) => m.toJSON())
     if (Predicate.isObjectOrArray(pluginFields)) {
-      for (const prop in pluginFields) {
+      Rec.toEntries(pluginFields).forEach(([prop, plugin]) => {
         if (prop === "doc" || prop === "selection") {
           throw new StateError({ message: "The JSON fields `doc` and `selection` are reserved" })
         }
-        const plugin = pluginFields[prop],
-          state = plugin.spec.state
+        const state = plugin.spec.state
         if (state && state.toJSON) result[prop] = state.toJSON.call(plugin, this.slots[plugin.key])
-      }
+      })
     }
     return result
   }
@@ -512,6 +516,8 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
       if (!config.schema) throw new StateError({ message: "Required config field 'schema' missing" })
       const $config = new Configuration(config.schema, config.plugins, config.clock)
       const instance = new EditorState<Sc, PluginRequirements<P>, PluginErrors<P>>($config)
+      // Yields inside the loops, which a callback can't.
+      // oxlint-disable-next-line effect/imperative-loops
       for (const field of $config.fields) {
         if (field.name === "doc") {
           instance.slots.doc = yield config.schema.nodeFromJSON(data.doc)
@@ -521,6 +527,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
           if (data.storedMarks) {
             const marks: Array<Mark<Sc>> = []
             const stored: Array<unknown> = data.storedMarks
+            // oxlint-disable-next-line effect/imperative-loops
             for (const m of stored) marks.push(yield config.schema.markFromJSON(m))
             instance.slots.storedMarks = marks
           } else {
@@ -529,6 +536,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
         } else {
           let done = false
           if (pluginFields) {
+            // oxlint-disable-next-line effect/imperative-loops
             for (const prop in pluginFields) {
               const plugin = pluginFields[prop],
                 state = plugin.spec.state
@@ -571,6 +579,8 @@ function* filterSteps<Sc extends AnySchema>(
   ignore = -1
 ): Steps<boolean> {
   const plugins = state.config.plugins
+  // Yields inside the loop, which a callback can't.
+  // oxlint-disable-next-line effect/imperative-loops
   for (let i = 0; i < plugins.length; i++) {
     if (i === ignore) continue
     const plugin = plugins[i],
@@ -599,8 +609,11 @@ function* applySteps<Sc extends AnySchema, R, E>(
   // This loop repeatedly gives plugins a chance to respond to
   // transactions as new transactions are added, making sure to only
   // pass the transactions the plugin did not see before.
+  // Yields inside the loops, which a callback can't.
+  // oxlint-disable-next-line effect/imperative-loops
   for (;;) {
     let haveNew = false
+    // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0; i < plugins.length; i++) {
       const plugin = plugins[i],
         append = plugin.spec.appendTransaction
@@ -613,9 +626,7 @@ function* applySteps<Sc extends AnySchema, R, E>(
           const tr = next.value
           tr.setMeta("appendedTransaction", rootTr)
           if (!seen.length) {
-            for (let j = 0; j < plugins.length; j++) {
-              seen.push(j < i ? { state: newState, n: trs.length } : { state, n: 0 })
-            }
+            seen.push(...plugins.map((_, j) => (j < i ? { state: newState, n: trs.length } : { state, n: 0 })))
           }
           trs.push(tr)
           newState = yield new Call(applyInnerSteps(newState, tr))
@@ -636,6 +647,8 @@ function* applyInnerSteps<Sc extends AnySchema, R, E>(
   if (!tr.before.eq(state.doc)) throw new StateError({ message: "Applying a mismatched transaction" })
   const newInstance = new EditorState<Sc, R, E>(state.config),
     fields = state.config.fields
+  // Yields inside the loop, which a callback can't.
+  // oxlint-disable-next-line effect/imperative-loops
   for (let i = 0; i < fields.length; i++) {
     const field = fields[i]
     const value = field.apply.call(field.self, tr, state.slots[field.name], state, newInstance)
@@ -651,6 +664,8 @@ function* reconfigureSteps<Sc extends AnySchema, R, E>(
 ): Steps<EditorState<Sc, R, E>> {
   const $config = new Configuration(state.schema, config.plugins, config.clock ?? state.config.clock)
   const instance = new EditorState<Sc, R, E>($config)
+  // Yields inside the loop, which a callback can't.
+  // oxlint-disable-next-line effect/imperative-loops
   for (const field of $config.fields) {
     instance.slots[field.name] = Object.prototype.hasOwnProperty.call(state.slots, field.name)
       ? state.slots[field.name]

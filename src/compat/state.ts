@@ -303,15 +303,10 @@ interface VisibleDescriptor {
   readonly get?: (this: object) => boolean
 }
 
-const descriptorOf = (proto: object | null, prop: string) => {
-  for (; proto; proto = Object.getPrototypeOf(proto)) {
-    const desc = Object.getOwnPropertyDescriptor(proto, prop)
-    if (desc) {
-      const visible: VisibleDescriptor = desc
-      return visible
-    }
-  }
-  return undefined
+const descriptorOf = (proto: object | null, prop: string): VisibleDescriptor | undefined => {
+  if (!proto) return undefined
+  const desc: VisibleDescriptor | undefined = Object.getOwnPropertyDescriptor(proto, prop)
+  return desc ?? descriptorOf(Object.getPrototypeOf(proto), prop)
 }
 
 const adaptedSelectionClasses = new WeakMap()
@@ -720,6 +715,8 @@ export interface PluginSpec<PluginState> {
 }
 
 function bindProps(obj: { [prop: string]: any }, self: any, target: { [prop: string]: any }) {
+  // ProseMirror's for-in copies inherited properties too, so this keeps it.
+  // oxlint-disable-next-line effect/imperative-loops
   for (const prop in obj) {
     let val = obj[prop]
     if (Predicate.isFunction(val)) val = val.bind(self)
@@ -960,6 +957,8 @@ export class EditorState {
     let fields: Record<string, any> | undefined
     if (Predicate.isObjectOrArray(pluginFields)) {
       fields = {}
+      // ProseMirror's for-in copies inherited properties too, so this keeps it.
+      // oxlint-disable-next-line effect/imperative-loops
       for (const prop in pluginFields) fields[prop] = unwrap(pluginFields[prop])
     }
     return guard(() => this[CORE].toJSON(fields))
@@ -978,6 +977,7 @@ export class EditorState {
   ): EditorState {
     const fields: Record<string, any> | undefined = pluginFields && {}
     if (pluginFields && fields) {
+      // oxlint-disable-next-line effect/imperative-loops
       for (const prop in pluginFields) fields[prop] = unwrap(pluginFields[prop])
     }
     return wrap(runSync(S.EditorState.fromJSON(configToCore(config), json, fields)))

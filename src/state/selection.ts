@@ -4,6 +4,7 @@
  * @since 0.1.0
  */
 import * as Effect from "effect/Effect"
+import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import * as S from "effect/Schema"
@@ -118,11 +119,7 @@ export abstract class Selection<Sc extends AnySchema = AnySchema> {
 
   /** Indicates whether the selection contains any content. */
   get empty(): boolean {
-    const ranges = this.ranges
-    for (let i = 0; i < ranges.length; i++) {
-      if (ranges[i].$from.pos !== ranges[i].$to.pos) return false
-    }
-    return true
+    return this.ranges.every(({ $from, $to }) => $from.pos === $to.pos)
   }
 
   /**
@@ -156,25 +153,21 @@ export abstract class Selection<Sc extends AnySchema = AnySchema> {
     // Put the new selection at the position after the inserted
     // content. When that ended in an inline node, search backwards,
     // to get the position after that node. If not, search forward.
-    const mapFrom = tr.steps.length,
-      ranges = this.ranges
-    for (let i = 0; i < ranges.length; i++) {
-      const { $from, $to } = ranges[i],
-        mapping = tr.mapping.slice(mapFrom)
+    const mapFrom = tr.steps.length
+    this.ranges.forEach(({ $from, $to }, i) => {
+      const mapping = tr.mapping.slice(mapFrom)
       tr.replaceRangeUnsafe(mapping.map($from.pos), mapping.map($to.pos), i ? Slice.empty : content)
       if (i === 0) {
         selectionToInsertionEnd(tr, mapFrom, endsInline(content) ? -1 : 1)
       }
-    }
+    })
   }
 
   /** Replace the selection with the given node, appending the changes to the given transaction. */
   replaceWith(tr: Transaction<Sc>, node: Node<Sc>): void {
-    const mapFrom = tr.steps.length,
-      ranges = this.ranges
-    for (let i = 0; i < ranges.length; i++) {
-      const { $from, $to } = ranges[i],
-        mapping = tr.mapping.slice(mapFrom)
+    const mapFrom = tr.steps.length
+    this.ranges.forEach(({ $from, $to }, i) => {
+      const mapping = tr.mapping.slice(mapFrom)
       const from = mapping.map($from.pos),
         to = mapping.map($to.pos)
       if (i) {
@@ -183,7 +176,7 @@ export abstract class Selection<Sc extends AnySchema = AnySchema> {
         tr.replaceRangeWithUnsafe(from, to, node)
         selectionToInsertionEnd(tr, mapFrom, node.isInline ? -1 : 1)
       }
-    }
+    })
   }
 
   /**
@@ -219,8 +212,9 @@ export abstract class Selection<Sc extends AnySchema = AnySchema> {
       : findSelectionIn($pos.node(0), $pos.parent, $pos.pos, $pos.index(), dir, textOnly)
     if (inner) return inner
 
-    for (let depth = $pos.depth - 1; depth >= 0; depth--) {
-      const found =
+    const depths = Array.from({ length: $pos.depth }, (_, k) => $pos.depth - 1 - k)
+    const outer = Arr.findFirst(depths, (depth) =>
+      Option.fromNullOr(
         dir < 0
           ? findSelectionIn(
               $pos.node(0),
@@ -238,9 +232,9 @@ export abstract class Selection<Sc extends AnySchema = AnySchema> {
               dir,
               textOnly
             )
-      if (found) return found
-    }
-    return null
+      )
+    )
+    return Option.getOrNull(outer)
   }
 
   /**
@@ -658,6 +652,8 @@ function findSelectionIn<Sc extends AnySchema>(
   text = false
 ): Selection<Sc> | null {
   if (node.inlineContent) return TextSelection.createUnsafe(doc, pos)
+  // Searches with a running position, which callbacks make slower, so it stays a plain loop.
+  // oxlint-disable-next-line effect/imperative-loops
   for (let i = index - (dir > 0 ? 0 : 1); dir > 0 ? i < node.childCount : i >= 0; i += dir) {
     const child = node.content.content[i]
     if (!child.isAtom) {
@@ -676,13 +672,12 @@ function findSelectionIn<Sc extends AnySchema>(
 function endsInline(content: Slice<any>): boolean {
   const last = content.content.lastChild
   if (Option.isNone(last)) return false
-  let node: Node<any> = last.value
-  for (let i = 0; i < content.openEnd; i++) {
+  const descend = (node: Node<any>, depth: number): boolean => {
+    if (depth >= content.openEnd) return node.isInline
     const next = node.lastChild
-    if (Option.isNone(next)) return node.isTextblock
-    node = next.value
+    return Option.isNone(next) ? node.isTextblock : descend(next.value, depth + 1)
   }
-  return node.isInline
+  return descend(last.value, 0)
 }
 
 function selectionToInsertionEnd(tr: Transaction<any>, startLen: number, bias: number) {

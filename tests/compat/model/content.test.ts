@@ -15,13 +15,8 @@ function get(expr: string) {
 
 function match(expr: string, types: string) {
   const ts = types ? types.split(" ").map((t) => schema.nodes[t]) : []
-  let m = get(expr)
-  for (let i = 0; i < ts.length; i++) {
-    const next = m.matchType(ts[i])
-    if (!next) return false
-    m = next
-  }
-  return m.validEnd
+  const end = ts.reduce<ContentMatch | null>((m, t) => m && m.matchType(t), get(expr))
+  return end ? end.validEnd : false
 }
 
 function valid(expr: string, types: string) {

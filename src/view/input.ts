@@ -4,8 +4,10 @@
  *
  * @internal
  */
+import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
+import * as Rec from "effect/Record"
 import * as Result from "effect/Result"
 import { type Node, type ResolvedPos, Slice } from "../Model.ts"
 import { NodeSelection, Selection, TextSelection } from "../State.ts"
@@ -64,23 +66,25 @@ export class InputState {
 
 /** @internal */
 export function initInput(view: AnyView): void {
-  for (const eventType in handlers) {
-    const handler = handlerFor(handlers, eventType)
-    if (!handler) continue
-    view.dom.addEventListener(
-      eventType,
-      (view.input.eventHandlers[eventType] = (event: Event) => {
-        if (
-          eventBelongsToView(view, event) &&
-          !runCustomHandler(view, event) &&
-          (view.editable || !(event.type in editHandlers))
-        ) {
-          handler(view, event)
-        }
-      }),
-      isPassiveEvent(eventType) ? { passive: true } : undefined
-    )
-  }
+  Reflect.ownKeys(handlers)
+    .filter(Predicate.isString)
+    .forEach((eventType) => {
+      const handler = handlerFor(handlers, eventType)
+      if (!handler) return
+      view.dom.addEventListener(
+        eventType,
+        (view.input.eventHandlers[eventType] = (event: Event) => {
+          if (
+            eventBelongsToView(view, event) &&
+            !runCustomHandler(view, event) &&
+            (view.editable || !(event.type in editHandlers))
+          ) {
+            handler(view, event)
+          }
+        }),
+        isPassiveEvent(eventType) ? { passive: true } : undefined
+      )
+    })
   // On Safari, for reasons beyond my understanding, adding an input
   // event handler makes an issue where the composition vanishes when
   // you press enter go away.
@@ -98,9 +102,7 @@ function setSelectionOrigin(view: AnyView, origin: string) {
 export function destroyInput(view: AnyView): void {
   if (view.input.mouseDown) view.input.mouseDown.done()
   view.domObserver.stop()
-  for (const type in view.input.eventHandlers) {
-    view.dom.removeEventListener(type, view.input.eventHandlers[type])
-  }
+  Rec.toEntries(view.input.eventHandlers).forEach(([type, handler]) => view.dom.removeEventListener(type, handler))
   clearTimeout(view.input.composingTimeout)
   clearTimeout(view.input.lastIOSEnterFallbackTimeout)
 }
@@ -108,11 +110,11 @@ export function destroyInput(view: AnyView): void {
 /** @internal */
 export function ensureListeners(view: AnyView): void {
   view.someProp("handleDOMEvents", (currentHandlers) => {
-    for (const type in currentHandlers) {
+    Rec.keys(currentHandlers).forEach((type) => {
       if (!view.input.eventHandlers[type]) {
         view.dom.addEventListener(type, (view.input.eventHandlers[type] = (event) => runCustomHandler(view, event)))
       }
-    }
+    })
   })
 }
 
@@ -130,14 +132,18 @@ function eventBelongsToView(view: AnyView, event: Event) {
   if (!event.bubbles) return true
   if (event.defaultPrevented) return false
   if (!event.target || !isDOMNode(event.target)) return false
-  for (let node: DOMNode = event.target; node != view.dom;) {
+  // Walk up to the view's DOM, unless a shadow root or a node view stops the event.
+  const belongs = (node: DOMNode): boolean => {
+    if (node == view.dom) return true
     if (node.nodeType == 11 || (node.pmViewDesc && node.pmViewDesc.stopEvent(event))) return false
-    const up = node.parentNode
-    if (!up) return false
-    node = up
+    return node.parentNode ? belongs(node.parentNode) : false
   }
-  return true
+  return belongs(event.target)
 }
+
+// The depths from `$pos.depth + 1` (the node at the position) out to 1.
+const depthsAround = ($pos: ResolvedPos<any>): ReadonlyArray<number> =>
+  Array.from({ length: $pos.depth + 1 }, (_, k) => $pos.depth + 1 - k)
 
 /** @internal */
 export function dispatchEvent(view: AnyView, event: Event): void {
@@ -244,13 +250,10 @@ function runHandlerOnContext(
 ) {
   if (inside == -1) return false
   const $pos = view.state.doc.resolveUnsafe(inside)
-  for (let i = $pos.depth + 1; i > 0; i--) {
+  return depthsAround($pos).some((i) => {
     const node = nodeAround($pos, i)
-    if (view.someHandler(propName, (f) => f(view, pos, node, $pos.beforeUnsafe(i), event, i > $pos.depth))) {
-      return true
-    }
-  }
-  return false
+    return view.someHandler(propName, (f) => f(view, pos, node, $pos.beforeUnsafe(i), event, i > $pos.depth))
+  })
 }
 
 function updateSelection(view: AnyView, selection: Selection<any>, origin: string) {
@@ -284,29 +287,22 @@ function nodeAround($pos: ResolvedPos<any>, depth: number): Node<any, any> {
 function selectClickedNode(view: AnyView, inside: number) {
   if (inside == -1) return false
   const sel = view.state.selection
-  let selectedNode, selectAt
-  if (sel instanceof NodeSelection) selectedNode = sel.node
+  const selectedNode = sel instanceof NodeSelection ? sel.node : undefined
 
   const $pos = view.state.doc.resolveUnsafe(inside)
-  for (let i = $pos.depth + 1; i > 0; i--) {
-    const node = nodeAround($pos, i)
-    if (NodeSelection.isSelectable(node)) {
-      if (
-        selectedNode &&
-        sel.$from.depth > 0 &&
-        i >= sel.$from.depth &&
-        $pos.beforeUnsafe(sel.$from.depth + 1) == sel.$from.pos
-      ) {
-        selectAt = $pos.beforeUnsafe(sel.$from.depth)
-      } else {
-        selectAt = $pos.beforeUnsafe(i)
-      }
-      break
-    }
-  }
+  const selectAt = Arr.findFirst(depthsAround($pos), (i) => {
+    if (!NodeSelection.isSelectable(nodeAround($pos, i))) return Option.none()
+    // Clicking inside a selected node selects its parent.
+    const parentOfSelected =
+      selectedNode &&
+      sel.$from.depth > 0 &&
+      i >= sel.$from.depth &&
+      $pos.beforeUnsafe(sel.$from.depth + 1) == sel.$from.pos
+    return Option.some(parentOfSelected ? $pos.beforeUnsafe(sel.$from.depth) : $pos.beforeUnsafe(i))
+  })
 
-  if (selectAt != null) {
-    updateSelection(view, NodeSelection.createUnsafe(view.state.doc, selectAt), "pointer")
+  if (Option.isSome(selectAt)) {
+    updateSelection(view, NodeSelection.createUnsafe(view.state.doc, selectAt.value), "pointer")
     return true
   } else {
     return false
@@ -358,7 +354,7 @@ function selectionForTripleClick(view: AnyView, inside: number, selectNodes: boo
   }
 
   const $pos = doc.resolveUnsafe(inside)
-  for (let i = $pos.depth + 1; i > 0; i--) {
+  return Arr.findFirst(depthsAround($pos), (i): Option.Option<Selection<any>> => {
     const node = nodeAround($pos, i)
     const nodePos = $pos.beforeUnsafe(i)
     if (node.inlineContent) {
@@ -366,8 +362,8 @@ function selectionForTripleClick(view: AnyView, inside: number, selectNodes: boo
     } else if (selectNodes && NodeSelection.isSelectable(node)) {
       return Option.some(NodeSelection.createUnsafe(doc, nodePos))
     }
-  }
-  return Option.none()
+    return Option.none()
+  })
 }
 
 function forceDOMFlush(view: AnyView) {
@@ -687,18 +683,16 @@ editHandlers.compositionstart = editHandlers.compositionupdate = (view) => {
         $pos.nodeBeforeOrNull?.marks.length
       ) {
         const sel = view.domSelectionRange()
-        for (let node = sel.focusNode, offset = sel.focusOffset; node && node.nodeType == 1 && offset != 0;) {
+        // Find the text node before the cursor, and put the DOM selection at its end.
+        const collapseIntoText = (node: DOMNode, offset: number): void => {
+          if (node.nodeType != 1 || offset == 0) return
           const before = offset < 0 ? node.lastChild : node.childNodes[offset - 1]
-          if (!before) break
-          if (before.nodeType == 3) {
-            const domSel = view.domSelection()
-            if (domSel) domSel.collapse(before, (before.nodeValue ?? "").length)
-            break
-          } else {
-            node = before
-            offset = -1
-          }
+          if (!before) return
+          if (before.nodeType != 3) return collapseIntoText(before, -1)
+          const domSel = view.domSelection()
+          if (domSel) domSel.collapse(before, (before.nodeValue ?? "").length)
         }
+        if (sel.focusNode) collapseIntoText(sel.focusNode, sel.focusOffset)
       }
     }
     view.input.composing = true
@@ -737,9 +731,7 @@ export function clearComposition(view: AnyView): void {
     view.input.composing = false
     view.input.compositionEndedAt = view.state.config.clock()
   }
-  for (let node = view.input.compositionNodes.pop(); node; node = view.input.compositionNodes.pop()) {
-    node.markParentsDirty()
-  }
+  Arr.reverse(view.input.compositionNodes.splice(0)).forEach((node) => node.markParentsDirty())
 }
 
 /** @internal */

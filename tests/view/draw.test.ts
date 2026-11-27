@@ -176,28 +176,24 @@ describe("EditorView draw", () => {
         }
       }
     })
-    const paragraphs = []
-    for (let i = 1; i <= 10; i++) {
-      paragraphs.push(s.nodeUnsafe("paragraph", null, [s.textUnsafe("para " + i)], [s.markUnsafe("m")]))
-    }
+    const paragraphs = Array.from({ length: 10 }, (_, i) =>
+      s.nodeUnsafe("paragraph", null, [s.textUnsafe("para " + (i + 1))], [s.markUnsafe("m")])
+    )
     const view = tempEditor({
       doc: s.nodeUnsafe("doc", null, paragraphs)
     })
     const initialChildren = Array.from(view.dom.querySelectorAll("p"))
-    const newParagraphs = []
-    for (let i = -6; i < 0; i++) {
-      newParagraphs.push(s.nodeUnsafe("paragraph", null, [s.textUnsafe("para " + i)], [s.markUnsafe("m")]))
-    }
+    const newParagraphs = Array.from({ length: 6 }, (_, i) =>
+      s.nodeUnsafe("paragraph", null, [s.textUnsafe("para " + (i - 6))], [s.markUnsafe("m")])
+    )
     view.dispatchUnsafe(view.state.tr.replaceWithUnsafe(0, 8, newParagraphs))
     const currentChildren = Array.from(view.dom.querySelectorAll("p"))
-    let sameAtEnd = 0
-    while (
-      sameAtEnd < currentChildren.length &&
-      sameAtEnd < initialChildren.length &&
-      currentChildren[currentChildren.length - sameAtEnd - 1] == initialChildren[initialChildren.length - sameAtEnd - 1]
-    ) {
-      sameAtEnd++
-    }
+    // How many trailing paragraphs kept their DOM nodes.
+    const shorter = Math.min(currentChildren.length, initialChildren.length)
+    const firstChanged = Array.from({ length: shorter }, (_, k) => k).findIndex(
+      (k) => currentChildren[currentChildren.length - k - 1] != initialChildren[initialChildren.length - k - 1]
+    )
+    const sameAtEnd = firstChanged < 0 ? shorter : firstChanged
     ist(sameAtEnd, 9)
   })
 

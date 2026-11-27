@@ -177,10 +177,7 @@ function backticksFor(node: Node<any, any>, side: number): string {
   const len = node.isTextNode()
     ? Array.from(node.text.matchAll(/`+/g)).reduce((max, m) => Math.max(max, m[0].length), 0)
     : 0
-  let result = len > 0 && side > 0 ? " `" : "`"
-  for (let i = 0; i < len; i++) result += "`"
-  if (len > 0 && side < 0) result += " "
-  return result
+  return (len > 0 && side > 0 ? " `" : "`") + "`".repeat(len) + (len > 0 && side < 0 ? " " : "")
 }
 
 function isPlainURL(link: Mark<any, any>, parent: Node<any, any>, index: number): boolean {
@@ -268,12 +265,7 @@ export const defaultMarkdownSerializer: MarkdownSerializer = new MarkdownSeriali
       )
     },
     hard_break(state, node, parent, index) {
-      for (let i = index + 1; i < parent.childCount; i++) {
-        if (parent.childUnsafe(i).type != node.type) {
-          state.write("\\\n")
-          return
-        }
-      }
+      if (parent.content.content.slice(index + 1).some((next) => next.type != node.type)) state.write("\\\n")
     },
     text(state, node) {
       // SAFETY: the `text` serializer is only called for text nodes.
@@ -360,7 +352,7 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
         let delimMin = this.delim
         const trim = /\s+$/.exec(delimMin)
         if (trim) delimMin = delimMin.slice(0, delimMin.length - trim[0].length)
-        for (let i = 1; i < size; i++) this.out += delimMin + "\n"
+        this.out += (delimMin + "\n").repeat(size - 1)
       }
       this.closed = null
     }
@@ -422,15 +414,15 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
   /** Add the given text to the document. When escape is not `false`, it will be escaped. */
   text(text: string, escape = true): void {
     const lines = text.split("\n")
-    for (let i = 0; i < lines.length; i++) {
+    lines.forEach((line, i) => {
       this.write()
       // Escape exclamation marks in front of links
-      if (!escape && lines[i][0] == "[" && /(^|[^\\])!$/.test(this.out.slice(-2))) {
+      if (!escape && line[0] == "[" && /(^|[^\\])!$/.test(this.out.slice(-2))) {
         this.out = this.out.slice(0, this.out.length - 1) + "\\!"
       }
-      this.out += escape ? this.esc(lines[i], this.atBlockStart) : lines[i]
+      this.out += escape ? this.esc(line, this.atBlockStart) : line
       if (i != lines.length - 1) this.out += "\n"
-    }
+    })
   }
 
   /**
@@ -483,10 +475,12 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
       // Try to reorder 'mixable' marks, such as em and strong, which
       // in Markdown may be opened and closed in different order, so
       // that order of the marks for the token matches the order in
-      // active.
+      // active. This reorders `marks` while scanning it, so it stays a plain loop.
+      // oxlint-disable-next-line effect/imperative-loops
       outer: for (let i = 0; i < len; i++) {
         const mark = marks[i]
         if (!this.getMark(mark.type.name).mixable) break
+        // oxlint-disable-next-line effect/imperative-loops
         for (let j = 0; j < active.length; j++) {
           const other = active[j]
           if (!this.getMark(other.type.name).mixable) break
@@ -510,8 +504,9 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
       }
 
       // Find the prefix of the mark set that didn't change
-      let keep = 0
-      while (keep < Math.min(active.length, len) && marks[keep].eq(active[keep])) ++keep
+      const shared = Math.min(active.length, len)
+      const changed = marks.slice(0, shared).findIndex((mark, k) => !mark.eq(active[k]))
+      const keep = changed < 0 ? shared : changed
 
       let leading = trailing
       trailing = ""
@@ -553,7 +548,10 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
 
       // Close the marks that need to be closed
       if (node || index == parent.childCount) {
-        for (const mark of active.splice(keep).reverse()) this.text(this.markString(mark, false, parent, index), false)
+        active
+          .splice(keep)
+          .reverse()
+          .forEach((mark) => this.text(this.markString(mark, false, parent, index), false))
       }
 
       // Output any previously expelled trailing whitespace outside the marks
@@ -561,12 +559,11 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
 
       // Open the marks that need to be opened
       if (node) {
-        while (active.length < len) {
-          const add = marks[active.length]
+        marks.slice(active.length, len).forEach((add) => {
           active.push(add)
           this.text(this.markString(add, true, parent, index), false)
           this.atBlockStart = false
-        }
+        })
 
         // Render the node. Special case code marks, since their content
         // may not be escaped.
@@ -642,9 +639,7 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
 
   /** Repeat the given string `n` times. */
   repeat(str: string, n: number): string {
-    let out = ""
-    for (let i = 0; i < n; i++) out += str
-    return out
+    return str.repeat(Math.max(0, Math.ceil(n)))
   }
 
   /** Get the markdown string for a given opening or closing mark. */
@@ -668,13 +663,11 @@ export class MarkdownSerializerState<Sc extends AnySchema = AnySchema> {
 
   /** @internal */
   isMarkAhead(parent: Node<Sc, any>, index: number, marks: ReadonlyArray<Mark<Sc, any>>): boolean {
-    for (; ; index++) {
-      if (index >= parent.childCount) return false
-      const next = parent.childUnsafe(index)
-      if (next.type.name != this.options.hardBreakNodeName) {
-        return next.marks.length >= marks.length && Mark.sameSet(next.marks.slice(0, marks.length), marks)
-      }
-      index++
+    if (index >= parent.childCount) return false
+    const next = parent.childUnsafe(index)
+    if (next.type.name != this.options.hardBreakNodeName) {
+      return next.marks.length >= marks.length && Mark.sameSet(next.marks.slice(0, marks.length), marks)
     }
+    return this.isMarkAhead(parent, index + 2, marks)
   }
 }
