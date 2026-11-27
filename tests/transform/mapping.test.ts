@@ -1,4 +1,5 @@
 // Ported from prosemirror-transform/test/test-mapping.ts (MIT, Marijn Haverbeke and others)
+import * as Rec from "effect/Record"
 import { describe, it } from "@effect/vitest"
 import * as Option from "effect/Option"
 import { Mapping, StepMap } from "@thomasfosterau/effect-richtext/Transform"
@@ -7,11 +8,10 @@ import { getSome } from "../utils/option.ts"
 
 function testMapping(mapping: Mapping, ...cases: Array<[number, number, number?, boolean?]>) {
   const inverted = mapping.invert()
-  for (let i = 0; i < cases.length; i++) {
-    const [from, to, bias = 1, lossy] = cases[i]
+  cases.forEach(([from, to, bias = 1, lossy]) => {
     ist(mapping.map(from, bias), to)
     if (!lossy) ist(inverted.map(to, bias), from)
-  }
+  })
 }
 
 function testDel(mapping: Mapping, pos: number, side: number, flags: string) {
@@ -28,7 +28,7 @@ function mk(...args: Array<Array<number> | { [from: number]: number }>) {
   const mapping = new Mapping()
   args.forEach((arg) => {
     if (Array.isArray(arg)) mapping.appendMap(new StepMap(arg))
-    else for (const from in arg) mapping.setMirror(+from, arg[from])
+    else Rec.toEntries(arg).forEach(([from, to]) => mapping.setMirror(+from, to))
   })
   return mapping
 }

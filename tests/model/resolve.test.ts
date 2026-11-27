@@ -1,4 +1,5 @@
 // Ported from prosemirror-model/test/test-resolve.ts (MIT, Marijn Haverbeke and others)
+import * as Arr from "effect/Array"
 import * as Predicate from "effect/Predicate"
 import { assert, describe, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
@@ -33,11 +34,11 @@ describe("Node", () => {
         [_doc, 12, _blk.node, null]
       ]
 
-      for (let pos = 0; pos <= testDoc.content.size; pos++) {
+      Arr.range(0, testDoc.content.size).forEach((pos) => {
         const $pos = testDoc.resolveUnsafe(pos),
           exp = expected[pos]
         ist($pos.depth, exp.length - 4)
-        for (let i = 0; i < exp.length - 3; i++) {
+        Array.from({ length: exp.length - 3 }, (_, i) => i).forEach((i) => {
           ist($pos.node(i).eq(exp[i].node))
           ist($pos.start(i), exp[i].start)
           ist($pos.end(i), exp[i].end)
@@ -45,7 +46,7 @@ describe("Node", () => {
             ist($pos.beforeUnsafe(i), exp[i].start - 1)
             ist($pos.afterUnsafe(i), exp[i].end + 1)
           }
-        }
+        })
         ist($pos.parentOffset, exp[exp.length - 3])
         const before = Option.getOrNull($pos.nodeBefore),
           eBefore = exp[exp.length - 2]
@@ -53,7 +54,7 @@ describe("Node", () => {
         const after = Option.getOrNull($pos.nodeAfter),
           eAfter = exp[exp.length - 1]
         ist(Predicate.isString(eAfter) ? present(after).textContent : after, eAfter)
-      }
+      })
     })
 
     it("has a working posAtIndex method", () => {

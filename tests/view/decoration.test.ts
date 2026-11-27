@@ -50,18 +50,13 @@ function build(doc: Node, ...decorations: DecoSpec[]) {
   return DecorationSet.create(doc, decorations.map(make))
 }
 
-function str(set: DecorationSet) {
+function str(set: DecorationSet): string {
   if (!set) return "[]"
-  let s = "[" + set.local.map((d) => d.from + "-" + d.to).join(", ")
-  for (let i = 0; i < set.children.length; i += 3) {
-    const start = set.children[i]
-    s +=
-      (s.length > 1 ? ", " : "") +
-      (Predicate.isNumber(start) ? start : "?") +
-      ": " +
-      str(instanceOf(DecorationSet, set.children[i + 2]))
-  }
-  return s + "]"
+  const locals = set.local.map((d) => d.from + "-" + d.to)
+  const children = Arr.chunksOf(set.children, 3).map(
+    ([start, , child]) => (Predicate.isNumber(start) ? start : "?") + ": " + str(instanceOf(DecorationSet, child))
+  )
+  return "[" + locals.concat(children).join(", ") + "]"
 }
 
 function findStr(set: DecorationSet) {

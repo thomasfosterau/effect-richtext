@@ -1,4 +1,5 @@
 // Ported from prosemirror-model/test/test-content.ts (MIT, Marijn Haverbeke and others)
+import * as Arr from "effect/Array"
 import { assert, describe, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
@@ -27,8 +28,9 @@ function get(expr: string): ContentMatch {
 
 function matchTypes(m: ContentMatch | null, types: string): ContentMatch | null {
   const ts = types ? types.split(" ").map((t) => present(schema.nodes[t], "no node type " + t)) : []
-  for (let i = 0; m && i < ts.length; i++) m = Option.getOrNull(m.matchType(ts[i]))
-  return m
+  return Option.getOrNull(
+    Arr.reduce(ts, Option.fromNullishOr(m), (cur, t) => Option.flatMap(cur, (c) => c.matchType(t)))
+  )
 }
 
 function match(expr: string, types: string): boolean {
@@ -233,19 +235,19 @@ const equivalences: ReadonlyArray<readonly [string, ContentExpr]> = [
 ]
 
 describe("Content combinators", () => {
-  for (const [source, expr] of equivalences) {
+  equivalences.forEach(([source, expr]) => {
     it(`${source} matches like its string equivalent`, () => {
       const fromString = get(source),
         fromCombinators = compile(expr)
-      for (const sample of samples) {
+      samples.forEach((sample) => {
         const a = matchTypes(fromString, sample),
           b = matchTypes(fromCombinators, sample)
         assert.strictEqual(a === null, b === null, `matchability of "${sample}"`)
         if (a && b) assert.strictEqual(a.validEnd, b.validEnd, `validEnd of "${sample}"`)
-      }
+      })
       assert.strictEqual(fromString.toString(), fromCombinators.toString())
     })
-  }
+  })
 
   it("treats a bare name like a reference", () => {
     assert.strictEqual(compile(Content.ref("paragraph")).toString(), get("paragraph").toString())
@@ -275,7 +277,7 @@ describe("Content combinators", () => {
     })
 
     it("round-trips through parse", () => {
-      for (const source of [
+      ;[
         "image*",
         "paragraph | heading",
         "heading paragraph+",
@@ -283,12 +285,10 @@ describe("Content combinators", () => {
         "hard_break{2,4} image?",
         "hard_break{2,}",
         "(text | image)* hard_break{3}"
-      ]) {
-        assert.strictEqual(Content.format(Content.parse(source)), source)
-      }
-      for (const [, expr] of equivalences) {
+      ].forEach((source) => assert.strictEqual(Content.format(Content.parse(source)), source))
+      equivalences.forEach(([, expr]) =>
         assert.strictEqual(Content.format(Content.parse(Content.format(expr))), Content.format(expr))
-      }
+      )
     })
   })
 

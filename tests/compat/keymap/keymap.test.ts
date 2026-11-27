@@ -12,9 +12,7 @@ const fakeView = { state: {}, dispatch: () => {} }
 
 function dispatch(map: Plugin, key: string, props?: { [name: string]: any }) {
   const event: any = {}
-  if (props) {
-    for (const prop in props) event[prop] = props[prop]
-  }
+  if (props) Object.assign(event, props)
   event.key = key
   // SAFETY: a keymap's key handler; the keymaps under test only dispatch, which `fakeView` provides.
   const handleKeyDown = map.props.handleKeyDown as any

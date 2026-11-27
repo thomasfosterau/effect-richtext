@@ -213,9 +213,9 @@ describe("Mark", () => {
 
   describe("JSON", () => {
     it("round-trips marks", () => {
-      for (const mark of [em_, link("http://foo"), link("http://foo", "title")]) {
+      ;[em_, link("http://foo"), link("http://foo", "title")].forEach((mark) =>
         ist(schema.markFromJSONUnsafe(mark.toJSON()), mark, (a, b) => a.eq(b))
-      }
+      )
     })
 
     it.effect("validates attributes with their schemas", () =>
