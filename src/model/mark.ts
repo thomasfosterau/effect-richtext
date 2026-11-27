@@ -55,13 +55,13 @@ export class Mark<Sc extends AnySchema = AnySchema, out M extends MarkNames<Sc> 
   addToSet<Mk extends Mark<any, any>>(set: ReadonlyArray<Mk>): ReadonlyArray<Mk | this> {
     let copy: Array<Mk | this> | undefined
     let placed = false
-    for (let i = 0; i < set.length; i++) {
-      const other = set[i]
-      if (this.eq(other)) return set
+    // Whether the set already holds this mark, or one that excludes it.
+    const unchanged = set.some((other, i) => {
+      if (this.eq(other)) return true
       if (this.type.excludes(other.type)) {
         if (!copy) copy = set.slice(0, i)
       } else if (other.type.excludes(this.type)) {
-        return set
+        return true
       } else {
         if (!placed && other.type.rank > this.type.rank) {
           if (!copy) copy = set.slice(0, i)
@@ -70,7 +70,9 @@ export class Mark<Sc extends AnySchema = AnySchema, out M extends MarkNames<Sc> 
         }
         if (copy) copy.push(other)
       }
-    }
+      return false
+    })
+    if (unchanged) return set
     if (!copy) copy = set.slice()
     if (!placed) copy.push(this)
     return copy
@@ -81,16 +83,13 @@ export class Mark<Sc extends AnySchema = AnySchema, out M extends MarkNames<Sc> 
    * mark is not in the set, the set itself is returned.
    */
   removeFromSet<Mk extends Mark<any, any>>(set: ReadonlyArray<Mk>): ReadonlyArray<Mk> {
-    for (let i = 0; i < set.length; i++) {
-      if (this.eq(set[i])) return set.slice(0, i).concat(set.slice(i + 1))
-    }
-    return set
+    const i = set.findIndex((mark) => this.eq(mark))
+    return i < 0 ? set : set.slice(0, i).concat(set.slice(i + 1))
   }
 
   /** Test whether this mark is in the given set of marks. */
   isInSet(set: ReadonlyArray<Mark<any, any>>): boolean {
-    for (let i = 0; i < set.length; i++) if (this.eq(set[i])) return true
-    return false
+    return set.some((mark) => this.eq(mark))
   }
 
   /** Test whether this mark has the same type and attributes as another mark. */
@@ -124,8 +123,7 @@ export class Mark<Sc extends AnySchema = AnySchema, out M extends MarkNames<Sc> 
   static sameSet(this: void, a: ReadonlyArray<Mark<any, any>>, b: ReadonlyArray<Mark<any, any>>): boolean {
     if (a === b) return true
     if (a.length !== b.length) return false
-    for (let i = 0; i < a.length; i++) if (!a[i].eq(b[i])) return false
-    return true
+    return a.every((mark, i) => mark.eq(b[i]))
   }
 
   /** Create a properly sorted mark set from nothing, a single mark, or an unsorted array of marks. */

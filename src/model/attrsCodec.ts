@@ -1,3 +1,4 @@
+import * as Rec from "effect/Record"
 import * as S from "effect/Schema"
 import type { Attribute } from "./schema.ts"
 
@@ -37,15 +38,15 @@ type Attrs = { readonly [name: string]: unknown }
 // failure.
 const mapAttrs = (defs: { readonly [name: string]: AttrDef }, attrs: Attrs, decode: boolean): Attrs => {
   let out: Record<string, unknown> | undefined
-  for (const name in attrs) {
+  Rec.keys(attrs).forEach((name) => {
     const def = defs[name]
-    if (!def?.schema || (def.identityCodec && (!decode || (def.is !== undefined && def.is(attrs[name]))))) continue
+    if (!def?.schema || (def.identityCodec && (!decode || (def.is !== undefined && def.is(attrs[name]))))) return
     const value = (decode ? decoder : encoder)(def.schema)(attrs[name])
     if (value !== attrs[name]) {
       if (!out) out = { ...attrs }
       out[name] = value
     }
-  }
+  })
   return out ?? attrs
 }
 
@@ -68,10 +69,7 @@ export const writeAttrsJSON = (
   type: { readonly identityAttrs: boolean; readonly attrs: { readonly [name: string]: AttrDef } },
   attrs: Attrs
 ): void => {
-  for (const _ in attrs) {
-    json.attrs = type.identityAttrs ? attrs : encodeAttrs(type.attrs, attrs)
-    return
-  }
+  if (!Rec.isEmptyRecord(attrs)) json.attrs = type.identityAttrs ? attrs : encodeAttrs(type.attrs, attrs)
 }
 
 /**

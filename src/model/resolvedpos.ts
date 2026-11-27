@@ -180,9 +180,8 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
   posAtIndex(index: number, depth?: number | null): number {
     depth = this.resolveDepth(depth)
     const node: Node<Sc> = this.path[depth * 3]
-    let pos = depth === 0 ? 0 : this.path[depth * 3 - 1] + 1
-    for (let i = 0; i < index; i++) pos += node.content.content[i].nodeSize
-    return pos
+    const start = depth === 0 ? 0 : this.path[depth * 3 - 1] + 1
+    return node.content.content.slice(0, index).reduce((pos, child) => pos + child.nodeSize, start)
   }
 
   /**
@@ -213,13 +212,7 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
 
     // Use all marks in the main node, except those that have
     // `inclusive` set to false and are not present in the other node.
-    let marks = main.marks
-    for (let i = 0; i < marks.length; i++) {
-      if (marks[i].type.spec.inclusive === false && (!other || !marks[i].isInSet(other.marks))) {
-        marks = marks[i--].removeFromSet(marks)
-      }
-    }
-    return marks
+    return inclusiveMarks(main.marks, other ? other.marks : Mark.none)
   }
 
   /**
@@ -239,22 +232,15 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
     const after = this.parent.content.content[this.index()]
     if (!after || !after.isInline) return null
 
-    let marks = after.marks
     const next = $end.parent.content.content[$end.index()]
-    for (let i = 0; i < marks.length; i++) {
-      if (marks[i].type.spec.inclusive === false && (!next || !marks[i].isInSet(next.marks))) {
-        marks = marks[i--].removeFromSet(marks)
-      }
-    }
-    return marks
+    return inclusiveMarks(after.marks, next ? next.marks : Mark.none)
   }
 
   /** The depth up to which this position and the given (non-resolved) position share the same parent nodes. */
   sharedDepth(pos: number): number {
-    for (let depth = this.depth; depth > 0; depth--) {
-      if (this.start(depth) <= pos && this.end(depth) >= pos) return depth
-    }
-    return 0
+    const from = (depth: number): number =>
+      depth === 0 || (this.start(depth) <= pos && this.end(depth) >= pos) ? depth : from(depth - 1)
+    return from(this.depth)
   }
 
   /**
@@ -273,10 +259,10 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
   /** @internal */
   blockRangeOrNull(other: ResolvedPos<Sc> = this, pred?: (node: Node<Sc>) => boolean): NodeRange<Sc> | null {
     if (other.pos < this.pos) return other.blockRangeOrNull(this)
-    for (let d = this.depth - (this.parent.inlineContent || this.pos === other.pos ? 1 : 0); d >= 0; d--) {
-      if (other.pos <= this.end(d) && (!pred || pred(this.node(d)))) return new NodeRange(this, other, d)
-    }
-    return null
+    const from = (d: number): number =>
+      d < 0 || (other.pos <= this.end(d) && (!pred || pred(this.node(d)))) ? d : from(d - 1)
+    const depth = from(this.depth - (this.parent.inlineContent || this.pos === other.pos ? 1 : 0))
+    return depth < 0 ? null : new NodeRange(this, other, depth)
   }
 
   /** Query whether the given position shares the same parent node. */
@@ -296,9 +282,8 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
 
   /** @internal */
   toString(): string {
-    let str = ""
-    for (let i = 1; i <= this.depth; i++) str += (str ? "/" : "") + this.node(i).type.name + "_" + this.index(i - 1)
-    return str + ":" + this.parentOffset
+    const steps = Array.from({ length: this.depth }, (_, i) => this.node(i + 1).type.name + "_" + this.index(i))
+    return steps.join("/") + ":" + this.parentOffset
   }
 
   /** @internal */
@@ -307,20 +292,18 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
       throw new PositionError({ message: "Position " + pos + " out of range" })
     }
     const path: Array<Node<Sc> | number> = []
-    let start = 0,
-      parentOffset = pos
-    for (let node = doc; ;) {
+    // Descends from `node`, pushing a step per level, and returns the
+    // offset into the innermost parent.
+    const descend = (node: Node<Sc>, parentOffset: number, start: number): number => {
       const { index, offset } = node.content.findIndex(parentOffset)
       const rem = parentOffset - offset
       path.push(node, index, start + offset)
-      if (!rem) break
+      if (!rem) return parentOffset
       const child = node.content.content[index]
       if (!child) throw new PositionError({ message: "Position " + pos + " out of range" })
-      node = child
-      if (child.isText) break
-      parentOffset = rem - 1
-      start += offset + 1
+      return child.isText ? parentOffset : descend(child, rem - 1, start + offset + 1)
     }
+    const parentOffset = descend(doc, pos, 0)
     return new ResolvedPos(pos, path, parentOffset)
   }
 
@@ -328,10 +311,8 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
   static resolveCached<Sc extends AnySchema>(doc: Node<Sc>, pos: number): ResolvedPos<Sc> {
     let cache = resolveCache.get(doc)
     if (cache) {
-      for (let i = 0; i < cache.elts.length; i++) {
-        const elt = cache.elts[i]
-        if (elt.pos === pos) return elt
-      }
+      const hit = cache.elts.find((elt) => elt.pos === pos)
+      if (hit) return hit
     } else {
       resolveCache.set(doc, (cache = new ResolveCache()))
     }
@@ -339,6 +320,16 @@ export class ResolvedPos<Sc extends AnySchema = AnySchema> {
     cache.i = (cache.i + 1) % resolveCacheSize
     return result
   }
+}
+
+// The marks of `marks`, less the non-inclusive ones that `next` lacks.
+// Returns `marks` itself when none are dropped.
+function inclusiveMarks<Sc extends AnySchema>(
+  marks: ReadonlyArray<Mark<Sc>>,
+  next: ReadonlyArray<Mark<any, any>>
+): ReadonlyArray<Mark<Sc>> {
+  const kept = marks.filter((mark) => mark.type.spec.inclusive !== false || mark.isInSet(next))
+  return kept.length === marks.length ? marks : kept
 }
 
 class ResolveCache {
