@@ -107,12 +107,16 @@ describe("Node", () => {
       const d = doc(blockquote(p("fo<a>o"), p("b", em("a"), "r<b>")))
       const slice = d.sliceUnsafe(tagsOf(d).a, tagsOf(d).b)
       const json = slice.toJSON()
-      assert.deepStrictEqual(json && { openStart: json.openStart, openEnd: json.openEnd }, {
-        openStart: 1,
-        openEnd: 1
-      })
+      assert.deepStrictEqual(
+        { openStart: json.openStart, openEnd: json.openEnd },
+        {
+          openStart: 1,
+          openEnd: 1
+        }
+      )
       ist(Slice.fromJSONUnsafe(schema, json), slice, (x, y) => x.eq(y))
-      assert.isNull(Slice.empty.toJSON())
+      assert.deepStrictEqual(Slice.empty.toJSON(), { content: [] })
+
       assert.isTrue(Slice.fromJSONUnsafe(schema, null).eq(Slice.empty))
     })
 

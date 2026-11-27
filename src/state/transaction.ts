@@ -88,20 +88,19 @@ export class Transaction<Sc extends AnySchema = AnySchema> extends Transform<Sc>
   // Object used to store metadata properties for the transaction.
   private readonly meta: Record<string, unknown> = Object.create(null)
 
-  /** @internal */
-  storedMarksOrNull: ReadonlyArray<Mark<Sc>> | null
+  private stored: Option.Option<ReadonlyArray<Mark<Sc>>>
 
   /** @internal */
   constructor(state: EditorState<Sc, any, any>) {
     super(state.doc)
     this.time = state.config.clock()
     this.curSelection = state.selection
-    this.storedMarksOrNull = state.storedMarksOrNull
+    this.stored = state.storedMarks
   }
 
   /** The stored marks set by this transaction, if any. */
   get storedMarks(): Option.Option<ReadonlyArray<Mark<Sc>>> {
-    return Option.fromNullishOr(this.storedMarksOrNull)
+    return this.stored
   }
 
   /**
@@ -138,7 +137,7 @@ export class Transaction<Sc extends AnySchema = AnySchema> extends Transform<Sc>
     this.curSelection = selection
     this.curSelectionFor = this.steps.length
     this.updated = (this.updated | UPDATED_SEL) & ~UPDATED_MARKS
-    this.storedMarksOrNull = null
+    this.stored = Option.none()
     return this
   }
 
@@ -147,31 +146,37 @@ export class Transaction<Sc extends AnySchema = AnySchema> extends Transform<Sc>
     return (this.updated & UPDATED_SEL) > 0
   }
 
-  /** Set the current stored marks. */
-  setStoredMarks(marks: ReadonlyArray<Mark<Sc>> | null): this {
-    this.storedMarksOrNull = marks
+  /** Set the current stored marks, or clear them when no marks are given. */
+  setStoredMarks(marks?: ReadonlyArray<Mark<Sc>>): this {
+    this.stored = Option.fromUndefinedOr(marks)
     this.updated |= UPDATED_MARKS
     return this
   }
 
   /**
-   * Make sure the current stored marks or, if that is null, the marks at
+   * Make sure the current stored marks or, if there are none, the marks at
    * the selection, match the given set of marks. Does nothing if this is
    * already the case.
    */
   ensureMarks(marks: ReadonlyArray<Mark<Sc>>): this {
-    if (!Mark.sameSet(this.storedMarksOrNull || this.selection.$from.marks(), marks)) this.setStoredMarks(marks)
+    if (
+      !Mark.sameSet(
+        Option.getOrElse(this.stored, () => this.selection.$from.marks()),
+        marks
+      )
+    )
+      this.setStoredMarks(marks)
     return this
   }
 
   /** Add a mark to the set of stored marks. */
   addStoredMark(mark: Mark<Sc>): this {
-    return this.ensureMarks(mark.addToSet(this.storedMarksOrNull || this.selection.$head.marks()))
+    return this.ensureMarks(mark.addToSet(Option.getOrElse(this.stored, () => this.selection.$head.marks())))
   }
 
   /** Remove a mark or mark type from the set of stored marks. */
   removeStoredMark(mark: Mark<Sc> | MarkType<Sc>): this {
-    const set = this.storedMarksOrNull || this.selection.$head.marks()
+    const set = Option.getOrElse(this.stored, () => this.selection.$head.marks())
     return this.ensureMarks(mark instanceof Mark ? mark.removeFromSet(set) : mark.removeFromSet(set))
   }
 
@@ -184,7 +189,7 @@ export class Transaction<Sc extends AnySchema = AnySchema> extends Transform<Sc>
   override addStep(step: Step<Sc>, doc: Node<Sc>): void {
     super.addStep(step, doc)
     this.updated = this.updated & ~UPDATED_MARKS
-    this.storedMarksOrNull = null
+    this.stored = Option.none()
   }
 
   /** Update the timestamp for the transaction. */
@@ -208,8 +213,11 @@ export class Transaction<Sc extends AnySchema = AnySchema> extends Transform<Sc>
     const selection = this.selection
     if (inheritMarks) {
       node = node.mark(
-        this.storedMarksOrNull ||
-          (selection.empty ? selection.$from.marks() : selection.$from.marksAcrossOrNull(selection.$to) || Mark.none)
+        Option.getOrElse(this.stored, () =>
+          selection.empty
+            ? selection.$from.marks()
+            : Option.getOrElse(selection.$from.marksAcross(selection.$to), () => Mark.none)
+        )
       )
     }
     selection.replaceWith(this, node)
@@ -239,11 +247,11 @@ export class Transaction<Sc extends AnySchema = AnySchema> extends Transform<Sc>
     } else {
       if (to == null) to = from
       if (!text) return this.deleteRangeUnsafe(from, to)
-      let marks = this.storedMarksOrNull
-      if (!marks) {
+      const end = to
+      const marks = Option.getOrElse(this.stored, () => {
         const $from = this.doc.resolveUnsafe(from)
-        marks = to === from ? $from.marks() : $from.marksAcrossOrNull(this.doc.resolveUnsafe(to))
-      }
+        return end === from ? $from.marks() : Option.getOrUndefined($from.marksAcross(this.doc.resolveUnsafe(end)))
+      })
       this.replaceRangeWithUnsafe(from, to, schema.textUnsafe(text, marks))
       if (!this.selection.empty && this.selection.to === from + text.length) {
         this.setSelectionUnsafe(Selection.near(this.selection.$to))

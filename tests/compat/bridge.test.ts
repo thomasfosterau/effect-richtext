@@ -140,7 +140,7 @@ describe("compat bridge", () => {
     const coreTr = new CoreTransform.Transform(modelToCore(d)).insertUnsafe(1, modelToCore(schema.text("x")))
     ist(modelFromCore(coreTr.doc), doc(p("xfoo")), eq)
     const coreSchema = modelToCore(schema)
-    const fromEffect = Effect.runSync(coreSchema.node("paragraph", null, [coreSchema.textUnsafe("hi")]))
+    const fromEffect = Effect.runSync(coreSchema.node("paragraph", undefined, [coreSchema.textUnsafe("hi")]))
     ist(modelFromCore(fromEffect), p("hi"), eq)
     ist(modelFromCore(coreSchema), schema)
   })

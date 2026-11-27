@@ -5,6 +5,7 @@
  * @since 0.1.0
  */
 import * as Arr from "effect/Array"
+import * as Option from "effect/Option"
 import type * as Order from "effect/Order"
 import * as Rec from "effect/Record"
 import type { Fragment, Mark, Node } from "../Model.ts"
@@ -55,7 +56,7 @@ class FragmentCursor {
 /** @internal */
 export interface DecorationType {
   spec: any
-  map(mapping: Mappable, span: Decoration, offset: number, oldOffset: number): Decoration | null
+  map(mapping: Mappable, span: Decoration, offset: number, oldOffset: number): Option.Option<Decoration>
   valid(node: Node<any, any>, span: Decoration, cursor: FragmentCursor): boolean
   eq(other: DecorationType): boolean
   destroy(dom: DOMNode): void
@@ -65,14 +66,13 @@ export interface DecorationType {
  * The DOM content of a widget decoration: either a DOM node, or a
  * function that renders it (lazily, when the widget is drawn). The
  * `getPos` argument can be used to find the widget's current document
- * position (it returns `undefined` when the widget is not in the
- * document).
+ * position (it returns `None` when the widget is not in the document).
  *
  * @since 0.1.0
  * @category models
  */
 export type WidgetConstructor =
-  | ((view: EditorView<any, any, any>, getPos: () => number | undefined) => DOMNode)
+  | ((view: EditorView<any, any, any>, getPos: () => Option.Option<number>) => DOMNode)
   | DOMNode
 
 /** @internal */
@@ -88,9 +88,9 @@ export class WidgetType implements DecorationType {
     this.side = this.spec.side || 0
   }
 
-  map(mapping: Mappable, span: Decoration, offset: number, oldOffset: number): Decoration | null {
+  map(mapping: Mappable, span: Decoration, offset: number, oldOffset: number): Option.Option<Decoration> {
     const { deleted, pos } = mapping.mapResult(span.from + oldOffset, this.side < 0 ? -1 : 1)
-    return deleted ? null : new Decoration(pos - offset, pos - offset, this)
+    return deleted ? Option.none() : Option.some(new Decoration(pos - offset, pos - offset, this))
   }
 
   valid() {
@@ -122,10 +122,10 @@ export class InlineType implements DecorationType {
     this.spec = spec || noSpec
   }
 
-  map(mapping: Mappable, span: Decoration, offset: number, oldOffset: number): Decoration | null {
+  map(mapping: Mappable, span: Decoration, offset: number, oldOffset: number): Option.Option<Decoration> {
     const from = mapping.map(span.from + oldOffset, this.spec.inclusiveStart ? -1 : 1) - offset
     const to = mapping.map(span.to + oldOffset, this.spec.inclusiveEnd ? 1 : -1) - offset
-    return from >= to ? null : new Decoration(from, to, this)
+    return from >= to ? Option.none() : Option.some(new Decoration(from, to, this))
   }
 
   valid(_: Node<any, any>, span: Decoration) {
@@ -156,12 +156,12 @@ export class NodeType implements DecorationType {
     this.spec = spec || noSpec
   }
 
-  map(mapping: Mappable, span: Decoration, offset: number, oldOffset: number): Decoration | null {
+  map(mapping: Mappable, span: Decoration, offset: number, oldOffset: number): Option.Option<Decoration> {
     const from = mapping.mapResult(span.from + oldOffset, 1)
-    if (from.deleted) return null
+    if (from.deleted) return Option.none()
     const to = mapping.mapResult(span.to + oldOffset, -1)
-    if (to.deleted || to.pos <= from.pos) return null
-    return new Decoration(from.pos - offset, to.pos - offset, this)
+    if (to.deleted || to.pos <= from.pos) return Option.none()
+    return Option.some(new Decoration(from.pos - offset, to.pos - offset, this))
   }
 
   valid(_node: Node<any, any>, span: Decoration, cursor: FragmentCursor): boolean {
@@ -202,7 +202,7 @@ export interface WidgetDecorationSpec {
    * widget is wrapped in—those of the node before when negative, those
    * of the node after when positive.
    */
-  readonly side?: number | undefined
+  readonly side?: number
 
   /**
    * By default, the cursor, when at the position of the widget, will be
@@ -210,23 +210,23 @@ export interface WidgetDecorationSpec {
    * allow the DOM selection to stay on the other side if the client
    * sets it there.
    */
-  readonly relaxedSide?: boolean | undefined
+  readonly relaxedSide?: boolean
 
   /** The precise set of marks to draw around the widget. */
-  readonly marks?: ReadonlyArray<Mark<any, any>> | undefined
+  readonly marks?: ReadonlyArray<Mark<any, any>>
 
   /**
    * Can be used to control which DOM events, when they bubble out of
    * this widget, the editor view should ignore.
    */
-  readonly stopEvent?: ((event: Event) => boolean) | undefined
+  readonly stopEvent?: (event: Event) => boolean
 
   /**
    * When set (defaults to false), selection changes inside the widget
    * are ignored, and don't cause the view to try and re-sync the
    * selection with its selection state.
    */
-  readonly ignoreSelection?: boolean | undefined
+  readonly ignoreSelection?: boolean
 
   /**
    * When comparing decorations of this type (in order to decide whether
@@ -236,10 +236,10 @@ export interface WidgetDecorationSpec {
    * fly and don't want to store and reuse DOM nodes. Make sure that any
    * widgets with the same key are interchangeable.
    */
-  readonly key?: string | undefined
+  readonly key?: string
 
   /** Called when the widget decoration is removed or the editor is destroyed. */
-  readonly destroy?: ((node: DOMNode) => void) | undefined
+  readonly destroy?: (node: DOMNode) => void
 
   /** Specs allow arbitrary additional properties. */
   readonly [key: string]: any
@@ -258,10 +258,10 @@ export interface InlineDecorationSpec {
    * decoration won't include the new content, but you can set this to
    * `true` to make it inclusive.
    */
-  readonly inclusiveStart?: boolean | undefined
+  readonly inclusiveStart?: boolean
 
   /** Determines how the right side of the decoration is mapped. */
-  readonly inclusiveEnd?: boolean | undefined
+  readonly inclusiveEnd?: boolean
 
   /** Specs may have arbitrary additional properties. */
   readonly [key: string]: any
@@ -297,7 +297,7 @@ export class Decoration {
   }
 
   /** @internal */
-  map(mapping: Mappable, offset: number, oldOffset: number): Decoration | null {
+  map(mapping: Mappable, offset: number, oldOffset: number): Option.Option<Decoration> {
     return this.type.map(mapping, this, offset, oldOffset)
   }
 
@@ -366,10 +366,10 @@ export class Decoration {
  * @category models
  */
 export type DecorationAttrs = {
-  readonly nodeName?: string | undefined
-  readonly class?: string | undefined
-  readonly style?: string | undefined
-  readonly [attribute: string]: string | undefined
+  readonly nodeName?: string
+  readonly class?: string
+  readonly style?: string
+  readonly [attribute: string]: string
 }
 
 const none: ReadonlyArray<any> = [],
@@ -407,7 +407,7 @@ export interface DecorationMapOptions {
    * gets dropped as a result of the mapping, passing the spec of that
    * decoration.
    */
-  readonly onRemove?: ((decorationSpec: any) => void) | undefined
+  readonly onRemove?: (decorationSpec: any) => void
 }
 
 /**
@@ -488,20 +488,20 @@ export class DecorationSet implements DecorationSource {
     oldOffset: number,
     options: DecorationMapOptions
   ): DecorationSet {
-    let newLocal: Array<Decoration> | undefined
+    const newLocal: Array<Decoration> = []
     if (this.local.length) {
       const cur = new FragmentCursor(node.content)
       this.local.forEach((deco) => {
         const mapped = deco.map(mapping, offset, oldOffset)
-        if (mapped && mapped.type.valid(node, mapped, cur)) (newLocal || (newLocal = [])).push(mapped)
+        if (Option.isSome(mapped) && mapped.value.type.valid(node, mapped.value, cur)) newLocal.push(mapped.value)
         else if (options.onRemove) options.onRemove(deco.spec)
       })
     }
 
     if (this.children.length) {
-      return mapChildren(this.children, newLocal || [], mapping, node, offset, oldOffset, options)
+      return mapChildren(this.children, newLocal, mapping, node, offset, oldOffset, options)
     } else {
-      return newLocal ? new DecorationSet(Arr.sort(newLocal, byPos), none) : empty
+      return newLocal.length ? new DecorationSet(Arr.sort(newLocal, byPos), none) : empty
     }
   }
 
@@ -516,15 +516,20 @@ export class DecorationSet implements DecorationSource {
     return this.addInner(doc, decorations, 0)
   }
 
-  private addInner(doc: Node<any, any>, decorations: Array<Decoration | null>, offset: number): DecorationSet {
-    let children: Array<number | DecorationSet> | undefined,
+  private addInner(doc: Node<any, any>, decorations: Array<Decoration>, offset: number): DecorationSet {
+    let children: Array<number | DecorationSet> = [],
+      copied = false,
       childIndex = 0
     doc.forEach((childNode, childOffset) => {
       const baseOffset = childOffset + offset
-      let found
-      if (!(found = takeSpansForNode(decorations, childNode, baseOffset))) return
+      const taken = takeSpansForNode(decorations, childNode, baseOffset)
+      if (Option.isNone(taken)) return
+      const found = taken.value
 
-      if (!children) children = this.children.slice()
+      if (!copied) {
+        children = this.children.slice()
+        copied = true
+      }
       // A plain loop: the index carries on across the document's children.
       // oxlint-disable-next-line effect/imperative-loops
       while (childIndex < children.length && posAt(children, childIndex) < childOffset) childIndex += 3
@@ -542,15 +547,13 @@ export class DecorationSet implements DecorationSource {
       childIndex += 3
     })
 
-    // SAFETY: with `childIndex` 0 no child took spans, so `decorations` holds no nulls.
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-    const moved = moveSpans(childIndex ? withoutNulls(decorations) : (decorations as Array<Decoration>), -offset)
+    const moved = moveSpans(decorations, -offset)
     const cur = new FragmentCursor(doc.content)
     const local = moved.filter((deco) => deco.type.valid(doc, deco, cur))
 
     return new DecorationSet(
       local.length ? Arr.sort(this.local.concat(local), byPos) : this.local,
-      children || this.children
+      copied ? children : this.children
     )
   }
 
@@ -560,29 +563,24 @@ export class DecorationSet implements DecorationSource {
    */
   remove(decorations: Array<Decoration>): DecorationSet {
     if (Arr.isReadonlyArrayEmpty(decorations) || this == empty) return this
-    return this.removeInner(decorations, 0)
+    return this.removeInner(decorations.slice(), 0)
   }
 
-  private removeInner(decorations: Array<Decoration | null>, offset: number): DecorationSet {
+  // Consumes `decorations`.
+  private removeInner(decorations: Array<Decoration>, offset: number): DecorationSet {
     let changedChildren = false
     const mappedChildren = Arr.chunksOf(this.children, 3).flatMap((triple): Array<number | DecorationSet> => {
       const from = posAt(triple, 0) + offset,
         to = posAt(triple, 1) + offset
       // Take the decorations that fall inside this child.
-      const found: Array<Decoration> = []
-      decorations.forEach((span, j) => {
-        if (span && span.from > from && span.to < to) {
-          decorations[j] = null
-          found.push(span)
-        }
-      })
-      if (Arr.isArrayEmpty(found)) return triple
+      const taken = takeSpansInside(decorations, from, to)
+      if (Option.isNone(taken)) return triple
       changedChildren = true
-      const removed = setAt(triple, 2).removeInner(found, from + 1)
+      const removed = setAt(triple, 2).removeInner(taken.value, from + 1)
       return removed != empty ? [triple[0], triple[1], removed] : []
     })
     const children = changedChildren ? mappedChildren : this.children
-    const kept = this.local.filter((deco) => !decorations.some((span) => span !== null && deco.eq(span, offset)))
+    const kept = this.local.filter((deco) => !decorations.some((span) => deco.eq(span, offset)))
     const local = kept.length === this.local.length ? this.local : kept
     if (children == this.children && local == this.local) return this
     return local.length || children.length ? new DecorationSet(local, children) : empty
@@ -593,7 +591,9 @@ export class DecorationSet implements DecorationSource {
     if (node.isLeaf) return DecorationSet.empty
 
     // Runs for every node on each render, so these stay plain loops.
-    let child: DecorationSet | undefined, local: Array<Decoration> | undefined
+    // `empty` when there is no child set.
+    let child = empty,
+      local = Option.none<Array<Decoration>>()
     // oxlint-disable-next-line effect/imperative-loops
     for (let i = 0; i < this.children.length; i += 3) {
       if (posAt(this.children, i) >= offset) {
@@ -609,14 +609,17 @@ export class DecorationSet implements DecorationSource {
       if (dec.from < end && dec.to > start && dec.type instanceof InlineType) {
         const from = Math.max(start, dec.from) - start,
           to = Math.min(end, dec.to) - start
-        if (from < to) (local || (local = [])).push(dec.copy(from, to))
+        if (from < to) {
+          if (Option.isNone(local)) local = Option.some([dec.copy(from, to)])
+          else local.value.push(dec.copy(from, to))
+        }
       }
     }
-    if (local) {
-      const localSet = new DecorationSet(Arr.sort(local, byPos), none)
-      return child ? new DecorationGroup([localSet, child]) : localSet
+    if (Option.isSome(local)) {
+      const localSet = new DecorationSet(Arr.sort(local.value, byPos), none)
+      return child != empty ? new DecorationGroup([localSet, child]) : localSet
     }
-    return child || empty
+    return child
   }
 
   /** @internal */
@@ -690,19 +693,19 @@ export class DecorationGroup implements DecorationSource {
   }
 
   locals(node: Node<any, any>): ReadonlyArray<Decoration> {
-    let result: ReadonlyArray<Decoration> | undefined,
+    let result: ReadonlyArray<Decoration> = none,
       sorted = true
     this.members.forEach((member) => {
       const locals = member.localsInner(node)
       if (!locals.length) return
-      if (!result) {
+      if (!result.length) {
         result = locals
       } else {
         result = result.concat(locals)
         sorted = false
       }
     })
-    return result ? removeOverlap(sorted ? result : Arr.sort(result, byPos)) : none
+    return result.length ? removeOverlap(sorted ? result : Arr.sort(result, byPos)) : none
   }
 
   // Create a group for the given array of decoration sets, or return
@@ -865,7 +868,7 @@ function mapAndGatherRemainingDecorations(
   function gather(set: DecorationSet, base: number) {
     set.local.forEach((deco) => {
       const mapped = deco.map(mapping, offset, base)
-      if (mapped) decorations.push(mapped)
+      if (Option.isSome(mapped)) decorations.push(mapped.value)
       else if (options.onRemove) options.onRemove(deco.spec)
     })
     forEachChild(set.children, (i) => gather(setAt(set.children, i + 2), posAt(set.children, i) + base + 1))
@@ -877,28 +880,34 @@ function mapAndGatherRemainingDecorations(
   return decorations
 }
 
+// Remove the spans inside `node` from `spans`, and return them.
 function takeSpansForNode(
-  spans: Array<Decoration | null>,
+  spans: Array<Decoration>,
   node: Node<any, any>,
   offset: number
-): Array<Decoration> | null {
-  if (node.isLeaf) return null
-  const end = offset + node.nodeSize
-  let found: Array<Decoration> | null = null
+): Option.Option<Array<Decoration>> {
+  return node.isLeaf ? Option.none() : takeSpansInside(spans, offset, offset + node.nodeSize)
+}
+
+// Remove the spans strictly between `from` and `to` from `spans` (keeping
+// the order of the rest), and return them.
+function takeSpansInside(spans: Array<Decoration>, from: number, to: number): Option.Option<Array<Decoration>> {
+  let found = Option.none<Array<Decoration>>(),
+    kept = 0
   // A plain loop: building a set runs it over every span for every node,
   // and a callback made the live-search benchmark a tenth slower.
   // oxlint-disable-next-line effect/imperative-loops
-  for (let i = 0, span; i < spans.length; i++) {
-    if ((span = spans[i]) && span.from > offset && span.to < end) {
-      ;(found || (found = [])).push(span)
-      spans[i] = null
+  for (let i = 0; i < spans.length; i++) {
+    const span = spans[i]
+    if (span.from > from && span.to < to) {
+      if (Option.isNone(found)) found = Option.some([span])
+      else found.value.push(span)
+    } else {
+      spans[kept++] = span
     }
   }
+  spans.length = kept
   return found
-}
-
-function withoutNulls<T>(array: ReadonlyArray<T | null>): Array<T> {
-  return array.filter((item): item is T => item != null)
 }
 
 // Build up a tree that corresponds to a set of decorations. `offset`
@@ -906,26 +915,22 @@ function withoutNulls<T>(array: ReadonlyArray<T | null>): Array<T> {
 // positions in the spans (so that we don't have to allocate new spans
 // for recursive calls).
 function buildTree(
-  spans: Array<Decoration | null>,
+  spans: Array<Decoration>,
   node: Node<any, any>,
   offset: number,
   options: DecorationMapOptions
 ): DecorationSet {
   const children: Array<DecorationSet | number> = []
-  let hasNulls = false
   node.forEach((childNode, localStart) => {
     const found = takeSpansForNode(spans, childNode, localStart + offset)
-    if (found) {
-      hasNulls = true
-      const subtree = buildTree(found, childNode, offset + localStart + 1, options)
+    if (Option.isSome(found)) {
+      const subtree = buildTree(found.value, childNode, offset + localStart + 1, options)
       if (subtree != empty) {
         children.push(localStart, localStart + childNode.nodeSize, subtree)
       }
     }
   })
-  // SAFETY: without `hasNulls` no child took spans, so `spans` holds no nulls.
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-  const sorted = Arr.sort(moveSpans(hasNulls ? withoutNulls(spans) : (spans as Array<Decoration>), -offset), byPos)
+  const sorted = Arr.sort(moveSpans(spans, -offset), byPos)
   const cur = sorted.length ? new FragmentCursor(node.content) : undefined
   const locals = sorted.filter((deco) => {
     if (!cur || deco.type.valid(node, deco, cur)) return true
@@ -999,10 +1004,10 @@ export function viewDecorations(view: EditorView<any, any, any>): DecorationSour
     // SAFETY: decoration props only read the state, so its requirement and error types don't matter.
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const result = f(view.state as EditorState<any>)
-    if (result && result != empty) found.push(result)
+    if (result != empty) found.push(result)
   })
-  if (view.cursorWrapper) {
-    found.push(DecorationSet.create(view.state.doc, [view.cursorWrapper.deco]))
+  if (Option.isSome(view.cursorWrapper)) {
+    found.push(DecorationSet.create(view.state.doc, [view.cursorWrapper.value.deco]))
   }
   return DecorationGroup.from(found)
 }

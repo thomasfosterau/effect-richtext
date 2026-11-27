@@ -5,18 +5,18 @@ import { Fragment, type Node, Slice } from "@thomasfosterau/effect-richtext/Mode
 import { blockquote, doc, eq, h1, hr, li, p, tagsOf, ul } from "@thomasfosterau/effect-richtext/TestBuilder"
 import ist from "../utils/ist.ts"
 
-const sliceOf = (insert: Node | null): Slice =>
-  insert ? insert.sliceUnsafe(tagsOf(insert).a, tagsOf(insert).b) : Slice.empty
+const sliceOf = (insert: Node | Slice): Slice =>
+  insert instanceof Slice ? insert : insert.sliceUnsafe(tagsOf(insert).a, tagsOf(insert).b)
 
-function rpl(doc: Node, insert: Node | null, expected: Node) {
+function rpl(doc: Node, insert: Node | Slice, expected: Node) {
   ist(doc.replaceUnsafe(tagsOf(doc).a, tagsOf(doc).b, sliceOf(insert)), expected, eq)
 }
 
-function bad(doc: Node, insert: Node | null, pattern: string) {
+function bad(doc: Node, insert: Node | Slice, pattern: string) {
   ist.throws(() => doc.replaceUnsafe(tagsOf(doc).a, tagsOf(doc).b, sliceOf(insert)), new RegExp(pattern, "i"))
 }
 
-function badEffect(doc: Node, insert: Node | null, pattern: RegExp) {
+function badEffect(doc: Node, insert: Node | Slice, pattern: RegExp) {
   return Effect.gen(function* () {
     const err = yield* Effect.flip(doc.replace(tagsOf(doc).a, tagsOf(doc).b, sliceOf(insert)))
     assert.strictEqual(err._tag, "ReplaceError")
@@ -26,7 +26,7 @@ function badEffect(doc: Node, insert: Node | null, pattern: RegExp) {
 
 describe("Node", () => {
   describe("replace", () => {
-    it("joins on delete", () => rpl(doc(p("on<a>e"), p("t<b>wo")), null, doc(p("onwo"))))
+    it("joins on delete", () => rpl(doc(p("on<a>e"), p("t<b>wo")), Slice.empty, doc(p("onwo"))))
 
     it("merges matching blocks", () =>
       rpl(doc(p("on<a>e"), p("t<b>wo")), doc(p("xx<a>xx"), p("yy<b>yy")), doc(p("onxx"), p("yywo"))))
@@ -66,7 +66,7 @@ describe("Node", () => {
     it("can merge multiple levels", () =>
       rpl(
         doc(blockquote(blockquote(p("hell<a>o"))), blockquote(blockquote(p("<b>a")))),
-        null,
+        Slice.empty,
         doc(blockquote(blockquote(p("hella"))))
       ))
 
@@ -110,7 +110,7 @@ describe("Node", () => {
       bad(doc(ul(li(p("a")), "<a>"), "<b>"), doc(p("foo", "<a>"), "<b>"), "cannot join"))
 
     it("rejects an unjoinable delete", () =>
-      bad(doc(blockquote(p("a"), "<a>"), ul("<b>", li(p("b")))), null, "cannot join"))
+      bad(doc(blockquote(p("a"), "<a>"), ul("<b>", li(p("b")))), Slice.empty, "cannot join"))
 
     it("check content validity", () =>
       bad(doc(blockquote("<a>", p("hi")), "<b>"), doc(blockquote("hi", "<a>"), "<b>"), "invalid content"))
@@ -138,7 +138,7 @@ describe("Node", () => {
     )
 
     it.effect("fails with ReplaceError for unjoinable content", () =>
-      badEffect(doc(blockquote(p("a"), "<a>"), ul("<b>", li(p("b")))), null, /cannot join/i)
+      badEffect(doc(blockquote(p("a"), "<a>"), ul("<b>", li(p("b")))), Slice.empty, /cannot join/i)
     )
 
     it.effect("names the content a failed replace would have produced", () =>

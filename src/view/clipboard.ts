@@ -28,12 +28,17 @@ export function serializeForClipboard(view: AnyView, slice: Slice<any>): Clipboa
     const { content, openEnd, openStart } = inner
     if (!(openStart > 1 && openEnd > 1 && content.childCount == 1 && content.content[0].childCount == 1)) return inner
     const node = content.content[0]
-    context.push(node.type.name, node.attrs != node.type.defaultAttrs ? node.attrs : null)
+    context.push(
+      node.type.name,
+      Option.exists(node.type.defaultAttrs, (defaults) => defaults === node.attrs) ? null : node.attrs
+    )
     return unwrap(new Slice(node.content, openStart - 1, openEnd - 1))
   }
   const { content, openEnd, openStart } = unwrap(slice)
 
-  const serializer = view.someProp("clipboardSerializer") || DOMSerializer.fromSchema(view.state.schema)
+  const serializer = Option.getOrElse(view.someProp("clipboardSerializer"), () =>
+    DOMSerializer.fromSchema(view.state.schema)
+  )
   const doc = detachedDoc(),
     wrap = doc.createElement("div")
   wrap.appendChild(serializer.serializeFragment(content, { document: doc }))
@@ -61,25 +66,28 @@ export function serializeForClipboard(view: AnyView, slice: Slice<any>): Clipboa
     )
   }
 
-  const text =
-    view.someProp("clipboardTextSerializer", (f) => f(slice, view)) ||
-    slice.content.textBetween(0, slice.content.size, "\n\n")
+  const text = Option.getOrElse(
+    view.someProp("clipboardTextSerializer", (f) => f(slice, view)),
+    () => slice.content.textBetween(0, slice.content.size, "\n\n")
+  )
 
   return { dom: wrap, text, slice }
 }
 
-// Read a slice of content from the clipboard (or drop data).
+// Read a slice of content from the clipboard (or drop data). `html` is
+// empty when there is none.
 /** @internal */
 export function parseFromClipboard(
   view: AnyView,
   text: string,
-  html: string | null,
+  html: string,
   plainText: boolean,
   $context: ResolvedPos<any>
-): Slice<any> | null {
+): Option.Option<Slice<any>> {
   const inCode = $context.parent.type.spec.code
-  let dom: HTMLElement | undefined, slice: Slice<any> | undefined
-  if (!html && !text) return null
+  let dom: Option.Option<HTMLElement> = Option.none(),
+    parsed: Option.Option<Slice<any>> = Option.none()
+  if (!html && !text) return Option.none()
   const asText = !!text && (plainText || inCode || !html)
   if (asText) {
     view.someProp("transformPastedText", (f) => {
@@ -94,17 +102,19 @@ export function parseFromClipboard(
       view.someProp("transformPasted", (f) => {
         codeSlice = f(codeSlice, view, true)
       })
-      return codeSlice
+      return Option.some(codeSlice)
     }
-    const parsed = view.someProp("clipboardTextParser", (f) => f(text, $context, plainText, view))
-    if (parsed) {
-      slice = parsed
-    } else {
+    // Read as values, so that a parser returning `None` defers to the next one.
+    parsed = Option.flatMap(
+      view.someProp("clipboardTextParser", (f) => Option.getOrUndefined(f(text, $context, plainText, view))),
+      Option.fromUndefinedOr
+    )
+    if (Option.isNone(parsed)) {
       const marks = $context.marks()
       const { schema } = view.state,
         serializer = DOMSerializer.fromSchema(schema)
       const div = document.createElement("div")
-      dom = div
+      dom = Option.some(div)
       text.split(/(?:\r\n?|\n)+/).forEach((block) => {
         const p = div.appendChild(document.createElement("p"))
         if (block) p.appendChild(serializer.serializeNode(schema.textUnsafe(block, marks)))
@@ -115,30 +125,41 @@ export function parseFromClipboard(
     view.someProp("transformPastedHTML", (f) => {
       source = f(source, view)
     })
-    dom = readHTML(source)
-    if (browser.webkit) restoreReplacedSpaces(dom)
+    const read = readHTML(source)
+    if (browser.webkit) restoreReplacedSpaces(read)
+    dom = Option.some(read)
   }
 
-  const contextNode = dom && dom.querySelector("[data-pm-slice]")
-  const sliceData = contextNode && /^(\d+) (\d+)(?: -(\d+))? (.*)/.exec(contextNode.getAttribute("data-pm-slice") || "")
-  if (dom && sliceData && sliceData[3]) dom = intoFirstElement(dom, +sliceData[3])
+  const contextNode = Option.flatMap(dom, (d) => Option.fromNullOr(d.querySelector("[data-pm-slice]")))
+  const sliceData = Option.flatMap(contextNode, (node) =>
+    Option.fromNullOr(/^(\d+) (\d+)(?: -(\d+))? (.*)/.exec(node.getAttribute("data-pm-slice") || ""))
+  )
+  if (Option.isSome(dom) && Option.isSome(sliceData) && sliceData.value[3]) {
+    dom = Option.some(intoFirstElement(dom.value, +sliceData.value[3]))
+  }
 
-  if (!slice) {
-    if (!dom) return null
-    const parser =
-      view.someProp("clipboardParser") || view.someProp("domParser") || DOMParser.fromSchema(view.state.schema)
-    slice = parser.parseSliceUnsafe(dom, {
-      preserveWhitespace: !!(asText || sliceData),
+  let slice: Slice<any>
+  if (Option.isSome(parsed)) {
+    slice = parsed.value
+  } else {
+    if (Option.isNone(dom)) return Option.none()
+    const parser = Option.getOrElse(
+      Option.orElse(view.someProp("clipboardParser"), () => view.someProp("domParser")),
+      () => DOMParser.fromSchema(view.state.schema)
+    )
+    slice = parser.parseSliceUnsafe(dom.value, {
+      preserveWhitespace: asText || Option.isSome(sliceData),
       context: $context,
       ruleFromNode(el) {
         if (el.nodeName == "BR" && !el.nextSibling && el.parentNode && !inlineParents.test(el.parentNode.nodeName))
-          return { ignore: true }
-        return null
+          return Option.some({ ignore: true })
+        return Option.none()
       }
     })
   }
-  if (sliceData) {
-    slice = addContext(closeSlice(slice, +sliceData[1], +sliceData[2]), sliceData[4])
+  if (Option.isSome(sliceData)) {
+    const data = sliceData.value
+    slice = addContext(closeSlice(slice, +data[1], +data[2]), data[4])
   } else {
     // HTML wasn't created by ProseMirror. Make sure top-level siblings are coherent
     slice = Slice.maxOpen(normalizeSiblings(slice.content, $context), true)
@@ -153,7 +174,7 @@ export function parseFromClipboard(
   view.someProp("transformPasted", (f) => {
     pasted = f(pasted, view, asText)
   })
-  return pasted
+  return Option.some(pasted)
 }
 
 const inlineParents =
@@ -185,45 +206,43 @@ function normalizeSiblings(fragment: Fragment<any, any>, $context: ResolvedPos<a
   const normalized = Arr.findFirst(Arr.reverse(Arr.range(0, $context.depth)), (d) => {
     const parent = $context.node(d)
     let match = parent.contentMatchAtUnsafe($context.index(d))
-    let lastWrap: ReadonlyArray<NodeType<any, any>> | undefined,
-      result: Array<Node<any, any>> | null = []
+    let lastWrap: ReadonlyArray<NodeType<any, any>> = [],
+      failed = false
+    const result: Array<Node<any, any>> = []
     fragment.forEach((node) => {
-      if (!result) return
-      const wrap = match.findWrappingOrNull(node.type)
-      let inLast
-      if (!wrap) {
-        result = null
+      if (failed) return
+      const wrapFound = match.findWrapping(node.type)
+      if (Option.isNone(wrapFound)) {
+        failed = true
         return
       }
-      if (
-        (inLast =
-          result.length &&
-          lastWrap &&
-          lastWrap.length &&
-          addToSibling(wrap, lastWrap, node, result[result.length - 1], 0))
-      ) {
-        result[result.length - 1] = inLast
+      const wrap = wrapFound.value
+      const inLast =
+        result.length && lastWrap.length
+          ? addToSibling(wrap, lastWrap, node, result[result.length - 1], 0)
+          : Option.none()
+      if (Option.isSome(inLast)) {
+        result[result.length - 1] = inLast.value
       } else {
-        if (result.length && lastWrap)
-          result[result.length - 1] = closeRight(result[result.length - 1], lastWrap.length)
+        if (result.length) result[result.length - 1] = closeRight(result[result.length - 1], lastWrap.length)
         const wrapped = withWrappers(node, wrap)
         result.push(wrapped)
-        const next = match.matchTypeOrNull(wrapped.type)
-        if (!next) {
-          result = null
+        const next = match.matchType(wrapped.type)
+        if (Option.isNone(next)) {
+          failed = true
           return
         }
-        match = next
+        match = next.value
         lastWrap = wrap
       }
     })
-    return result ? Option.some(Fragment.from(result)) : Option.none()
+    return failed ? Option.none() : Option.some(Fragment.from(result))
   })
   return Option.getOrElse(normalized, () => fragment)
 }
 
 function withWrappers(node: Node<any, any>, wrap: ReadonlyArray<NodeType<any, any>>, from = 0) {
-  return wrap.slice(from).reduceRight((inner, type) => type.createUnsafe(null, Fragment.from(inner)), node)
+  return wrap.slice(from).reduceRight((inner, type) => type.createUnsafe(undefined, Fragment.from(inner)), node)
 }
 
 // Used to group adjacent nodes wrapped in similar parents by
@@ -234,16 +253,17 @@ function addToSibling(
   node: Node<any, any>,
   sibling: Node<any, any>,
   depth: number
-): Node<any, any> | undefined {
+): Option.Option<Node<any, any>> {
   if (depth < wrap.length && depth < lastWrap.length && wrap[depth] == lastWrap[depth]) {
     const inner = addToSibling(wrap, lastWrap, node, sibling.content.content[sibling.childCount - 1], depth + 1)
-    if (inner) return sibling.copy(sibling.content.replaceChild(sibling.childCount - 1, inner))
+    if (Option.isSome(inner))
+      return Option.some(sibling.copy(sibling.content.replaceChild(sibling.childCount - 1, inner.value)))
     const match = sibling.contentMatchAtUnsafe(sibling.childCount)
-    if (match.matchTypeOrNull(depth == wrap.length - 1 ? node.type : wrap[depth + 1])) {
-      return sibling.copy(sibling.content.append(Fragment.from(withWrappers(node, wrap, depth + 1))))
+    if (Option.isSome(match.matchType(depth == wrap.length - 1 ? node.type : wrap[depth + 1]))) {
+      return Option.some(sibling.copy(sibling.content.append(Fragment.from(withWrappers(node, wrap, depth + 1)))))
     }
   }
-  return undefined
+  return Option.none()
 }
 
 function closeRight(node: Node<any, any>, depth: number): Node<any, any> {
@@ -257,9 +277,9 @@ function closeRight(node: Node<any, any>, depth: number): Node<any, any> {
 
 // The content that closes `node` after its last child.
 function fillToEnd(node: Node<any, any>): Fragment<any, any> {
-  const fill = node.contentMatchAtUnsafe(node.childCount).fillBeforeOrNull(Fragment.empty, true)
-  if (!fill) throw new ViewError({ message: "Can't complete the content of " + node.type.name })
-  return fill
+  const fill = node.contentMatchAtUnsafe(node.childCount).fillBefore(Fragment.empty, true)
+  if (Option.isNone(fill)) throw new ViewError({ message: "Can't complete the content of " + node.type.name })
+  return fill.value
 }
 
 function closeRange(
@@ -276,9 +296,9 @@ function closeRange(
   if (depth < to - 1) inner = closeRange(inner, side, from, to, depth + 1, openEnd)
   if (depth >= from) {
     if (side < 0) {
-      const before = node.contentMatchAtUnsafe(0).fillBeforeOrNull(inner, openEnd <= depth)
-      if (!before) throw new ViewError({ message: "Can't open the start of " + node.type.name })
-      inner = before.append(inner)
+      const before = node.contentMatchAtUnsafe(0).fillBefore(inner, openEnd <= depth)
+      if (Option.isNone(before)) throw new ViewError({ message: "Can't open the start of " + node.type.name })
+      inner = before.value.append(inner)
     } else {
       inner = inner.append(fillToEnd(node))
     }

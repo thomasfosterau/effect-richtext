@@ -10,7 +10,7 @@ import type { ViewDesc } from "./viewdesc.ts"
 declare global {
   interface Node {
     /** @internal */
-    pmViewDesc?: ViewDesc | undefined
+    pmViewDesc?: ViewDesc
   }
 }
 
@@ -19,12 +19,7 @@ export type DOMNode = globalThis.Node
 /** @internal */
 export type DOMSelection = globalThis.Selection
 /** @internal */
-export type DOMSelectionRange = {
-  focusNode: DOMNode | null
-  focusOffset: number
-  anchorNode: DOMNode | null
-  anchorOffset: number
-}
+export type DOMSelectionRange = Pick<DOMSelection, "focusNode" | "focusOffset" | "anchorNode" | "anchorOffset">
 
 /** @internal */
 export const domIndex = function (node: DOMNode): number {
@@ -33,12 +28,13 @@ export const domIndex = function (node: DOMNode): number {
 }
 
 /** @internal */
-export const parentNode = function (node: DOMNode): DOMNode | null {
+export const parentNode = function (node: DOMNode): Option.Option<DOMNode> {
   // Elements and text nodes are the slottable ones.
   const slot = isElt(node) || isText(node) ? node.assignedSlot : null
   const parent = slot || node.parentNode
-  if (!parent || parent.nodeType != 11) return parent
-  return isShadowRoot(parent) ? parent.host : null
+  if (!parent) return Option.none()
+  if (parent.nodeType != 11) return Option.some(parent)
+  return isShadowRoot(parent) ? Option.some(parent.host) : Option.none()
 }
 
 /**
@@ -48,17 +44,21 @@ export const parentNode = function (node: DOMNode): DOMNode | null {
  */
 export function ancestors(node: DOMNode): Array<DOMNode> {
   const parent = parentNode(node)
-  return parent ? [node, ...ancestors(parent)] : [node]
+  return Option.isSome(parent) ? [node, ...ancestors(parent.value)] : [node]
 }
 
-let reusedRange: Range | null = null
+let reusedRange: Option.Option<Range> = Option.none()
 
 // Note that this will always return the same range, because DOM range
 // objects are every expensive, and keep slowing down subsequent DOM
 // updates, for some reason.
 /** @internal */
 export const textRange = function (node: Text, from?: number, to?: number): Range {
-  const range = reusedRange || (reusedRange = document.createRange())
+  const range = Option.getOrElse(reusedRange, () => {
+    const created = document.createRange()
+    reusedRange = Option.some(created)
+    return created
+  })
   range.setEnd(node, to == null ? node.data.length : to)
   range.setStart(node, from || 0)
   return range
@@ -66,7 +66,7 @@ export const textRange = function (node: Text, from?: number, to?: number): Rang
 
 /** @internal */
 export const clearReusedRange = function (): void {
-  reusedRange = null
+  reusedRange = Option.none()
 }
 
 // Scans forward and backward through DOM positions equivalent to the
@@ -129,8 +129,8 @@ export function isDocument(node: DOMNode): node is Document {
 
 // `EditorView.root` gives a shadow root `getSelection` when it lacks one.
 /** @internal */
-export function selectionOf(root: Document | ShadowRoot) {
-  return "getSelection" in root ? root.getSelection() : null
+export function selectionOf(root: Document | ShadowRoot): Option.Option<DOMSelection> {
+  return "getSelection" in root ? Option.fromNullOr(root.getSelection()) : Option.none()
 }
 
 /** @internal */
@@ -144,26 +144,26 @@ export function isText(node: DOMNode): node is Text {
 }
 
 /** @internal */
-export function textNodeBefore(node: DOMNode, offset: number): Text | null {
-  if (isText(node) && offset) return node
+export function textNodeBefore(node: DOMNode, offset: number): Option.Option<Text> {
+  if (isText(node) && offset) return Option.some(node)
   if (isElt(node) && offset > 0) {
-    if (node.contentEditable == "false") return null
+    if (node.contentEditable == "false") return Option.none()
     const child = node.childNodes[offset - 1]
     return textNodeBefore(child, nodeSize(child))
   }
   if (node.parentNode && !hasBlockDesc(node)) return textNodeBefore(node.parentNode, domIndex(node))
-  return null
+  return Option.none()
 }
 
 /** @internal */
-export function textNodeAfter(node: DOMNode, offset: number): Text | null {
-  if (isText(node) && offset < node.data.length) return node
+export function textNodeAfter(node: DOMNode, offset: number): Option.Option<Text> {
+  if (isText(node) && offset < node.data.length) return Option.some(node)
   if (isElt(node) && offset < node.childNodes.length) {
-    if (node.contentEditable == "false") return null
+    if (node.contentEditable == "false") return Option.none()
     return textNodeAfter(node.childNodes[offset], 0)
   }
   if (node.parentNode && !hasBlockDesc(node)) return textNodeAfter(node.parentNode, domIndex(node) + 1)
-  return null
+  return Option.none()
 }
 
 /** @internal */
@@ -185,7 +185,12 @@ function onEdgeOf(node: DOMNode, atStart: boolean, atEnd: boolean, parent: DOMNo
 /** @internal */
 export function hasBlockDesc(dom: DOMNode): boolean {
   const desc = Option.getOrUndefined(closestDesc(dom))
-  return !!desc && !!desc.node && desc.node.isBlock && (desc.dom == dom || desc.contentDOM == dom)
+  return (
+    !!desc &&
+    desc.isNode() &&
+    desc.node.isBlock &&
+    (desc.dom == dom || Option.exists(desc.contentDOM, (content) => content == dom))
+  )
 }
 
 // Work around Chrome issue https://bugs.chromium.org/p/chromium/issues/detail?id=447523
@@ -208,15 +213,15 @@ export function keyEvent(keyCode: number, key: string): KeyboardEvent {
 }
 
 /** @internal */
-export function deepActiveElement(doc: Document): Element | null {
+export function deepActiveElement(doc: Document): Option.Option<Element> {
   const elt = doc.activeElement
-  return elt && activeIn(elt)
+  return elt ? activeIn(elt) : Option.none()
 }
 
-function activeIn(elt: Element): Element | null {
-  if (!elt.shadowRoot) return elt
+function activeIn(elt: Element): Option.Option<Element> {
+  if (!elt.shadowRoot) return Option.some(elt)
   const inner = elt.shadowRoot.activeElement
-  return inner && activeIn(inner)
+  return inner ? activeIn(inner) : Option.none()
 }
 
 // The view description of `dom` or its nearest ancestor that has one.
@@ -226,7 +231,11 @@ function closestDesc(dom: DOMNode): Option.Option<ViewDesc> {
 }
 
 /** @internal */
-export function caretFromPoint(doc: Document, x: number, y: number): { node: DOMNode; offset: number } | undefined {
+export function caretFromPoint(
+  doc: Document,
+  x: number,
+  y: number
+): Option.Option<{ readonly node: DOMNode; readonly offset: number }> {
   if (doc.caretPositionFromPoint) {
     try {
       // Firefox throws for this call in hard-to-predict circumstances
@@ -234,16 +243,19 @@ export function caretFromPoint(doc: Document, x: number, y: number): { node: DOM
       // Clip the offset, because Chrome will return a text offset
       // into <input> nodes, which can't be treated as a regular DOM
       // offset
-      if (pos) return { node: pos.offsetNode, offset: Math.min(nodeSize(pos.offsetNode), pos.offset) }
+      if (pos) return Option.some({ node: pos.offsetNode, offset: Math.min(nodeSize(pos.offsetNode), pos.offset) })
     } catch {
       // ignore
     }
   }
   if (doc.caretRangeFromPoint) {
-    const range: Range | null = doc.caretRangeFromPoint(x, y)
+    const range = doc.caretRangeFromPoint(x, y)
     if (range) {
-      return { node: range.startContainer, offset: Math.min(nodeSize(range.startContainer), range.startOffset) }
+      return Option.some({
+        node: range.startContainer,
+        offset: Math.min(nodeSize(range.startContainer), range.startOffset)
+      })
     }
   }
-  return undefined
+  return Option.none()
 }

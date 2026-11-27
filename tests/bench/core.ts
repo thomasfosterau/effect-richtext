@@ -73,10 +73,8 @@ const statePlugin = <V>(spec: StatePluginSpec<CoreTypes, V>): Plugin<V, Sc> => {
       onSome: (append): PluginSpec<V, Sc> => ({
         ...filtered,
         appendTransaction: (trs, _old, next) =>
-          Option.getOrUndefined(
-            Option.flatMap(plugin.getState(next), (value) =>
-              Option.map(append(trs, value), ([key, meta]) => next.tr.setMeta(key, meta))
-            )
+          Option.flatMap(plugin.getState(next), (value) =>
+            Option.map(append(trs, value), ([key, meta]) => next.tr.setMeta(key, meta))
           )
       })
     })
@@ -130,7 +128,7 @@ export const core: Lib<CoreTypes> = {
   step: (tr, step) => {
     tr.stepUnsafe(step)
   },
-  maybeStep: (tr, step) => tr.maybeStep(step).failedOrNull === null,
+  maybeStep: (tr, step) => Option.isNone(tr.maybeStep(step).failed),
   mapping: () => new Mapping(),
   mapStep: (step, mapping, from) => step.map(mapping.slice(from)),
   delete: (tr, from, to) => {

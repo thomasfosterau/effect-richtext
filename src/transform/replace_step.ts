@@ -3,6 +3,7 @@
  *
  * @since 0.1.0
  */
+import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import { type AnySchema, JSONError, type Node, Slice } from "../Model.ts"
@@ -151,8 +152,8 @@ export class ReplaceAroundStep<Sc extends AnySchema = AnySchema> extends Step<Sc
     const gap = doc.sliceUnsafe(this.gapFrom, this.gapTo)
     if (gap.openStart || gap.openEnd) return StepResult.fail("Gap is not a flat range")
     const inserted = this.slice.insertAt(this.insert, gap.content)
-    if (!inserted) return StepResult.fail("Content does not fit in gap")
-    return StepResult.fromReplace(doc, this.from, this.to, inserted)
+    if (Option.isNone(inserted)) return StepResult.fail("Content does not fit in gap")
+    return StepResult.fromReplace(doc, this.from, this.to, inserted.value)
   }
 
   override getMap(): StepMap {
@@ -235,13 +236,13 @@ function contentBetween(doc: Node<any>, from: number, to: number): boolean {
   const climb = (depth: number, dist: number): boolean =>
     dist > 0 && depth > 0 && $from.indexAfter(depth) === $from.node(depth).childCount
       ? climb(depth - 1, dist - 1)
-      : contentWithin($from.node(depth).content.content[$from.indexAfter(depth)], dist)
+      : contentWithin(Arr.get($from.node(depth).content.content, $from.indexAfter(depth)), dist)
   return climb($from.depth, to - from)
 }
 
 // Whether entering `dist` opening tokens from before `next` reaches
 // content: a leaf, or the end of a node.
-function contentWithin(next: Node<any> | undefined, dist: number): boolean {
+function contentWithin(next: Option.Option<Node<any>>, dist: number): boolean {
   if (dist <= 0) return false
-  return !next || next.isLeaf || contentWithin(next.content.content[0], dist - 1)
+  return Option.isNone(next) || next.value.isLeaf || contentWithin(next.value.firstChild, dist - 1)
 }

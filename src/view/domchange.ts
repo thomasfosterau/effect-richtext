@@ -24,6 +24,19 @@ import type { EditorView } from "./view.ts"
 
 type AnyView = EditorView<any, any, any>
 
+// A changed range: from `start` to `endA` in the old document and `endB` in the new one.
+interface Change {
+  start: number
+  endA: number
+  endB: number
+}
+
+// A single mark added to or removed from every node in a range.
+interface MarkChange {
+  readonly mark: Mark<any, any>
+  readonly type: "add" | "remove"
+}
+
 // Note that all referencing and parsing is done with the
 // start-of-operation selection and document, since that's the one
 // that the DOM represents. If any changes came in in the meantime,
@@ -36,10 +49,10 @@ function parseBetween(view: AnyView, from_: number, to_: number, addedNodes: Rea
   let toOffset = range.toOffset
 
   const domSel = view.domSelectionRange()
-  let find: Array<DOMPosition> | undefined
+  const find: Array<DOMPosition> = []
   const anchor = domSel.anchorNode
   if (anchor && view.dom.contains(anchor.nodeType == 1 ? anchor : anchor.parentNode)) {
-    find = [{ node: anchor, offset: domSel.anchorOffset }]
+    find.push({ node: anchor, offset: domSel.anchorOffset })
     const focus = domSel.focusNode
     if (!selectionCollapsed(domSel) && focus) {
       find.push({ node: focus, offset: domSel.focusOffset })
@@ -59,10 +72,10 @@ function parseBetween(view: AnyView, from_: number, to_: number, addedNodes: Rea
     }
   }
   const startDoc = view.state.doc
-  const parser = view.someProp("domParser") || DOMParser.fromSchema(view.state.schema)
+  const parser = Option.getOrElse(view.someProp("domParser"), () => DOMParser.fromSchema(view.state.schema))
   const $from = startDoc.resolveUnsafe(from)
 
-  let sel: { anchor: number; head: number } | null = null
+  let sel: Option.Option<{ readonly anchor: number; readonly head: number }> = Option.none()
   const doc = parser.parseUnsafe(parent, {
     topNode: $from.parent,
     topMatch: $from.parent.contentMatchAtUnsafe($from.index()),
@@ -70,15 +83,14 @@ function parseBetween(view: AnyView, from_: number, to_: number, addedNodes: Rea
     from: fromOffset,
     to: toOffset,
     preserveWhitespace: $from.parent.type.whitespace == "pre" ? "full" : true,
-    findPositions: find,
+    ...(find.length && { findPositions: find }),
     ruleFromNode: ruleFromNode(addedNodes),
     context: $from
   })
-  if (find && find[0].pos != null) {
-    const anchorPos = find[0].pos
-    let head = find[1] && find[1].pos
-    if (head == null) head = anchorPos
-    sel = { anchor: anchorPos + from, head: head + from }
+  const anchorPos = find.length ? find[0].pos : undefined
+  if (anchorPos !== undefined) {
+    const head = (find.length > 1 ? find[1].pos : undefined) ?? anchorPos
+    sel = Option.some({ anchor: anchorPos + from, head: head + from })
   }
   return { doc, sel, from, to }
 }
@@ -87,7 +99,7 @@ function parseBetween(view: AnyView, from_: number, to_: number, addedNodes: Rea
 // content DOM the browser replaced (prosemirror-view 1.42.2).
 const ruleFromNode =
   (added: ReadonlyArray<DOMNode>) =>
-  (dom: DOMNode): Omit<TagParseRule, "tag"> | null => {
+  (dom: DOMNode): Option.Option<Omit<TagParseRule, "tag">> => {
     const desc = dom.pmViewDesc
     if (desc) {
       return desc.parseRule(added)
@@ -98,14 +110,14 @@ const ruleFromNode =
       if (browser.safari && /^(ul|ol)$/i.test(dom.parentNode.nodeName)) {
         const skip = document.createElement("div")
         skip.appendChild(document.createElement("li"))
-        return { skip }
+        return Option.some({ skip })
       } else if (dom.parentNode.lastChild == dom || (browser.safari && /^(tr|table)$/i.test(dom.parentNode.nodeName))) {
-        return { ignore: true }
+        return Option.some({ ignore: true })
       }
     } else if (dom.nodeName == "IMG" && isElt(dom) && dom.getAttribute("mark-placeholder")) {
-      return { ignore: true }
+      return Option.some({ ignore: true })
     }
-    return null
+    return Option.none()
   }
 
 const isInline =
@@ -124,9 +136,11 @@ export function readDOMChange(
   view.input.compositionPendingChanges = 0
 
   if (from < 0) {
-    const origin = view.input.lastSelectionTime > now - 50 ? view.input.lastSelectionOrigin : null
-    const newSel = selectionFromDOM(view, origin)
-    if (newSel && !view.state.selection.eq(newSel)) {
+    const origin =
+      view.input.lastSelectionTime > now - 50 ? Option.getOrUndefined(view.input.lastSelectionOrigin) : undefined
+    const found = selectionFromDOM(view, origin)
+    if (Option.isSome(found) && !view.state.selection.eq(found.value)) {
+      const newSel = found.value
       if (
         browser.chrome &&
         browser.android &&
@@ -164,40 +178,39 @@ export function readDOMChange(
     preferredPos = view.state.selection.from
     preferredSide = "start"
   }
-  view.input.lastKeyCode = null
+  view.input.lastKeyCode = -1
 
-  let change = findDiff(compare.content, parse.doc.content, parse.from, preferredPos, preferredSide)
-  if (change) view.input.domChangeCount++
+  const diff = findDiff(compare.content, parse.doc.content, parse.from, preferredPos, preferredSide)
+  if (Option.isSome(diff)) view.input.domChangeCount++
   if (
     ((browser.ios && view.input.lastIOSEnter > now - 225) || browser.android) &&
     addedNodes.some((n) => n.nodeType == 1 && !isInline.test(n.nodeName)) &&
-    (!change || change.endA >= change.endB) &&
+    !Option.exists(diff, (d) => d.endA < d.endB) &&
     dispatchKey(view, "Enter")
   ) {
     view.input.lastIOSEnter = 0
     return
   }
-  if (!change) {
-    if (
-      typeOver &&
-      sel instanceof TextSelection &&
-      !sel.empty &&
-      sel.$head.sameParent(sel.$anchor) &&
-      !view.composing &&
-      !(parse.sel && parse.sel.anchor != parse.sel.head)
-    ) {
-      change = { start: sel.from, endA: sel.to, endB: sel.to }
-    } else {
-      if (parse.sel) {
-        const resolved = resolveSelection(view, view.state.doc, parse.sel)
-        if (resolved && !resolved.eq(view.state.selection)) {
-          const tr = view.state.tr.setSelectionUnsafe(resolved)
-          if (compositionID) tr.setMeta("composition", compositionID)
-          view.dispatchInternal(tr)
-        }
-      }
-      return
+  let change: Change
+  if (Option.isSome(diff)) {
+    change = diff.value
+  } else if (
+    typeOver &&
+    sel instanceof TextSelection &&
+    !sel.empty &&
+    sel.$head.sameParent(sel.$anchor) &&
+    !view.composing &&
+    !Option.exists(parse.sel, (s) => s.anchor != s.head)
+  ) {
+    change = { start: sel.from, endA: sel.to, endB: sel.to }
+  } else {
+    const resolved = Option.flatMap(parse.sel, (s) => resolveSelection(view, view.state.doc, s))
+    if (Option.isSome(resolved) && !resolved.value.eq(view.state.selection)) {
+      const tr = view.state.tr.setSelectionUnsafe(resolved.value)
+      if (compositionID) tr.setMeta("composition", compositionID)
+      view.dispatchInternal(tr)
     }
+    return
   }
 
   // Handle the case where overwriting a selection by typing matches
@@ -288,9 +301,7 @@ export function readDOMChange(
     $from.start() != $to.start() &&
     $to.parentOffset == 0 &&
     $from.depth == $to.depth &&
-    parse.sel &&
-    parse.sel.anchor == parse.sel.head &&
-    parse.sel.head == change.endA
+    Option.exists(parse.sel, (s) => s.anchor == s.head && s.head == change.endA)
   ) {
     change.endB -= 2
     $to = parse.doc.resolveNoCache(change.endB - parse.from)
@@ -308,15 +319,15 @@ export function readDOMChange(
         chTo,
         parse.doc.sliceUnsafe(change.start - parse.from, change.endB - parse.from)
       )
-    if (parse.sel) {
-      const resolved = resolveSelection(view, tr.doc, parse.sel)
+    const found = Option.flatMap(parse.sel, (s) => resolveSelection(view, tr.doc, s))
+    if (Option.isSome(found)) {
+      const resolved = found.value
       // Chrome will sometimes, during composition, report the
       // selection in the wrong place. If it looks like that is
       // happening, don't update the selection.
       // Edge just doesn't move the cursor forward when you start typing
       // in an empty block or between br nodes.
       if (
-        resolved &&
         !(
           (browser.chrome &&
             view.composing &&
@@ -333,8 +344,14 @@ export function readDOMChange(
     return tr.scrollIntoView()
   }
 
-  let markChange
   if (inlineChange) {
+    const markChange =
+      $from.pos != $to.pos && change.endA == change.endB
+        ? isMarkChange(
+            $from.parent.content.cut($from.parentOffset, $to.parentOffset),
+            $fromA.parent.content.cut($fromA.parentOffset, change.endA - $fromA.start())
+          )
+        : Option.none()
     if ($from.pos == $to.pos) {
       // Deletion
       // IE11 sometimes weirdly moves the DOM selection around after
@@ -344,20 +361,15 @@ export function readDOMChange(
         setTimeout(() => selectionToDOM(view), 20)
       }
       const tr = mkTr(view.state.tr.deleteUnsafe(chFrom, chTo))
-      const marks = doc.resolveUnsafe(change.start).marksAcrossOrNull(doc.resolveUnsafe(change.endA))
-      if (marks) tr.ensureMarks(marks)
+      const marks = doc.resolveUnsafe(change.start).marksAcross(doc.resolveUnsafe(change.endA))
+      if (Option.isSome(marks)) tr.ensureMarks(marks.value)
       view.dispatchInternal(tr)
-    } else if (
+    } else if (Option.isSome(markChange)) {
       // Adding or removing a mark
-      change.endA == change.endB &&
-      (markChange = isMarkChange(
-        $from.parent.content.cut($from.parentOffset, $to.parentOffset),
-        $fromA.parent.content.cut($fromA.parentOffset, change.endA - $fromA.start())
-      ))
-    ) {
+      const { mark, type } = markChange.value
       const tr = mkTr(view.state.tr)
-      if (markChange.type == "add") tr.addMark(chFrom, chTo, markChange.mark)
-      else tr.removeMark(chFrom, chTo, markChange.mark)
+      if (type == "add") tr.addMark(chFrom, chTo, mark)
+      else tr.removeMark(chFrom, chTo, mark)
       view.dispatchInternal(tr)
     } else if (
       $from.parent.content.content[$from.index()].isText &&
@@ -381,38 +393,32 @@ function resolveSelection(
   view: AnyView,
   doc: Node<any, any>,
   parsedSel: { anchor: number; head: number }
-): Selection<any> | null {
-  if (Math.max(parsedSel.anchor, parsedSel.head) > doc.content.size) return null
-  return selectionBetween(view, doc.resolveUnsafe(parsedSel.anchor), doc.resolveUnsafe(parsedSel.head))
+): Option.Option<Selection<any>> {
+  if (Math.max(parsedSel.anchor, parsedSel.head) > doc.content.size) return Option.none()
+  return Option.some(selectionBetween(view, doc.resolveUnsafe(parsedSel.anchor), doc.resolveUnsafe(parsedSel.head)))
 }
 
 // Given two same-length, non-empty fragments of inline content,
 // determine whether the first could be created from the second by
 // removing or adding a single mark type.
-function isMarkChange(
-  cur: Fragment<any, any>,
-  prev: Fragment<any, any>
-): { mark: Mark<any, any>; type: string } | null | undefined {
+function isMarkChange(cur: Fragment<any, any>, prev: Fragment<any, any>): Option.Option<MarkChange> {
   const curMarks = cur.content[0].marks,
     prevMarks = prev.content[0].marks
   const added = prevMarks.reduce((set, m) => m.removeFromSet(set), curMarks),
     removed = curMarks.reduce((set, m) => m.removeFromSet(set), prevMarks)
-  let type, mark: Mark<any, any> | undefined, update
+  let change: MarkChange, update: (node: Node<any, any>) => Node<any, any>
   if (added.length == 1 && Arr.isReadonlyArrayEmpty(removed)) {
     const addedMark = added[0]
-    mark = addedMark
-    type = "add"
-    update = (node: Node<any, any>) => node.mark(addedMark.addToSet(node.marks))
+    change = { mark: addedMark, type: "add" }
+    update = (node) => node.mark(addedMark.addToSet(node.marks))
   } else if (Arr.isReadonlyArrayEmpty(added) && removed.length == 1) {
     const removedMark = removed[0]
-    mark = removedMark
-    type = "remove"
-    update = (node: Node<any, any>) => node.mark(removedMark.removeFromSet(node.marks))
+    change = { mark: removedMark, type: "remove" }
+    update = (node) => node.mark(removedMark.removeFromSet(node.marks))
   } else {
-    return null
+    return Option.none()
   }
-  if (Fragment.from(prev.content.map(update)).eq(cur)) return { mark, type }
-  return undefined
+  return Fragment.from(prev.content.map(update)).eq(cur) ? Option.some(change) : Option.none()
 }
 
 function looksLikeBlockJoin(
@@ -435,8 +441,7 @@ function looksLikeBlockJoin(
 
   // Handle the case where, rather than joining blocks, the change just removed an entire block
   if (!$newStart.parent.inlineContent) {
-    const after = $start.nodeAfterOrNull
-    return after != null && end == start + after.nodeSize
+    return Option.exists($start.nodeAfter, (after) => end == start + after.nodeSize)
   }
 
   // Start must be at the end of a block
@@ -495,15 +500,16 @@ function findDiff(
   pos: number,
   preferredPos: number,
   preferredSide: "start" | "end"
-) {
-  let start = Option.getOrNull(a.findDiffStart(b, pos))
+): Option.Option<Change> {
+  const diffStart = a.findDiffStart(b, pos)
   const lenA = pos + a.size,
     lenB = pos + b.size
-  if (start == null) return null
+  if (Option.isNone(diffStart)) return Option.none()
   // findDiffEnd is None exactly when findDiffStart is (identical fragments)
-  const diffEnd = Option.getOrNull(a.findDiffEnd(b, lenA, lenB))
-  if (diffEnd == null) return null
-  let { a: endA, b: endB } = diffEnd
+  const diffEnd = a.findDiffEnd(b, lenA, lenB)
+  if (Option.isNone(diffEnd)) return Option.none()
+  let start = diffStart.value
+  let { a: endA, b: endB } = diffEnd.value
   if (preferredSide == "end") {
     const adjust = Math.max(0, start - Math.min(endA, endB))
     preferredPos -= endA + adjust - start
@@ -521,5 +527,5 @@ function findDiff(
     endA = start + (endA - endB)
     endB = start
   }
-  return { start, endA, endB }
+  return Option.some({ start, endA, endB })
 }

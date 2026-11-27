@@ -136,19 +136,19 @@ describe("Mark", () => {
 
     it("notices that attributes differ", () => isAt(doc(p(a("li<a>nk"))), link("http://baz"), false))
 
-    const customDoc = customSchema.nodeUnsafe("doc", null, [
-      customSchema.nodeUnsafe("paragraph", null, [
+    const customDoc = customSchema.nodeUnsafe("doc", undefined, [
+      customSchema.nodeUnsafe("paragraph", undefined, [
         // pos 1
         customSchema.textUnsafe("one", [remark1, customStrong]),
         customSchema.textUnsafe("two")
       ]),
-      customSchema.nodeUnsafe("paragraph", null, [
+      customSchema.nodeUnsafe("paragraph", undefined, [
         // pos 9
         customSchema.textUnsafe("one"),
         customSchema.textUnsafe("two", [remark1]),
         customSchema.textUnsafe("three", [remark1])
       ]), // pos 22
-      customSchema.nodeUnsafe("paragraph", null, [
+      customSchema.nodeUnsafe("paragraph", undefined, [
         customSchema.textUnsafe("one", [remark2]),
         customSchema.textUnsafe("two", [remark1])
       ])

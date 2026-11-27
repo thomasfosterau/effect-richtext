@@ -4,8 +4,9 @@
  * @internal
  */
 import * as Effect from "effect/Effect"
+import * as Option from "effect/Option"
 import type { AnySchema } from "../Model.ts"
-import type { Command, Dispatch, EditorState, EditorViewLike, Transaction } from "../State.ts"
+import type { Command, EditorState, EditorViewLike, Transaction } from "../State.ts"
 
 /** @internal */
 export const succeedTrue: Effect.Effect<boolean> = Effect.succeed(true)
@@ -32,7 +33,7 @@ export type SyncResult<Sc extends AnySchema = AnySchema> = boolean | Transaction
  */
 export const syncCommand =
   <Sc extends AnySchema = AnySchema>(
-    body: (state: EditorState<Sc, any, any>, dispatching: boolean, view: EditorViewLike) => SyncResult<Sc>
+    body: (state: EditorState<Sc, any, any>, dispatching: boolean, view?: EditorViewLike) => SyncResult<Sc>
   ): Command<Sc> =>
   (state, dispatch, view) =>
     Effect.suspend(() => {
@@ -52,19 +53,23 @@ export const done = <Sc extends AnySchema>(dispatching: boolean, build: () => Tr
   dispatching ? build() : true
 
 /**
- * Wrap a dispatch function so that the marks active before a split are
+ * Wrap a command so that the marks active before it runs (a split) are
  * kept active after it.
  *
  * @internal
  */
-export const keepMarks = <Sc extends AnySchema>(
-  state: EditorState<Sc, any, any>,
-  dispatch: Dispatch<Sc> | undefined
-): Dispatch<Sc> | undefined =>
-  dispatch &&
-  ((tr) =>
-    Effect.suspend(() => {
-      const marks = state.storedMarksOrNull || (state.selection.$to.parentOffset && state.selection.$from.marks())
-      if (marks) tr.ensureMarks(marks)
-      return dispatch(tr)
-    }))
+export const keepMarks =
+  <Sc extends AnySchema, E, R>(command: Command<Sc, E, R>): Command<Sc, E, R> =>
+  (state, dispatch) =>
+    command(
+      state,
+      dispatch &&
+        ((tr) =>
+          Effect.suspend(() => {
+            const marks = Option.orElse(state.storedMarks, () =>
+              state.selection.$to.parentOffset ? Option.some(state.selection.$from.marks()) : Option.none()
+            )
+            if (Option.isSome(marks)) tr.ensureMarks(marks.value)
+            return dispatch(tr)
+          }))
+    )

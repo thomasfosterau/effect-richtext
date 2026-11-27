@@ -97,8 +97,10 @@ function setStr(doc: Node, set: DecorationSet) {
   return set
     .find()
     .map(({ from }) => {
-      const node = doc.nodeAtOrNull(from)
-      return !node ? "X" : (node.isTextNode() && node.text) || ""
+      return Option.match(doc.nodeAt(from), {
+        onNone: () => "X",
+        onSome: (node) => (node.isTextNode() && node.text) || ""
+      })
     })
     .filter((x) => x)
     .join("-")

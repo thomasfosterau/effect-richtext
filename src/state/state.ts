@@ -29,15 +29,15 @@ export interface EditorStateConfig<
   P extends ReadonlyArray<AnyPlugin> = ReadonlyArray<AnyPlugin>
 > {
   /** The schema to use (only relevant if no `doc` is specified). */
-  readonly schema?: Sc | undefined
+  readonly schema?: Sc
   /** The starting document. Either this or `schema` _must_ be provided. */
-  readonly doc?: Node<Sc> | undefined
+  readonly doc?: Node<Sc>
   /** A valid selection in the document. */
-  readonly selection?: Selection<Sc> | undefined
+  readonly selection?: Selection<Sc>
   /** The initial set of stored marks. */
-  readonly storedMarks?: ReadonlyArray<Mark<Sc>> | null | undefined
+  readonly storedMarks?: ReadonlyArray<Mark<Sc>>
   /** The plugins that should be active in this state. */
-  readonly plugins?: P | undefined
+  readonly plugins?: P
   /**
    * The clock, in milliseconds like `Date.now`, that stamps
    * `Transaction.time` when `state.tr` starts a transaction and that the
@@ -46,7 +46,7 @@ export interface EditorStateConfig<
    * controllable clock to test time-dependent plugins, such as the
    * history's grouping of steps by `newGroupDelay`.
    */
-  readonly clock?: (() => number) | undefined
+  readonly clock?: () => number
 }
 
 /**
@@ -86,9 +86,9 @@ const baseFields: ReadonlyArray<FieldDesc> = [
     self: undefined,
     init(config, instance) {
       if (config.doc) return config.doc
-      const node = instance.schema.topNodeType.createAndFillOrNull()
-      if (!node) throw new StateError({ message: "Can't create a default document for the schema" })
-      return node
+      const node = instance.schema.topNodeType.createAndFillOption()
+      if (Option.isNone(node)) throw new StateError({ message: "Can't create a default document for the schema" })
+      return node.value
     },
     apply(tr) {
       return tr.doc
@@ -108,10 +108,12 @@ const baseFields: ReadonlyArray<FieldDesc> = [
     name: "storedMarks",
     self: undefined,
     init(config) {
-      return config.storedMarks || null
+      return Option.fromUndefinedOr(config.storedMarks)
     },
     apply(tr, _marks, _old, state) {
-      return state.selection instanceof TextSelection && state.selection.$cursorOrNull ? tr.storedMarksOrNull : null
+      return state.selection instanceof TextSelection && Option.isSome(state.selection.$cursor)
+        ? tr.storedMarks
+        : Option.none()
     }
   },
   {
@@ -359,11 +361,6 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
 
   /** A set of marks to apply to the next input. `None` when no explicit marks have been set. */
   get storedMarks(): Option.Option<ReadonlyArray<Mark<Sc>>> {
-    return Option.fromNullishOr(this.storedMarksOrNull)
-  }
-
-  /** @internal */
-  get storedMarksOrNull(): ReadonlyArray<Mark<Sc>> | null {
     return this.slots.storedMarks
   }
 
@@ -429,8 +426,8 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
    * `config` gives one.
    */
   reconfigure<const P extends ReadonlyArray<AnyPlugin> = readonly []>(config: {
-    readonly plugins?: P | undefined
-    readonly clock?: (() => number) | undefined
+    readonly plugins?: P
+    readonly clock?: () => number
   }): Effect.Effect<
     EditorState<Sc, PluginRequirements<P>, PluginErrors<P>>,
     PluginErrors<P> | StateError,
@@ -441,8 +438,8 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
 
   /** Like `reconfigure`, but runs synchronously (see `applyUnsafe`). */
   reconfigureUnsafe<const P extends ReadonlyArray<Plugin<any, any, any>> = readonly []>(config: {
-    readonly plugins?: P | undefined
-    readonly clock?: (() => number) | undefined
+    readonly plugins?: P
+    readonly clock?: () => number
   }): EditorState<Sc, never, PluginErrors<P>> {
     return runStepsUnsafe(reconfigureSteps(this, config))
   }
@@ -457,7 +454,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
    */
   toJSON(pluginFields?: Record<string, AnyPlugin> | string | number): EditorStateJSON {
     const result: Types.Mutable<EditorStateJSON> = { doc: this.doc.toJSON(), selection: this.selection.toJSON() }
-    if (this.storedMarksOrNull) result.storedMarks = this.storedMarksOrNull.map((m) => m.toJSON())
+    if (Option.isSome(this.storedMarks)) result.storedMarks = this.storedMarks.value.map((m) => m.toJSON())
     if (Predicate.isObjectOrArray(pluginFields)) {
       Rec.toEntries(pluginFields).forEach(([prop, plugin]) => {
         if (prop === "doc" || prop === "selection") {
@@ -501,7 +498,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
    * `EditorStateConfig`.
    */
   static fromJSON<Sc extends AnySchema, const P extends ReadonlyArray<AnyPlugin> = readonly []>(
-    config: { readonly schema: Sc; readonly plugins?: P | undefined; readonly clock?: (() => number) | undefined },
+    config: { readonly schema: Sc; readonly plugins?: P; readonly clock?: () => number },
     json: unknown,
     pluginFields?: Record<string, AnyPlugin>
   ): Effect.Effect<
@@ -530,9 +527,9 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
             const stored: Array<unknown> = data.storedMarks
             // oxlint-disable-next-line effect/imperative-loops
             for (const m of stored) marks.push(yield config.schema.markFromJSON(m))
-            instance.slots.storedMarks = marks
+            instance.slots.storedMarks = Option.some(marks)
           } else {
-            instance.slots.storedMarks = null
+            instance.slots.storedMarks = Option.none()
           }
         } else {
           let done = false
@@ -563,7 +560,7 @@ export class EditorState<Sc extends AnySchema = AnySchema, R = never, E = never>
 
   /** Like `fromJSON`, but runs synchronously (see `createUnsafe`). */
   static fromJSONUnsafe<Sc extends AnySchema, const P extends ReadonlyArray<Plugin<any, any, any>> = readonly []>(
-    config: { readonly schema: Sc; readonly plugins?: P | undefined; readonly clock?: (() => number) | undefined },
+    config: { readonly schema: Sc; readonly plugins?: P; readonly clock?: () => number },
     json: unknown,
     pluginFields?: Record<string, AnyPlugin>
   ): EditorState<Sc, never, PluginErrors<P>> {
@@ -621,8 +618,9 @@ function* applySteps<Sc extends AnySchema, R, E>(
       if (append) {
         const n = seen.length ? seen[i].n : 0,
           oldState = seen.length ? seen[i].state : state
-        const appended = n < trs.length ? append.call(plugin, n ? trs.slice(n) : trs, oldState, newState) : undefined
-        const next = Option.fromNullishOr<Transaction<Sc>>(isHookEffect(appended) ? yield appended : appended)
+        const appended =
+          n < trs.length ? append.call(plugin, n ? trs.slice(n) : trs, oldState, newState) : Option.none()
+        const next: Option.Option<Transaction<Sc>> = isHookEffect(appended) ? yield appended : appended
         if (Option.isSome(next) && (yield new Call(filterSteps(newState, next.value, i)))) {
           const tr = next.value
           tr.setMeta("appendedTransaction", rootTr)
@@ -661,7 +659,7 @@ function* applyInnerSteps<Sc extends AnySchema, R, E>(
 // `reconfigure`: keep the fields both plugin sets share, init the new ones.
 function* reconfigureSteps<Sc extends AnySchema, R, E>(
   state: EditorState<Sc, any, any>,
-  config: { readonly plugins?: ReadonlyArray<AnyPlugin> | undefined; readonly clock?: (() => number) | undefined }
+  config: { readonly plugins?: ReadonlyArray<AnyPlugin>; readonly clock?: () => number }
 ): Steps<EditorState<Sc, R, E>> {
   const $config = new Configuration(state.schema, config.plugins, config.clock ?? state.config.clock)
   const instance = new EditorState<Sc, R, E>($config)

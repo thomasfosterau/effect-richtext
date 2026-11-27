@@ -201,9 +201,9 @@ export const marks = {
       // This works around a Google Docs misbehavior where pasted
       // content will be inexplicably wrapped in `<b>` tags with a
       // font-weight normal.
-      { tag: "b", getAttrs: (node: HTMLElement) => node.style.fontWeight !== "normal" && null },
+      { tag: "b", getAttrs: (node: HTMLElement) => node.style.fontWeight !== "normal" },
       { style: "font-weight=400", clearMark: (m) => m.type.name === "strong" },
-      { style: "font-weight", getAttrs: (value: string) => /^(bold(er)?|[5-9]\d{2,})$/.test(value) && null }
+      { style: "font-weight", getAttrs: (value: string) => /^(bold(er)?|[5-9]\d{2,})$/.test(value) }
     ],
     toDOM() {
       return strongDOM
@@ -231,7 +231,7 @@ export const marks = {
  * import { schema } from "@thomasfosterau/effect-richtext/SchemaBasic"
  *
  * const heading = schema.nodeUnsafe("heading", { level: 3 }, [schema.textUnsafe("Title", [schema.markUnsafe("em")])])
- * const doc = schema.nodeUnsafe("doc", null, [heading])
+ * const doc = schema.nodeUnsafe("doc", undefined, [heading])
  *
  * assert.strictEqual(doc.toString(), 'doc(heading(em("Title")))')
  * assert.strictEqual(schema.nodes.heading.name, "heading")

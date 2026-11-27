@@ -38,12 +38,12 @@ export type NodeTypeWithAttrs<Sc extends AnySchema = AnySchema> =
   | {
       readonly [N in NodeNames<Sc>]: {
         readonly type: NodeType<Sc, N>
-        readonly attrs?: NodeAttrsInput<Sc, N> | null | undefined
+        readonly attrs?: NodeAttrsInput<Sc, N>
       }
     }[NodeNames<Sc>]
-  | { readonly type: NodeType<Sc>; readonly attrs?: null | undefined }
+  | { readonly type: NodeType<Sc>; readonly attrs?: never }
 
-type AnyWrapper = { readonly type: NodeType<any, any>; readonly attrs?: Attrs | null | undefined }
+type AnyWrapper = { readonly type: NodeType<any, any>; readonly attrs?: Attrs }
 
 function canCut(node: Node<any>, start: number, end: number): boolean {
   return (
@@ -58,11 +58,7 @@ function canCut(node: Node<any>, start: number, end: number): boolean {
  * @since 0.1.0
  * @category queries
  */
-export const liftTarget = <Sc extends AnySchema>(range: NodeRange<Sc>): Option.Option<number> =>
-  Option.fromNullishOr(liftTargetOrNull(range))
-
-/** @internal */
-export function liftTargetOrNull(range: NodeRange<any>): number | null {
+export const liftTarget = <Sc extends AnySchema>(range: NodeRange<Sc>): Option.Option<number> => {
   const parent = range.parent
   const content = parent.content.cutByIndex(range.startIndex, range.endIndex)
   // Walk outwards; once content is left before (or after) the range at
@@ -77,7 +73,7 @@ export function liftTargetOrNull(range: NodeRange<any>): number | null {
     return search(depth - 1, index ? 1 : contentBefore, endIndex < node.childCount ? 1 : contentAfter)
   }
   const target = search(range.depth, 0, 0)
-  return target < 0 ? null : target
+  return target < 0 ? Option.none() : Option.some(target)
 }
 
 // The depths from `from` down to just above `to`, deepest first.
@@ -146,53 +142,46 @@ export function lift(tr: Transform<any>, range: NodeRange<any>, target: number):
 export const findWrapping = <Sc extends AnySchema, N extends NodeNames<Sc>>(
   range: NodeRange<Sc>,
   nodeType: NodeType<Sc, N>,
-  attrs: NodeAttrsInput<Sc, N> | null = null,
+  attrs?: NodeAttrsInput<Sc, N>,
   innerRange: NodeRange<Sc> = range
 ): Option.Option<ReadonlyArray<NodeTypeWithAttrs<Sc>>> =>
-  Option.fromNullishOr(findWrappingOrNull(range, nodeType, attrs, innerRange))
+  Option.flatMap(findWrappingOutside(range, nodeType), (around) =>
+    Option.map(findWrappingInside(innerRange, nodeType), (inner): ReadonlyArray<NodeTypeWithAttrs<Sc>> => {
+      const wrapper: AnyWrapper = attrs === undefined ? { type: nodeType } : { type: nodeType, attrs }
+      return [...around.map(withoutAttrs), wrapper, ...inner.map(withoutAttrs)]
+    })
+  )
 
-/** @internal */
-export function findWrappingOrNull<Sc extends AnySchema>(
-  range: NodeRange<Sc>,
-  nodeType: NodeType<Sc, any>,
-  attrs: Attrs | null = null,
-  innerRange: NodeRange<Sc> = range
-): ReadonlyArray<NodeTypeWithAttrs<Sc>> | null {
-  const around = findWrappingOutside(range, nodeType)
-  const inner = around && findWrappingInside(innerRange, nodeType)
-  if (!inner) return null
-  return around.map(withAttrs).concat({ type: nodeType, attrs }).concat(inner.map(withAttrs))
-}
+const withoutAttrs = (type: NodeType<any, any>): AnyWrapper => ({ type })
 
-const withAttrs = (type: NodeType<any, any>): AnyWrapper => ({ type, attrs: null })
-
-function findWrappingOutside(range: NodeRange<any>, type: NodeType<any, any>) {
+function findWrappingOutside(
+  range: NodeRange<any>,
+  type: NodeType<any, any>
+): Option.Option<ReadonlyArray<NodeType<any, any>>> {
   const { parent, startIndex, endIndex } = range
-  const around = parent.contentMatchAtUnsafe(startIndex).findWrappingOrNull(type)
-  if (!around) return null
-  const outer = around.length ? around[0] : type
-  return parent.canReplaceWith(startIndex, endIndex, outer) ? around : null
+  return Option.filter(parent.contentMatchAtUnsafe(startIndex).findWrapping(type), (around) =>
+    parent.canReplaceWith(startIndex, endIndex, around.length ? around[0] : type)
+  )
 }
 
-function findWrappingInside(range: NodeRange<any>, type: NodeType<any, any>) {
+function findWrappingInside(
+  range: NodeRange<any>,
+  type: NodeType<any, any>
+): Option.Option<ReadonlyArray<NodeType<any, any>>> {
   const { endIndex, parent, startIndex } = range
   const inner = parent.content.content[startIndex]
-  const inside = type.contentMatch.findWrappingOrNull(inner.type)
-  if (!inside) return null
-  const lastType = inside.length ? inside[inside.length - 1] : type
-  const innerMatch = parent.content.content
-    .slice(startIndex, endIndex)
-    .reduce<ContentMatch | null>((match, node) => match && match.matchTypeOrNull(node.type), lastType.contentMatch)
-  if (!innerMatch || !innerMatch.validEnd) return null
-  return inside
+  return Option.filter(type.contentMatch.findWrapping(inner.type), (inside) => {
+    const lastType = inside.length ? inside[inside.length - 1] : type
+    const innerMatch = lastType.contentMatch.matchFragment(parent.content, startIndex, endIndex)
+    return Option.exists(innerMatch, (match) => match.validEnd)
+  })
 }
 
 /** @internal */
 export function wrap(tr: Transform<any>, range: NodeRange<any>, wrappers: ReadonlyArray<AnyWrapper>): void {
   const content = wrappers.reduceRight<Fragment<any>>((inner, wrapper) => {
     if (inner.size) {
-      const match = wrapper.type.contentMatch.matchFragmentOrNull(inner)
-      if (!match || !match.validEnd) {
+      if (!Option.exists(wrapper.type.contentMatch.matchFragment(inner), (match) => match.validEnd)) {
         throw new TransformError({
           message: "Wrapper type given to Transform.wrap does not form valid content of its parent wrapper"
         })
@@ -212,11 +201,11 @@ export function setBlockType(
   from: number,
   to: number,
   type: NodeType<any, any>,
-  attrs: Attrs | null | undefined | ((oldNode: Node<any>) => Attrs)
+  attrs?: Attrs | ((oldNode: Node<any>) => Attrs)
 ): void {
   if (!type.isTextblock) throw new TransformError({ message: "Type given to setBlockType should be a textblock" })
   const mapFrom = tr.steps.length
-  const linebreak: NodeType<any, any> | null = Option.getOrNull(type.schema.linebreakReplacement)
+  const linebreak = type.schema.linebreakReplacement
   tr.doc.nodesBetween(from, to, (node, pos) => {
     const attrsHere = Predicate.isFunction(attrs) ? attrs(node) : attrs
     if (
@@ -224,16 +213,10 @@ export function setBlockType(
       !node.hasMarkup(type, attrsHere) &&
       canChangeType(tr.doc, tr.mapping.slice(mapFrom).map(pos), type)
     ) {
-      let convertNewlines: boolean | null = null
-      if (linebreak) {
-        const pre = type.whitespace === "pre",
-          supportLinebreak = !!type.contentMatch.matchTypeOrNull(linebreak)
-        if (pre && !supportLinebreak) convertNewlines = false
-        else if (!pre && supportLinebreak) convertNewlines = true
-      }
+      const newlines = newlinesFor(type, linebreak)
       // Ensure all markup that isn't allowed in the new node type is cleared
-      if (convertNewlines === false) replaceLinebreaks(tr, node, pos, mapFrom)
-      clearIncompatible(tr, tr.mapping.slice(mapFrom).map(pos, 1), type, undefined, convertNewlines === null)
+      if (newlines === "toText") replaceLinebreaks(tr, node, pos, mapFrom)
+      clearIncompatible(tr, tr.mapping.slice(mapFrom).map(pos, 1), type, undefined, newlines === "keep")
       const mapping = tr.mapping.slice(mapFrom)
       const startM = mapping.map(pos, 1),
         endM = mapping.map(pos + node.nodeSize, 1)
@@ -243,20 +226,33 @@ export function setBlockType(
           endM,
           startM + 1,
           endM - 1,
-          new Slice(Fragment.from(type.createUnsafe(attrsHere, null, node.marks)), 0, 0),
+          new Slice(Fragment.from(type.createUnsafe(attrsHere, undefined, node.marks)), 0, 0),
           1,
           true
         )
       )
-      if (convertNewlines === true) replaceNewlines(tr, node, pos, mapFrom)
+      if (newlines === "toLinebreaks") replaceNewlines(tr, node, pos, mapFrom)
       return false
     }
     return undefined
   })
 }
 
+// How a block changed to `type` converts between newlines and the
+// schema's linebreak replacement: into linebreak nodes, into newline
+// text, or neither.
+function newlinesFor(
+  type: NodeType<any, any>,
+  linebreak: Option.Option<NodeType<any, any>>
+): "toLinebreaks" | "toText" | "keep" {
+  if (Option.isNone(linebreak)) return "keep"
+  const pre = type.whitespace === "pre",
+    supportLinebreak = Option.isSome(type.contentMatch.matchType(linebreak.value))
+  return pre && !supportLinebreak ? "toText" : !pre && supportLinebreak ? "toLinebreaks" : "keep"
+}
+
 function replaceNewlines(tr: Transform<any>, node: Node<any>, pos: number, mapFrom: number): void {
-  // Only called when the schema has a linebreak replacement (`convertNewlines === true`).
+  // Only called when the schema has a linebreak replacement (`"toLinebreaks"`).
   const replacement = node.type.schema.linebreakReplacement
   if (Option.isNone(replacement)) return
   const linebreak: NodeType<any, any> = replacement.value
@@ -271,9 +267,9 @@ function replaceNewlines(tr: Transform<any>, node: Node<any>, pos: number, mapFr
 }
 
 function replaceLinebreaks(tr: Transform<any>, node: Node<any>, pos: number, mapFrom: number): void {
-  const linebreak = Option.getOrNull(node.type.schema.linebreakReplacement)
+  const linebreak = node.type.schema.linebreakReplacement
   node.forEach((child, offset) => {
-    if (child.type === linebreak) {
+    if (Option.contains(linebreak, child.type)) {
       const start = tr.mapping.slice(mapFrom).map(pos + 1 + offset)
       tr.replaceWithUnsafe(start, start + 1, node.type.schema.textUnsafe("\n"))
     }
@@ -290,14 +286,15 @@ function canChangeType(doc: Node<any>, pos: number, type: NodeType<any, any>): b
 export function setNodeMarkup(
   tr: Transform<any>,
   pos: number,
-  type: NodeType<any, any> | undefined | null,
-  attrs: Attrs | null | undefined,
-  marks: ReadonlyArray<Mark<any>> | undefined
+  newType?: NodeType<any, any>,
+  attrs?: Attrs,
+  marks?: ReadonlyArray<Mark<any>>
 ): void {
-  const node = tr.doc.nodeAtOrNull(pos)
-  if (!node) throw new TransformError({ message: "No node at given position" })
-  if (!type) type = node.type
-  const newNode = type.createUnsafe(attrs, null, marks || node.marks)
+  const nodeFound = tr.doc.nodeAt(pos)
+  if (Option.isNone(nodeFound)) throw new TransformError({ message: "No node at given position" })
+  const node = nodeFound.value
+  const type = newType ?? node.type
+  const newNode = type.createUnsafe(attrs, undefined, marks || node.marks)
   if (node.isLeaf) {
     tr.replaceWithUnsafe(pos, pos + node.nodeSize, newNode)
     return
@@ -331,12 +328,13 @@ export function canSplit<Sc extends AnySchema>(
   doc: Node<Sc>,
   pos: number,
   depth = 1,
-  typesAfter?: ReadonlyArray<NodeTypeWithAttrs<Sc> | null | undefined>
+  typesAfter: ReadonlyArray<Option.Option<NodeTypeWithAttrs<Sc>>> = []
 ): boolean {
-  const types = typesAfter
+  // The type after the split at index `i` of `typesAfter`, if given.
+  const typeAt = (i: number) => Option.flatten(Arr.get(typesAfter, i))
   const $pos = doc.resolveUnsafe(pos),
     base = $pos.depth - depth
-  const innerType = (types && types[types.length - 1]) || $pos.parent
+  const innerType = Option.getOrElse(typeAt(typesAfter.length - 1), () => $pos.parent)
   if (
     base < 0 ||
     $pos.parent.type.spec.isolating ||
@@ -350,15 +348,17 @@ export function canSplit<Sc extends AnySchema>(
       i = d - base - 1
     if (node.type.spec.isolating) return false
     const cut: Fragment<any> = node.content.cutByIndex(index, node.childCount)
-    const overrideChild = types && types[i + 1]
-    const rest = overrideChild ? cut.replaceChild(0, overrideChild.type.createUnsafe(overrideChild.attrs)) : cut
-    const after = (types && types[i]) || node
+    const overrideChild: Option.Option<AnyWrapper> = typeAt(i + 1)
+    const rest = Option.isSome(overrideChild)
+      ? cut.replaceChild(0, overrideChild.value.type.createUnsafe(overrideChild.value.attrs))
+      : cut
+    const after = Option.getOrElse(typeAt(i), () => node)
     return node.canReplace(index + 1, node.childCount) && after.type.validContent(rest)
   })
   if (!splittable) return false
   const index = $pos.indexAfter(base)
-  const baseType = types && types[0]
-  return $pos.node(base).canReplaceWith(index, index, baseType ? baseType.type : $pos.node(base + 1).type)
+  const baseType = Option.match(typeAt(0), { onNone: () => $pos.node(base + 1).type, onSome: ({ type }) => type })
+  return $pos.node(base).canReplaceWith(index, index, baseType)
 }
 
 /** @internal */
@@ -366,7 +366,7 @@ export function split(
   tr: Transform<any>,
   pos: number,
   depth = 1,
-  typesAfter?: ReadonlyArray<AnyWrapper | null | undefined>
+  typesAfter: ReadonlyArray<Option.Option<AnyWrapper>> = []
 ): void {
   const $pos = tr.doc.resolveUnsafe(pos)
   let before: Fragment<any> = Fragment.empty,
@@ -374,8 +374,12 @@ export function split(
   const base = $pos.depth - depth
   depthsAbove($pos.depth, base).forEach((d) => {
     before = Fragment.from($pos.node(d).copy(before))
-    const typeAfter = typesAfter && typesAfter[d - base - 1]
-    after = Fragment.from(typeAfter ? typeAfter.type.createUnsafe(typeAfter.attrs, after) : $pos.node(d).copy(after))
+    const typeAfter = Option.flatten(Arr.get(typesAfter, d - base - 1))
+    after = Fragment.from(
+      Option.isSome(typeAfter)
+        ? typeAfter.value.type.createUnsafe(typeAfter.value.attrs, after)
+        : $pos.node(d).copy(after)
+    )
   })
   tr.stepUnsafe(new ReplaceStep(pos, pos, new Slice(before.append(after), depth, depth), true))
 }
@@ -391,23 +395,23 @@ export function split(
 export function canJoin<Sc extends AnySchema>(doc: Node<Sc>, pos: number): boolean {
   const $pos = doc.resolveUnsafe(pos),
     index = $pos.index()
-  return joinable($pos.nodeBeforeOrNull, $pos.nodeAfterOrNull) && $pos.parent.canReplace(index, index + 1)
+  return joinable($pos.nodeBefore, $pos.nodeAfter) && $pos.parent.canReplace(index, index + 1)
 }
 
 function canAppendWithSubstitutedLinebreaks(a: Node<any>, b: Node<any>): boolean {
   if (!b.content.size) a.type.compatibleContent(b.type)
-  const linebreakReplacement = Option.getOrNull(a.type.schema.linebreakReplacement)
-  const textType = a.type.schema.nodes.text
-  const end = b.content.content.reduce<ContentMatch | null>((match, child) => {
-    const type = child.type === linebreakReplacement ? textType : child.type
-    if (!match || !type || !a.type.allowsMarks(child.marks)) return null
-    return match.matchTypeOrNull(type)
-  }, a.contentMatchAtUnsafe(a.childCount))
-  return end ? end.validEnd : false
+  const linebreakReplacement = a.type.schema.linebreakReplacement
+  const textType: NodeType<any, any> = a.type.schema.nodes.text
+  const end = b.content.content.reduce<Option.Option<ContentMatch>>((match, child) => {
+    const type = Option.contains(linebreakReplacement, child.type) ? textType : child.type
+    if (Option.isNone(match) || !a.type.allowsMarks(child.marks)) return Option.none()
+    return match.value.matchType(type)
+  }, a.contentMatchAtUnsafe(a.childCount).some)
+  return Option.exists(end, (match) => match.validEnd)
 }
 
-function joinable(a: Node<any> | null | undefined, b: Node<any> | null | undefined): boolean {
-  return !!(a && b && !a.isLeaf && canAppendWithSubstitutedLinebreaks(a, b))
+function joinable(a: Option.Option<Node<any>>, b: Option.Option<Node<any>>): boolean {
+  return Option.isSome(a) && Option.isSome(b) && !a.value.isLeaf && canAppendWithSubstitutedLinebreaks(a.value, b.value)
 }
 
 /**
@@ -421,20 +425,24 @@ function joinable(a: Node<any> | null | undefined, b: Node<any> | null | undefin
 export function joinPoint<Sc extends AnySchema>(doc: Node<Sc>, pos: number, dir = -1): Option.Option<number> {
   const $pos = doc.resolveUnsafe(pos)
   const search = (d: number, at: number): Option.Option<number> => {
-    let before: Node<any> | null | undefined, after: Node<any> | null | undefined
+    let before: Option.Option<Node<any>>, after: Option.Option<Node<any>>
     let index = $pos.index(d)
     if (d === $pos.depth) {
-      before = $pos.nodeBeforeOrNull
-      after = $pos.nodeAfterOrNull
+      before = $pos.nodeBefore
+      after = $pos.nodeAfter
     } else if (dir > 0) {
-      before = $pos.node(d + 1)
+      before = Option.some($pos.node(d + 1))
       index++
-      after = $pos.node(d).content.content[index]
+      after = Arr.get($pos.node(d).content.content, index)
     } else {
-      before = $pos.node(d).content.content[index - 1]
-      after = $pos.node(d + 1)
+      before = Arr.get($pos.node(d).content.content, index - 1)
+      after = Option.some($pos.node(d + 1))
     }
-    if (before && !before.isTextblock && joinable(before, after) && $pos.node(d).canReplace(index, index + 1))
+    if (
+      Option.exists(before, (node) => !node.isTextblock) &&
+      joinable(before, after) &&
+      $pos.node(d).canReplace(index, index + 1)
+    )
       return Option.some(at)
     if (d === 0) return Option.none()
     return search(d - 1, dir < 0 ? $pos.beforeUnsafe(d) : $pos.afterUnsafe(d))
@@ -444,18 +452,11 @@ export function joinPoint<Sc extends AnySchema>(doc: Node<Sc>, pos: number, dir 
 
 /** @internal */
 export function join(tr: Transform<any>, pos: number, depth: number): void {
-  let convertNewlines: boolean | null = null
-  const linebreakReplacement: NodeType<any, any> | null = Option.getOrNull(tr.doc.type.schema.linebreakReplacement)
   const $before = tr.doc.resolveUnsafe(pos - depth),
     beforeType = $before.node().type
-  if (linebreakReplacement && beforeType.inlineContent) {
-    const pre = beforeType.whitespace === "pre"
-    const supportLinebreak = !!beforeType.contentMatch.matchTypeOrNull(linebreakReplacement)
-    if (pre && !supportLinebreak) convertNewlines = false
-    else if (!pre && supportLinebreak) convertNewlines = true
-  }
+  const newlines = beforeType.inlineContent ? newlinesFor(beforeType, tr.doc.type.schema.linebreakReplacement) : "keep"
   const mapFrom = tr.steps.length
-  if (convertNewlines === false) {
+  if (newlines === "toText") {
     const $after = tr.doc.resolveUnsafe(pos + depth)
     replaceLinebreaks(tr, $after.node(), $after.beforeUnsafe(), mapFrom)
   }
@@ -465,13 +466,13 @@ export function join(tr: Transform<any>, pos: number, depth: number): void {
       pos + depth - 1,
       beforeType,
       $before.node().contentMatchAtUnsafe($before.index()),
-      convertNewlines == null
+      newlines === "keep"
     )
   }
   const mapping = tr.mapping.slice(mapFrom),
     start = mapping.map(pos - depth)
   tr.stepUnsafe(new ReplaceStep(start, mapping.map(pos + depth, -1), Slice.empty, true))
-  if (convertNewlines === true) {
+  if (newlines === "toLinebreaks") {
     const $full = tr.doc.resolveUnsafe(start)
     replaceNewlines(tr, $full.node(), $full.beforeUnsafe(), tr.steps.length)
   }
@@ -490,12 +491,9 @@ export const insertPoint = <Sc extends AnySchema>(
   doc: Node<Sc>,
   pos: number,
   nodeType: NodeType<Sc, any>
-): Option.Option<number> => Option.fromNullishOr(insertPointOrNull(doc, pos, nodeType))
-
-/** @internal */
-export function insertPointOrNull(doc: Node<any>, pos: number, nodeType: NodeType<any, any>): number | null {
+): Option.Option<number> => {
   const $pos = doc.resolveUnsafe(pos)
-  if ($pos.parent.canReplaceWith($pos.index(), $pos.index(), nodeType)) return pos
+  if ($pos.parent.canReplaceWith($pos.index(), $pos.index(), nodeType)) return Option.some(pos)
 
   // Look in the ancestors that `pos` is at the start (or end) of,
   // innermost first, stopping at one that it isn't at the edge of.
@@ -506,7 +504,7 @@ export function insertPointOrNull(doc: Node<any>, pos: number, nodeType: NodeTyp
       fits = $pos.node(d).canReplaceWith(index, index, nodeType)
       return fits || index > 0
     })
-    if (Option.isSome(found)) return fits ? $pos.beforeUnsafe(found.value + 1) : null
+    if (Option.isSome(found)) return fits ? Option.some($pos.beforeUnsafe(found.value + 1)) : Option.none()
   }
   if ($pos.parentOffset === $pos.parent.content.size) {
     const found = Arr.findFirst(depthsAbove($pos.depth - 1, -1), (d) => {
@@ -514,9 +512,9 @@ export function insertPointOrNull(doc: Node<any>, pos: number, nodeType: NodeTyp
       fits = $pos.node(d).canReplaceWith(index, index, nodeType)
       return fits || index < $pos.node(d).childCount
     })
-    if (Option.isSome(found)) return fits ? $pos.afterUnsafe(found.value + 1) : null
+    if (Option.isSome(found)) return fits ? Option.some($pos.afterUnsafe(found.value + 1)) : Option.none()
   }
-  return null
+  return Option.none()
 }
 
 /**
@@ -555,6 +553,7 @@ export function dropPoint<Sc extends AnySchema>(doc: Node<Sc>, pos: number, slic
 
 // Whether `content` can be inserted at `index` in `parent` inside some wrapping.
 function fitsWrapped(parent: Node<any>, index: number, content: Fragment<any>): boolean {
-  const wrapping = parent.contentMatchAtUnsafe(index).findWrappingOrNull(content.content[0].type)
-  return wrapping !== null && parent.canReplaceWith(index, index, wrapping[0])
+  return Option.exists(parent.contentMatchAtUnsafe(index).findWrapping(content.content[0].type), (wrapping) =>
+    parent.canReplaceWith(index, index, wrapping[0])
+  )
 }

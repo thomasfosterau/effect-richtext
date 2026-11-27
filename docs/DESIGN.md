@@ -57,7 +57,7 @@ Every fallible public operation comes in two flavours:
 - `x(...)`: returns `Effect.Effect<A, E>` where `E` is a union of tagged errors.
 - `xUnsafe(...)`: synchronous; throws the same tagged error value.
 
-`Unsafe` variants exist because editors run model code on every keystroke and the ported algorithms are deeply synchronous. Library internals call the `Unsafe` variants (or `@internal` `...OrNull` helpers) and only the public surface is wrapped, using `attempt` from `src/internal/attempt.ts`, which turns expected tagged errors into failures and anything else into defects.
+`Unsafe` variants exist because editors run model code on every keystroke and the ported algorithms are deeply synchronous. Library internals call the `Unsafe` variants and only the public surface is wrapped, using `attempt` from `src/internal/attempt.ts`, which turns expected tagged errors into failures and anything else into defects.
 
 Errors are `Schema.TaggedError` classes with a `message` field, one family per layer (`model/errors.ts`, `transform/errors.ts`, …). Each layer exports a union type and an `is…Error` guard.
 
@@ -67,9 +67,14 @@ Errors are `Schema.TaggedError` classes with a `message` field, one family per l
 
 ### Options
 
-Public accessors return `Option`. Hot internal paths may use `@internal` `…OrNull` twins (e.g. `ContentMatch.matchTypeOrNull`, `ResolvedPos.nodeAfterOrNull`) to avoid allocations; these are not part of the public API.
+A value that may be absent is an `Option`: accessors and results (`node.firstChild`, `$pos.nodeAfter`, `view.domSelection()`), fields (`viewDesc.parent`, `view.dragging`) and hook results (`createSelectionBetween`, `appendTransaction`, a node view's `getPos()`). The core has no `null`s and no `T | undefined` types; `effect/prefer-option-over-null` is at `error` everywhere but the compat facade and its tests.
 
-An absent argument is `undefined` (an omitted optional), not ProseMirror's `null`, as for the attributes of mark constructors (`MarkType.create`, `DocSchema.mark`) and `toggleMark`. Node constructors still accept `null` attributes. The compat facade keeps ProseMirror's `null` and maps it to `undefined` at the boundary.
+- **Arguments and spec fields** that may be left out are optional (`x?: T`), never `T | undefined` or `null`: the attributes of node and mark constructors, `toggleMark`, `NodeSpec` / `PluginSpec` fields. With `exactOptionalPropertyTypes`, build such objects with conditional spreads (`...(attrs && { attrs })`).
+- **Hot paths** avoid allocating an `Option` per step: they test a flag, keep a sentinel (`DecorationSet.empty`, an empty array) or a lazily allocated array, and compact arrays in place rather than leaving holes.
+- **`someProp`** returns the first truthy result, and an `Option` is always truthy, so a prop that returns an `Option` is unwrapped inside the callback (`(f) => Option.getOrUndefined(f(view))`) and the result flattened again.
+- `view.input.lastKeyCode` stays a number (`-1` when none), because ProseMirror's suites and editors built on it assign it directly.
+
+The compat facade keeps ProseMirror's `null`s and converts them at the boundary.
 
 ### Typing
 
@@ -180,7 +185,7 @@ yield * editor.mount(place) // EditorView.make: needs Scope | R
 
 `compat/model`, `compat/transform`, `compat/state`, `compat/view`, `compat/keymap` and `compat/commands` expose the API of the corresponding `prosemirror-*` packages, so that code written against ProseMirror can switch its imports (e.g. with a bundler alias) and run unmodified. `compat/orderedmap`, `compat/schema-basic`, `compat/schema-list` and `compat/test-builder` cover the packages those depend on.
 
-- **Facade objects.** Every ProseMirror class is a thin facade over a core object, stored under a private symbol, and every method delegates to the core (using the `Unsafe`/`OrNull` variants). Facades return `null` instead of `Option` and throw ProseMirror's exceptions (`RangeError`, `ReplaceError`, `TransformError`, `SyntaxError` for content expressions) instead of failing with tagged errors.
+- **Facade objects.** Every ProseMirror class is a thin facade over a core object, stored under a private symbol, and every method delegates to the core (using the `Unsafe` variants). Facades return `null` instead of `Option` and throw ProseMirror's exceptions (`RangeError`, `ReplaceError`, `TransformError`, `SyntaxError` for content expressions) instead of failing with tagged errors.
 - **Identity.** Core objects are wrapped on demand (`compat/internal/core.ts`): a factory is registered per core class and the facade is cached in a `WeakMap`, so the same core object always yields the same facade (`doc.child(0) === doc.child(0)`). Arrays (mark sets, child arrays) are cached too, and unwrap back to the original core array. Each compat module exports `toCore` / `fromCore` to move between the two APIs.
 - **Specs.** `new Schema(spec)` keeps ProseMirror's `OrderedMap` specs in `schema.spec`, and builds the core schema from translated specs whose callbacks (`toDOM`, `leafText`, `toDebugString`, parse rules' `getContent`/`clearMark`) receive facades. `NodeType.spec` returns the original spec. Content expressions are plain strings (the core reads them as ProseMirror syntax).
 - **Subclassing.** A subclass of the facade `Step` or `Selection` gets a core object that calls back into it, so custom steps and selections work in core transforms, the history and the view. Subclasses of built-in steps and selections (`class MyStep extends ReplaceStep`) get an instance of a generated subclass of the core class that calls the facade's overrides; facade methods call the core class's own implementation (`callBase`), so overrides can call `super`. `Step.jsonID` / `Selection.jsonID` register deserializers with the core.

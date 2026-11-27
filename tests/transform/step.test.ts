@@ -23,15 +23,16 @@ import { getSome } from "../utils/option.ts"
 
 const testDoc = doc(p("foobar"))
 
-function mkStep(from: number, to: number, val: string | null): Step<any> {
+// `val` is "+em" or "-em" for a mark step, text to insert, or "" for a deletion.
+function mkStep(from: number, to: number, val: string): Step<any> {
   if (val == "+em") return new AddMarkStep(from, to, schema.markUnsafe("em"))
   else if (val == "-em") return new RemoveMarkStep(from, to, schema.markUnsafe("em"))
   else {
-    return new ReplaceStep(from, to, val == null ? Slice.empty : new Slice(Fragment.from(schema.textUnsafe(val)), 0, 0))
+    return new ReplaceStep(from, to, val == "" ? Slice.empty : new Slice(Fragment.from(schema.textUnsafe(val)), 0, 0))
   }
 }
 
-function yes(from1: number, to1: number, val1: string | null, from2: number, to2: number, val2: string | null) {
+function yes(from1: number, to1: number, val1: string, from2: number, to2: number, val2: string) {
   return () => {
     const step1 = mkStep(from1, to1, val1),
       step2 = mkStep(from2, to2, val2)
@@ -41,7 +42,7 @@ function yes(from1: number, to1: number, val1: string | null, from2: number, to2
   }
 }
 
-function no(from1: number, to1: number, val1: string | null, from2: number, to2: number, val2: string | null) {
+function no(from1: number, to1: number, val1: string, from2: number, to2: number, val2: string) {
   return () => {
     const step1 = mkStep(from1, to1, val1),
       step2 = mkStep(from2, to2, val2)
@@ -59,21 +60,21 @@ describe("Step", () => {
 
     it("doesn't merge inverted separated typing", no(3, 3, "a", 2, 2, "b"))
 
-    it("merges adjacent backspaces", yes(3, 4, null, 2, 3, null))
+    it("merges adjacent backspaces", yes(3, 4, "", 2, 3, ""))
 
-    it("merges adjacent deletes", yes(2, 3, null, 2, 3, null))
+    it("merges adjacent deletes", yes(2, 3, "", 2, 3, ""))
 
-    it("doesn't merge separate backspaces", no(1, 2, null, 2, 3, null))
+    it("doesn't merge separate backspaces", no(1, 2, "", 2, 3, ""))
 
-    it("merges backspace and type", yes(2, 3, null, 2, 2, "x"))
+    it("merges backspace and type", yes(2, 3, "", 2, 2, "x"))
 
     it("merges longer adjacent inserts", yes(2, 2, "quux", 6, 6, "baz"))
 
     it("merges inverted longer inserts", yes(2, 2, "quux", 2, 2, "baz"))
 
-    it("merges longer deletes", yes(2, 5, null, 2, 4, null))
+    it("merges longer deletes", yes(2, 5, "", 2, 4, ""))
 
-    it("merges inverted longer deletes", yes(4, 6, null, 2, 4, null))
+    it("merges inverted longer deletes", yes(4, 6, "", 2, 4, ""))
 
     it("merges overwrites", yes(3, 4, "x", 4, 5, "y"))
 
@@ -95,7 +96,7 @@ describe("Step", () => {
       Effect.gen(function* () {
         const result = yield* mkStep(1, 1, "x").applyEffect(testDoc)
         ist(result, doc(p("xfoobar")), eq)
-        const err = yield* Effect.flip(mkStep(1, 100, null).applyEffect(testDoc))
+        const err = yield* Effect.flip(mkStep(1, 100, "").applyEffect(testDoc))
         assert.strictEqual(err._tag, "StepError")
       })
     )

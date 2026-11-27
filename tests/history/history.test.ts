@@ -26,7 +26,11 @@ const plugin = history()
 function mkState(doc?: Node<any>, config?: any): State {
   const plugins: Array<Plugin<any, any, any>> = [config ? history(config) : plugin]
   if (config && config.preserveItems) plugins.push(new Plugin({ historyPreserveItems: true }))
-  return EditorState.createUnsafe({ schema, plugins: plugins.concat((config && config.plugins) || []), doc })
+  return EditorState.createUnsafe({
+    schema,
+    plugins: plugins.concat((config && config.plugins) || []),
+    ...(doc && { doc })
+  })
 }
 
 function type(state: State, text: string): State {
@@ -70,9 +74,7 @@ function unsyncedComplex(state: State, doCompress: boolean) {
 const addPlugin = () =>
   new Plugin({
     appendTransaction: (trs, _old, state) => {
-      const add = Option.getOrUndefined(trs[0].getMeta<string>("add"))
-      if (add) return state.tr.insertUnsafe(1, schema.textUnsafe(add))
-      return undefined
+      return Option.map(trs[0].getMeta<string>("add"), (add) => state.tr.insertUnsafe(1, schema.textUnsafe(add)))
     }
   })
 
@@ -343,8 +345,8 @@ describe("history", () => {
       plugins: [
         new Plugin({
           appendTransaction: (_trs, _old, state) => {
-            if (state.doc.content.size == 4) return state.tr.insertUnsafe(1, schema.textUnsafe("A"))
-            return undefined
+            if (state.doc.content.size == 4) return Option.some(state.tr.insertUnsafe(1, schema.textUnsafe("A")))
+            return Option.none()
           }
         })
       ]
@@ -461,7 +463,7 @@ describe("history", () => {
     tr.insertTextUnsafe("R", 1)
     local.forEach((step, i) => {
       const mapped = step.map(tr.mapping.slice(local.length - i))
-      if (Option.isSome(mapped) && tr.maybeStep(mapped.value).failedOrNull === null) {
+      if (Option.isSome(mapped) && Option.isNone(tr.maybeStep(mapped.value).failed)) {
         tr.mapping.setMirror(local.length - 1 - i, tr.steps.length - 1)
       }
     })

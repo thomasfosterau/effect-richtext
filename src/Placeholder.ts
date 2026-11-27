@@ -45,10 +45,10 @@ export interface PlaceholderOptions<Sc extends AnySchema = AnySchema> {
   readonly placeholder: string | ((state: EditorState<Sc, any, any>, node: Node<Sc>, pos: number) => string)
 
   /** Where to show the placeholder. Defaults to `"doc"`. */
-  readonly strategy?: PlaceholderStrategy | undefined
+  readonly strategy?: PlaceholderStrategy
 
   /** The class added to the empty textblock. Defaults to `"is-empty"`. */
-  readonly className?: string | undefined
+  readonly className?: string
 }
 
 const isEmptyTextblock = (node: Node<any>): boolean => node.isTextblock && node.content.size === 0
@@ -91,7 +91,7 @@ export const placeholder = <Sc extends AnySchema = AnySchema>(
     props: {
       decorations(state) {
         const block = findEmptyBlock(state, strategy)
-        if (Option.isNone(block)) return null
+        if (Option.isNone(block)) return DecorationSet.empty
         const found = block.value
         const text = Predicate.isFunction(options.placeholder)
           ? options.placeholder(state, found.node, found.pos)

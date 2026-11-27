@@ -3,6 +3,7 @@
  *
  * @since 0.1.0
  */
+import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import { type AnySchema, Fragment, JSONError, Mark, type Node, Slice } from "../Model.ts"
@@ -203,9 +204,10 @@ export class AddNodeMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> 
   }
 
   apply(doc: Node<Sc>): StepResult<Sc> {
-    const node = doc.nodeAtOrNull(this.pos)
-    if (!node) return StepResult.fail("No node at mark step's position")
-    const updated = node.type.createUnsafe(node.attrs, null, this.mark.addToSet(node.marks))
+    const nodeFound = doc.nodeAt(this.pos)
+    if (Option.isNone(nodeFound)) return StepResult.fail("No node at mark step's position")
+    const node = nodeFound.value
+    const updated = node.type.createUnsafe(node.attrs, undefined, this.mark.addToSet(node.marks))
     return StepResult.fromReplace(
       doc,
       this.pos,
@@ -215,13 +217,17 @@ export class AddNodeMarkStep<Sc extends AnySchema = AnySchema> extends Step<Sc> 
   }
 
   invert(doc: Node<Sc>): Step<Sc> {
-    const node = doc.nodeAtOrNull(this.pos)
-    if (node) {
+    const found = doc.nodeAt(this.pos)
+    if (Option.isSome(found)) {
+      const node = found.value
       const newSet = this.mark.addToSet(node.marks)
       if (newSet.length === node.marks.length) {
         // The mark replaced an excluded one: adding that back undoes this step.
-        const replaced = node.marks.find((mark) => !mark.isInSet(newSet))
-        return new AddNodeMarkStep(this.pos, replaced ?? this.mark)
+        const replaced = Arr.findFirst(node.marks, (mark) => !mark.isInSet(newSet))
+        return new AddNodeMarkStep(
+          this.pos,
+          Option.getOrElse(replaced, () => this.mark)
+        )
       }
     }
     return new RemoveNodeMarkStep(this.pos, this.mark)
@@ -264,9 +270,10 @@ export class RemoveNodeMarkStep<Sc extends AnySchema = AnySchema> extends Step<S
   }
 
   apply(doc: Node<Sc>): StepResult<Sc> {
-    const node = doc.nodeAtOrNull(this.pos)
-    if (!node) return StepResult.fail("No node at mark step's position")
-    const updated = node.type.createUnsafe(node.attrs, null, this.mark.removeFromSet(node.marks))
+    const nodeFound = doc.nodeAt(this.pos)
+    if (Option.isNone(nodeFound)) return StepResult.fail("No node at mark step's position")
+    const node = nodeFound.value
+    const updated = node.type.createUnsafe(node.attrs, undefined, this.mark.removeFromSet(node.marks))
     return StepResult.fromReplace(
       doc,
       this.pos,
@@ -276,8 +283,7 @@ export class RemoveNodeMarkStep<Sc extends AnySchema = AnySchema> extends Step<S
   }
 
   invert(doc: Node<Sc>): Step<Sc> {
-    const node = doc.nodeAtOrNull(this.pos)
-    if (!node || !this.mark.isInSet(node.marks)) return this
+    if (!Option.exists(doc.nodeAt(this.pos), (node) => this.mark.isInSet(node.marks))) return this
     return new AddNodeMarkStep(this.pos, this.mark)
   }
 

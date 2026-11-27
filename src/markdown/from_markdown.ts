@@ -47,7 +47,7 @@ export type TokenHandler<Sc extends AnySchema = AnySchema> = (
 
 interface StackEntry {
   readonly type: NodeType<any, any>
-  readonly attrs: Attrs | null
+  readonly attrs?: Attrs
   readonly content: Array<Node<any, any>>
   marks: ReadonlyArray<Mark<any, any>>
 }
@@ -69,7 +69,7 @@ export class MarkdownParseState<Sc extends AnySchema = AnySchema> {
     /** @internal */
     readonly tokenHandlers: { readonly [token: string]: TokenHandler<Sc> }
   ) {
-    this.stack = [{ type: schema.topNodeType, attrs: null, content: [], marks: Mark.none }]
+    this.stack = [{ type: schema.topNodeType, content: [], marks: Mark.none }]
   }
 
   /** @internal */
@@ -121,26 +121,29 @@ export class MarkdownParseState<Sc extends AnySchema = AnySchema> {
   }
 
   /**
-   * Add a node at the current position. Returns `null` (adding nothing)
+   * Add a node at the current position. Returns `None` (adding nothing)
    * when the content doesn't fit the node type.
    */
-  addNode(type: NodeType<Sc, any>, attrs: Attrs | null, content?: ReadonlyArray<Node<Sc, any>>): Node<Sc, any> | null {
+  addNode(
+    type: NodeType<Sc, any>,
+    attrs?: Attrs,
+    content?: ReadonlyArray<Node<Sc, any>>
+  ): Option.Option<Node<Sc, any>> {
     const top = this.top()
-    const node = type.createAndFillOrNull(attrs, content, top ? top.marks : [])
-    if (!node) return null
-    this.push(node)
+    const node = type.createAndFillOption(attrs, content, top ? top.marks : [])
+    if (Option.isSome(node)) this.push(node.value)
     return node
   }
 
   /** Wrap subsequent content in a node of the given type. */
-  openNode(type: NodeType<Sc, any>, attrs: Attrs | null): void {
-    this.stack.push({ type, attrs, content: [], marks: Mark.none })
+  openNode(type: NodeType<Sc, any>, attrs?: Attrs): void {
+    this.stack.push(attrs ? { type, attrs, content: [], marks: Mark.none } : { type, content: [], marks: Mark.none })
   }
 
   /** Close and return the node that is currently on top of the stack. */
-  closeNode(): Node<Sc, any> | null {
+  closeNode(): Option.Option<Node<Sc, any>> {
     const info = this.stack.pop()
-    if (!info) return null
+    if (!info) return Option.none()
     return this.addNode(info.type, info.attrs, info.content)
   }
 }
@@ -157,7 +160,7 @@ export interface ParseSpec<Sc extends AnySchema = AnySchema> {
    * schema under the given name. Exactly one of `node`, `block`, or
    * `mark` must be set.
    */
-  readonly node?: NodeNames<Sc> | undefined
+  readonly node?: NodeNames<Sc>
 
   /**
    * This token (unless `noCloseToken` is true) comes in `_open` and
@@ -167,41 +170,43 @@ export interface ParseSpec<Sc extends AnySchema = AnySchema> {
    * property's value. If the token does not have `_open` or `_close`,
    * use the `noCloseToken` option.
    */
-  readonly block?: NodeNames<Sc> | undefined
+  readonly block?: NodeNames<Sc>
 
   /**
    * This token (again, unless `noCloseToken` is true) also comes in
    * `_open` and `_close` variants, but should add a mark (named by the
    * value) to its content, rather than wrapping it in a node.
    */
-  readonly mark?: MarkNames<Sc> | undefined
+  readonly mark?: MarkNames<Sc>
 
   /** Attributes for the node or mark. When `getAttrs` is provided, it takes precedence. */
-  readonly attrs?: Attrs | null | undefined
+  readonly attrs?: Attrs
 
   /**
    * A function used to compute the attributes for the node or mark that
    * takes a markdown-it token and returns an attribute object.
    */
-  readonly getAttrs?: ((token: Token, tokenStream: Array<Token>, index: number) => Attrs | null) | undefined
+  readonly getAttrs?: (token: Token, tokenStream: Array<Token>, index: number) => Attrs
 
   /**
    * Indicates that the markdown-it token has no `_open` or `_close` for
    * the nodes. This defaults to `true` for `code_inline`, `code_block`
    * and `fence`.
    */
-  readonly noCloseToken?: boolean | undefined
+  readonly noCloseToken?: boolean
 
   /** When true, ignore content for the matched token. */
-  readonly ignore?: boolean | undefined
+  readonly ignore?: boolean
 }
 
-function tokenAttrs(spec: ParseSpec<any>, token: Token, tokens: Array<Token>, i: number): Attrs | null {
+const noAttrs: Attrs = Object.freeze(Object.create(null))
+
+function tokenAttrs(spec: ParseSpec<any>, token: Token, tokens: Array<Token>, i: number): Attrs {
   if (spec.getAttrs) return spec.getAttrs(token, tokens, i)
   const specAttrs: unknown = spec.attrs
   // For backwards compatibility when `attrs` is a Function
-  if (Predicate.isFunction(specAttrs)) return specAttrs(token)
-  return spec.attrs ?? null
+  if (Predicate.isFunction(specAttrs)) return specAttrs(token) ?? noAttrs
+  return spec.attrs ?? noAttrs
 }
 
 // Code content is represented as a single token with a `content`
@@ -242,19 +247,20 @@ function makeTokenHandlers<Sc extends AnySchema>(
       const nodeType = schema.nodeType(spec.node) as NodeType<Sc, any>
       handlers[type] = (state, tok, toks, i) => state.addNode(nodeType, tokenAttrs(spec, tok, toks, i))
     } else if (spec.mark) {
-      // SAFETY: the schema may not have a mark type of this name.
+      const markFound = Rec.get(schema.marks, spec.mark)
+      if (Option.isNone(markFound)) throw new MarkdownError({ message: "Unknown mark type: " + spec.mark })
+      // SAFETY: a mark type of `schema`, which is `Sc`.
       // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-      const markType = schema.marks[spec.mark] as MarkType<Sc, any> | undefined
-      if (!markType) throw new MarkdownError({ message: "Unknown mark type: " + spec.mark })
+      const markType = markFound.value as MarkType<Sc, any>
       if (noCloseToken(spec, type)) {
         handlers[type] = (state, tok, toks, i) => {
-          state.openMark(markType.createUnsafe(tokenAttrs(spec, tok, toks, i) ?? undefined))
+          state.openMark(markType.createUnsafe(tokenAttrs(spec, tok, toks, i)))
           state.addText(withoutTrailingNewline(tok.content))
           state.closeMark(markType)
         }
       } else {
         handlers[type + "_open"] = (state, tok, toks, i) =>
-          state.openMark(markType.createUnsafe(tokenAttrs(spec, tok, toks, i) ?? undefined))
+          state.openMark(markType.createUnsafe(tokenAttrs(spec, tok, toks, i)))
         handlers[type + "_close"] = (state) => state.closeMark(markType)
       }
     } else if (spec.ignore) {
@@ -338,11 +344,11 @@ export class MarkdownParser<Sc extends AnySchema = AnySchema> {
     let doc = state.closeNode()
     // Close every node still open.
     state.stack.slice().forEach(() => (doc = state.closeNode()))
-    const result = doc || this.schema.topNodeType.createAndFillOrNull()
-    if (!result) throw new MarkdownError({ message: "Can't create an empty document for the schema" })
+    const result = Option.orElse(doc, () => this.schema.topNodeType.createAndFillOption())
+    if (Option.isNone(result)) throw new MarkdownError({ message: "Can't create an empty document for the schema" })
     // SAFETY: built from this parser's schema, `Sc`.
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-    return result as Node<Sc>
+    return result.value as Node<Sc>
   }
 }
 
@@ -352,7 +358,8 @@ const listIsTight = (tokens: ReadonlyArray<Token>, i: number): boolean =>
     (token) => token.hidden
   )
 
-const attrString = (value: string | number | null): string | null => (value == null ? null : String(value))
+// Attribute values are null when absent, as the schema's attributes are.
+const attrString = (value: ReturnType<Token["attrGet"]>) => (value == null ? null : String(value))
 
 /**
  * A parser parsing unextended [CommonMark](http://commonmark.org/),

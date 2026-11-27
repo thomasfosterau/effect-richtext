@@ -1,3 +1,4 @@
+import * as Option from "effect/Option"
 import * as Rec from "effect/Record"
 import * as S from "effect/Schema"
 import type { Attribute } from "./schema.ts"
@@ -37,20 +38,28 @@ type Attrs = { readonly [name: string]: unknown }
 // and otherwise runs the full decoder, to transform or to report the
 // failure.
 const mapAttrs = (defs: { readonly [name: string]: AttrDef }, attrs: Attrs, decode: boolean): Attrs => {
-  let out: Record<string, unknown> | undefined
+  // A copy of `attrs`, made at the first changed value.
+  const out: Record<string, unknown> = {}
+  let copied = false
   // Runs for every node and mark in JSON input and output, so it stays a plain loop.
   // oxlint-disable-next-line effect/imperative-loops
   for (const name in attrs) {
-    const def = defs[name]
-    if (!def?.schema || (def.identityCodec && (!decode || (def.is !== undefined && def.is(attrs[name]))))) continue
-    const value = (decode ? decoder : encoder)(def.schema)(attrs[name])
-    if (value !== attrs[name]) {
-      if (!out) out = { ...attrs }
-      out[name] = value
+    const schema = Object.hasOwn(defs, name) ? codecFor(defs[name], attrs[name], decode) : Option.none()
+    if (Option.isNone(schema)) continue
+    const value = (decode ? decoder : encoder)(schema.value)(attrs[name])
+    if (value === attrs[name]) continue
+    if (!copied) {
+      Object.assign(out, attrs)
+      copied = true
     }
+    out[name] = value
   }
-  return out ?? attrs
+  return copied ? out : attrs
 }
+
+// The codec to run on `value`, or none when it can be skipped.
+const codecFor = (def: AttrDef, value: unknown, decode: boolean): Option.Option<S.Codec<any, any>> =>
+  def.identityCodec && (!decode || Option.exists(def.is, (is) => is(value))) ? Option.none() : def.schema
 
 /**
  * Encode attribute values with their schemas, for JSON output. Returns

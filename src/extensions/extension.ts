@@ -208,11 +208,11 @@ export type PluginInput =
  * @category models
  */
 export interface ExtensionSpec {
-  readonly nodes?: NodeSpecs | undefined
-  readonly marks?: MarkSpecs | undefined
-  readonly plugins?: ReadonlyArray<PluginInput> | undefined
-  readonly keymap?: Bindings | undefined
-  readonly commands?: CommandCreators | undefined
+  readonly nodes?: NodeSpecs
+  readonly marks?: MarkSpecs
+  readonly plugins?: ReadonlyArray<PluginInput>
+  readonly keymap?: Bindings
+  readonly commands?: CommandCreators
 }
 
 /**
@@ -243,11 +243,11 @@ export class Extension<out T extends ExtensionTypes = EmptyTypes> {
   /** @internal */
   constructor(
     /** @internal */
-    readonly spec: ExtensionSpec | undefined,
+    readonly spec: Option.Option<ExtensionSpec>,
     /** @internal */
     readonly children: ReadonlyArray<AnyExtension>,
     /** @internal */
-    readonly priority: Priority | undefined
+    readonly priority: Option.Option<Priority>
   ) {}
 }
 
@@ -364,25 +364,25 @@ export const defineExtension = <
   const B extends Bindings = NoKeys,
   const C extends CommandCreators = NoKeys
 >(spec: {
-  readonly nodes?: N | undefined
-  readonly marks?: M | undefined
-  readonly plugins?: P | undefined
-  readonly keymap?: B | undefined
-  readonly commands?: C | undefined
+  readonly nodes?: N
+  readonly marks?: M
+  readonly plugins?: P
+  readonly keymap?: B
+  readonly commands?: C
 }): Extension<SpecTypes<N, M, P, B, C>> => {
   const plugins: Array<PluginInput> = spec.plugins ? [...spec.plugins] : []
   // Keymaps become ordinary plugins (built now, so that invalid key
   // names are reported where they are defined).
   if (spec.keymap) plugins.push(keymap(spec.keymap))
   return new Extension(
-    {
-      nodes: spec.nodes,
-      marks: spec.marks,
+    Option.some({
+      ...(spec.nodes && { nodes: spec.nodes }),
+      ...(spec.marks && { marks: spec.marks }),
       plugins,
-      commands: spec.commands
-    },
+      ...(spec.commands && { commands: spec.commands })
+    }),
     [],
-    undefined
+    Option.none()
   )
 }
 
@@ -398,7 +398,7 @@ export const defineExtension = <
  */
 export const union = <const Exts extends ReadonlyArray<AnyExtension>>(
   ...extensions: Exts
-): Extension<MergeTypes<TypesOf<Exts[number]>>> => new Extension(undefined, extensions, undefined)
+): Extension<MergeTypes<TypesOf<Exts[number]>>> => new Extension(Option.none(), extensions, Option.none())
 
 /**
  * Give an extension (and every part of it that doesn't set its own
@@ -408,7 +408,7 @@ export const union = <const Exts extends ReadonlyArray<AnyExtension>>(
  * @category combinators
  */
 export const withPriority = <T extends ExtensionTypes>(extension: Extension<T>, priority: Priority): Extension<T> =>
-  new Extension(undefined, [extension], priority)
+  new Extension(Option.none(), [extension], Option.some(priority))
 
 /**
  * Define an extension adding a single node spec.
@@ -420,7 +420,7 @@ export const defineNodeSpec = <const Name extends string, const Spec extends Nod
   name: Name,
   spec: Spec
 ): Extension<SpecTypes<{ readonly [K in Name]: Spec }, NoKeys, readonly [], NoKeys, NoKeys>> =>
-  new Extension({ nodes: { [name]: spec } }, [], undefined)
+  new Extension(Option.some({ nodes: { [name]: spec } }), [], Option.none())
 
 /**
  * Define an extension adding a single mark spec.
@@ -432,7 +432,7 @@ export const defineMarkSpec = <const Name extends string, const Spec extends Mar
   name: Name,
   spec: Spec
 ): Extension<SpecTypes<NoKeys, { readonly [K in Name]: Spec }, readonly [], NoKeys, NoKeys>> =>
-  new Extension({ marks: { [name]: spec } }, [], undefined)
+  new Extension(Option.some({ marks: { [name]: spec } }), [], Option.none())
 
 /**
  * Define an extension adding plugins: a plugin, an array of plugins, or
@@ -444,7 +444,7 @@ export const defineMarkSpec = <const Name extends string, const Spec extends Mar
 export const definePlugin = <const P extends PluginInput>(
   plugin: P
 ): Extension<SpecTypes<NoKeys, NoKeys, readonly [P], NoKeys, NoKeys>> =>
-  new Extension({ plugins: [plugin] }, [], undefined)
+  new Extension(Option.some({ plugins: [plugin] }), [], Option.none())
 
 /**
  * Define an extension adding a keymap (see `keymap`). Throws a
@@ -477,7 +477,8 @@ export const defineKeymap = <const B extends Bindings>(
  */
 export const defineCommands = <const C extends CommandCreators>(
   commands: C
-): Extension<SpecTypes<NoKeys, NoKeys, readonly [], NoKeys, C>> => new Extension({ commands }, [], undefined)
+): Extension<SpecTypes<NoKeys, NoKeys, readonly [], NoKeys, C>> =>
+  new Extension(Option.some({ commands }), [], Option.none())
 
 /**
  * The type of an extension that only contributes commands, described
@@ -574,8 +575,8 @@ export const flatten = (extension: AnyExtension): Flattened => {
   const visit = (ext: AnyExtension, inherited: number) => {
     if (seen.has(ext)) return
     seen.add(ext)
-    const priority = ext.priority ?? inherited
-    if (ext.spec) collected.push({ spec: ext.spec, priority })
+    const priority = Option.getOrElse(ext.priority, () => inherited)
+    if (Option.isSome(ext.spec)) collected.push({ spec: ext.spec.value, priority })
     ext.children.forEach((child) => visit(child, priority))
   }
   visit(extension, Priority.default)

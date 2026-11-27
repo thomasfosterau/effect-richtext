@@ -281,8 +281,8 @@ describe("inputRules", () => {
     ist(view.state.doc, doc(p("☺ :nope:")), eq)
   })
 
-  it("tries later rules when a handler returns null", () => {
-    const never = new InputRule(/--$/, () => null)
+  it("tries later rules when a handler returns None", () => {
+    const never = new InputRule(/--$/, () => Option.none())
     const view = editor(doc(p("<a>")), [never, emDash])
     type(view, "--")
     ist(view.state.doc, doc(p("—")), eq)
@@ -290,7 +290,7 @@ describe("inputRules", () => {
 
   it("works with real DOM text input", () => {
     const view = editor(doc(p("foo-<a>")))
-    const text = present(findTextNode(view.dom, "foo-"))
+    const text = getSome(findTextNode(view.dom, "foo-"))
     text.nodeValue = "foo--"
     const sel = present(window.getSelection())
     sel.collapse(text, 5)

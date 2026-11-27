@@ -3,7 +3,7 @@ import * as Option from "effect/Option"
 import type { Fragment } from "./fragment.ts"
 
 /** @internal */
-export function findDiffStart(a: Fragment<any, any>, b: Fragment<any, any>, pos: number): number | null {
+export function findDiffStart(a: Fragment<any, any>, b: Fragment<any, any>, pos: number): Option.Option<number> {
   // Positions are never negative, so -1 means no difference found yet.
   let found = -1
   a.content.some((childA, i) => {
@@ -14,15 +14,15 @@ export function findDiffStart(a: Fragment<any, any>, b: Fragment<any, any>, pos:
       else if (childA.isTextNode() && childB.isTextNode() && childA.text !== childB.text) {
         found = pos + sameTextStart(childA.text, childB.text)
       } else if (childA.content.size || childB.content.size) {
-        found = findDiffStart(childA.content, childB.content, pos + 1) ?? -1
+        found = Option.getOrElse(findDiffStart(childA.content, childB.content, pos + 1), () => -1)
       }
       if (found >= 0) return true
     }
     pos += childA.nodeSize
     return false
   })
-  if (found >= 0) return found
-  return a.childCount === b.childCount ? null : pos
+  if (found >= 0) return Option.some(found)
+  return a.childCount === b.childCount ? Option.none() : Option.some(pos)
 }
 
 /** @internal */
@@ -31,7 +31,7 @@ export function findDiffEnd(
   b: Fragment<any, any>,
   posA: number,
   posB: number
-): { a: number; b: number } | null {
+): Option.Option<{ a: number; b: number }> {
   const shift = b.childCount - a.childCount
   let found = { a: 0, b: 0 }
   // Scans backwards, stopping at the first child pair that differs.
@@ -51,8 +51,8 @@ export function findDiffEnd(
       }
       if (childA.content.size || childB.content.size) {
         const inner = findDiffEnd(childA.content, childB.content, posA - 1, posB - 1)
-        if (inner) {
-          found = inner
+        if (Option.isSome(inner)) {
+          found = inner.value
           return true
         }
       }
@@ -61,8 +61,8 @@ export function findDiffEnd(
     posB -= size
     return false
   })
-  if (Option.isSome(differs)) return found
-  return a.childCount === b.childCount ? null : { a: posA, b: posB }
+  if (Option.isSome(differs)) return Option.some(found)
+  return a.childCount === b.childCount ? Option.none() : Option.some({ a: posA, b: posB })
 }
 
 // The length of the common prefix of two different strings, never

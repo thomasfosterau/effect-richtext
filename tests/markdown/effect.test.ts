@@ -76,10 +76,10 @@ describe("MarkdownSerializer", () => {
     },
     marks: { underline: {} }
   })
-  const note = custom.nodeUnsafe("note", null, [
-    custom.nodeUnsafe("paragraph", null, [custom.textUnsafe("x", [custom.markUnsafe("underline")])])
+  const note = custom.nodeUnsafe("note", undefined, [
+    custom.nodeUnsafe("paragraph", undefined, [custom.textUnsafe("x", [custom.markUnsafe("underline")])])
   ])
-  const d = custom.nodeUnsafe("doc", null, [note])
+  const d = custom.nodeUnsafe("doc", undefined, [note])
 
   it.effect("serializes in an Effect", () =>
     Effect.gen(function* () {

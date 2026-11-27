@@ -29,7 +29,7 @@ const schema = DocSchema.makeUnsafe({
 function docWith(...content: Array<Node<any>>) {
   // SAFETY: the builders' nodes are nodes of `schema`; `nodeUnsafe` checks the content.
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-  return schema.nodeUnsafe("doc", null, content as any)
+  return schema.nodeUnsafe("doc", undefined, content as any)
 }
 
 describe("GapCursor.valid", () => {
@@ -41,14 +41,14 @@ describe("GapCursor.valid", () => {
   })
 
   it("disallows a gap cursor at the start and end of a document when adjacent to a textblock", () => {
-    const doc = docWith(schema.nodeUnsafe("paragraph", null, [schema.textUnsafe("hi")]))
+    const doc = docWith(schema.nodeUnsafe("paragraph", undefined, [schema.textUnsafe("hi")]))
 
     ist(GapCursor.valid(doc.resolveUnsafe(0)), false)
     ist(GapCursor.valid(doc.resolveUnsafe(doc.content.size)), false)
   })
 
   it("allows a gap cursor at the start and end of a block when adjacent to an atom block", () => {
-    const section = schema.nodeUnsafe("section", null, [schema.nodeUnsafe("atom_block")])
+    const section = schema.nodeUnsafe("section", undefined, [schema.nodeUnsafe("atom_block")])
     const doc = docWith(section)
 
     const sectionStart = doc.resolveUnsafe(1)
@@ -194,13 +194,10 @@ describe("gapCursor plugin", () => {
   it("creates gap cursors from DOM selections", () => {
     const view = tempEditor({ doc: doc(hr(), hr()), plugins: [gapCursor()] })
     const $pos = view.state.doc.resolveUnsafe(1)
-    const sel = view.someProp("createSelectionBetween", (f) => f(view, $pos, $pos))
-    ist(sel instanceof GapCursor)
-    const $text = doc(p("foo")).resolveUnsafe(1)
-    ist(
-      view.someProp("createSelectionBetween", (f) => f(view, $text, $text)),
-      undefined
-    )
+    const between = ($a: typeof $pos) =>
+      view.someProp("createSelectionBetween", (f) => Option.getOrUndefined(f(view, $a, $a)))
+    ist(Option.getOrUndefined(between($pos)) instanceof GapCursor)
+    ist(Option.isNone(between(doc(p("foo")).resolveUnsafe(1))))
   })
 
   it("creates an inline context when composition starts at a gap cursor", () => {

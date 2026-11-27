@@ -53,7 +53,7 @@ export interface ParseOptions<Sc extends AnySchema = AnySchema> {
    * or, if available, line break replacements, and `"full"` to
    * preserve whitespace entirely.
    */
-  readonly preserveWhitespace?: boolean | "full" | undefined
+  readonly preserveWhitespace?: boolean | "full"
   /**
    * When given, the parser will, beside parsing the content, record
    * the document positions of the given DOM positions. It will do so
@@ -61,31 +61,31 @@ export interface ParseOptions<Sc extends AnySchema = AnySchema> {
    * document position. DOM positions that are not in the parsed
    * content will not be written to.
    */
-  readonly findPositions?: ReadonlyArray<DOMPosition> | undefined
+  readonly findPositions?: ReadonlyArray<DOMPosition>
   /** The child node index to start parsing from. */
-  readonly from?: number | undefined
+  readonly from?: number
   /** The child node index to stop parsing at. */
-  readonly to?: number | undefined
+  readonly to?: number
   /**
    * By default, the content is parsed into the schema's default top
    * node type. You can pass this option to use the type and attributes
    * from a different node as the top container.
    */
-  readonly topNode?: Node<Sc, any> | undefined
+  readonly topNode?: Node<Sc, any>
   /**
    * Provide the starting content match that content parsed into the
    * top node is matched against.
    */
-  readonly topMatch?: ContentMatch | undefined
+  readonly topMatch?: ContentMatch
   /**
    * A set of additional nodes to count as context when parsing, above
    * the given top node.
    */
-  readonly context?: ResolvedPos<Sc> | undefined
+  readonly context?: ResolvedPos<Sc>
   /** @internal */
-  readonly ruleFromNode?: ((node: globalThis.Node) => Omit<TagParseRule, "tag"> | null | undefined) | undefined
+  readonly ruleFromNode?: (node: globalThis.Node) => Option.Option<Omit<TagParseRule, "tag">>
   /** @internal */
-  readonly topOpen?: boolean | undefined
+  readonly topOpen?: boolean
 }
 
 /**
@@ -102,14 +102,14 @@ export interface GenericParseRule {
    * property is only meaningful in a schema—when directly constructing
    * a parser, the order of the rule array is used.
    */
-  readonly priority?: number | undefined
+  readonly priority?: number
   /**
    * By default, when a rule matches an element or style, no further
    * rules get a chance to match it. By setting this to `false`, you
    * indicate that even when this rule matches, other rules that come
    * after it should also run.
    */
-  readonly consuming?: boolean | undefined
+  readonly consuming?: boolean
   /**
    * When given, restricts this rule to only match when the current
    * context—the parent nodes into which the content is being
@@ -123,28 +123,28 @@ export interface GenericParseRule {
    * different contexts, they can be separated by a pipe (`|`)
    * character, as in `"blockquote/|list_item/"`.
    */
-  readonly context?: string | undefined
+  readonly context?: string
   /** The name of the mark type to wrap the matched content in. */
-  readonly mark?: string | undefined
+  readonly mark?: string
   /**
    * When true, ignore content that matches this rule. Any `<head>`,
    * `<noscript>`, `<script>`, `<object>`, `<style>`, or `<title>` tags
    * encountered are automatically ignored when no rules match them.
    */
-  readonly ignore?: boolean | undefined
+  readonly ignore?: boolean
   /** When true, finding an element that matches this rule will close the current node. */
-  readonly closeParent?: boolean | undefined
+  readonly closeParent?: boolean
   /**
    * When true, ignore the node that matches this rule, but do parse its
    * content. A DOM node instead parses that node's content (the view
    * uses this to skip decoration wrappers).
    */
-  readonly skip?: boolean | globalThis.Node | undefined
+  readonly skip?: boolean | globalThis.Node
   /**
    * Attributes for the node or mark created by this rule. When
    * `getAttrs` is provided, it takes precedence.
    */
-  readonly attrs?: Attrs | undefined
+  readonly attrs?: Attrs
 }
 
 /**
@@ -158,24 +158,25 @@ export interface TagParseRule extends GenericParseRule {
   readonly tag: string
   /**
    * The namespace to match. Nodes are only matched when the namespace
-   * matches or this property is undefined.
+   * matches (`None` matching nodes without one) or this property is
+   * undefined.
    */
-  readonly namespace?: string | null | undefined
+  readonly namespace?: Option.Option<string>
   /**
    * The name of the node type to create when this rule matches. Each
    * rule should have either a `node`, `mark`, or `ignore` property
    * (except when it appears in a node or mark spec, in which case the
    * `node` or `mark` property will be derived from its position).
    */
-  readonly node?: string | undefined
+  readonly node?: string
   /**
    * A function used to compute the attributes for the node or mark
    * created by this rule. Can also be used to describe further
    * conditions the DOM element must match. When it returns `false`,
-   * the rule won't match. When it returns null or undefined, that is
-   * interpreted as an empty/default set of attributes.
+   * the rule won't match. When it returns `true`, the rule matches with
+   * its own `attrs` (or the default attributes).
    */
-  readonly getAttrs?: ((node: HTMLElement) => Attrs | false | null | undefined) | undefined
+  readonly getAttrs?: (node: HTMLElement) => Attrs | boolean
   /**
    * For rules that produce non-leaf nodes, by default the content of
    * the DOM element is parsed as content of the node. If the child
@@ -183,13 +184,13 @@ export interface TagParseRule extends GenericParseRule {
    * that the parser must use to find the actual content element, or a
    * function that returns the actual content element to the parser.
    */
-  readonly contentElement?: string | HTMLElement | ((node: HTMLElement) => HTMLElement) | undefined
+  readonly contentElement?: string | HTMLElement | ((node: HTMLElement) => HTMLElement)
   /**
    * Can be used to override the content of a matched node. When
    * present, instead of parsing the node's child nodes, the result of
    * this function is used.
    */
-  readonly getContent?: ((node: globalThis.Node, schema: AnySchema) => Fragment<any, any>) | undefined
+  readonly getContent?: (node: globalThis.Node, schema: AnySchema) => Fragment<any, any>
   /**
    * Controls whether whitespace should be preserved when parsing the
    * content inside the matched element. `false` means whitespace may
@@ -197,7 +198,7 @@ export interface TagParseRule extends GenericParseRule {
    * newlines normalized to spaces, and `"full"` means that newlines
    * should also be preserved.
    */
-  readonly preserveWhitespace?: boolean | "full" | undefined
+  readonly preserveWhitespace?: boolean | "full"
 }
 
 /**
@@ -220,12 +221,14 @@ export interface StyleParseRule extends GenericParseRule {
   /** Makes `ParseRule` a discriminated union. */
   readonly tag?: undefined
   /** Style rules can remove marks from the set of active marks. */
-  readonly clearMark?: ((mark: Mark<any, any>) => boolean) | undefined
+  readonly clearMark?: (mark: Mark<any, any>) => boolean
   /**
    * A function used to compute the attributes for the node or mark
-   * created by this rule. Called with the style's value.
+   * created by this rule. Called with the style's value. When it
+   * returns `false`, the rule won't match; when it returns `true`, the
+   * rule matches with its own `attrs` (or the default attributes).
    */
-  readonly getAttrs?: ((node: string) => Attrs | false | null | undefined) | undefined
+  readonly getAttrs?: (node: string) => Attrs | boolean
 }
 
 /**
@@ -250,7 +253,7 @@ export interface RuleContext {
   matchesContext(context: string): boolean
 }
 
-type AnyRule = Omit<TagParseRule, "tag"> & { readonly tag?: string | undefined }
+type AnyRule = Omit<TagParseRule, "tag"> & { readonly tag?: string }
 
 function isTagRule(rule: ParseRule): rule is TagParseRule {
   return "tag" in rule && rule.tag != null
@@ -263,16 +266,22 @@ function isStyleRule(rule: ParseRule): rule is StyleParseRule {
 // computed attributes is returned (ProseMirror mutates the rule
 // instead). This maps such copies back to the original rules.
 const ruleOrigin = new WeakMap<ParseRule, ParseRule>()
-// SAFETY: `withAttrs` maps each copy to an original of the same kind.
-// oxlint-disable-next-line typescript/no-unsafe-type-assertion
-const originOf = <R extends ParseRule>(rule: R): R => (ruleOrigin.get(rule) as R | undefined) ?? rule
+const originOf = <R extends ParseRule>(rule: R): R => {
+  const origin = ruleOrigin.get(rule)
+  // SAFETY: `withAttrs` maps each copy to an original of the same kind.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+  return origin ? (origin as R) : rule
+}
 
-function withAttrs<R extends ParseRule>(rule: R, attrs: Attrs | false | null | undefined): R {
-  // SAFETY: a copy of `rule` that differs only in `attrs`.
-  const result = { ...rule, attrs: attrs || undefined } as R
+function withAttrs<R extends ParseRule>(rule: R, attrs: Attrs): R {
+  const result: R = { ...rule, attrs }
   ruleOrigin.set(result, originOf(rule))
   return result
 }
+
+// Applies a matching rule's `getAttrs` result.
+const matchedRule = <R extends ParseRule>(rule: R, result: Attrs | boolean): Option.Option<R> =>
+  result === false ? Option.none() : Option.some(result === true ? rule : withAttrs(rule, result))
 
 /**
  * A DOM parser represents a strategy for parsing DOM content into a
@@ -321,9 +330,10 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
     // Only normalize list elements when lists in the schema can't directly contain themselves
     this.normalizeLists = !tags.some((r) => {
       if (!/^(ul|ol)\b/.test(r.tag) || !r.node) return false
-      // SAFETY: a rule may name a node type the schema doesn't have.
-      const node = schema.nodes[r.node] as NodeType | undefined
-      return !!node && !!node.contentMatch.matchTypeOrNull(node)
+      // A rule may name a node type the schema doesn't have.
+      return Option.exists(Rec.get<string, NodeType>(schema.nodes, r.node), (node) =>
+        Option.isSome(node.contentMatch.matchType(node))
+      )
     })
   }
 
@@ -369,25 +379,22 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
    * the computed attributes.
    */
   matchTag(dom: globalThis.Node, context?: RuleContext, after?: TagParseRule): Option.Option<TagParseRule> {
-    return Option.fromNullishOr(this.matchTagOrNull(dom, context ?? new ParseContext(this, {}, false), after))
+    return this.matchTagIn(dom, context ?? new ParseContext(this, {}, false), after)
   }
 
   /** @internal */
-  matchTagOrNull(dom: globalThis.Node, context: RuleContext, after?: TagParseRule): TagParseRule | null {
+  matchTagIn(dom: globalThis.Node, context: RuleContext, after?: TagParseRule): Option.Option<TagParseRule> {
     const start = after ? this.tags.indexOf(originOf(after)) + 1 : 0
-    const found = Arr.findFirst(this.tags.slice(start), (rule): Option.Option<TagParseRule> => {
+    return Arr.findFirst(this.tags.slice(start), (rule): Option.Option<TagParseRule> => {
       if (
         !matches(dom, rule.tag) ||
-        (rule.namespace !== undefined && dom.namespaceURI != rule.namespace) ||
+        (rule.namespace !== undefined && dom.namespaceURI != Option.getOrNull(rule.namespace)) ||
         (rule.context && !context.matchesContext(rule.context))
       ) {
         return Option.none()
       }
-      if (!rule.getAttrs) return Option.some(rule)
-      const result = rule.getAttrs(dom)
-      return result === false ? Option.none() : Option.some(withAttrs(rule, result))
+      return rule.getAttrs ? matchedRule(rule, rule.getAttrs(dom)) : Option.some(rule)
     })
-    return Option.getOrNull(found)
   }
 
   /**
@@ -400,13 +407,18 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
     context?: RuleContext,
     after?: StyleParseRule
   ): Option.Option<StyleParseRule> {
-    return Option.fromNullishOr(this.matchStyleOrNull(prop, value, context ?? new ParseContext(this, {}, false), after))
+    return this.matchStyleIn(prop, value, context ?? new ParseContext(this, {}, false), after)
   }
 
   /** @internal */
-  matchStyleOrNull(prop: string, value: string, context: RuleContext, after?: StyleParseRule): StyleParseRule | null {
+  matchStyleIn(
+    prop: string,
+    value: string,
+    context: RuleContext,
+    after?: StyleParseRule
+  ): Option.Option<StyleParseRule> {
     const start = after ? this.styles.indexOf(originOf(after)) + 1 : 0
-    const found = Arr.findFirst(this.styles.slice(start), (rule): Option.Option<StyleParseRule> => {
+    return Arr.findFirst(this.styles.slice(start), (rule): Option.Option<StyleParseRule> => {
       const style = rule.style
       if (
         style.indexOf(prop) != 0 ||
@@ -418,11 +430,8 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
       ) {
         return Option.none()
       }
-      if (!rule.getAttrs) return Option.some(rule)
-      const result = rule.getAttrs(value)
-      return result === false ? Option.none() : Option.some(withAttrs(rule, result))
+      return rule.getAttrs ? matchedRule(rule, rule.getAttrs(value)) : Option.some(rule)
     })
-    return Option.getOrNull(found)
   }
 
   /**
@@ -470,12 +479,12 @@ export class DOMParser<Sc extends AnySchema = AnySchema> {
    * schema.
    */
   static fromSchema<Sc extends AnySchema>(schema: Sc): DOMParser<Sc> {
-    return (
-      // SAFETY: only this method writes `domParser`, with a parser for this schema.
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-      (schema.cached.domParser as DOMParser<Sc> | undefined) ||
-      (schema.cached.domParser = new DOMParser(schema, DOMParser.schemaRules(schema)))
-    )
+    // Only this method writes `domParser`, with a parser for this schema.
+    const cached = schema.cached.domParser
+    if (cached instanceof DOMParser) return cached
+    const parser = new DOMParser(schema, DOMParser.schemaRules(schema))
+    schema.cached.domParser = parser
+    return parser
   }
 }
 
@@ -536,71 +545,82 @@ const OPT_PRESERVE_WS = 1,
   OPT_PRESERVE_WS_FULL = 2,
   OPT_OPEN_LEFT = 4
 
-function wsOptionsFor(type: NodeType | null, preserveWhitespace: boolean | "full" | undefined, base: number) {
-  if (preserveWhitespace != null) {
+function wsOptionsFor(type: Option.Option<NodeType>, base: number, preserveWhitespace?: boolean | "full") {
+  if (preserveWhitespace !== undefined) {
     return (preserveWhitespace ? OPT_PRESERVE_WS : 0) | (preserveWhitespace === "full" ? OPT_PRESERVE_WS_FULL : 0)
   }
-  return type && type.whitespace == "pre" ? OPT_PRESERVE_WS | OPT_PRESERVE_WS_FULL : base & ~OPT_OPEN_LEFT
+  return Option.exists(type, (t) => t.whitespace == "pre")
+    ? OPT_PRESERVE_WS | OPT_PRESERVE_WS_FULL
+    : base & ~OPT_OPEN_LEFT
 }
 
 class NodeContext {
-  match: ContentMatch | null
+  match: Option.Option<ContentMatch>
   content: Array<Node> = []
 
   // Marks applied to the node's children
   activeMarks: ReadonlyArray<Mark> = Mark.none
 
   constructor(
-    readonly type: NodeType | null,
-    readonly attrs: Attrs | null,
+    // `None` for the top of an open (slice) parse.
+    readonly type: Option.Option<NodeType>,
+    readonly attrs: Option.Option<Attrs>,
     readonly marks: ReadonlyArray<Mark>,
     readonly solid: boolean,
-    match: ContentMatch | null,
+    match: Option.Option<ContentMatch>,
     public options: number
   ) {
-    this.match = match || (options & OPT_OPEN_LEFT || !type ? null : type.contentMatch)
+    this.match = Option.isSome(match)
+      ? match
+      : options & OPT_OPEN_LEFT
+        ? Option.none()
+        : Option.map(type, (t) => t.contentMatch)
   }
 
-  findWrapping(node: Node): ReadonlyArray<NodeType> | null {
-    if (!this.match) {
-      if (!this.type) return []
-      const fill = this.type.contentMatch.fillBeforeOrNull(Fragment.from(node))
-      const afterFill = fill && this.type.contentMatch.matchFragmentOrNull(fill)
-      if (afterFill) {
+  findWrapping(node: Node): Option.Option<ReadonlyArray<NodeType>> {
+    if (Option.isNone(this.match)) {
+      if (Option.isNone(this.type)) return Option.some([])
+      const start = this.type.value.contentMatch
+      const afterFill = Option.flatMap(start.fillBefore(Fragment.from(node)), (fill) => start.matchFragment(fill))
+      if (Option.isSome(afterFill)) {
         this.match = afterFill
       } else {
-        const start = this.type.contentMatch
-        const wrap = start.findWrappingOrNull(node.type)
-        if (wrap) {
-          this.match = start
-          return wrap
-        } else {
-          return null
-        }
+        const wrap = start.findWrapping(node.type)
+        if (Option.isSome(wrap)) this.match = start.some
+        return wrap
       }
     }
-    return this.match.findWrappingOrNull(node.type)
+    return this.match.value.findWrapping(node.type)
   }
 
   finish(openEnd: boolean): Node | Fragment {
     if (!(this.options & OPT_PRESERVE_WS)) {
       // Strip trailing whitespace
       const last = this.content[this.content.length - 1]
-      let m: RegExpExecArray | null
-      if (last && last.isTextNode() && (m = /[ \t\r\n\f]+$/.exec(last.text))) {
+      const m = last && last.isTextNode() ? /[ \t\r\n\f]+$/.exec(last.text) : undefined
+      if (m && last.isTextNode()) {
         const text = last
         if (text.text.length == m[0].length) this.content.pop()
         else this.content[this.content.length - 1] = text.withText(text.text.slice(0, text.text.length - m[0].length))
       }
     }
     let content: Fragment = Fragment.from(this.content)
-    const endFill = !openEnd && this.match ? this.match.fillBeforeOrNull(Fragment.empty, true) : null
-    if (endFill) content = content.append(endFill)
-    return this.type ? this.type.createUnsafe(this.attrs, content, this.marks) : content
+    if (!openEnd && Option.isSome(this.match)) {
+      const endFill = this.match.value.fillBefore(Fragment.empty, true)
+      if (Option.isSome(endFill)) content = content.append(endFill.value)
+    }
+    return Option.isSome(this.type)
+      ? this.type.value.createUnsafe(Option.getOrUndefined(this.attrs), content, this.marks)
+      : content
+  }
+
+  // Whether a mark of `markType` may apply to a `nodeType` node in this context.
+  allowsMark(markType: MarkType, nodeType: NodeType): boolean {
+    return Option.isSome(this.type) ? this.type.value.allowsMarkType(markType) : markMayApply(markType, nodeType)
   }
 
   inlineContext(node: globalThis.Node): boolean {
-    if (this.type) return this.type.inlineContent
+    if (Option.isSome(this.type)) return this.type.value.inlineContent
     if (this.content.length) return this.content[0].isInline
     return !!node.parentNode && !hasOwn(blockTags, node.parentNode.nodeName.toLowerCase())
   }
@@ -609,7 +629,7 @@ class NodeContext {
 /** @internal */
 class ParseContext implements RuleContext {
   open: number = 0
-  find: ReadonlyArray<DOMPosition> | undefined
+  find: ReadonlyArray<DOMPosition>
   needsBlock: boolean
   nodes: Array<NodeContext>
   localPreserveWS = false
@@ -623,23 +643,30 @@ class ParseContext implements RuleContext {
   ) {
     const topNode = options.topNode
     let topContext: NodeContext
-    const topOptions = wsOptionsFor(null, options.preserveWhitespace, 0) | (isOpen ? OPT_OPEN_LEFT : 0)
+    const topOptions = wsOptionsFor(Option.none(), 0, options.preserveWhitespace) | (isOpen ? OPT_OPEN_LEFT : 0)
     if (topNode) {
       topContext = new NodeContext(
-        topNode.type,
-        topNode.attrs,
+        Option.some(topNode.type),
+        Option.some(topNode.attrs),
         Mark.none,
         true,
-        options.topMatch || topNode.type.contentMatch,
+        Option.some(options.topMatch || topNode.type.contentMatch),
         topOptions
       )
     } else if (isOpen) {
-      topContext = new NodeContext(null, null, Mark.none, true, null, topOptions)
+      topContext = new NodeContext(Option.none(), Option.none(), Mark.none, true, Option.none(), topOptions)
     } else {
-      topContext = new NodeContext(parser.schema.topNodeType, null, Mark.none, true, null, topOptions)
+      topContext = new NodeContext(
+        Option.some(parser.schema.topNodeType),
+        Option.none(),
+        Mark.none,
+        true,
+        Option.none(),
+        topOptions
+      )
     }
     this.nodes = [topContext]
-    this.find = options.findPositions
+    this.find = options.findPositions ?? []
     this.needsBlock = false
   }
 
@@ -661,7 +688,7 @@ class ParseContext implements RuleContext {
     const preserveWS =
       top.options & OPT_PRESERVE_WS_FULL ? "full" : this.localPreserveWS || (top.options & OPT_PRESERVE_WS) > 0
     const schema = this.parser.schema
-    const linebreak = Option.getOrNull(schema.linebreakReplacement)
+    const linebreak = schema.linebreakReplacement
     if (preserveWS === "full" || top.inlineContext(dom) || /[^ \t\r\n\f]/.test(value)) {
       if (!preserveWS) {
         value = value.replace(/[ \t\r\n\f]+/g, " ")
@@ -681,10 +708,14 @@ class ParseContext implements RuleContext {
         }
       } else if (preserveWS === "full") {
         value = value.replace(/\r\n?/g, "\n")
-      } else if (linebreak && /[\r\n]/.test(value) && this.top.findWrapping(linebreak.createUnsafe())) {
+      } else if (
+        Option.isSome(linebreak) &&
+        /[\r\n]/.test(value) &&
+        Option.isSome(this.top.findWrapping(linebreak.value.createUnsafe()))
+      ) {
         const lines = value.split(/\r?\n|\r/)
         lines.forEach((line, i) => {
-          if (i) this.insertNode(linebreak.createUnsafe(), marks, true)
+          if (i) this.insertNode(linebreak.value.createUnsafe(), marks, true)
           if (line) this.insertNode(schema.textUnsafe(line), marks, !/\S/.test(line))
         })
         value = ""
@@ -705,11 +736,12 @@ class ParseContext implements RuleContext {
     let top = this.top
     if (dom.tagName == "PRE" || /pre/.test(dom.style && dom.style.whiteSpace)) this.localPreserveWS = true
     const name = dom.nodeName.toLowerCase()
-    let ruleID: TagParseRule | null | undefined
     if (hasOwn(listTags, name) && this.parser.normalizeLists) normalizeList(dom)
-    const rule: AnyRule | null | undefined =
-      (this.options.ruleFromNode && this.options.ruleFromNode(dom)) ||
-      (ruleID = this.parser.matchTagOrNull(dom, this, matchAfter))
+    const fromNode: Option.Option<AnyRule> = this.options.ruleFromNode ? this.options.ruleFromNode(dom) : Option.none()
+    // The parser's rule, when `ruleFromNode` gave none.
+    const ruleID = Option.isSome(fromNode) ? Option.none() : this.parser.matchTagIn(dom, this, matchAfter)
+    const found: Option.Option<AnyRule> = Option.isSome(fromNode) ? fromNode : ruleID
+    const rule = Option.getOrUndefined(found)
     out: if (rule ? rule.ignore : hasOwn(ignoreTags, name)) {
       this.findInside(dom)
       this.ignoreFallback(dom, marks)
@@ -724,19 +756,24 @@ class ParseContext implements RuleContext {
           top = this.top
         }
         sync = true
-        if (!top.type) this.needsBlock = true
+        if (Option.isNone(top.type)) this.needsBlock = true
       } else if (!dom.firstChild) {
         this.leafFallback(dom, marks)
         break out
       }
-      const innerMarks = rule && rule.skip ? marks : this.readStyles(dom, marks)
-      if (innerMarks) this.addAll(dom, innerMarks)
+      const innerMarks = rule && rule.skip ? Option.some(marks) : this.readStyles(dom, marks)
+      if (Option.isSome(innerMarks)) this.addAll(dom, innerMarks.value)
       if (sync) this.sync(top)
       this.needsBlock = oldNeedsBlock
     } else {
       const innerMarks = this.readStyles(dom, marks)
-      if (innerMarks) {
-        this.addElementByRule(dom, rule, innerMarks, rule.consuming === false ? (ruleID ?? undefined) : undefined)
+      if (Option.isSome(innerMarks)) {
+        this.addElementByRule(
+          dom,
+          rule,
+          innerMarks.value,
+          rule.consuming === false ? Option.getOrUndefined(ruleID) : undefined
+        )
       }
     }
     this.localPreserveWS = outerWS
@@ -745,7 +782,7 @@ class ParseContext implements RuleContext {
   // Called for leaf DOM nodes that would otherwise be ignored
   leafFallback(dom: globalThis.Node, marks: ReadonlyArray<Mark>) {
     const doc = dom.ownerDocument
-    if (doc && dom.nodeName == "BR" && this.top.type && this.top.type.inlineContent) {
+    if (doc && dom.nodeName == "BR" && Option.exists(this.top.type, (type) => type.inlineContent)) {
       this.addTextNode(doc.createTextNode("\n"), marks)
     }
   }
@@ -753,15 +790,15 @@ class ParseContext implements RuleContext {
   // Called for ignored nodes
   ignoreFallback(dom: globalThis.Node, marks: ReadonlyArray<Mark>) {
     // Ignored BR nodes should at least create an inline context
-    if (dom.nodeName == "BR" && (!this.top.type || !this.top.type.inlineContent)) {
+    if (dom.nodeName == "BR" && !Option.exists(this.top.type, (type) => type.inlineContent)) {
       this.findPlace(this.parser.schema.textUnsafe("-"), marks, true)
     }
   }
 
   // Run any style parser associated with the node's styles. Either
-  // return an updated array of marks, or null to indicate some of the
+  // return an updated array of marks, or `None` to indicate some of the
   // styles had a rule with `ignore` set.
-  readStyles(dom: HTMLElement, marks: ReadonlyArray<Mark>): ReadonlyArray<Mark> | null {
+  readStyles(dom: HTMLElement, marks: ReadonlyArray<Mark>): Option.Option<ReadonlyArray<Mark>> {
     const styles = dom.style
     // Because many properties will only show up in 'normalized' form
     // in `style.item` (i.e. text-decoration becomes
@@ -776,9 +813,9 @@ class ParseContext implements RuleContext {
         if (Option.isSome(applied)) marks = applied.value
         return Option.isNone(applied)
       })
-      if (ignored) return null
+      if (ignored) return Option.none()
     }
-    return marks
+    return Option.some(marks)
   }
 
   // Apply the rules matching a style, in order, until one consumes it.
@@ -789,8 +826,9 @@ class ParseContext implements RuleContext {
     marks: ReadonlyArray<Mark>,
     after?: StyleParseRule
   ): Option.Option<ReadonlyArray<Mark>> {
-    const rule = this.parser.matchStyleOrNull(name, value, this, after)
-    if (!rule) return Option.some(marks)
+    const found = this.parser.matchStyleIn(name, value, this, after)
+    if (Option.isNone(found)) return Option.some(marks)
+    const rule = found.value
     if (rule.ignore) return Option.none()
     const clearMark = rule.clearMark
     const next = clearMark
@@ -803,17 +841,16 @@ class ParseContext implements RuleContext {
   // false. Otherwise, apply it, use its return value to drive the way
   // the node's content is wrapped, and return true.
   addElementByRule(dom: HTMLElement, rule: AnyRule, marks: ReadonlyArray<Mark>, continueAfter?: TagParseRule) {
-    let sync = false,
-      nodeType: NodeType | undefined
-    if (rule.node) {
-      nodeType = this.parser.schema.nodeType(rule.node)
-      if (!nodeType.isLeaf) {
-        const inner = this.enter(nodeType, rule.attrs || null, marks, rule.preserveWhitespace)
-        if (inner) {
+    let sync = false
+    const nodeType = rule.node ? Option.some(this.parser.schema.nodeType(rule.node)) : Option.none()
+    if (Option.isSome(nodeType)) {
+      if (!nodeType.value.isLeaf) {
+        const inner = this.enter(nodeType.value, Option.fromUndefinedOr(rule.attrs), marks, rule.preserveWhitespace)
+        if (Option.isSome(inner)) {
           sync = true
-          marks = inner
+          marks = inner.value
         }
-      } else if (!this.insertNode(nodeType.createUnsafe(rule.attrs), marks, dom.nodeName == "BR")) {
+      } else if (!this.insertNode(nodeType.value.createUnsafe(rule.attrs), marks, dom.nodeName == "BR")) {
         this.leafFallback(dom, marks)
       }
     } else {
@@ -821,7 +858,7 @@ class ParseContext implements RuleContext {
     }
     const startIn = this.top
 
-    if (nodeType && nodeType.isLeaf) {
+    if (Option.exists(nodeType, (type) => type.isLeaf)) {
       this.findInside(dom)
     } else if (continueAfter) {
       this.addElement(dom, marks, continueAfter)
@@ -846,7 +883,7 @@ class ParseContext implements RuleContext {
   // synchronize after every block element.
   addAll(parent: globalThis.Node, marks: ReadonlyArray<Mark>, startIndex?: number, endIndex?: number) {
     const start = startIndex || 0
-    const children = Array.from(parent.childNodes).slice(start, endIndex == null ? undefined : endIndex)
+    const children = Array.from(parent.childNodes).slice(start, endIndex)
     children.forEach((dom, i) => {
       this.findAtPoint(parent, start + i)
       this.addDOM(dom, marks)
@@ -857,18 +894,18 @@ class ParseContext implements RuleContext {
   // Try to find a way to fit the given node type into the current
   // context. May add intermediate wrappers and/or leave non-solid
   // nodes that we're in.
-  findPlace(node: Node, marks: ReadonlyArray<Mark>, cautious: boolean): ReadonlyArray<Mark> | null {
-    let route: ReadonlyArray<NodeType> | undefined, sync: NodeContext | undefined
+  findPlace(node: Node, marks: ReadonlyArray<Mark>, cautious: boolean): Option.Option<ReadonlyArray<Mark>> {
+    // The shortest route found so far, and the context it starts from.
+    let best = Option.none<{ readonly route: ReadonlyArray<NodeType>; readonly sync: NodeContext }>()
     let penalty = 0
     // Walk out from the innermost open node, stopping at a direct fit, or
     // at a solid node when cautious.
     Arr.findLastIndex(this.nodes, (cx, depth) => {
       if (depth > this.open) return false
       const found = cx.findWrapping(node)
-      if (found && (!route || route.length > found.length + penalty)) {
-        route = found
-        sync = cx
-        if (!found.length) return true
+      if (Option.isSome(found) && (Option.isNone(best) || best.value.route.length > found.value.length + penalty)) {
+        best = Option.some({ route: found.value, sync: cx })
+        if (!found.value.length) return true
       }
       if (cx.solid) {
         if (cautious) return true
@@ -876,29 +913,27 @@ class ParseContext implements RuleContext {
       }
       return false
     })
-    if (!route || !sync) return null
-    this.sync(sync)
-    return route.reduce((inner, type) => this.enterInner(type, null, inner, false), marks)
+    if (Option.isNone(best)) return Option.none()
+    this.sync(best.value.sync)
+    return Option.some(
+      best.value.route.reduce((inner, type) => this.enterInner(type, Option.none(), inner, false), marks)
+    )
   }
 
   // Try to insert the given node, adjusting the context when needed.
   insertNode(node: Node, marks: ReadonlyArray<Mark>, cautious: boolean): boolean {
-    if (node.isInline && this.needsBlock && !this.top.type) {
+    if (node.isInline && this.needsBlock && Option.isNone(this.top.type)) {
       const block = this.textblockFromContext()
-      if (block) marks = this.enterInner(block, null, marks)
+      if (Option.isSome(block)) marks = this.enterInner(block.value, Option.none(), marks)
     }
     const innerMarks = this.findPlace(node, marks, cautious)
-    if (innerMarks) {
+    if (Option.isSome(innerMarks)) {
       this.closeExtra()
       const top = this.top
-      if (top.match) top.match = top.match.matchTypeOrNull(node.type)
-      const nodeMarks = innerMarks
+      if (Option.isSome(top.match)) top.match = top.match.value.matchType(node.type)
+      const nodeMarks = innerMarks.value
         .concat(node.marks)
-        .reduce<ReadonlyArray<Mark>>(
-          (set, m) =>
-            (top.type ? top.type.allowsMarkType(m.type) : markMayApply(m.type, node.type)) ? m.addToSet(set) : set,
-          Mark.none
-        )
+        .reduce<ReadonlyArray<Mark>>((set, m) => (top.allowsMark(m.type, node.type) ? m.addToSet(set) : set), Mark.none)
       top.content.push(node.mark(nodeMarks))
       return true
     }
@@ -909,37 +944,37 @@ class ParseContext implements RuleContext {
   // necessary.
   enter(
     type: NodeType,
-    attrs: Attrs | null,
+    attrs: Option.Option<Attrs>,
     marks: ReadonlyArray<Mark>,
     preserveWS?: boolean | "full"
-  ): ReadonlyArray<Mark> | null {
-    let innerMarks = this.findPlace(type.createUnsafe(attrs), marks, false)
-    if (innerMarks) innerMarks = this.enterInner(type, attrs, marks, true, preserveWS)
-    return innerMarks
+  ): Option.Option<ReadonlyArray<Mark>> {
+    return Option.map(this.findPlace(type.createUnsafe(Option.getOrUndefined(attrs)), marks, false), () =>
+      this.enterInner(type, attrs, marks, true, preserveWS)
+    )
   }
 
   // Open a node of the given type
   enterInner(
     type: NodeType,
-    attrs: Attrs | null,
+    attrs: Option.Option<Attrs>,
     marks: ReadonlyArray<Mark>,
     solid: boolean = false,
     preserveWS?: boolean | "full"
   ): ReadonlyArray<Mark> {
     this.closeExtra()
     const top = this.top
-    top.match = top.match && top.match.matchTypeOrNull(type)
-    let options = wsOptionsFor(type, preserveWS, top.options)
+    if (Option.isSome(top.match)) top.match = top.match.value.matchType(type)
+    let options = wsOptionsFor(Option.some(type), top.options, preserveWS)
     if (top.options & OPT_OPEN_LEFT && Arr.isReadonlyArrayEmpty(top.content)) options |= OPT_OPEN_LEFT
     let applyMarks: ReadonlyArray<Mark> = Mark.none
     marks = marks.filter((m) => {
-      if (top.type ? top.type.allowsMarkType(m.type) : markMayApply(m.type, type)) {
+      if (top.allowsMark(m.type, type)) {
         applyMarks = m.addToSet(applyMarks)
         return false
       }
       return true
     })
-    this.nodes.push(new NodeContext(type, attrs, applyMarks, solid, null, options))
+    this.nodes.push(new NodeContext(Option.some(type), attrs, applyMarks, solid, Option.none(), options))
     this.open++
     return marks
   }
@@ -986,20 +1021,20 @@ class ParseContext implements RuleContext {
   }
 
   findAtPoint(parent: globalThis.Node, offset: number) {
-    this.find?.forEach((found) => {
+    this.find.forEach((found) => {
       if (found.node == parent && found.offset == offset) found.pos = this.currentPos
     })
   }
 
   findInside(parent: globalThis.Node) {
-    this.find?.forEach((found) => {
+    this.find.forEach((found) => {
       if (found.pos == null && parent.nodeType == 1 && parent.contains(found.node)) found.pos = this.currentPos
     })
   }
 
   findAround(parent: globalThis.Node, content: globalThis.Node, before: boolean) {
     if (parent == content) return
-    this.find?.forEach((found) => {
+    this.find.forEach((found) => {
       if (found.pos == null && parent.nodeType == 1 && parent.contains(found.node)) {
         const pos = content.compareDocumentPosition(found.node)
         if (pos & (before ? 2 : 4)) found.pos = this.currentPos
@@ -1008,7 +1043,7 @@ class ParseContext implements RuleContext {
   }
 
   findInText(textNode: Text) {
-    this.find?.forEach((found) => {
+    this.find.forEach((found) => {
       if (found.node == textNode) found.pos = this.currentPos - (textNode.data.length - found.offset)
     })
   }
@@ -1019,20 +1054,20 @@ class ParseContext implements RuleContext {
 
     const parts = context.split("/")
     const option = this.options.context
-    const useRoot = !this.isOpen && (!option || option.parent.type == this.nodes[0].type)
+    const useRoot = !this.isOpen && (!option || Option.contains(this.nodes[0].type, option.parent.type))
     const minDepth = -(option ? option.depth + 1 : 0) + (useRoot ? 0 : 1)
     // Whether parts `0..i` match the context at `depth` and above it.
     const match = (i: number, depth: number): boolean => {
       if (i < 0) return true
       const part = parts[i]
       if (part == "") return i == parts.length - 1 || i == 0 ? match(i - 1, depth) : matchAtOrAbove(i - 1, depth)
-      const next =
+      const next: Option.Option<NodeType> =
         depth > 0 || (depth == 0 && useRoot)
           ? this.nodes[depth].type
           : option && depth >= minDepth
-            ? option.node(depth - minDepth).type
-            : null
-      if (!next || (next.name != part && !next.isInGroup(part))) return false
+            ? Option.some(option.node(depth - minDepth).type)
+            : Option.none()
+      if (!Option.exists(next, (type) => type.name == part || type.isInGroup(part))) return false
       return match(i - 1, depth - 1)
     }
     // A `//` skips any number of levels.
@@ -1041,43 +1076,43 @@ class ParseContext implements RuleContext {
     return match(parts.length - 1, this.open)
   }
 
-  textblockFromContext(): NodeType | undefined {
+  textblockFromContext(): Option.Option<NodeType> {
     const $context = this.options.context
     const inContext = $context
       ? Arr.findFirst(Arr.reverse(Arr.range(0, $context.depth)), (d) =>
-          Option.filter(
-            Option.fromNullishOr($context.node(d).contentMatchAtUnsafe($context.indexAfter(d)).defaultTypeOrNull),
-            isDefaultTextblock
-          )
+          Option.filter($context.node(d).contentMatchAtUnsafe($context.indexAfter(d)).defaultType, isDefaultTextblock)
         )
       : Option.none()
     const all: ReadonlyArray<NodeType> = Rec.values(this.parser.schema.nodes)
-    return Option.getOrUndefined(Option.orElse(inContext, () => Arr.findFirst(all, isDefaultTextblock)))
+    return Option.orElse(inContext, () => Arr.findFirst(all, isDefaultTextblock))
   }
 }
 
 // A textblock that can be created without attributes.
-const isDefaultTextblock = (type: NodeType): boolean => type.isTextblock && type.defaultAttrs !== null
+const isDefaultTextblock = (type: NodeType): boolean => type.isTextblock && Option.isSome(type.defaultAttrs)
 
-function markTypeFor(schema: AnySchema, name: string | undefined): MarkType {
-  const type = name === undefined ? undefined : schema.marks[name]
-  if (!type) throw new SchemaDefinitionError({ message: `Parse rule refers to unknown mark type ${String(name)}` })
-  return type
+function markTypeFor(schema: AnySchema, name?: string): MarkType {
+  const type = name === undefined ? Option.none() : Rec.get<string, MarkType>(schema.marks, name)
+  if (Option.isNone(type)) {
+    throw new SchemaDefinitionError({ message: `Parse rule refers to unknown mark type ${String(name)}` })
+  }
+  return type.value
 }
 
 // Kludge to work around directly nested list nodes produced by some
 // tools and allowed by browsers to mean that the nested list is
 // actually part of the list item above it.
 function normalizeList(dom: globalThis.Node) {
-  let prevItem: ChildNode | null = null
+  let prevItem = Option.none<ChildNode>()
   Array.from(dom.childNodes).forEach((child) => {
-    const name = child.nodeType == 1 ? child.nodeName.toLowerCase() : null
-    if (name && hasOwn(listTags, name) && prevItem) {
-      prevItem.appendChild(child)
+    if (child.nodeType != 1) return
+    const name = child.nodeName.toLowerCase()
+    if (hasOwn(listTags, name) && Option.isSome(prevItem)) {
+      prevItem.value.appendChild(child)
     } else if (name == "li") {
-      prevItem = child
-    } else if (name) {
-      prevItem = null
+      prevItem = Option.some(child)
+    } else {
+      prevItem = Option.none()
     }
   })
 }

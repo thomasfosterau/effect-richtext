@@ -22,7 +22,7 @@ const nodeTypeOf = (state: EditorState<any, any, any>, type: NodeType<any, any> 
   return Option.getOrThrowWith(nodeType, () => new ContentError({ message: "Unknown node type " + type }))
 }
 
-const attrsMatch = (attrs: Attrs, expected: Attrs | undefined): boolean => {
+const attrsMatch = (attrs: Attrs, expected?: Attrs): boolean => {
   if (!expected) return true
   return Rec.toEntries(expected).every(([name, value]) => attrs[name] === value)
 }
@@ -41,7 +41,7 @@ export const isMarkActive = <Sc extends AnySchema>(
 ): boolean => {
   const markType = markTypeOf(state, type)
   const { empty, $from, ranges } = state.selection
-  if (empty) return markType.findInSet(state.storedMarksOrNull || $from.marks()) !== undefined
+  if (empty) return Option.isSome(markType.isInSet(Option.getOrElse(state.storedMarks, () => $from.marks())))
   return ranges.some((range) => state.doc.rangeHasMark(range.$from.pos, range.$to.pos, markType))
 }
 

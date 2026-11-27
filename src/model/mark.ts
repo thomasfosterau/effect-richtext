@@ -53,27 +53,35 @@ export class Mark<Sc extends AnySchema = AnySchema, out M extends MarkNames<Sc> 
    * one.
    */
   addToSet<Mk extends Mark<any, any>>(set: ReadonlyArray<Mk>): ReadonlyArray<Mk | this> {
-    let copy: Array<Mk | this> | undefined
+    // Filled from the first mark that is dropped or placed before.
+    let copy: Array<Mk | this> = [],
+      copying = false
     let placed = false
+    const startCopy = (i: number) => {
+      if (!copying) {
+        copy = set.slice(0, i)
+        copying = true
+      }
+    }
     // Whether the set already holds this mark, or one that excludes it.
     const unchanged = set.some((other, i) => {
       if (this.eq(other)) return true
       if (this.type.excludes(other.type)) {
-        if (!copy) copy = set.slice(0, i)
+        startCopy(i)
       } else if (other.type.excludes(this.type)) {
         return true
       } else {
         if (!placed && other.type.rank > this.type.rank) {
-          if (!copy) copy = set.slice(0, i)
+          startCopy(i)
           copy.push(this)
           placed = true
         }
-        if (copy) copy.push(other)
+        if (copying) copy.push(other)
       }
       return false
     })
     if (unchanged) return set
-    if (!copy) copy = set.slice()
+    startCopy(set.length)
     if (!placed) copy.push(this)
     return copy
   }
@@ -127,7 +135,7 @@ export class Mark<Sc extends AnySchema = AnySchema, out M extends MarkNames<Sc> 
   }
 
   /** Create a properly sorted mark set from nothing, a single mark, or an unsorted array of marks. */
-  static setFrom<Mk extends Mark<any, any>>(marks?: Mk | ReadonlyArray<Mk> | null): ReadonlyArray<Mk> {
+  static setFrom<Mk extends Mark<any, any>>(marks?: Mk | ReadonlyArray<Mk>): ReadonlyArray<Mk> {
     if (!marks || (Array.isArray(marks) && Arr.isReadonlyArrayEmpty(marks))) {
       // SAFETY: the empty set holds no mark of any other type.
       // oxlint-disable-next-line typescript/no-unsafe-type-assertion

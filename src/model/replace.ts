@@ -5,6 +5,7 @@
  */
 import * as Equal from "effect/Equal"
 import * as Hash from "effect/Hash"
+import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import type * as Types from "effect/Types"
 import { JSONError, PositionError, ReplaceError } from "./errors.ts"
@@ -60,9 +61,11 @@ export class Slice<Sc extends AnySchema = AnySchema> implements Equal.Equal {
   }
 
   /** @internal */
-  insertAt(pos: number, fragment: Fragment<Sc>): Slice<Sc> | null {
-    const content = insertInto(this.content, pos + this.openStart, fragment, this.openStart + 1, this.openEnd + 1)
-    return content && new Slice(content, this.openStart, this.openEnd)
+  insertAt(pos: number, fragment: Fragment<Sc>): Option.Option<Slice<Sc>> {
+    return Option.map(
+      insertInto(this.content, pos + this.openStart, fragment, this.openStart + 1, this.openEnd + 1, Option.none()),
+      (content) => new Slice(content, this.openStart, this.openEnd)
+    )
   }
 
   /** @internal */
@@ -95,8 +98,8 @@ export class Slice<Sc extends AnySchema = AnySchema> implements Equal.Equal {
   }
 
   /** Convert a slice to a JSON-serializable representation. */
-  toJSON(): SliceJSON | null {
-    if (!this.content.size) return null
+  toJSON(): SliceJSON {
+    if (!this.content.size) return { content: [] }
     const json: Types.Mutable<SliceJSON> = {
       content: this.content.content.map((n) => n.toJSON())
     }
@@ -159,15 +162,17 @@ function insertInto<Sc extends AnySchema>(
   insert: Fragment<Sc>,
   openStart: number,
   openEnd: number,
-  parent?: Node<Sc> | null
-): Fragment<Sc> | null {
+  parent: Option.Option<Node<Sc>>
+): Option.Option<Fragment<Sc>> {
   const { index, offset } = content.findIndex(dist)
   const child = content.content[index]
   if (offset === dist || child.isText) {
     // Open nodes are closed later, so only check content constraints in
     // closed ones (prosemirror-model 1.25.5).
-    if (parent && openStart <= 0 && openEnd <= 0 && !parent.canReplace(index, index, insert)) return null
-    return content.cut(0, dist).append(insert).append(content.cut(dist))
+    if (Option.isSome(parent) && openStart <= 0 && openEnd <= 0 && !parent.value.canReplace(index, index, insert)) {
+      return Option.none()
+    }
+    return Option.some(content.cut(0, dist).append(insert).append(content.cut(dist)))
   }
   const inner = insertInto(
     child.content,
@@ -175,9 +180,9 @@ function insertInto<Sc extends AnySchema>(
     insert,
     index === 0 ? openStart - 1 : 0,
     index === content.childCount - 1 ? openEnd - 1 : 0,
-    child
+    Option.some(child)
   )
-  return inner && content.replaceChild(index, child.copy(inner))
+  return Option.map(inner, (fragment) => content.replaceChild(index, child.copy(fragment)))
 }
 
 /** @internal */
@@ -242,29 +247,30 @@ function addNode<Sc extends AnySchema>(child: Node<Sc>, target: Array<Node<Sc>>)
 }
 
 function addRange<Sc extends AnySchema>(
-  $start: ResolvedPos<Sc> | null,
-  $end: ResolvedPos<Sc> | null,
+  $start: Option.Option<ResolvedPos<Sc>>,
+  $end: Option.Option<ResolvedPos<Sc>>,
   depth: number,
   target: Array<Node<Sc>>
 ) {
-  const anchor = $end || $start
-  if (!anchor) return
-  const node = anchor.node(depth)
+  const anchor = Option.orElse($end, () => $start)
+  if (Option.isNone(anchor)) return
+  const node = anchor.value.node(depth)
   let startIndex = 0
-  const endIndex = $end ? $end.index(depth) : node.childCount
-  if ($start) {
-    startIndex = $start.index(depth)
-    if ($start.depth > depth) {
+  const endIndex = Option.isSome($end) ? $end.value.index(depth) : node.childCount
+  if (Option.isSome($start)) {
+    const start = $start.value
+    startIndex = start.index(depth)
+    if (start.depth > depth) {
       startIndex++
-    } else if ($start.textOffset) {
-      const text = $start.nodeAfterOrNull
-      if (text) addNode(text, target)
+    } else if (start.textOffset) {
+      Option.map(start.nodeAfter, (text) => addNode(text, target))
       startIndex++
     }
   }
   node.content.content.slice(startIndex, endIndex).forEach((child) => addNode(child, target))
-  const textBefore = $end && $end.depth === depth && $end.textOffset ? $end.nodeBeforeOrNull : null
-  if (textBefore) addNode(textBefore, target)
+  if (Option.isSome($end) && $end.value.depth === depth && $end.value.textOffset) {
+    Option.map($end.value.nodeBefore, (text) => addNode(text, target))
+  }
 }
 
 function close<Sc extends AnySchema>(node: Node<Sc>, content: Fragment<Sc>): Node<Sc> {
@@ -289,16 +295,16 @@ function replaceThreeWay<Sc extends AnySchema>(
   const openEnd = $to.depth > depth && joinable($end, $to, depth + 1)
 
   const content: Array<Node<Sc>> = []
-  addRange(null, $from, depth, content)
+  addRange(Option.none(), Option.some($from), depth, content)
   if (openStart && openEnd && $start.index(depth) === $end.index(depth)) {
     checkJoin(openStart, openEnd)
     addNode(close(openStart, replaceThreeWay($from, $start, $end, $to, depth + 1)), content)
   } else {
     if (openStart) addNode(close(openStart, replaceTwoWay($from, $start, depth + 1)), content)
-    addRange($start, $end, depth, content)
+    addRange(Option.some($start), Option.some($end), depth, content)
     if (openEnd) addNode(close(openEnd, replaceTwoWay($end, $to, depth + 1)), content)
   }
-  addRange($to, null, depth, content)
+  addRange(Option.some($to), Option.none(), depth, content)
   return new Fragment(content)
 }
 
@@ -308,12 +314,13 @@ function replaceTwoWay<Sc extends AnySchema>(
   depth: number
 ): Fragment<Sc> {
   const content: Array<Node<Sc>> = []
-  addRange(null, $from, depth, content)
+  addRange(Option.none(), Option.some($from), depth, content)
   if ($from.depth > depth) {
     const type = joinable($from, $to, depth + 1)
     addNode(close(type, replaceTwoWay($from, $to, depth + 1)), content)
   }
-  addRange($to, null, depth, content)
+  addRange(Option.some($to), Option.none(), depth, content)
+
   return new Fragment(content)
 }
 

@@ -1,6 +1,5 @@
 // Ported from prosemirror-view/test/webtest-draw-decoration.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
-import { constUndefined } from "effect/Function"
 import * as Arr from "effect/Array"
 import * as Option from "effect/Option"
 import * as Order from "effect/Order"
@@ -11,6 +10,7 @@ import { blockquote, doc, em, h1, hr, img, p, schema, strong } from "@thomasfost
 import type { EditorView } from "@thomasfosterau/effect-richtext/View"
 import { Decoration, DecorationSet, type DecorationSource } from "@thomasfosterau/effect-richtext/View"
 import ist from "../utils/ist.ts"
+import { getSome } from "../utils/option.ts"
 import { instanceOf, present } from "../utils/present.ts"
 import { tempEditor } from "./helpers.ts"
 
@@ -43,13 +43,13 @@ function decoPlugin(decos: readonly (string | Decoration)[]) {
     },
     props: {
       decorations(this: Plugin, state) {
-        return Option.getOrNull(this.getState(state))
+        return Option.getOrElse(this.getState(state), () => DecorationSet.empty)
       }
     }
   })
 }
 
-function updateDeco(view: EditorView, add: readonly Decoration[] | null, remove?: readonly Decoration[]) {
+function updateDeco(view: EditorView, add: readonly Decoration[], remove?: readonly Decoration[]) {
   view.dispatchUnsafe(view.state.tr.setMeta("updateDecorations", { add, remove }))
 }
 
@@ -254,7 +254,7 @@ describe("Decoration drawing", () => {
   it("can remove a widget on a node boundary", () => {
     const dec = make("4-widget")
     const view = tempEditor({ doc: doc(p("foo", em("bar"))), plugins: [decoPlugin([dec])] })
-    updateDeco(view, null, [dec])
+    updateDeco(view, [], [dec])
     ist(view.dom.querySelector("button"), null)
   })
 
@@ -262,7 +262,7 @@ describe("Decoration drawing", () => {
     const dec = make("1-4-foo")
     const view = tempEditor({ doc: doc(p("abc")), plugins: [decoPlugin([dec])] })
     ist(view.dom.querySelector(".foo"))
-    updateDeco(view, null, [dec])
+    updateDeco(view, [], [dec])
     ist(view.dom.querySelector(".foo"), null)
   })
 
@@ -270,7 +270,7 @@ describe("Decoration drawing", () => {
     const dec = make("2-4-foo")
     const view = tempEditor({ doc: doc(p("abcd")), plugins: [decoPlugin([dec])] })
     ist(view.dom.querySelector(".foo"))
-    updateDeco(view, null, [dec])
+    updateDeco(view, [], [dec])
     ist(view.dom.querySelector(".foo"), null)
     ist(instanceOf(HTMLElement, view.dom.firstChild).innerHTML, "abcd")
   })
@@ -324,7 +324,7 @@ describe("Decoration drawing", () => {
   it("drops removed node decorations from the view", () => {
     const deco = Decoration.node(1, 6, { class: "cls" })
     const view = tempEditor({ doc: doc(blockquote(p("foo"), p("bar"))), plugins: [decoPlugin([deco])] })
-    updateDeco(view, null, [deco])
+    updateDeco(view, [], [deco])
     ist(!view.dom.querySelector(".cls"))
   })
 
@@ -342,7 +342,7 @@ describe("Decoration drawing", () => {
     const deco = Decoration.node(0, 5, { style: "--my-custom-property:36px" })
     const view = tempEditor({ doc: doc(p("foo")), plugins: [decoPlugin([deco])] })
     ist(present(view.dom.querySelector("p")).style.getPropertyValue("--my-custom-property"), "36px")
-    updateDeco(view, null, [deco])
+    updateDeco(view, [], [deco])
     ist(present(view.dom.querySelector("p")).style.getPropertyValue("--my-custom-property"), "")
   })
 
@@ -371,7 +371,7 @@ describe("Decoration drawing", () => {
       instanceOf(HTMLElement, present(view.dom.querySelector("img")).previousSibling).style.textDecoration,
       "underline"
     )
-    updateDeco(view, null, [deco])
+    updateDeco(view, [], [deco])
     ist(present(view.dom.querySelector("img")).style.color, "")
     ist(present(view.dom.querySelector("img")).style.textDecoration, "")
   })
@@ -454,20 +454,20 @@ describe("Decoration drawing", () => {
   })
 
   it("supports widgets querying their own position", () => {
-    let get: () => number | undefined = constUndefined
+    let get: () => Option.Option<number> = Option.none
     tempEditor({
       doc: doc(p("hi")),
       decorations(state) {
         return DecorationSet.create(state.doc, [
           Decoration.widget(3, (_view, getPos) => {
-            ist(getPos(), 3)
+            ist(getSome(getPos()), 3)
             get = getPos
             return document.createElement("button")
           })
         ])
       }
     })
-    ist(get(), 3)
+    ist(getSome(get()), 3)
   })
 
   it("doesn't redraw widgets with matching keys", () => {
@@ -499,7 +499,7 @@ describe("Decoration drawing", () => {
       doc: doc(p("abab")),
       decorations(state) {
         return state.selection.from <= 1
-          ? null
+          ? DecorationSet.empty
           : DecorationSet.create(view.state.doc, [
               Decoration.inline(1, 2, { class: "foo" }),
               Decoration.inline(3, 4, { class: "foo" })
@@ -513,9 +513,9 @@ describe("Decoration drawing", () => {
   it("only draws inline decorations on the innermost level", () => {
     const s = thingSchema()
     const view = tempEditor({
-      doc: s.nodeUnsafe("doc", null, [
+      doc: s.nodeUnsafe("doc", undefined, [
         s.textUnsafe("abc"),
-        s.nodeUnsafe("thing", null, [s.textUnsafe("def")]),
+        s.nodeUnsafe("thing", undefined, [s.textUnsafe("def")]),
         s.textUnsafe("ghi")
       ]),
       decorations: (s) => DecorationSet.create(s.doc, [Decoration.inline(1, 10, { class: "dec" })])
@@ -529,7 +529,7 @@ describe("Decoration drawing", () => {
   it("can handle inline decorations ending on inline node boundaries", () => {
     const s = thingSchema()
     const view = tempEditor({
-      doc: s.nodeUnsafe("doc", null, [s.nodeUnsafe("thing", null, s.textUnsafe("abc")), s.textUnsafe("def")]),
+      doc: s.nodeUnsafe("doc", undefined, [s.nodeUnsafe("thing", undefined, s.textUnsafe("abc")), s.textUnsafe("def")]),
       decorations: (s) => DecorationSet.create(s.doc, [Decoration.inline(3, 5, { class: "c" })])
     })
     ist(view.dom.querySelectorAll(".c").length, 1)
@@ -547,7 +547,7 @@ describe("Decoration drawing", () => {
   })
 
   it("can handle combining decorations from parent editors in child editors", () => {
-    let decosFromFirstEditor: DecorationSource | undefined
+    let decosFromFirstEditor: DecorationSource = DecorationSet.empty
     let view = tempEditor({
       doc: doc(p("one two three")),
       plugins: [

@@ -18,8 +18,7 @@ import {
   Slice
 } from "../Model.ts"
 import { type Command, type EditorState, NodeSelection, Selection, type Transaction } from "../State.ts"
-import { canJoin, canSplit, type NodeTypeWithAttrs, ReplaceAroundStep } from "../Transform.ts"
-import { findWrappingOrNull, liftTargetOrNull } from "../transform/structure.ts"
+import { canJoin, canSplit, findWrapping, liftTarget, type NodeTypeWithAttrs, ReplaceAroundStep } from "../Transform.ts"
 
 /**
  * Returns a command function that wraps the selection in a list with
@@ -32,31 +31,31 @@ import { findWrappingOrNull, liftTargetOrNull } from "../transform/structure.ts"
  */
 export const wrapInList = <Sc extends AnySchema, N extends NodeNames<Sc>>(
   listType: NodeType<Sc, N>,
-  attrs: NodeAttrsInput<Sc, N> | null = null
+  attrs?: NodeAttrsInput<Sc, N>
 ): Command<Sc> =>
   syncCommand<Sc>((state, dispatching) => {
     const { $from, $to } = state.selection
-    const range = $from.blockRangeOrNull($to)
-    if (!range) return false
-    const tr = dispatching ? state.tr : null
-    if (!wrapRangeInList(tr, range, listType, attrs)) return false
-    return tr ? tr.scrollIntoView() : true
+    const range = $from.blockRange($to)
+    if (Option.isNone(range)) return false
+    const tr = dispatching ? Option.some(state.tr) : Option.none()
+    if (!wrapRangeInList(tr, range.value, listType, attrs)) return false
+    return Option.isSome(tr) ? tr.value.scrollIntoView() : true
   })
 
 /**
  * Try to wrap the given node range in a list of the given type. Return
- * `true` when this is possible, `false` otherwise. When `tr` is
- * non-null, the wrapping is added to that transaction. When it is
- * `null`, the function only queries whether the wrapping is possible.
+ * `true` when this is possible, `false` otherwise. When `tr` holds a
+ * transaction, the wrapping is added to it. When it is `None`, the
+ * function only queries whether the wrapping is possible.
  *
  * @since 0.1.0
  * @category transforms
  */
 export function wrapRangeInList<Sc extends AnySchema, N extends NodeNames<Sc>>(
-  tr: Transaction<Sc> | null,
+  tr: Option.Option<Transaction<Sc>>,
   range: NodeRange<Sc>,
   listType: NodeType<Sc, N>,
-  attrs: NodeAttrsInput<Sc, N> | null = null
+  attrs?: NodeAttrsInput<Sc, N>
 ): boolean {
   let doJoin = false,
     outerRange = range
@@ -76,9 +75,9 @@ export function wrapRangeInList<Sc extends AnySchema, N extends NodeNames<Sc>>(
     }
     doJoin = true
   }
-  const wrap = findWrappingOrNull(outerRange, listType, attrs, range)
-  if (!wrap) return false
-  if (tr) doWrapInList(tr, range, wrap, doJoin, listType)
+  const wrap = findWrapping(outerRange, listType, attrs, range)
+  if (Option.isNone(wrap)) return false
+  if (Option.isSome(tr)) doWrapInList(tr.value, range, wrap.value, doJoin, listType)
   return true
 }
 
@@ -140,10 +139,7 @@ const isItem = (itemType: ItemTypes<any, any>, type: NodeType<any, any>): boolea
 // child is one of the item types).
 const itemRange = (state: EditorState<any, any, any>, itemType: ItemTypes<any, any>) => {
   const { $from, $to } = state.selection
-  return $from.blockRangeOrNull($to, (node) => {
-    const first = node.content.content[0]
-    return !!first && isItem(itemType, first.type)
-  })
+  return $from.blockRange($to, (node) => Option.exists(node.firstChild, (first) => isItem(itemType, first.type)))
 }
 
 /**
@@ -189,7 +185,7 @@ export const splitListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(
               ? 2
               : 3
         // Add a second list item with an empty default start node
-        wrap = wrap.append(Fragment.from($from.node(-3).type.createAndFillOrNull()))
+        wrap = wrap.append(Fragment.from(Option.getOrUndefined($from.node(-3).type.createAndFillOption())))
         const start = $from.beforeUnsafe($from.depth - (depthBefore - 1))
         const tr = state.tr.replaceUnsafe(start, $from.afterUnsafe(-depthAfter), new Slice(wrap, 4 - depthBefore, 0))
         let cursor = -1
@@ -202,11 +198,14 @@ export const splitListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(
         return tr.scrollIntoView()
       })
     }
-    const nextType = $to.pos === $from.end() ? grandParent.contentMatchAtUnsafe(0).defaultTypeOrNull : null
+    const nextType = $to.pos === $from.end() ? grandParent.contentMatchAtUnsafe(0).defaultType : Option.none()
     const tr = state.tr.deleteUnsafe($from.pos, $to.pos)
-    const types: Array<NodeTypeWithAttrs<any> | null> | undefined = nextType
-      ? [itemAttrs ? { type: grandParent.type, attrs: itemAttrs } : null, { type: nextType }]
-      : undefined
+    const types: ReadonlyArray<Option.Option<NodeTypeWithAttrs<any>>> = Option.isSome(nextType)
+      ? [
+          itemAttrs ? Option.some({ type: grandParent.type, attrs: itemAttrs }) : Option.none(),
+          Option.some({ type: nextType.value })
+        ]
+      : []
     if (!canSplit(tr.doc, $from.pos, 2, types)) return false
     return done(dispatching, () => tr.splitUnsafe($from.pos, 2, types).scrollIntoView())
   })
@@ -222,8 +221,7 @@ export const splitListItemKeepMarks = <Sc extends AnySchema, N extends NodeNames
   itemType: ItemTypes<Sc, N>,
   itemAttrs?: NodeAttrsInput<Sc, N>
 ): Command<Sc> => {
-  const split = splitListItem(itemType, itemAttrs)
-  return (state, dispatch) => split(state, keepMarks(state, dispatch))
+  return keepMarks(splitListItem(itemType, itemAttrs))
 }
 
 /**
@@ -236,9 +234,10 @@ export const splitListItemKeepMarks = <Sc extends AnySchema, N extends NodeNames
 export const liftListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(itemType: ItemTypes<Sc, N>): Command<Sc> =>
   syncCommand<Sc>((state, dispatching): SyncResult<Sc> => {
     const { $from } = state.selection
-    const range = itemRange(state, itemType)
-    if (!range) return false
+    const found = itemRange(state, itemType)
+    if (Option.isNone(found)) return false
     if (!dispatching) return true
+    const range = found.value
     if (isItem(itemType, $from.node(range.depth - 1).type)) {
       // Inside a parent list
       return liftToOuterList(state, range)
@@ -262,18 +261,21 @@ function liftToOuterList<Sc extends AnySchema>(state: EditorState<Sc, any, any>,
         endOfList,
         end,
         endOfList,
-        new Slice(Fragment.from(itemType.createUnsafe(null, range.parent.copy())), 1, 0),
+        new Slice(Fragment.from(itemType.createUnsafe(undefined, range.parent.copy())), 1, 0),
         1,
         true
       )
     )
     range = new NodeRange(tr.doc.resolveUnsafe(range.$from.pos), tr.doc.resolveUnsafe(endOfList), range.depth)
   }
-  const target = liftTargetOrNull(range)
-  if (target == null) return false
-  tr.liftUnsafe(range, target)
+  const target = liftTarget(range)
+  if (Option.isNone(target)) return false
+  tr.liftUnsafe(range, target.value)
   const $after = tr.doc.resolveUnsafe(tr.mapping.map(end, -1) - 1)
-  if (canJoin(tr.doc, $after.pos) && $after.nodeBeforeOrNull?.type === $after.nodeAfterOrNull?.type) {
+  if (
+    canJoin(tr.doc, $after.pos) &&
+    Option.getOrUndefined($after.nodeBefore)?.type === Option.getOrUndefined($after.nodeAfter)?.type
+  ) {
     tr.joinUnsafe($after.pos)
   }
   return tr.scrollIntoView()
@@ -289,8 +291,9 @@ function liftOutOfList<Sc extends AnySchema>(state: EditorState<Sc, any, any>, r
     return pos
   }, range.end)
   const $start = tr.doc.resolveUnsafe(range.start)
-  const item = $start.nodeAfterOrNull
-  if (!item) return false
+  const itemFound = $start.nodeAfter
+  if (Option.isNone(itemFound)) return false
+  const item = itemFound.value
   if (tr.mapping.map(range.end) !== range.start + item.nodeSize) return false
   const atStart = range.startIndex === 0,
     atEnd = range.endIndex === list.childCount
@@ -337,8 +340,9 @@ function liftOutOfList<Sc extends AnySchema>(state: EditorState<Sc, any, any>, r
  */
 export const sinkListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(itemType: ItemTypes<Sc, N>): Command<Sc> =>
   syncCommand<Sc>((state, dispatching) => {
-    const range = itemRange(state, itemType)
-    if (!range) return false
+    const found = itemRange(state, itemType)
+    if (Option.isNone(found)) return false
+    const range = found.value
     const startIndex = range.startIndex
     if (startIndex === 0) return false
     const parent = range.parent,
@@ -346,19 +350,21 @@ export const sinkListItem = <Sc extends AnySchema, N extends NodeNames<Sc>>(item
     if (!isItem(itemType, nodeBefore.type)) return false
 
     return done(dispatching, () => {
-      const lastBefore = nodeBefore.content.content[nodeBefore.childCount - 1]
-      const nestedBefore = !!lastBefore && lastBefore.type === parent.type
-      const nestedItem = nestedBefore ? lastBefore.content.content[lastBefore.childCount - 1] : undefined
-      // SAFETY: the nested item's type is a node type of this schema.
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-      const inner = Fragment.from(nestedItem ? (nestedItem.type as NodeType<any, any>).createUnsafe() : null)
+      const nested = Option.filter(nodeBefore.lastChild, (last) => last.type === parent.type)
+      const nestedBefore = Option.isSome(nested)
+      const nestedItem = Option.flatMap(nested, (list) => list.lastChild)
+      const inner = Fragment.from(
+        // SAFETY: the nested item's type is a node type of this schema.
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+        Option.isSome(nestedItem) ? (nestedItem.value.type as NodeType<any, any>).createUnsafe() : undefined
+      )
       // SAFETY: the item's type is a node type of this schema.
       const slice = new Slice(
         Fragment.from(
           // oxlint-disable-next-line typescript/no-unsafe-type-assertion
           (nodeBefore.type as NodeType<any, any>).createUnsafe(
-            null,
-            Fragment.from(parent.type.createUnsafe(null, inner))
+            undefined,
+            Fragment.from(parent.type.createUnsafe(undefined, inner))
           )
         ),
         nestedBefore ? 3 : 1,

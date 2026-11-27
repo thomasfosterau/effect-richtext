@@ -32,10 +32,10 @@ const schema = DocSchema.makeUnsafe({
 function n(name: string, ...content: Array<Node<any>>) {
   // SAFETY: the builders' nodes are nodes of `schema`; `createUnsafe` checks the content.
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-  return present(schema.nodes[name], "no node type " + name).createUnsafe(null, content as any)
+  return present(schema.nodes[name], "no node type " + name).createUnsafe(undefined, content as any)
 }
 function t(str: string, em = false) {
-  return schema.textUnsafe(str, em ? [schema.markUnsafe("em")] : null)
+  return schema.textUnsafe(str, em ? [schema.markUnsafe("em")] : undefined)
 }
 
 const doc = n(
@@ -76,7 +76,7 @@ function yesInCansplit(pos: number, depth?: number, after?: string) {
         doc,
         pos,
         depth,
-        after == null ? undefined : [{ type: present(schema.nodes[after], "no node type " + after) }]
+        after == null ? undefined : [Option.some({ type: present(schema.nodes[after], "no node type " + after) })]
       )
     )
 }
@@ -88,7 +88,7 @@ function noInCansplit(pos: number, depth?: number, after?: string) {
         doc,
         pos,
         depth,
-        after == null ? undefined : [{ type: present(schema.nodes[after], "no node type " + after) }]
+        after == null ? undefined : [Option.some({ type: present(schema.nodes[after], "no node type " + after) })]
       )
     )
 }
@@ -127,15 +127,15 @@ describe("canSplit", () => {
       !canSplit(
         s.nodeUnsafe(
           "doc",
-          null,
-          s.nodeUnsafe("chapter", null, [
-            s.nodeUnsafe("title", null, s.textUnsafe("title")),
-            s.nodeUnsafe("scene", null, s.nodeUnsafe("para", null, s.textUnsafe("scene")))
+          undefined,
+          s.nodeUnsafe("chapter", undefined, [
+            s.nodeUnsafe("title", undefined, s.textUnsafe("title")),
+            s.nodeUnsafe("scene", undefined, s.nodeUnsafe("para", undefined, s.textUnsafe("scene")))
           ])
         ),
         4,
         1,
-        [{ type: s.nodes.scene }]
+        [Option.some({ type: s.nodes.scene })]
       )
     )
   })
@@ -173,8 +173,10 @@ describe("liftTarget", () => {
         text: { inline: true }
       }
     })
-    const p = s.nodeUnsafe("p", null, [s.textUnsafe("A")])
-    const d = s.nodeUnsafe("doc", null, [s.nodeUnsafe("section", null, [s.nodeUnsafe("heading", null, [p, p, p]), p])])
+    const p = s.nodeUnsafe("p", undefined, [s.textUnsafe("A")])
+    const d = s.nodeUnsafe("doc", undefined, [
+      s.nodeUnsafe("section", undefined, [s.nodeUnsafe("heading", undefined, [p, p, p]), p])
+    ])
     const block = (a: number, b?: number) =>
       getSome(d.resolveUnsafe(a).blockRange(b === undefined ? undefined : d.resolveUnsafe(b)))
     ist(Option.getOrNull(liftTarget(block(3))), null)
@@ -211,13 +213,13 @@ function repl(
   doc: Node<any>,
   from: number,
   to: number,
-  content: Node<any> | null,
+  content: Node<any> | Slice<any>,
   openStart: number,
   openEnd: number,
   result: Node<any>
 ) {
   return () => {
-    const slice = content ? new Slice(content.content, openStart, openEnd) : Slice.empty
+    const slice = content instanceof Slice ? content : new Slice(content.content, openStart, openEnd)
     const tr = new Transform(doc).replaceUnsafe(from, to, slice)
     ist(tr.doc, result, eq)
   }
@@ -296,7 +298,7 @@ describe("Transform", () => {
         n("doc", n("figure", n("caption"), n("figureimage")), n("figure", n("caption"), n("figureimage"))),
         3,
         8,
-        null,
+        Slice.empty,
         0,
         0,
         n("doc", n("figure", n("caption"), n("figureimage")))

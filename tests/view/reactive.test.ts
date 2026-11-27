@@ -24,7 +24,7 @@ import ist from "../utils/ist.ts"
 import { selFor, workspace } from "./helpers.ts"
 
 const stateFor = (d: ReturnType<typeof doc>, plugins?: ReadonlyArray<Plugin<any, any, any>>) =>
-  EditorState.createUnsafe({ doc: d, selection: selFor(d), plugins })
+  EditorState.createUnsafe({ doc: d, selection: selFor(d), ...(plugins && { plugins }) })
 
 const keyDown = (view: EditorView<any, any, any>, key: string, keyCode: number) => {
   const event = new KeyboardEvent("keydown", { key, keyCode, bubbles: true, cancelable: true })
@@ -41,7 +41,9 @@ describe("EditorView.subscribe", () => {
     Effect.gen(function* () {
       const appender = new Plugin({
         appendTransaction: (trs: ReadonlyArray<Transaction>, _old, state: EditorState<AnySchema, any, any>) =>
-          trs.some((tr) => Option.isSome(tr.getMeta("append"))) ? state.tr.insertTextUnsafe("+") : null
+          trs.some((tr) => Option.isSome(tr.getMeta("append")))
+            ? Option.some(state.tr.insertTextUnsafe("+"))
+            : Option.none()
       })
       const view = yield* EditorView.make(workspace(), { state: stateFor(doc(p("a<a>")), [appender]) })
       const updates: Array<ViewUpdate<any, any, any>> = []

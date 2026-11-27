@@ -1,4 +1,5 @@
 // Ported from prosemirror-view/test/webtest-selection.ts (MIT, Marijn Haverbeke and others)
+import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import { describe, it, vi } from "@effect/vitest"
 import type { Node as PMNode } from "@thomasfosterau/effect-richtext/Model"
@@ -17,7 +18,7 @@ import {
   strong,
   ul
 } from "@thomasfosterau/effect-richtext/TestBuilder"
-import type { EditorView } from "@thomasfosterau/effect-richtext/View"
+import type { EditorView, Rect } from "@thomasfosterau/effect-richtext/View"
 import { Decoration, DecorationSet } from "@thomasfosterau/effect-richtext/View"
 import ist from "../utils/ist.ts"
 import { instanceOf, present } from "../utils/present.ts"
@@ -109,8 +110,8 @@ describe("EditorView", () => {
       const sel = view.state.selection
       ist(sel.head == null ? sel.from : sel.head, expected)
     }
-    const one = present(findTextNode(view.dom, "one"))
-    const two = present(findTextNode(view.dom, "two"))
+    const one = getSome(findTextNode(view.dom, "one"))
+    const two = getSome(findTextNode(view.dom, "two"))
     test(one, 0, 1)
     test(one, 1, 2)
     test(one, 3, 4)
@@ -135,8 +136,8 @@ describe("EditorView", () => {
       ist(sel.node, node)
       ist(sel.offset, offset)
     }
-    const one = present(findTextNode(view.dom, "one"))
-    const two = present(findTextNode(view.dom, "two"))
+    const one = getSome(findTextNode(view.dom, "one"))
+    const two = getSome(findTextNode(view.dom, "two"))
     view.focus()
     test(1, one, 0)
     test(2, one, 1)
@@ -229,25 +230,27 @@ describe("EditorView", () => {
       return pos > 0 && view.state.doc.textBetween(pos - 1, pos) == " "
     }
     view.dom.style.width = "4em"
-    let prevBefore: { left: number; top: number; right: number; bottom: number } | undefined
-    let prevAfter: { left: number; top: number; right: number; bottom: number } | undefined
+    let prevBefore = Option.none<Rect>()
+    let prevAfter = Option.none<Rect>()
     allPositions(view.state.doc).forEach((pos) => {
       const coords = view.coordsAtPos(pos, 1)
-      if (prevAfter) {
-        ist(prevAfter.top < coords.top || (prevAfter.top == coords.top && prevAfter.left < coords.left))
+      if (Option.isSome(prevAfter)) {
+        const prev = prevAfter.value
+        ist(prev.top < coords.top || (prev.top == coords.top && prev.left < coords.left))
       }
-      prevAfter = coords
+      prevAfter = Option.some(coords)
       const found = getSome(view.posAtCoords({ top: coords.top + 1, left: coords.left })).pos
       ist(found, pos)
       const coordsBefore = view.coordsAtPos(pos, -1)
-      if (prevBefore) {
+      if (Option.isSome(prevBefore)) {
+        const prev = prevBefore.value
         ist(
-          prevBefore.top < coordsBefore.top ||
-            (prevBefore.top == coordsBefore.top &&
-              (prevBefore.left < coordsBefore.left || (afterSpace(pos) && prevBefore.left == coordsBefore.left)))
+          prev.top < coordsBefore.top ||
+            (prev.top == coordsBefore.top &&
+              (prev.left < coordsBefore.left || (afterSpace(pos) && prev.left == coordsBefore.left)))
         )
       }
-      prevBefore = coordsBefore
+      prevBefore = Option.some(coordsBefore)
     })
   })
 
@@ -370,7 +373,8 @@ describe("EditorView", () => {
         return decos
       }
     })
-    view.setProps({ decorations: undefined })
+    const { decorations: _, ...withoutDecorations } = view.props
+    view.update(withoutDecorations)
     view.setProps({
       decorations() {
         return decos

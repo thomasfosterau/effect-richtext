@@ -1,5 +1,6 @@
 // Ported from prosemirror-view/test/webtest-domchange.ts (MIT, Marijn Haverbeke and others)
 import { describe, it } from "@effect/vitest"
+import * as Option from "effect/Option"
 import { EditorState, TextSelection } from "@thomasfosterau/effect-richtext/State"
 import {
   a,
@@ -16,6 +17,7 @@ import {
 } from "@thomasfosterau/effect-richtext/TestBuilder"
 import { ReplaceStep, type Step } from "@thomasfosterau/effect-richtext/Transform"
 import ist from "../utils/ist.ts"
+import { getSome } from "../utils/option.ts"
 import { instanceOf, present } from "../utils/present.ts"
 import { findTextNode, flush, tempEditor } from "./helpers.ts"
 
@@ -33,21 +35,21 @@ function setSel(aNode: Node, aOff: number, fNode?: Node, fOff = 0) {
 describe("DOM change", () => {
   it("notices when text is added", () => {
     const view = tempEditor({ doc: doc(p("hello")) })
-    present(findTextNode(view.dom, "hello")).nodeValue = "heLllo"
+    getSome(findTextNode(view.dom, "hello")).nodeValue = "heLllo"
     flush(view)
     ist(view.state.doc, doc(p("heLllo")), eq)
   })
 
   it("notices when text is removed", () => {
     const view = tempEditor({ doc: doc(p("hello")) })
-    present(findTextNode(view.dom, "hello")).nodeValue = "heo"
+    getSome(findTextNode(view.dom, "hello")).nodeValue = "heo"
     flush(view)
     ist(view.state.doc, doc(p("heo")), eq)
   })
 
   it("handles ambiguous changes", () => {
     const view = tempEditor({ doc: doc(p("hello")) })
-    present(findTextNode(view.dom, "hello")).nodeValue = "helo"
+    getSome(findTextNode(view.dom, "hello")).nodeValue = "helo"
     flush(view)
     ist(view.state.doc, doc(p("helo")), eq)
   })
@@ -55,14 +57,14 @@ describe("DOM change", () => {
   it("respects stored marks", () => {
     const view = tempEditor({ doc: doc(p("hello")) })
     view.dispatchUnsafe(view.state.tr.addStoredMark(view.state.schema.marks.em.createUnsafe()))
-    present(findTextNode(view.dom, "hello")).nodeValue = "helloo"
+    getSome(findTextNode(view.dom, "hello")).nodeValue = "helloo"
     flush(view)
     ist(view.state.doc, doc(p("hello", em("o"))), eq)
   })
 
   it("can add a node", () => {
     const view = tempEditor({ doc: doc(p("hello")) })
-    const txt = present(findTextNode(view.dom, "hello"))
+    const txt = getSome(findTextNode(view.dom, "hello"))
     present(txt.parentNode).appendChild(document.createTextNode("!"))
     flush(view)
     ist(view.state.doc, doc(p("hello!")), eq)
@@ -70,7 +72,7 @@ describe("DOM change", () => {
 
   it("can remove a text node", () => {
     const view = tempEditor({ doc: doc(p("hello")) })
-    const txt = present(findTextNode(view.dom, "hello"))
+    const txt = getSome(findTextNode(view.dom, "hello"))
     present(txt.parentNode).removeChild(txt)
     flush(view)
     ist(view.state.doc, doc(p()), eq)
@@ -94,7 +96,7 @@ describe("DOM change", () => {
 
   it("support inserting repeated text", () => {
     const view = tempEditor({ doc: doc(p("hello")) })
-    present(findTextNode(view.dom, "hello")).nodeValue = "helhello"
+    getSome(findTextNode(view.dom, "hello")).nodeValue = "helhello"
     flush(view)
     ist(view.state.doc, doc(p("helhello")), eq)
   })
@@ -177,7 +179,7 @@ describe("DOM change", () => {
 
   it("correctly adjusts the selection", () => {
     const view = tempEditor({ doc: doc(p("abc<a>")) })
-    const textNode = present(findTextNode(view.dom, "abc"))
+    const textNode = getSome(findTextNode(view.dom, "abc"))
     textNode.nodeValue = "abcd"
     setSel(textNode, 3)
     flush(view)
@@ -191,7 +193,7 @@ describe("DOM change", () => {
     const para = present(view.dom.querySelector("p"))
     const split = instanceOf(HTMLElement, present(para.parentNode).appendChild(para.cloneNode()))
     split.innerHTML = "fg"
-    present(findTextNode(para, "defg")).nodeValue = "dexy"
+    getSome(findTextNode(para, "defg")).nodeValue = "dexy"
     setSel(present(split.firstChild), 1)
     flush(view)
     ist(view.state.doc, doc(h1("abc"), p("dexy"), p("fg")), eq)
@@ -202,8 +204,8 @@ describe("DOM change", () => {
     const view = tempEditor({ doc: doc(blockquote(p("ab<a>cd"))) })
     const quote = present(view.dom.querySelector("blockquote"))
     const quote2 = view.dom.appendChild(quote.cloneNode(true))
-    present(findTextNode(quote, "abcd")).nodeValue = "abx"
-    const text2 = present(findTextNode(quote2, "abcd"))
+    getSome(findTextNode(quote, "abcd")).nodeValue = "abx"
+    const text2 = getSome(findTextNode(quote2, "abcd"))
     text2.nodeValue = "cd"
     setSel(present(text2.parentNode), 0)
     flush(view)
@@ -213,28 +215,28 @@ describe("DOM change", () => {
 
   it("can delete the third instance of a character", () => {
     const view = tempEditor({ doc: doc(p("foo xxx<a> bar")) })
-    present(findTextNode(view.dom, "foo xxx bar")).nodeValue = "foo xx bar"
+    getSome(findTextNode(view.dom, "foo xxx bar")).nodeValue = "foo xx bar"
     flush(view)
     ist(view.state.doc, doc(p("foo xx bar")), eq)
   })
 
   it("can read a simple composition", () => {
     const view = tempEditor({ doc: doc(p("hello")) })
-    present(findTextNode(view.dom, "hello")).nodeValue = "hellox"
+    getSome(findTextNode(view.dom, "hello")).nodeValue = "hellox"
     flush(view)
     ist(view.state.doc, doc(p("hellox")), eq)
   })
 
   it("can delete text in markup", () => {
     const view = tempEditor({ doc: doc(p("a", em("b", img, strong("cd<a>")), "e")) })
-    present(findTextNode(view.dom, "cd")).nodeValue = "c"
+    getSome(findTextNode(view.dom, "cd")).nodeValue = "c"
     flush(view)
     ist(view.state.doc, doc(p("a", em("b", img, strong("c")), "e")), eq)
   })
 
   it("recognizes typing inside markup", () => {
     const view = tempEditor({ doc: doc(p("a", em("b", img, strong("cd<a>")), "e")) })
-    present(findTextNode(view.dom, "cd")).nodeValue = "cdxy"
+    getSome(findTextNode(view.dom, "cd")).nodeValue = "cdxy"
     flush(view)
     ist(view.state.doc, doc(p("a", em("b", img, strong("cdxy")), "e")), eq)
   })
@@ -242,14 +244,14 @@ describe("DOM change", () => {
   it("resolves ambiguous text input", () => {
     const view = tempEditor({ doc: doc(p("fo<a>o")) })
     view.dispatchUnsafe(view.state.tr.addStoredMark(view.state.schema.marks.strong.createUnsafe()))
-    present(findTextNode(view.dom, "foo")).nodeValue = "fooo"
+    getSome(findTextNode(view.dom, "foo")).nodeValue = "fooo"
     flush(view)
     ist(view.state.doc, doc(p("fo", strong("o"), "o")), eq)
   })
 
   it("does not repaint a text node when it's typed into", () => {
     const view = tempEditor({ doc: doc(p("fo<a>o")) })
-    present(findTextNode(view.dom, "foo")).nodeValue = "fojo"
+    getSome(findTextNode(view.dom, "foo")).nodeValue = "fojo"
     let mutated = false
     const observer = new MutationObserver(() => (mutated = true))
     observer.observe(view.dom, { subtree: true, characterData: true, childList: true })
@@ -275,7 +277,7 @@ describe("DOM change", () => {
 
   it("fixes text changes when input is ignored", () => {
     const view = tempEditor({ doc: doc(p("foo")), dispatchTransaction: () => undefined })
-    present(findTextNode(view.dom, "foo")).nodeValue = "food"
+    getSome(findTextNode(view.dom, "foo")).nodeValue = "food"
     flush(view)
     ist(view.dom.textContent, "foo")
   })
@@ -290,7 +292,7 @@ describe("DOM change", () => {
 
   it("aborts when an incompatible state is set", () => {
     const view = tempEditor({ doc: doc(p("abcde")) })
-    present(findTextNode(view.dom, "abcde")).nodeValue = "xabcde"
+    getSome(findTextNode(view.dom, "abcde")).nodeValue = "xabcde"
     view.dispatchEvent(new Event("input"))
     view.updateState(EditorState.createUnsafe({ doc: doc(p("uvw")) }))
     flush(view)
@@ -331,8 +333,8 @@ describe("DOM change", () => {
 
   it("doesn't redraw content with marks when typing in front", () => {
     const view = tempEditor({ doc: doc(p("foo", em("bar"), strong("baz"))) })
-    const bar = present(findTextNode(view.dom, "bar")),
-      foo = present(findTextNode(view.dom, "foo"))
+    const bar = getSome(findTextNode(view.dom, "bar")),
+      foo = getSome(findTextNode(view.dom, "foo"))
     foo.nodeValue = "froo"
     flush(view)
     ist(view.state.doc, doc(p("froo", em("bar"), strong("baz"))), eq)
@@ -342,8 +344,8 @@ describe("DOM change", () => {
 
   it("doesn't redraw content with marks when typing inside mark", () => {
     const view = tempEditor({ doc: doc(p("foo", em("bar"), strong("baz"))) })
-    const bar = present(findTextNode(view.dom, "bar")),
-      foo = present(findTextNode(view.dom, "foo"))
+    const bar = getSome(findTextNode(view.dom, "bar")),
+      foo = getSome(findTextNode(view.dom, "foo"))
     bar.nodeValue = "baar"
     flush(view)
     ist(view.state.doc, doc(p("foo", em("baar"), strong("baz"))), eq)
@@ -360,17 +362,17 @@ describe("DOM change", () => {
 
   it("notices text added to a cursor wrapper at the start of a mark", () => {
     const view = tempEditor({ doc: doc(p(strong(a("foo<a>"), "bar"))) })
-    present(findTextNode(view.dom, "foo")).nodeValue = "fooxy"
+    getSome(findTextNode(view.dom, "foo")).nodeValue = "fooxy"
     flush(view)
     ist(view.state.doc, doc(p(strong(a("foo"), "xybar"))), eq)
   })
 
   it("removes cursor wrapper text when the wrapper otherwise remains valid", () => {
     const view = tempEditor({ doc: doc(p(a(strong("foo<a>"), "bar"))) })
-    present(findTextNode(view.dom, "foo")).nodeValue = "fooq"
+    getSome(findTextNode(view.dom, "foo")).nodeValue = "fooq"
     flush(view)
     ist(view.state.doc, doc(p(a(strong("fooq"), "bar"))), eq)
-    ist(!findTextNode(view.dom, "\ufeffq"))
+    ist(Option.isNone(findTextNode(view.dom, "\ufeffq")))
   })
 
   it("doesn't confuse backspace with delete", () => {
@@ -385,7 +387,7 @@ describe("DOM change", () => {
 
     view.input.lastKeyCode = 8
     view.input.lastKeyCodeTime = view.state.config.clock()
-    present(findTextNode(view.dom, "aa")).nodeValue = "a"
+    getSome(findTextNode(view.dom, "aa")).nodeValue = "a"
     flush(view)
 
     ist(steps.length, 1)
@@ -405,7 +407,7 @@ describe("DOM change", () => {
 
     view.input.lastKeyCode = 8
     view.input.lastKeyCodeTime = view.state.config.clock()
-    present(findTextNode(view.dom, "foofoo")).nodeValue = "foo"
+    getSome(findTextNode(view.dom, "foofoo")).nodeValue = "foo"
     flush(view)
 
     ist(steps.length, 1)
@@ -423,7 +425,7 @@ describe("DOM change", () => {
       }
     })
 
-    present(findTextNode(view.dom, "aa")).nodeValue = "a"
+    getSome(findTextNode(view.dom, "aa")).nodeValue = "a"
     flush(view)
 
     ist(steps.length, 1)
@@ -441,7 +443,7 @@ describe("DOM change", () => {
       }
     })
 
-    present(findTextNode(view.dom, "one foofoo three")).nodeValue = "one foo three"
+    getSome(findTextNode(view.dom, "one foofoo three")).nodeValue = "one foo three"
     flush(view)
 
     ist(steps.length, 1)
@@ -461,7 +463,7 @@ describe("DOM change", () => {
 
     view.input.lastKeyCode = 8
     view.input.lastKeyCodeTime = view.state.config.clock()
-    present(findTextNode(view.dom, "lalala")).nodeValue = "lala"
+    getSome(findTextNode(view.dom, "lalala")).nodeValue = "lala"
     flush(view)
 
     ist(steps.length, 1)
@@ -479,7 +481,7 @@ describe("DOM change", () => {
       }
     })
 
-    present(findTextNode(view.dom, "one two three")).nodeValue = "one t three"
+    getSome(findTextNode(view.dom, "one two three")).nodeValue = "one t three"
     flush(view)
     ist(steps.length, 1)
     ist(instanceOf(ReplaceStep, steps[0]).from, 5)
@@ -487,7 +489,7 @@ describe("DOM change", () => {
     ist(instanceOf(ReplaceStep, steps[0]).slice.content.toString(), '<"t">')
 
     view.dispatchUnsafe(view.state.tr.setSelectionUnsafe(TextSelection.createUnsafe(view.state.doc, 7, 12)))
-    present(findTextNode(view.dom, "one t three")).nodeValue = "one t e"
+    getSome(findTextNode(view.dom, "one t three")).nodeValue = "one t e"
     flush(view)
     ist(steps.length, 1)
     ist(instanceOf(ReplaceStep, steps[0]).from, 7)
@@ -504,7 +506,7 @@ describe("DOM change", () => {
         view.updateState(view.state.applyUnsafe(tr))
       }
     })
-    present(findTextNode(view.dom, "👽")).nodeValue = "💎👽"
+    getSome(findTextNode(view.dom, "👽")).nodeValue = "💎👽"
     flush(view)
     ist(steps.length, 1)
     ist(instanceOf(ReplaceStep, steps[0]).from, 1)

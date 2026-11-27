@@ -61,9 +61,9 @@ export interface HTMLStringParser {
  */
 export interface ToHTMLOptions<Sc extends AnySchema = AnySchema> {
   /** The DOM document used to create nodes. Defaults to the global `document`. */
-  readonly document?: Document | undefined
+  readonly document?: Document
   /** The serializer to use. Defaults to `DOMSerializer.fromSchema(schema)`. */
-  readonly serializer?: DOMSerializer<Sc> | undefined
+  readonly serializer?: DOMSerializer<Sc>
 }
 
 /**
@@ -79,14 +79,14 @@ export interface FromHTMLOptions<Sc extends AnySchema = AnySchema> extends Parse
    * into. Defaults to the global `document`. Ignored when `htmlParser`
    * is given.
    */
-  readonly document?: Document | undefined
+  readonly document?: Document
   /** An HTML string parser, such as an instance of the browser's `DOMParser`. */
-  readonly htmlParser?: HTMLStringParser | undefined
+  readonly htmlParser?: HTMLStringParser
   /** The parser to use. Defaults to `DOMParser.fromSchema(schema)`. */
-  readonly parser?: DOMParser<Sc> | undefined
+  readonly parser?: DOMParser<Sc>
 }
 
-const resolveDocument = (document: Document | undefined): Document => {
+const resolveDocument = (document?: Document): Document => {
   const result = document ?? ("document" in globalThis ? globalThis.document : undefined)
   if (!result) {
     throw new MissingDocumentError({
@@ -234,7 +234,7 @@ export class HtmlEnvironment extends Context.Service<
    */
   static readonly layerGlobal: Layer.Layer<HtmlEnvironment> = Layer.effect(
     HtmlEnvironment,
-    Effect.sync(() => ({ document: resolveDocument(undefined) }))
+    Effect.sync(() => ({ document: resolveDocument() }))
   )
 }
 

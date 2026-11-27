@@ -7,6 +7,7 @@
  *
  * @since 0.1.0
  */
+import * as Option from "effect/Option"
 import * as Predicate from "effect/Predicate"
 import * as Rec from "effect/Record"
 import * as C from "../Commands.ts"
@@ -172,7 +173,9 @@ export function splitBlockAs(
       splitNode &&
         ((node, atEnd, $from) => {
           const result = splitNode(wrap(node), atEnd, wrap($from))
-          return result && { type: result.type[CORE], attrs: result.attrs ?? null }
+          return result
+            ? Option.some(result.attrs ? { type: result.type[CORE], attrs: result.attrs } : { type: result.type[CORE] })
+            : Option.none()
         })
     )
   )
@@ -236,7 +239,7 @@ export const selectTextblockEnd: Command = fromCoreCommand(C.selectTextblockEnd)
  * @category commands
  */
 export function wrapIn(nodeType: NodeType, attrs: Attrs | null = null): Command {
-  return fromCoreCommand(C.wrapIn(nodeType[CORE], attrs))
+  return fromCoreCommand(C.wrapIn(nodeType[CORE], attrs ?? undefined))
 }
 
 /**
@@ -247,7 +250,7 @@ export function wrapIn(nodeType: NodeType, attrs: Attrs | null = null): Command 
  * @category commands
  */
 export function setBlockType(nodeType: NodeType, attrs: Attrs | null = null): Command {
-  return fromCoreCommand(C.setBlockType(nodeType[CORE], attrs))
+  return fromCoreCommand(C.setBlockType(nodeType[CORE], attrs ?? undefined))
 }
 
 /**

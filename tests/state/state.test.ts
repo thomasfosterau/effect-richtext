@@ -54,8 +54,8 @@ const transactionPlugin = new Plugin({
   },
   appendTransaction(trs, _, state) {
     const last = trs[trs.length - 1]
-    if (last && Option.getOrUndefined(last.getMeta("append"))) return state.tr.insertTextUnsafe("A")
-    return undefined
+    if (last && Option.getOrUndefined(last.getMeta("append"))) return Option.some(state.tr.insertTextUnsafe("A"))
+    return Option.none()
   }
 })
 
@@ -153,7 +153,7 @@ describe("State", () => {
       schema,
       plugins: [
         new Plugin({
-          appendTransaction: (_trs, _oldState, newState) => newState.tr.insertTextUnsafe("Y")
+          appendTransaction: (_trs, _oldState, newState) => Option.some(newState.tr.insertTextUnsafe("Y"))
         })
       ]
     })
@@ -244,7 +244,7 @@ const onceHooks = (calls: Array<string>) => {
   const append = new Plugin({
     appendTransaction: (trs, _old, state) => {
       calls.push("append")
-      return trs.length === 1 ? state.tr.insertTextUnsafe("!") : undefined
+      return trs.length === 1 ? Option.some(state.tr.insertTextUnsafe("!")) : Option.none()
     }
   })
   return [sync, lazy, append] as const

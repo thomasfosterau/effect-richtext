@@ -45,7 +45,7 @@ export type NodeVisitor<Sc extends AnySchema = AnySchema> = (
  * import { Fragment } from "@thomasfosterau/effect-richtext/Model"
  * import { schema } from "@thomasfosterau/effect-richtext/SchemaBasic"
  *
- * const paragraph = schema.nodeUnsafe("paragraph", null, [schema.textUnsafe("Hi")])
+ * const paragraph = schema.nodeUnsafe("paragraph", undefined, [schema.textUnsafe("Hi")])
  * const fragment = Fragment.from([paragraph, paragraph])
  *
  * // A paragraph holding "Hi" is 4 tokens long: open, two characters, close.
@@ -115,8 +115,8 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   textBetween(
     from: number,
     to: number,
-    blockSeparator?: string | null,
-    leafText?: string | null | ((leafNode: Node<Sc>) => string)
+    blockSeparator?: string,
+    leafText?: string | ((leafNode: Node<Sc>) => string)
   ): string {
     let text = "",
       first = true
@@ -282,7 +282,7 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
 
   /** Find the first position at which this fragment and another fragment differ, if any. */
   findDiffStart(other: Fragment<any, any>, pos = 0): Option.Option<number> {
-    return Option.fromNullishOr(findDiffStart(this, other, pos))
+    return findDiffStart(this, other, pos)
   }
 
   /**
@@ -296,7 +296,7 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
     pos = this.size,
     otherPos = other.size
   ): Option.Option<{ readonly a: number; readonly b: number }> {
-    return Option.fromNullishOr(findDiffEnd(this, other, pos, otherPos))
+    return findDiffEnd(this, other, pos, otherPos)
   }
 
   /**
@@ -336,8 +336,8 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
   }
 
   /** Create a JSON-serializable representation of this fragment. */
-  toJSON(): ReadonlyArray<NodeJSON> | null {
-    return this.content.length ? this.content.map((n) => n.toJSON()) : null
+  toJSON(): ReadonlyArray<NodeJSON> {
+    return this.content.map((n) => n.toJSON())
   }
 
   /**
@@ -346,7 +346,9 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
    */
   static fromArray<Sc extends AnySchema, N extends NodeNames<Sc>>(array: ReadonlyArray<Node<Sc, N>>): Fragment<Sc, N> {
     if (!array.length) return Fragment.empty
-    let joined: Array<Node<Sc, N>> | undefined
+    // Filled from the first text node that joins its predecessor.
+    let joined: Array<Node<Sc, N>> = [],
+      joining = false
     let size = 0
     // Builds every fragment made from an array, so it stays a plain loop.
     // oxlint-disable-next-line effect/imperative-loops
@@ -354,26 +356,29 @@ export class Fragment<Sc extends AnySchema = AnySchema, out N extends NodeNames<
       const node = array[i]
       size += node.nodeSize
       if (i && node.isTextNode() && array[i - 1].sameMarkup(node)) {
-        if (!joined) joined = array.slice(0, i)
+        if (!joining) {
+          joined = array.slice(0, i)
+          joining = true
+        }
         const joinedText: Node<Sc> = node.withText(joined[joined.length - 1].textContent + node.textContent)
         // SAFETY: the joined node keeps `node`'s type, one of `N`.
         // oxlint-disable-next-line typescript/no-unsafe-type-assertion
         joined[joined.length - 1] = joinedText as Node<Sc, N>
-      } else if (joined) {
+      } else if (joining) {
         joined.push(node)
       }
     }
-    return new Fragment(joined || array, size)
+    return new Fragment(joining ? joined : array, size)
   }
 
   /**
    * Create a fragment from something that can be interpreted as a set
-   * of nodes. For `null`/`undefined`, it returns the empty fragment.
+   * of nodes. For `undefined`, it returns the empty fragment.
    * For a fragment, the fragment itself. For a node or array of nodes,
    * a fragment containing those nodes.
    */
   static from<Sc extends AnySchema, N extends NodeNames<Sc>>(
-    nodes?: Fragment<Sc, N> | Node<Sc, N> | ReadonlyArray<Node<Sc, N>> | null
+    nodes?: Fragment<Sc, N> | Node<Sc, N> | ReadonlyArray<Node<Sc, N>>
   ): Fragment<Sc, N> {
     if (!nodes) return Fragment.empty
     if (nodes instanceof Fragment) return nodes

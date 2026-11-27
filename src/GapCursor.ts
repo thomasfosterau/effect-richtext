@@ -84,8 +84,7 @@ export class GapCursor<Sc extends AnySchema = AnySchema> extends Selection<Sc> {
     if (parent.inlineContent || !closedBefore($pos) || !closedAfter($pos)) return false
     const override = parent.type.spec.allowGapCursor
     if (override != null) return !!override
-    const deflt = parent.contentMatchAtUnsafe($pos.index()).defaultTypeOrNull
-    return !!deflt && deflt.isTextblock
+    return Option.exists(parent.contentMatchAtUnsafe($pos.index()).defaultType, (deflt) => deflt.isTextblock)
   }
 
   /**
@@ -98,21 +97,12 @@ export class GapCursor<Sc extends AnySchema = AnySchema> extends Selection<Sc> {
     dir: number,
     mustMove = false
   ): Option.Option<ResolvedPos<Sc>> {
-    return Option.fromNullishOr(GapCursor.findGapCursorFromOrNull($pos, dir, mustMove))
-  }
-
-  /** @internal */
-  static findGapCursorFromOrNull<Sc extends AnySchema>(
-    $pos: ResolvedPos<Sc>,
-    dir: number,
-    mustMove = false
-  ): ResolvedPos<Sc> | null {
     // Skips any number of unselectable atoms, restarting from each, so these stay plain loops.
     // oxlint-disable-next-line effect/imperative-loops
     search: for (;;) {
-      if (!mustMove && GapCursor.valid($pos)) return $pos
+      if (!mustMove && GapCursor.valid($pos)) return Option.some($pos)
       let pos = $pos.pos,
-        next: Node<any> | null = null
+        next: Node<any>
       // Scan up from this position
       // oxlint-disable-next-line effect/imperative-loops
       for (let d = $pos.depth; ; d--) {
@@ -121,19 +111,18 @@ export class GapCursor<Sc extends AnySchema = AnySchema> extends Selection<Sc> {
           next = child(parent, dir > 0 ? $pos.indexAfter(d) : $pos.index(d) - 1)
           break
         } else if (d === 0) {
-          return null
+          return Option.none()
         }
         pos += dir
         const $cur = $pos.doc.resolveUnsafe(pos)
-        if (GapCursor.valid($cur)) return $cur
+        if (GapCursor.valid($cur)) return Option.some($cur)
       }
 
       // And then down into the next node
       // oxlint-disable-next-line effect/imperative-loops
       for (;;) {
-        const inside: Node<any> | undefined =
-          dir > 0 ? next.content.content[0] : next.content.content[next.childCount - 1]
-        if (!inside) {
+        const inside = dir > 0 ? next.firstChild : next.lastChild
+        if (Option.isNone(inside)) {
           if (next.isAtom && !next.isText && !NodeSelection.isSelectable(next)) {
             $pos = $pos.doc.resolveUnsafe(pos + next.nodeSize * dir)
             mustMove = false
@@ -141,13 +130,13 @@ export class GapCursor<Sc extends AnySchema = AnySchema> extends Selection<Sc> {
           }
           break
         }
-        next = inside
+        next = inside.value
         pos += dir
         const $cur = $pos.doc.resolveUnsafe(pos)
-        if (GapCursor.valid($cur)) return $cur
+        if (GapCursor.valid($cur)) return Option.some($cur)
       }
 
-      return null
+      return Option.none()
     }
   }
 }
@@ -213,7 +202,9 @@ export const gapCursor = (): Plugin<undefined> =>
       decorations: drawGapCursor,
 
       createSelectionBetween(_view, $anchor, $head) {
-        return $anchor.pos === $head.pos && GapCursor.valid($head) ? new GapCursor($head) : null
+        return $anchor.pos === $head.pos && GapCursor.valid($head)
+          ? Option.some<Selection<any>>(new GapCursor($head))
+          : Option.none()
       },
 
       handleClick,
@@ -234,10 +225,10 @@ function arrow(axis: "vert" | "horiz", dir: number): Command {
         mustMove = false
         $start = state.doc.resolveUnsafe(dir > 0 ? $start.afterUnsafe() : $start.beforeUnsafe())
       }
-      const $found = GapCursor.findGapCursorFromOrNull($start, dir, mustMove)
-      if (!$found) return Effect.succeed(false)
+      const $found = GapCursor.findGapCursorFrom($start, dir, mustMove)
+      if (Option.isNone($found)) return Effect.succeed(false)
       if (!dispatch) return Effect.succeed(true)
-      return Effect.as(dispatch(state.tr.setSelectionUnsafe(new GapCursor($found))), true)
+      return Effect.as(dispatch(state.tr.setSelectionUnsafe(new GapCursor($found.value))), true)
     })
 }
 
@@ -256,10 +247,17 @@ function handleClick(
   if (!view || !view.editable) return false
   const $pos = view.state.doc.resolveUnsafe(pos)
   if (!GapCursor.valid($pos)) return false
-  const clickPos = Option.getOrNull(view.posAtCoords({ left: event.clientX, top: event.clientY }))
-  if (clickPos && clickPos.inside > -1) {
-    const node = view.state.doc.nodeAtOrNull(clickPos.inside)
-    if (node && NodeSelection.isSelectable(node)) return false
+  const clickPos = view.posAtCoords({ left: event.clientX, top: event.clientY })
+  if (
+    Option.exists(
+      Option.flatMap(
+        Option.filter(clickPos, (p) => p.inside > -1),
+        (p) => view.state.doc.nodeAt(p.inside)
+      ),
+      (node) => NodeSelection.isSelectable(node)
+    )
+  ) {
+    return false
   }
   return Effect.as(view.dispatch(view.state.tr.setSelectionUnsafe(new GapCursor($pos))), true)
 }
@@ -272,11 +270,11 @@ function beforeinput(view: EditorView<any, any, any>, event: InputEvent): boolea
   if (event.inputType !== "insertCompositionText" || !(view.state.selection instanceof GapCursor)) return false
 
   const { $from } = view.state.selection
-  const insert = $from.parent.contentMatchAtUnsafe($from.index()).findWrappingOrNull(view.state.schema.nodes.text)
-  if (!insert) return false
+  const insert = $from.parent.contentMatchAtUnsafe($from.index()).findWrapping(view.state.schema.nodes.text)
+  if (Option.isNone(insert)) return false
 
-  const frag = insert.reduceRight(
-    (inner: Fragment<any>, type) => Fragment.from(type.createAndFillOrNull(null, inner)),
+  const frag = insert.value.reduceRight(
+    (inner: Fragment<any>, type) => Fragment.from(Option.getOrUndefined(type.createAndFillOption(undefined, inner))),
     Fragment.empty
   )
   const tr = view.state.tr.replaceUnsafe($from.pos, $from.pos, new Slice(frag, 0, 0))

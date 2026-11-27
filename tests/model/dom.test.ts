@@ -127,12 +127,12 @@ function contextParser(context: string) {
   return new DOMParser(schema, [{ tag: "foo", node: "horizontal_rule", context }, ...DOMParser.schemaRules(schema)])
 }
 
-function nsParse(doc: Node, namespace?: string | null) {
+function nsParse(doc: Node, namespace?: string) {
   const schema = DocSchema.makeUnsafe({
     nodes: {
       doc: { content: Content.zeroOrMore("h") },
       text: {},
-      h: { parseDOM: [{ tag: "h", namespace }] }
+      h: { parseDOM: [{ tag: "h", ...(namespace !== undefined && { namespace: Option.some(namespace) }) }] }
     }
   })
   return DOMParser.fromSchema(schema).parseUnsafe(doc)
@@ -312,7 +312,7 @@ describe("DOMParser", () => {
           doc: { content: Content.zeroOrMore("svg") },
           text: {},
           svg: {
-            parseDOM: [{ tag: "svg", namespace: "http://www.w3.org/2000/svg" }],
+            parseDOM: [{ tag: "svg", namespace: Option.some("http://www.w3.org/2000/svg") }],
             group: "block",
             toDOM() {
               return ["http://www.w3.org/2000/svg svg", ["use", { "http://www.w3.org/1999/xlink href": "#svg-id" }]]
@@ -637,8 +637,8 @@ describe("DOMParser", () => {
       )
       ist(
         d,
-        s.nodeUnsafe("doc", null, [
-          s.nodeUnsafe("paragraph", null, [
+        s.nodeUnsafe("doc", undefined, [
+          s.nodeUnsafe("paragraph", undefined, [
             s.textUnsafe("abc", [s.markUnsafe("color", { color: "red" })]),
             s.textUnsafe("def", [s.markUnsafe("color", { color: "blue" })]),
             s.textUnsafe("ghi", [s.markUnsafe("color", { color: "red" })])
@@ -675,8 +675,8 @@ describe("DOMParser", () => {
       test(
         quoteSchema.nodeUnsafe(
           "blockquote",
-          null,
-          quoteSchema.nodeUnsafe("paragraph", null, quoteSchema.textUnsafe("hello"))
+          undefined,
+          quoteSchema.nodeUnsafe("paragraph", undefined, quoteSchema.textUnsafe("hello"))
         ),
         "<p>hello</p>"
       )
@@ -789,7 +789,7 @@ describe("DOMParser", () => {
       ist(
         parser.parseUnsafe(dom, {
           ruleFromNode: (node) => {
-            return node instanceof HTMLElement && node.tagName == "SPAN" ? { skip: node } : null
+            return node instanceof HTMLElement && node.tagName == "SPAN" ? Option.some({ skip: node }) : Option.none()
           }
         }),
         doc(p("abc def")),
@@ -807,7 +807,7 @@ describe("DOMParser", () => {
       })
       ist(
         DOMParser.fromSchema(schema).parseUnsafe(domFrom("<pre>  hello </pre>   ")),
-        schema.nodeUnsafe("doc", null, [schema.nodeUnsafe("p", null, [schema.textUnsafe("  hello ")])]),
+        schema.nodeUnsafe("doc", undefined, [schema.nodeUnsafe("p", undefined, [schema.textUnsafe("  hello ")])]),
         eq
       )
     })
@@ -983,7 +983,8 @@ describe("DOMParser", () => {
 })
 
 describe("DOMSerializer", () => {
-  const noEm = new DOMSerializer(serializer.nodes, Object.assign({}, serializer.marks, { em: null }))
+  const { em: _em, ...marksWithoutEm } = serializer.marks
+  const noEm = new DOMSerializer(serializer.nodes, marksWithoutEm)
 
   it("can omit a mark", () => {
     ist(

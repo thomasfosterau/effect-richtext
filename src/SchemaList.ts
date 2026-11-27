@@ -65,21 +65,18 @@ export const listItem = nodeSpec({
   defining: true
 })
 
+// The list nodes' group, when `addListNodes` was given one.
+type ListGroup<Group extends string> = [Group] extends [never] ? unknown : { readonly group: Group }
+
 /**
  * The node specs added by `addListNodes`.
  *
  * @since 0.1.0
  * @category type-level
  */
-export type ListNodes<ItemRefs extends string, Group extends string | undefined> = {
-  readonly ordered_list: typeof orderedList & {
-    readonly content: ContentExpr<"list_item">
-    readonly group: Group
-  }
-  readonly bullet_list: typeof bulletList & {
-    readonly content: ContentExpr<"list_item">
-    readonly group: Group
-  }
+export type ListNodes<ItemRefs extends string, Group extends string = never> = {
+  readonly ordered_list: typeof orderedList & { readonly content: ContentExpr<"list_item"> } & ListGroup<Group>
+  readonly bullet_list: typeof bulletList & { readonly content: ContentExpr<"list_item"> } & ListGroup<Group>
   readonly list_item: typeof listItem & { readonly content: ContentExpr<ItemRefs> }
 }
 
@@ -109,7 +106,7 @@ export type ListNodes<ItemRefs extends string, Group extends string | undefined>
  *   marks
  * })
  *
- * const start = schema.nodeUnsafe("doc", null, [schema.nodeUnsafe("paragraph", null, [schema.textUnsafe("item")])])
+ * const start = schema.nodeUnsafe("doc", undefined, [schema.nodeUnsafe("paragraph", undefined, [schema.textUnsafe("item")])])
  * let state = EditorState.createUnsafe({ doc: start, selection: TextSelection.createUnsafe(start, 2) })
  *
  * // The list commands work on schemas built this way.
@@ -130,7 +127,7 @@ export type ListNodes<ItemRefs extends string, Group extends string | undefined>
 export const addListNodes = <
   const N extends { readonly [name: string]: NodeSpec },
   const ItemRefs extends string,
-  const Group extends string | undefined = undefined
+  const Group extends string = never
 >(
   nodes: N,
   itemContent: ContentInput<ItemRefs>,
@@ -140,7 +137,7 @@ export const addListNodes = <
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   ({
     ...nodes,
-    ordered_list: { ...orderedList, content: Content.oneOrMore("list_item"), group: listGroup },
-    bullet_list: { ...bulletList, content: Content.oneOrMore("list_item"), group: listGroup },
+    ordered_list: { ...orderedList, content: Content.oneOrMore("list_item"), ...(listGroup && { group: listGroup }) },
+    bullet_list: { ...bulletList, content: Content.oneOrMore("list_item"), ...(listGroup && { group: listGroup }) },
     list_item: { ...listItem, content: Predicate.isString(itemContent) ? Content.ref(itemContent) : itemContent }
   }) as N & ListNodes<ItemRefs, Group>

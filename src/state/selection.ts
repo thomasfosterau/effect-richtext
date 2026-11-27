@@ -198,43 +198,31 @@ export abstract class Selection<Sc extends AnySchema = AnySchema> {
     dir: number,
     textOnly = false
   ): Option.Option<Selection<Sc>> {
-    return Option.fromNullishOr(Selection.findFromOrNull($pos, dir, textOnly))
-  }
-
-  /** @internal */
-  static findFromOrNull<Sc extends AnySchema>(
-    $pos: ResolvedPos<Sc>,
-    dir: number,
-    textOnly = false
-  ): Selection<Sc> | null {
-    const inner = $pos.parent.inlineContent
-      ? new TextSelection($pos)
+    const inner: Option.Option<Selection<Sc>> = $pos.parent.inlineContent
+      ? Option.some(new TextSelection($pos))
       : findSelectionIn($pos.node(0), $pos.parent, $pos.pos, $pos.index(), dir, textOnly)
-    if (inner) return inner
+    if (Option.isSome(inner)) return inner
 
     const depths = Array.from({ length: $pos.depth }, (_, k) => $pos.depth - 1 - k)
-    const outer = Arr.findFirst(depths, (depth) =>
-      Option.fromNullOr(
-        dir < 0
-          ? findSelectionIn(
-              $pos.node(0),
-              $pos.node(depth),
-              $pos.beforeUnsafe(depth + 1),
-              $pos.index(depth),
-              dir,
-              textOnly
-            )
-          : findSelectionIn(
-              $pos.node(0),
-              $pos.node(depth),
-              $pos.afterUnsafe(depth + 1),
-              $pos.index(depth) + 1,
-              dir,
-              textOnly
-            )
-      )
+    return Arr.findFirst(depths, (depth) =>
+      dir < 0
+        ? findSelectionIn(
+            $pos.node(0),
+            $pos.node(depth),
+            $pos.beforeUnsafe(depth + 1),
+            $pos.index(depth),
+            dir,
+            textOnly
+          )
+        : findSelectionIn(
+            $pos.node(0),
+            $pos.node(depth),
+            $pos.afterUnsafe(depth + 1),
+            $pos.index(depth) + 1,
+            dir,
+            textOnly
+          )
     )
-    return Option.getOrNull(outer)
   }
 
   /**
@@ -243,7 +231,10 @@ export abstract class Selection<Sc extends AnySchema = AnySchema> {
    * will search backwards first.
    */
   static near<Sc extends AnySchema>($pos: ResolvedPos<Sc>, bias = 1): Selection<Sc> {
-    return this.findFromOrNull($pos, bias) || this.findFromOrNull($pos, -bias) || new AllSelection($pos.node(0))
+    return Option.getOrElse(
+      Option.orElse(this.findFrom($pos, bias), () => this.findFrom($pos, -bias)),
+      (): Selection<Sc> => new AllSelection($pos.node(0))
+    )
   }
 
   /**
@@ -252,12 +243,15 @@ export abstract class Selection<Sc extends AnySchema = AnySchema> {
    * exists.
    */
   static atStart<Sc extends AnySchema>(doc: Node<Sc>): Selection<Sc> {
-    return findSelectionIn(doc, doc, 0, 0, 1) || new AllSelection(doc)
+    return Option.getOrElse(findSelectionIn(doc, doc, 0, 0, 1), (): Selection<Sc> => new AllSelection(doc))
   }
 
   /** Find the cursor or leaf node selection closest to the end of the given document. */
   static atEnd<Sc extends AnySchema>(doc: Node<Sc>): Selection<Sc> {
-    return findSelectionIn(doc, doc, doc.content.size, doc.childCount, -1) || new AllSelection(doc)
+    return Option.getOrElse(
+      findSelectionIn(doc, doc, doc.content.size, doc.childCount, -1),
+      (): Selection<Sc> => new AllSelection(doc)
+    )
   }
 
   /**
@@ -379,12 +373,7 @@ export class TextSelection<Sc extends AnySchema = AnySchema> extends Selection<S
 
   /** Returns a resolved position if this is a cursor selection (an empty text selection). */
   get $cursor(): Option.Option<ResolvedPos<Sc>> {
-    return Option.fromNullishOr(this.$cursorOrNull)
-  }
-
-  /** @internal */
-  get $cursorOrNull(): ResolvedPos<Sc> | null {
-    return this.$anchor.pos === this.$head.pos ? this.$head : null
+    return this.$anchor.pos === this.$head.pos ? Option.some(this.$head) : Option.none()
   }
 
   map(doc: Node<Sc>, mapping: Mappable): Selection<Sc> {
@@ -397,8 +386,8 @@ export class TextSelection<Sc extends AnySchema = AnySchema> extends Selection<S
   override replace(tr: Transaction<Sc>, content: Slice<Sc> = Slice.empty): void {
     super.replace(tr, content)
     if (content === Slice.empty) {
-      const marks = this.$from.marksAcrossOrNull(this.$to)
-      if (marks) tr.ensureMarks(marks)
+      const marks = this.$from.marksAcross(this.$to)
+      if (Option.isSome(marks)) tr.ensureMarks(marks.value)
     }
   }
 
@@ -449,17 +438,19 @@ export class TextSelection<Sc extends AnySchema = AnySchema> extends Selection<S
     const dPos = $anchor.pos - $head.pos
     if (!bias || dPos) bias = dPos >= 0 ? 1 : -1
     if (!$head.parent.inlineContent) {
-      const found = Selection.findFromOrNull($head, bias, true) || Selection.findFromOrNull($head, -bias, true)
-      if (found) $head = found.$head
-      else return Selection.near($head, bias)
+      const found = Option.orElse(Selection.findFrom($head, bias, true), () => Selection.findFrom($head, -bias, true))
+      if (Option.isNone(found)) return Selection.near($head, bias)
+      $head = found.value.$head
     }
     if (!$anchor.parent.inlineContent) {
       if (dPos === 0) {
         $anchor = $head
       } else {
-        const found = Selection.findFromOrNull($anchor, -bias, true) || Selection.findFromOrNull($anchor, bias, true)
-        if (!found) throw new SelectionError({ message: "No selectable position in the document" })
-        $anchor = found.$anchor
+        const found = Option.orElse(Selection.findFrom($anchor, -bias, true), () =>
+          Selection.findFrom($anchor, bias, true)
+        )
+        if (Option.isNone(found)) throw new SelectionError({ message: "No selectable position in the document" })
+        $anchor = found.value.$anchor
         if ($anchor.pos < $head.pos !== dPos < 0) $anchor = $head
       }
     }
@@ -503,8 +494,10 @@ export class NodeSelection<Sc extends AnySchema = AnySchema> extends Selection<S
    * `SelectionError` otherwise).
    */
   constructor($pos: ResolvedPos<Sc>) {
-    const node = $pos.nodeAfterOrNull
-    if (!node) throw new SelectionError({ message: "No node after position " + $pos.pos + " for NodeSelection" })
+    const nodeFound = $pos.nodeAfter
+    if (Option.isNone(nodeFound))
+      throw new SelectionError({ message: "No node after position " + $pos.pos + " for NodeSelection" })
+    const node = nodeFound.value
     const $end = $pos.node(0).resolveUnsafe($pos.pos + node.nodeSize)
     super($pos, $end)
     this.node = node
@@ -573,9 +566,8 @@ class NodeBookmark<Sc extends AnySchema> implements SelectionBookmark<Sc> {
   }
 
   resolve(doc: Node<Sc>): Selection<Sc> {
-    const $pos = doc.resolveUnsafe(this.anchor),
-      node = $pos.nodeAfterOrNull
-    if (node && NodeSelection.isSelectable(node)) return new NodeSelection($pos)
+    const $pos = doc.resolveUnsafe(this.anchor)
+    if (Option.exists($pos.nodeAfter, (node) => NodeSelection.isSelectable(node))) return new NodeSelection($pos)
     return Selection.near($pos)
   }
 }
@@ -650,21 +642,21 @@ function findSelectionIn<Sc extends AnySchema>(
   index: number,
   dir: number,
   text = false
-): Selection<Sc> | null {
-  if (node.inlineContent) return TextSelection.createUnsafe(doc, pos)
+): Option.Option<Selection<Sc>> {
+  if (node.inlineContent) return Option.some(TextSelection.createUnsafe(doc, pos))
   // Searches with a running position, which callbacks make slower, so it stays a plain loop.
   // oxlint-disable-next-line effect/imperative-loops
   for (let i = index - (dir > 0 ? 0 : 1); dir > 0 ? i < node.childCount : i >= 0; i += dir) {
     const child = node.content.content[i]
     if (!child.isAtom) {
       const inner = findSelectionIn(doc, child, pos + dir, dir < 0 ? child.childCount : 0, dir, text)
-      if (inner) return inner
+      if (Option.isSome(inner)) return inner
     } else if (!text && NodeSelection.isSelectable(child)) {
-      return NodeSelection.createUnsafe(doc, pos - (dir < 0 ? child.nodeSize : 0))
+      return Option.some(NodeSelection.createUnsafe(doc, pos - (dir < 0 ? child.nodeSize : 0)))
     }
     pos += child.nodeSize * dir
   }
-  return null
+  return Option.none()
 }
 
 // Whether a slice ends in inline content: its last node, followed down

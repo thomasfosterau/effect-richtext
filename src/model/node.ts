@@ -72,8 +72,8 @@ export interface ChildInfo<Sc extends AnySchema, N extends NodeNames<Sc>> {
  * import * as assert from "node:assert"
  * import { schema } from "@thomasfosterau/effect-richtext/SchemaBasic"
  *
- * const doc = schema.nodeUnsafe("doc", null, [
- *   schema.nodeUnsafe("paragraph", null, [schema.textUnsafe("Hello ")]),
+ * const doc = schema.nodeUnsafe("doc", undefined, [
+ *   schema.nodeUnsafe("paragraph", undefined, [schema.textUnsafe("Hello ")]),
  *   schema.nodeUnsafe("heading", { level: 2 }, [schema.textUnsafe("World")])
  * ])
  *
@@ -108,7 +108,7 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
      * attributes allowed and required are determined by the node type.
      */
     readonly attrs: NodeAttrs<Sc, N>,
-    content?: Fragment<Sc, ChildNames<Sc, N>> | null,
+    content?: Fragment<Sc, ChildNames<Sc, N>>,
     /** The marks applied to this node. */
     readonly marks: ReadonlyArray<Mark<Sc>> = Mark.none
   ) {
@@ -203,8 +203,8 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
   textBetween(
     from: number,
     to: number,
-    blockSeparator?: string | null,
-    leafText?: null | string | ((leafNode: Node<Sc>) => string)
+    blockSeparator?: string,
+    leafText?: string | ((leafNode: Node<Sc>) => string)
   ): string {
     return this.content.textBetween(from, to, blockSeparator, leafText)
   }
@@ -242,16 +242,16 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
   }
 
   /** Check whether this node's markup correspond to the given type, attributes, and marks. */
-  hasMarkup(type: NodeType<any, any>, attrs?: Attrs | null, marks?: ReadonlyArray<Mark<any, any>>): boolean {
+  hasMarkup(type: NodeType<any, any>, attrs?: Attrs, marks?: ReadonlyArray<Mark<any, any>>): boolean {
     return (
       this.type === type &&
-      compareDeep(this.attrs, attrs || type.defaultAttrs || emptyAttrs) &&
+      compareDeep(this.attrs, attrs || Option.getOrElse(type.defaultAttrs, () => emptyAttrs)) &&
       Mark.sameSet(this.marks, marks || Mark.none)
     )
   }
 
   /** Create a new node with the same markup as this node, containing the given content (or empty, if no content is given). */
-  copy(content: Fragment<Sc, ChildNames<Sc, N>> | null = null): Node<Sc, N> {
+  copy(content?: Fragment<Sc, ChildNames<Sc, N>>): Node<Sc, N> {
     if (content === this.content) return this
     return new Node(this.type, this.attrs, content, this.marks)
   }
@@ -311,16 +311,11 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
 
   /** Find the node directly after the given position, if any. */
   nodeAt(pos: number): Option.Option<Node<Sc>> {
-    return Option.fromNullishOr(this.nodeAtOrNull(pos))
-  }
-
-  /** @internal */
-  nodeAtOrNull(pos: number): Node<Sc> | null {
-    if (pos < 0 || pos > this.content.size) return null
+    if (pos < 0 || pos > this.content.size) return Option.none()
     const { index, offset } = this.content.findIndex(pos)
-    const node: Node<Sc> | undefined = this.content.content[index]
-    if (!node) return null
-    return offset === pos || node.isText ? node : node.nodeAtOrNull(pos - offset - 1)
+    if (index >= this.content.childCount) return Option.none()
+    const node: Node<Sc> = this.content.content[index]
+    return offset === pos || node.isText ? Option.some(node) : node.nodeAt(pos - offset - 1)
   }
 
   /**
@@ -367,7 +362,7 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
     let found = false
     if (to > from) {
       this.nodesBetween(from, to, (node) => {
-        if (type instanceof Mark ? type.isInSet(node.marks) : type.findInSet(node.marks)) found = true
+        if (type instanceof Mark ? type.isInSet(node.marks) : Option.isSome(type.isInSet(node.marks))) found = true
         return !found
       })
     }
@@ -431,9 +426,10 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
 
   /** Like `contentMatchAt`, but throws when the node's content is invalid. */
   contentMatchAtUnsafe(index: number): ContentMatch {
-    const match = this.type.contentMatch.matchFragmentOrNull(this.content, 0, index)
-    if (!match) throw new ContentError({ message: "Called contentMatchAt on a node with invalid content" })
-    return match
+    const match = this.type.contentMatch.matchFragment(this.content, 0, index)
+    if (Option.isNone(match))
+      throw new ContentError({ message: "Called contentMatchAt on a node with invalid content" })
+    return match.value
   }
 
   /**
@@ -450,9 +446,9 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
     start = 0,
     end = replacement.childCount
   ): boolean {
-    const one = this.contentMatchAtUnsafe(from).matchFragmentOrNull(replacement, start, end)
-    const two = one && one.matchFragmentOrNull(this.content, to)
-    if (!two || !two.validEnd) return false
+    const one = this.contentMatchAtUnsafe(from).matchFragment(replacement, start, end)
+    const two = Option.isSome(one) ? one.value.matchFragment(this.content, to) : one
+    if (Option.isNone(two) || !two.value.validEnd) return false
     return replacement.content.every((node, i) => i < start || i >= end || this.type.allowsMarks(node.marks))
   }
 
@@ -462,9 +458,9 @@ export class Node<Sc extends AnySchema = AnySchema, out N extends NodeNames<Sc> 
    */
   canReplaceWith(from: number, to: number, type: NodeType<any, any>, marks?: ReadonlyArray<Mark<any, any>>): boolean {
     if (marks && !this.type.allowsMarks(marks)) return false
-    const start = this.contentMatchAtUnsafe(from).matchTypeOrNull(type)
-    const end = start && start.matchFragmentOrNull(this.content, to)
-    return end ? end.validEnd : false
+    const start = this.contentMatchAtUnsafe(from).matchType(type)
+    const end = Option.isSome(start) ? start.value.matchFragment(this.content, to) : start
+    return Option.isSome(end) && end.value.validEnd
   }
 
   /**
@@ -526,7 +522,8 @@ export class TextNode<Sc extends AnySchema = AnySchema> extends Node<Sc, "text" 
 
   /** @internal */
   constructor(type: NodeType<Sc, any>, attrs: Attrs, content: string, marks?: ReadonlyArray<Mark<Sc>>) {
-    super(type, attrs, null, marks)
+    super(type, attrs, undefined, marks)
+
     if (!content) throw new ContentError({ message: "Empty text nodes are not allowed" })
     this.text = content
   }
