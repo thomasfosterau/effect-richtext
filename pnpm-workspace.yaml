@@ -19,7 +19,7 @@ catalog:
   # Consumers of the prosemirror-* packages, for the conformance suite
   # (tests/conformance), which aliases those packages to the compat facade.
   "@prosekit/basic": ^0.9.14
-  "@prosekit/core": ^0.13.5
+  "@prosekit/core": ^0.13.6
   "@prosekit/extensions": ^0.18.8
   "@tiptap/core": ^3.35.0
   "@tiptap/extensions": ^3.35.0
