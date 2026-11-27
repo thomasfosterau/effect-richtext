@@ -6,6 +6,7 @@
  */
 import * as Arr from "effect/Array"
 import type * as Order from "effect/Order"
+import * as Rec from "effect/Record"
 import type { Fragment, Mark, Node } from "../Model.ts"
 import type { EditorState } from "../State.ts"
 import type { Mappable, Mapping } from "../Transform.ts"
@@ -14,9 +15,16 @@ import type { EditorView } from "./view.ts"
 
 function compareObjs(a: Readonly<Record<string, unknown>>, b: Readonly<Record<string, unknown>>) {
   if (a == b) return true
-  for (const p in a) if (a[p] !== b[p]) return false
-  for (const p in b) if (!(p in a)) return false
-  return true
+  return Rec.keys(a).every((p) => a[p] === b[p]) && Rec.keys(b).every((p) => p in a)
+}
+
+// Calls `f` with the start index of each `[from, to, set]` triple in a
+// decoration set's `children`.
+// A plain loop, stepping by three: a callback over every entry made the
+// mapped-decorations benchmark slower.
+function forEachChild(children: ReadonlyArray<number | DecorationSet>, f: (i: number) => void): void {
+  // oxlint-disable-next-line effect/imperative-loops
+  for (let i = 0; i < children.length; i += 3) f(i)
 }
 
 // Walks a fragment's children in increasing offset order, so validating
@@ -31,6 +39,8 @@ class FragmentCursor {
   // in increasing `from` order.
   spansNode(from: number, to: number): boolean {
     const children = this.frag.content
+    // A plain loop: the cursor carries on from where the last call left off.
+    // oxlint-disable-next-line effect/imperative-loops
     while (this.off <= from && this.index < children.length) {
       const next = children[this.index]
       if (!next) break
@@ -451,18 +461,17 @@ export class DecorationSet implements DecorationSource {
     offset: number,
     predicate?: (spec: any) => boolean
   ) {
-    for (let i = 0; i < this.local.length; i++) {
-      const span = this.local[i]
+    this.local.forEach((span) => {
       if (span.from <= end && span.to >= start && (!predicate || predicate(span.spec))) {
         result.push(span.copy(span.from + offset, span.to + offset))
       }
-    }
-    for (let i = 0; i < this.children.length; i += 3) {
+    })
+    forEachChild(this.children, (i) => {
       if (posAt(this.children, i) < end && posAt(this.children, i + 1) > start) {
         const childOff = posAt(this.children, i) + 1
         setAt(this.children, i + 2).findInner(start - childOff, end - childOff, result, offset + childOff, predicate)
       }
-    }
+    })
   }
 
   /** Map the set of decorations in response to a change in the document. */
@@ -482,11 +491,11 @@ export class DecorationSet implements DecorationSource {
     let newLocal: Array<Decoration> | undefined
     if (this.local.length) {
       const cur = new FragmentCursor(node.content)
-      for (let i = 0; i < this.local.length; i++) {
-        const mapped = this.local[i].map(mapping, offset, oldOffset)
+      this.local.forEach((deco) => {
+        const mapped = deco.map(mapping, offset, oldOffset)
         if (mapped && mapped.type.valid(node, mapped, cur)) (newLocal || (newLocal = [])).push(mapped)
-        else if (options.onRemove) options.onRemove(this.local[i].spec)
-      }
+        else if (options.onRemove) options.onRemove(deco.spec)
+      })
     }
 
     if (this.children.length) {
@@ -516,6 +525,8 @@ export class DecorationSet implements DecorationSource {
       if (!(found = takeSpansForNode(decorations, childNode, baseOffset))) return
 
       if (!children) children = this.children.slice()
+      // A plain loop: the index carries on across the document's children.
+      // oxlint-disable-next-line effect/imperative-loops
       while (childIndex < children.length && posAt(children, childIndex) < childOffset) childIndex += 3
       if (children[childIndex] == childOffset) {
         children[childIndex + 2] = setAt(children, childIndex + 2).addInner(childNode, found, baseOffset + 1)
@@ -532,11 +543,9 @@ export class DecorationSet implements DecorationSource {
     })
 
     // SAFETY: with `childIndex` 0 no child took spans, so `decorations` holds no nulls.
-    const local = moveSpans(childIndex ? withoutNulls(decorations) : (decorations as Array<Decoration>), -offset)
-    if (local.length) {
-      const cur = new FragmentCursor(doc.content)
-      for (let i = 0; i < local.length; i++) if (!local[i].type.valid(doc, local[i], cur)) local.splice(i--, 1)
-    }
+    const moved = moveSpans(childIndex ? withoutNulls(decorations) : (decorations as Array<Decoration>), -offset)
+    const cur = new FragmentCursor(doc.content)
+    const local = moved.filter((deco) => deco.type.valid(doc, deco, cur))
 
     return new DecorationSet(
       local.length ? Arr.sort(this.local.concat(local), byPos) : this.local,
@@ -554,43 +563,26 @@ export class DecorationSet implements DecorationSource {
   }
 
   private removeInner(decorations: Array<Decoration | null>, offset: number): DecorationSet {
-    // SAFETY: copy-on-write: both are replaced by a `slice()` before they are mutated.
-    let children = this.children as Array<number | DecorationSet>,
-      local = this.local as Array<Decoration>
-    for (let i = 0; i < children.length; i += 3) {
-      let found: Array<Decoration> | undefined
-      const from = posAt(children, i) + offset,
-        to = posAt(children, i + 1) + offset
-      for (let j = 0, span; j < decorations.length; j++) {
-        if ((span = decorations[j])) {
-          if (span.from > from && span.to < to) {
-            decorations[j] = null
-            ;(found || (found = [])).push(span)
-          }
+    let changedChildren = false
+    const mappedChildren = Arr.chunksOf(this.children, 3).flatMap((triple): Array<number | DecorationSet> => {
+      const from = posAt(triple, 0) + offset,
+        to = posAt(triple, 1) + offset
+      // Take the decorations that fall inside this child.
+      const found: Array<Decoration> = []
+      decorations.forEach((span, j) => {
+        if (span && span.from > from && span.to < to) {
+          decorations[j] = null
+          found.push(span)
         }
-      }
-      if (!found) continue
-      if (children == this.children) children = this.children.slice()
-      const removed = setAt(children, i + 2).removeInner(found, from + 1)
-      if (removed != empty) {
-        children[i + 2] = removed
-      } else {
-        children.splice(i, 3)
-        i -= 3
-      }
-    }
-    if (local.length) {
-      for (let i = 0, span; i < decorations.length; i++) {
-        if ((span = decorations[i])) {
-          for (let j = 0; j < local.length; j++) {
-            if (local[j].eq(span, offset)) {
-              if (local == this.local) local = this.local.slice()
-              local.splice(j--, 1)
-            }
-          }
-        }
-      }
-    }
+      })
+      if (Arr.isArrayEmpty(found)) return triple
+      changedChildren = true
+      const removed = setAt(triple, 2).removeInner(found, from + 1)
+      return removed != empty ? [triple[0], triple[1], removed] : []
+    })
+    const children = changedChildren ? mappedChildren : this.children
+    const kept = this.local.filter((deco) => !decorations.some((span) => span !== null && deco.eq(span, offset)))
+    const local = kept.length === this.local.length ? this.local : kept
     if (children == this.children && local == this.local) return this
     return local.length || children.length ? new DecorationSet(local, children) : empty
   }
@@ -599,23 +591,18 @@ export class DecorationSet implements DecorationSource {
     if (this == empty) return this
     if (node.isLeaf) return DecorationSet.empty
 
-    let child: DecorationSet | undefined, local: Array<Decoration> | undefined
-    for (let i = 0; i < this.children.length; i += 3) {
-      if (posAt(this.children, i) >= offset) {
-        if (this.children[i] == offset) child = setAt(this.children, i + 2)
-        break
-      }
-    }
+    let local: Array<Decoration> | undefined
+    const at = this.children.findIndex((_, i) => i % 3 === 0 && posAt(this.children, i) >= offset)
+    const child = at >= 0 && this.children[at] == offset ? setAt(this.children, at + 2) : undefined
     const start = offset + 1,
       end = start + node.content.size
-    for (let i = 0; i < this.local.length; i++) {
-      const dec = this.local[i]
+    this.local.forEach((dec) => {
       if (dec.from < end && dec.to > start && dec.type instanceof InlineType) {
         const from = Math.max(start, dec.from) - start,
           to = Math.min(end, dec.to) - start
         if (from < to) (local || (local = [])).push(dec.copy(from, to))
       }
-    }
+    })
     if (local) {
       const localSet = new DecorationSet(Arr.sort(local, byPos), none)
       return child ? new DecorationGroup([localSet, child]) : localSet
@@ -632,18 +619,12 @@ export class DecorationSet implements DecorationSource {
       this.children.length != other.children.length
     )
       return false
-    for (let i = 0; i < this.local.length; i++) {
-      if (!this.local[i].eq(other.local[i])) return false
-    }
-    for (let i = 0; i < this.children.length; i += 3) {
-      if (
-        this.children[i] != other.children[i] ||
-        this.children[i + 1] != other.children[i + 1] ||
-        !setAt(this.children, i + 2).eq(setAt(other.children, i + 2))
+    return (
+      this.local.every((deco, i) => deco.eq(other.local[i])) &&
+      this.children.every((entry, i) =>
+        i % 3 === 2 ? setAt(this.children, i).eq(setAt(other.children, i)) : entry == other.children[i]
       )
-        return false
-    }
-    return true
+    )
   }
 
   /** @internal */
@@ -655,13 +636,7 @@ export class DecorationSet implements DecorationSource {
   localsInner(node: Node<any, any>): ReadonlyArray<Decoration> {
     if (this == empty) return none
     if (node.inlineContent || !this.local.some(InlineType.is)) return this.local
-    const result = []
-    for (let i = 0; i < this.local.length; i++) {
-      if (!(this.local[i].type instanceof InlineType)) {
-        result.push(this.local[i])
-      }
-    }
-    return result
+    return this.local.filter((deco) => !(deco.type instanceof InlineType))
   }
 
   /** The empty set of decorations. */
@@ -691,37 +666,33 @@ export class DecorationGroup implements DecorationSource {
 
   forChild(offset: number, child: Node<any, any>): DecorationSource {
     if (child.isLeaf) return DecorationSet.empty
-    let found: Array<DecorationSet> = []
-    for (let i = 0; i < this.members.length; i++) {
-      const result = this.members[i].forChild(offset, child)
-      if (result == empty) continue
-      if (result instanceof DecorationGroup) found = found.concat(result.members)
-      else if (result instanceof DecorationSet) found.push(result)
-    }
+    const found = this.members.flatMap((member): ReadonlyArray<DecorationSet> => {
+      const result = member.forChild(offset, child)
+      if (result == empty) return []
+      if (result instanceof DecorationGroup) return result.members
+      return result instanceof DecorationSet ? [result] : []
+    })
     return DecorationGroup.from(found)
   }
 
   eq(other: DecorationSource): boolean {
     if (!(other instanceof DecorationGroup) || other.members.length != this.members.length) return false
-    for (let i = 0; i < this.members.length; i++) {
-      if (!this.members[i].eq(other.members[i])) return false
-    }
-    return true
+    return this.members.every((member, i) => member.eq(other.members[i]))
   }
 
   locals(node: Node<any, any>): ReadonlyArray<Decoration> {
     let result: ReadonlyArray<Decoration> | undefined,
       sorted = true
-    for (let i = 0; i < this.members.length; i++) {
-      const locals = this.members[i].localsInner(node)
-      if (!locals.length) continue
+    this.members.forEach((member) => {
+      const locals = member.localsInner(node)
+      if (!locals.length) return
       if (!result) {
         result = locals
       } else {
         result = result.concat(locals)
         sorted = false
       }
-    }
+    })
     return result ? removeOverlap(sorted ? result : Arr.sort(result, byPos)) : none
   }
 
@@ -741,7 +712,7 @@ export class DecorationGroup implements DecorationSource {
   }
 
   forEachSet(f: (set: DecorationSet) => void): void {
-    for (let i = 0; i < this.members.length; i++) this.members[i].forEachSet(f)
+    this.members.forEach((member) => member.forEachSet(f))
   }
 }
 
@@ -769,42 +740,47 @@ function mapChildren(
 
   // Mark the children that are directly touched by changes, and
   // move those that are after the changes.
-  for (let i = 0, baseOffset = oldOffset; i < mapping.maps.length; i++) {
+  let baseOffset = oldOffset
+  mapping.maps.forEach((map) => {
+    const base = baseOffset
     let moved = 0
-    mapping.maps[i].forEach((oldStart: number, oldEnd: number, newStart: number, newEnd: number) => {
+    map.forEach((oldStart: number, oldEnd: number, newStart: number, newEnd: number) => {
       const dSize = newEnd - newStart - (oldEnd - oldStart)
+      // A plain loop: it runs over every child for every change, and a
+      // callback made the mapped-decorations benchmark a tenth slower.
+      // oxlint-disable-next-line effect/imperative-loops
       for (let j = 0; j < children.length; j += 3) {
         const end = posAt(children, j + 1)
-        if (end < 0 || oldStart > end + baseOffset - moved) continue
-        const start = posAt(children, j) + baseOffset - moved
+        if (end < 0 || oldStart > end + base - moved) continue
+        const start = posAt(children, j) + base - moved
         if (oldEnd >= start) {
           children[j + 1] = oldStart <= start ? -2 : -1
-        } else if (oldStart >= baseOffset && dSize) {
+        } else if (oldStart >= base && dSize) {
           children[j] = posAt(children, j) + dSize
           children[j + 1] = end + dSize
         }
       }
       moved += dSize
     })
-    baseOffset = mapping.maps[i].map(baseOffset, -1)
-  }
+    baseOffset = map.map(baseOffset, -1)
+  })
 
   // Find the child nodes that still correspond to a single node,
   // recursively call mapInner on them and update their positions.
   let mustRebuild = false
-  for (let i = 0; i < children.length; i += 3) {
+  forEachChild(children, (i) => {
     if (posAt(children, i + 1) < 0) {
       // Touched nodes
       if (children[i + 1] == -2) {
         mustRebuild = true
         children[i + 1] = -1
-        continue
+        return
       }
       const from = mapping.map(posAt(oldChildren, i) + oldOffset),
         fromLocal = from - offset
       if (fromLocal < 0 || fromLocal >= node.content.size) {
         mustRebuild = true
-        continue
+        return
       }
       // Must read oldChildren because children was tagged with -1
       const to = mapping.map(posAt(oldChildren, i + 1) + oldOffset, -1),
@@ -831,7 +807,7 @@ function mapChildren(
         mustRebuild = true
       }
     }
-  }
+  })
 
   // Remaining children must be collected and rebuilt into the appropriate structure
   if (mustRebuild) {
@@ -847,17 +823,13 @@ function mapChildren(
     const built = buildTree(decorations, node, 0, options)
     // SAFETY: `newLocal` is only sorted (into a new array) from here on.
     newLocal = built.local as Array<Decoration>
-    for (let i = 0; i < children.length; i += 3) {
-      if (posAt(children, i + 1) < 0) {
-        children.splice(i, 3)
-        i -= 3
-      }
-    }
-    for (let i = 0, j = 0; i < built.children.length; i += 3) {
-      const from = posAt(built.children, i)
-      while (j < children.length && posAt(children, j) < from) j += 3
-      children.splice(j, 0, built.children[i], built.children[i + 1], built.children[i + 2])
-    }
+    // Drop the touched children, then merge in the rebuilt ones by position.
+    const kept = Arr.chunksOf(children, 3).filter((triple) => posAt(triple, 1) >= 0)
+    Arr.chunksOf(built.children, 3).forEach((triple) => {
+      const at = kept.findIndex((other) => posAt(other, 0) >= posAt(triple, 0))
+      kept.splice(at < 0 ? kept.length : at, 0, triple)
+    })
+    return new DecorationSet(Arr.sort(newLocal, byPos), kept.flat())
   }
 
   return new DecorationSet(Arr.sort(newLocal, byPos), children)
@@ -865,12 +837,7 @@ function mapChildren(
 
 function moveSpans(spans: Array<Decoration>, offset: number) {
   if (!offset || !spans.length) return spans
-  const result = []
-  for (let i = 0; i < spans.length; i++) {
-    const span = spans[i]
-    result.push(new Decoration(span.from + offset, span.to + offset, span.type))
-  }
-  return result
+  return spans.map((span) => new Decoration(span.from + offset, span.to + offset, span.type))
 }
 
 function mapAndGatherRemainingDecorations(
@@ -884,20 +851,16 @@ function mapAndGatherRemainingDecorations(
 ) {
   // Gather all decorations from the remaining marked children
   function gather(set: DecorationSet, base: number) {
-    for (let i = 0; i < set.local.length; i++) {
-      const mapped = set.local[i].map(mapping, offset, base)
+    set.local.forEach((deco) => {
+      const mapped = deco.map(mapping, offset, base)
       if (mapped) decorations.push(mapped)
-      else if (options.onRemove) options.onRemove(set.local[i].spec)
-    }
-    for (let i = 0; i < set.children.length; i += 3) {
-      gather(setAt(set.children, i + 2), posAt(set.children, i) + base + 1)
-    }
+      else if (options.onRemove) options.onRemove(deco.spec)
+    })
+    forEachChild(set.children, (i) => gather(setAt(set.children, i + 2), posAt(set.children, i) + base + 1))
   }
-  for (let i = 0; i < children.length; i += 3) {
-    if (children[i + 1] == -1) {
-      gather(setAt(children, i + 2), posAt(oldChildren, i) + oldOffset + 1)
-    }
-  }
+  forEachChild(children, (i) => {
+    if (children[i + 1] == -1) gather(setAt(children, i + 2), posAt(oldChildren, i) + oldOffset + 1)
+  })
 
   return decorations
 }
@@ -910,6 +873,9 @@ function takeSpansForNode(
   if (node.isLeaf) return null
   const end = offset + node.nodeSize
   let found: Array<Decoration> | null = null
+  // A plain loop: building a set runs it over every span for every node,
+  // and a callback made the live-search benchmark a tenth slower.
+  // oxlint-disable-next-line effect/imperative-loops
   for (let i = 0, span; i < spans.length; i++) {
     if ((span = spans[i]) && span.from > offset && span.to < end) {
       ;(found || (found = [])).push(span)
@@ -920,12 +886,7 @@ function takeSpansForNode(
 }
 
 function withoutNulls<T>(array: ReadonlyArray<T | null>): Array<T> {
-  const result: Array<T> = []
-  for (let i = 0; i < array.length; i++) {
-    const item = array[i]
-    if (item != null) result.push(item)
-  }
-  return result
+  return array.filter((item): item is T => item != null)
 }
 
 // Build up a tree that corresponds to a set of decorations. `offset`
@@ -951,16 +912,13 @@ function buildTree(
     }
   })
   // SAFETY: without `hasNulls` no child took spans, so `spans` holds no nulls.
-  const locals = Arr.sort(moveSpans(hasNulls ? withoutNulls(spans) : (spans as Array<Decoration>), -offset), byPos)
-  if (locals.length) {
-    const cur = new FragmentCursor(node.content)
-    for (let i = 0; i < locals.length; i++) {
-      if (!locals[i].type.valid(node, locals[i], cur)) {
-        if (options.onRemove) options.onRemove(locals[i].spec)
-        locals.splice(i--, 1)
-      }
-    }
-  }
+  const sorted = Arr.sort(moveSpans(hasNulls ? withoutNulls(spans) : (spans as Array<Decoration>), -offset), byPos)
+  const cur = new FragmentCursor(node.content)
+  const locals = sorted.filter((deco) => {
+    if (deco.type.valid(node, deco, cur)) return true
+    if (options.onRemove) options.onRemove(deco.spec)
+    return false
+  })
   return locals.length || children.length ? new DecorationSet(locals, children) : empty
 }
 
@@ -978,9 +936,12 @@ const byPos: Order.Order<Decoration> = (a, b) =>
 function removeOverlap(spans: ReadonlyArray<Decoration>): Array<Decoration> {
   // SAFETY: copy-on-write: replaced by a `slice()` before it is mutated.
   let working: Array<Decoration> = spans as Array<Decoration>
+  // Plain loops: splitting a span inserts into the array being scanned.
+  // oxlint-disable-next-line effect/imperative-loops
   for (let i = 0; i < working.length - 1; i++) {
     const span = working[i]
     if (span.from != span.to) {
+      // oxlint-disable-next-line effect/imperative-loops
       for (let j = i + 1; j < working.length; j++) {
         const next = working[j]
         if (next.from == span.from) {
@@ -1009,8 +970,8 @@ function removeOverlap(spans: ReadonlyArray<Decoration>): Array<Decoration> {
 }
 
 function insertAhead(array: Array<Decoration>, i: number, deco: Decoration) {
-  while (i < array.length && byPos(deco, array[i]) > 0) i++
-  array.splice(i, 0, deco)
+  const at = array.findIndex((other, k) => k >= i && byPos(deco, other) <= 0)
+  array.splice(at < 0 ? array.length : at, 0, deco)
 }
 
 /**
